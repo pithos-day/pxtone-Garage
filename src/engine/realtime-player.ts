@@ -1,0 +1,146 @@
+// AudioWorklet プレイヤーのメインスレッド側ラッパー。
+// pxtone-ts の検証用実装 (web/realtime-player.ts) をベースに、
+// ユニット個別ミュート (setMutedUnits) と base path 対応を追加したもの。
+
+
+export interface RealtimePlayerOptions {
+  onPosition?: (sample: number) => void;
+  onEnded?: () => void;
+  onLoaded?: (ok: boolean, totalSample: number) => void;
+}
+
+export class RealtimePlayer {
+  private ctx: AudioContext | null = null;
+  private node: AudioWorkletNode | null = null;
+  private sps = 44100;
+  private totalSample = 0;
+  private playing = false;
+  private lastPosSample = 0;
+  private lastPosTime = 0;
+  private opts: RealtimePlayerOptions;
+  private pendingLoad: { resolve: (ok: boolean) => void } | null = null;
+  private disposed = false;
+
+  constructor(opts: RealtimePlayerOptions = {}) {
+    this.opts = opts;
+  }
+
+  get sampleRate(): number {
+    return this.sps;
+  }
+
+  get isPlaying(): boolean {
+    return this.playing;
+  }
+
+  totalSampleOf(): number {
+    return this.totalSample;
+  }
+
+  get durationSec(): number {
+    return this.totalSample / this.sps;
+  }
+
+  async init(): Promise<void> {
+    if (this.ctx) return;
+    this.ctx = new AudioContext();
+    this.sps = this.ctx.sampleRate;
+    const base = import.meta.env.BASE_URL ?? "/";
+    const url = new URL(`${base}worklet/player-worklet.js`, window.location.href);
+    await this.ctx.audioWorklet.addModule(url);
+    if (this.disposed) return;
+    this.node = new AudioWorkletNode(this.ctx, "pxtone-player", {
+      numberOfInputs: 0,
+      numberOfOutputs: 1,
+      outputChannelCount: [2],
+    });
+    this.node.connect(this.ctx.destination);
+    this.node.port.onmessage = (e: MessageEvent<WorkletToMain>) => this.onMessage(e.data);
+  }
+
+  private onMessage(msg: WorkletToMain): void {
+    switch (msg.type) {
+      case "loaded":
+        this.totalSample = msg.totalSample;
+        if (this.pendingLoad) {
+          this.pendingLoad.resolve(msg.ok);
+          this.pendingLoad = null;
+        }
+        this.opts.onLoaded?.(msg.ok, msg.totalSample);
+        break;
+      case "position":
+        this.lastPosSample = msg.sample;
+        this.lastPosTime = performance.now();
+        this.opts.onPosition?.(msg.sample);
+        break;
+      case "ended":
+        this.playing = false;
+        this.lastPosSample = this.totalSample;
+        this.opts.onEnded?.();
+        break;
+    }
+  }
+
+  async load(bytes: Uint8Array): Promise<boolean> {
+    await this.init();
+    const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+    const ok = await new Promise<boolean>((resolve) => {
+      this.pendingLoad = { resolve };
+      this.node!.port.postMessage({ type: "load", bytes: buf, sps: this.sps }, [buf]);
+    });
+    return ok;
+  }
+
+  play(): void {
+    this.playing = true;
+    this.lastPosTime = performance.now();
+    this.node?.port.postMessage({ type: "play" });
+  }
+
+  stop(): void {
+    this.playing = false;
+    this.node?.port.postMessage({ type: "stop" });
+  }
+
+  seek(sec: number): void {
+    const sample = Math.trunc(Math.max(0, sec) * this.sps);
+    this.node?.port.postMessage({ type: "seek", sample });
+    this.lastPosSample = sample;
+    this.lastPosTime = performance.now();
+  }
+
+  setLoop(loop: boolean): void {
+    this.node?.port.postMessage({ type: "setLoop", loop });
+  }
+
+  setMasterVolume(volume: number): void {
+    this.node?.port.postMessage({ type: "setMasterVolume", volume });
+  }
+
+  // ミュート中のユニット番号配列を送信する (プレーン配列必須: postMessage の制約)
+  setMutedUnits(units: number[]): void {
+    this.node?.port.postMessage({ type: "setMutedUnits", units: [...units] });
+  }
+
+  // 現在の再生位置 (サンプル)。再生中は position 通知からの経過時間で補間する
+  getCurrentSample(): number {
+    if (!this.playing) return this.lastPosSample;
+    const elapsed = (performance.now() - this.lastPosTime) / 1000;
+    return Math.min(this.lastPosSample + elapsed * this.sps, this.totalSample);
+  }
+
+  dispose(): void {
+    this.disposed = true;
+    this.node?.disconnect();
+    this.node = null;
+    if (this.ctx) {
+      void this.ctx.close();
+      this.ctx = null;
+    }
+  }
+}
+
+type WorkletToMain =
+  | { type: "loaded"; ok: boolean; error: string; totalSample: number }
+  | { type: "position"; sample: number }
+  | { type: "ended" };

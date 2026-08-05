@@ -1,0 +1,103 @@
+// ファイルの開く・保存・書き出し
+import { Service, PxtnErr, MemoryIo } from "pxtone-ts";
+import { EXE_VER } from "../state/service";
+import { exportBytes } from "../state/project";
+
+export function downloadBytes(bytes: Uint8Array, fileName: string, mime = "application/octet-stream"): void {
+  const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+  const blob = new Blob([buf], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export function openFileDialog(accept: string): Promise<Uint8Array | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = accept;
+    input.onchange = () => {
+      const f = input.files?.[0];
+      if (!f) {
+        resolve(null);
+        return;
+      }
+      void f.arrayBuffer().then((buf) => resolve(new Uint8Array(buf)));
+    };
+    input.click();
+  });
+}
+
+export function sanitizeFileName(name: string, ext: string): string {
+  const base = name.replace(/[\\/:*?"<>|]/g, "_").trim();
+  return (base || "untitled") + ext;
+}
+
+// ptcop 保存
+export function saveProject(fileName: string): Uint8Array | null {
+  const bytes = exportBytes();
+  if (!bytes) return null;
+  downloadBytes(bytes, sanitizeFileName(fileName, ".ptcop"));
+  return bytes;
+}
+
+// pttune 書き出し (bTune=true)
+export function exportPttune(bytes: Uint8Array, fileName: string): boolean {
+  const s = new Service();
+  if (s.init() !== PxtnErr.OK) return false;
+  if (s.read(new MemoryIo(bytes)) !== PxtnErr.OK) return false;
+  const io = new MemoryIo();
+  if (s.write(io, true, EXE_VER) !== PxtnErr.OK) return false;
+  downloadBytes(io.toUint8Array(), sanitizeFileName(fileName, ".pttune"));
+  return true;
+}
+
+// WAV 書き出し (オフライン全曲レンダリング)
+export function exportWav(bytes: Uint8Array, fileName: string, sps = 44100): string | null {
+  const s = new Service();
+  if (s.init() !== PxtnErr.OK) return "エンジン初期化失敗";
+  if (s.read(new MemoryIo(bytes)) !== PxtnErr.OK) return "読み込み失敗";
+  if (s.tonesReady() !== PxtnErr.OK) return "音色変換失敗";
+  if (!s.setDestinationQuality(2, sps)) return "品質設定失敗";
+  if (!s.mooPreparation(null)) return "再生準備失敗";
+  const total = s.mooGetSamplingEnd();
+  const pcm = new Int16Array(total * 2);
+  const CHUNK = 44100;
+  for (let pos = 0; pos < total; pos += CHUNK) {
+    const n = Math.min(CHUNK, total - pos);
+    s.Moo(pcm.subarray(pos * 2), n);
+  }
+  const wav = makeWav(pcm, sps, 2, 16);
+  downloadBytes(wav, sanitizeFileName(fileName, ".wav"), "audio/wav");
+  return null;
+}
+
+export function makeWav(pcm: Int16Array, sps: number, chNum: number, bps: number): Uint8Array {
+  const dataSize = pcm.length * 2;
+  const buf = new ArrayBuffer(44 + dataSize);
+  const dv = new DataView(buf);
+  const u8 = new Uint8Array(buf);
+  const writeStr = (off: number, s: string): void => {
+    for (let i = 0; i < s.length; i++) u8[off + i] = s.charCodeAt(i);
+  };
+  writeStr(0, "RIFF");
+  dv.setUint32(4, 36 + dataSize, true);
+  writeStr(8, "WAVE");
+  writeStr(12, "fmt ");
+  dv.setUint32(16, 16, true);
+  dv.setUint16(20, 1, true);
+  dv.setUint16(22, chNum, true);
+  dv.setUint32(24, sps, true);
+  dv.setUint32(28, (sps * chNum * bps) / 8, true);
+  dv.setUint16(32, (chNum * bps) / 8, true);
+  dv.setUint16(34, bps, true);
+  writeStr(36, "data");
+  dv.setUint32(40, dataSize, true);
+  new Int16Array(buf, 44).set(pcm);
+  return u8;
+}
