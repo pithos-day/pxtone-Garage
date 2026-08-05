@@ -8,7 +8,6 @@ import {
   PxtnErr,
   MemoryIo,
   shiftJisToString,
-  encodeShiftJis,
   EVENTDEFAULT_KEY,
   EVENTDEFAULT_VELOCITY,
   EVENTDEFAULT_VOLUME,
@@ -20,6 +19,7 @@ import {
   EVENTDEFAULT_TUNING,
   type EveRecord,
 } from "pxtone-ts";
+import { encodeShiftJis } from "../lib/sjis";
 import { service, ensureService, EXE_VER } from "./service";
 import { pushUndo, clearUndo } from "./undo";
 

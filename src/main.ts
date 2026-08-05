@@ -1,16 +1,18 @@
 import { createApp } from 'vue'
 import './style.css'
 import App from './App.vue'
-import { openProject, newProject, doc, getService, mutate, beginEdit, commitEdit, exportBytes } from './state/project'
+import { openProject, newProject, doc, getService, mutate, beginEdit, commitEdit, exportBytes, setTextComment, setTextName } from './state/project'
 import { play, stop, seekToClock } from './state/player'
 import { undo, redo, pushUndo } from './state/undo'
 import { renderPreview, previewUnit, previewWoice } from './engine/preview'
+import { MemoryIo } from 'pxtone-ts'
 
 createApp(App).mount('#app')
 
 // 開発・テスト用フック
 if (import.meta.env.DEV) {
   ;(window as unknown as Record<string, unknown>).__pxtoneGarage = {
+    MemoryIo,
     openProject,
     newProject,
     doc,
@@ -24,6 +26,9 @@ if (import.meta.env.DEV) {
     mutate,
     beginEdit,
     commitEdit,
+    exportBytes,
+    setTextComment,
+    setTextName,
     previewUnit,
     previewWoice,
     // 単音プレビューのデバッグ用: { len, peak } を返す
