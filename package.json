@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "pxtone-ts": "https://codeberg.org/pithos/pxtone-ts.git",
     "vue": "^3.5.40"
   },
   "devDependencies": {
