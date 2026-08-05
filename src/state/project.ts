@@ -143,10 +143,11 @@ export function sync(): void {
   doc.muted = doc.muted.filter((u) => u >= 0 && u < s.unitNum);
 }
 
+// 音色名を表示用にデコード (本家同様、最初の NUL で終端する C 文字列扱い)
 export function woiceName(w: { getNameBuf(): Uint8Array }): string {
   const buf = w.getNameBuf();
-  let end = buf.length;
-  while (end > 0 && buf[end - 1] === 0) end--;
+  let end = buf.indexOf(0);
+  if (end < 0) end = buf.length;
   return shiftJisToString(buf.subarray(0, end)) || "(no name)";
 }
 
