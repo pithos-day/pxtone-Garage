@@ -1,6 +1,6 @@
 // 再生パネル (フローティング)
 <script setup lang="ts">
-import FloatingPanel from "./FloatingPanel.vue";
+import PanelBox from "./PanelBox.vue";
 import { isPlaying, togglePlay, stop, loop, setLoop, masterVolume, setMasterVolume, currentClock, positionSample, player } from "../../state/player";
 import { getService, clockView as projectClockView } from "../../state/project";
 import { formatClock } from "../../lib/clock";
@@ -21,7 +21,7 @@ function fmt(sec: number): string {
 </script>
 
 <template>
-  <FloatingPanel name="player" title="Player" :width="220">
+  <PanelBox title="Player">
     <div class="player-body">
       <div class="row">
         <button class="btn btn-accent play-btn" @click="togglePlay">{{ isPlaying ? "⏸" : "▶" }}</button>
@@ -42,7 +42,7 @@ function fmt(sec: number): string {
         <span class="clock">{{ formatClock(projectClockView(), currentClock) }}</span>
       </div>
     </div>
-  </FloatingPanel>
+  </PanelBox>
 </template>
 
 <style scoped>

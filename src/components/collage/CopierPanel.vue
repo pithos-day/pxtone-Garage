@@ -1,6 +1,6 @@
 // コピー種別フィルタ (9種) — フローティング
 <script setup lang="ts">
-import FloatingPanel from "./FloatingPanel.vue";
+import PanelBox from "./PanelBox.vue";
 import { doc } from "../../state/project";
 import { EventKind } from "pxtone-ts";
 
@@ -22,14 +22,14 @@ function toggle(i: number): void {
 </script>
 
 <template>
-  <FloatingPanel name="copier" title="Copier (コピー種別)" :width="170">
+  <PanelBox title="Copier (コピー種別)">
     <div class="copier-body">
       <label v-for="k in KINDS" :key="k.i" class="copier-item">
         <input type="checkbox" :checked="doc.copier[k.i]" @change="toggle(k.i)" />
         {{ k.label }}
       </label>
     </div>
-  </FloatingPanel>
+  </PanelBox>
 </template>
 
 <style scoped>

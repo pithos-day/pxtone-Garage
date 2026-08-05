@@ -1,7 +1,7 @@
 // エフェクトパネル (Delay / OverDrive) — フローティング
 <script setup lang="ts">
 import { ref } from "vue";
-import FloatingPanel from "./FloatingPanel.vue";
+import PanelBox from "./PanelBox.vue";
 import {
   delays,
   overdrives,
@@ -50,7 +50,7 @@ function onAddOverdrive(): void {
 </script>
 
 <template>
-  <FloatingPanel name="effector" title="Effector" :width="280">
+  <PanelBox title="Effector">
     <div class="eff-body">
       <div class="eff-section">
         <div class="eff-head">
@@ -119,7 +119,7 @@ function onAddOverdrive(): void {
         <button class="btn" @click="editing = null">キャンセル</button>
       </div>
     </div>
-  </FloatingPanel>
+  </PanelBox>
 </template>
 
 <style scoped>

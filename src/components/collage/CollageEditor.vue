@@ -124,6 +124,13 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
         <KeyField v-if="doc.mode === 'K'" />
         <ScrollBar class="vscroll" :vertical="true" :length="units.length" />
       </div>
+      <!-- パネル (ページ埋め込み) -->
+      <aside class="collage-sidebar">
+        <PlayerPanel v-if="panels.player.open" />
+        <ProjectorPanel v-if="panels.projector.open" />
+        <EffectorPanel v-if="panels.effector.open" />
+        <CopierPanel v-if="panels.copier.open" />
+      </aside>
     </div>
     <div v-if="doc.volumeVisible" class="collage-vol">
       <VolumePanel :modes="volumeModes" />
@@ -133,12 +140,6 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
       <div class="collage-hscroll-spacer" />
       <ScrollBar class="hscroll" :vertical="false" />
     </div>
-
-    <!-- フローティングパネル -->
-    <PlayerPanel v-if="panels.player.open" />
-    <ProjectorPanel v-if="panels.projector.open" />
-    <EffectorPanel v-if="panels.effector.open" />
-    <CopierPanel v-if="panels.copier.open" />
   </div>
 </template>
 
@@ -238,6 +239,20 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
 
 .collage-field-wrap > :deep(.field-canvas) {
   flex: 1;
+}
+
+/* パネルサイドバー (ページ埋め込み) */
+.collage-sidebar {
+  width: 250px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border-left: 1px solid var(--border);
+  background: var(--panel-dark);
+  overflow-y: auto;
+  min-height: 0;
 }
 
 

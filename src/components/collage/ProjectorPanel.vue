@@ -1,7 +1,7 @@
 // 曲情報パネル (フローティング) — BPM/拍子/小節数/曲名
 <script setup lang="ts">
 import { ref } from "vue";
-import FloatingPanel from "./FloatingPanel.vue";
+import PanelBox from "./PanelBox.vue";
 import { getService, title, comment, setTempo, setBeatNum, setMeasNum, setTextName, setTextComment } from "../../state/project";
 
 const nameEdit = ref("");
@@ -50,7 +50,7 @@ function commitComment(): void {
 </script>
 
 <template>
-  <FloatingPanel name="projector" title="Projector" :width="230">
+  <PanelBox title="Projector">
     <div class="proj-body">
       <div class="row">
         <label>曲名</label>
@@ -105,7 +105,7 @@ function commitComment(): void {
         <span>{{ getService()?.master.lastMeas }} 小節目</span>
       </div>
     </div>
-  </FloatingPanel>
+  </PanelBox>
 </template>
 
 <style scoped>
