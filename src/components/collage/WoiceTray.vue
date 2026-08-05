@@ -98,7 +98,8 @@ function woiceSummary(idx: number): string {
 
 .tray-list {
   flex: 1;
-  overflow: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 .woice-row {

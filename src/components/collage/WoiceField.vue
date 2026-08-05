@@ -1,4 +1,4 @@
-// 音色プロパティ一覧 (W モード)
+// 音色プロパティ一覧 (W モード) — 縦スクロール対応
 <script setup lang="ts">
 import { useCanvas } from "../../composables/useCanvas";
 import { ref } from "vue";
@@ -9,6 +9,7 @@ import { woiceTypeColor } from "../../lib/theme";
 
 const BAND = 12;
 const ROW_H = 18;
+const HEADER_H = 24; // ヘッダ行の高さ
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 
 // カラム: NO / 名前 / 型 / 情報
@@ -22,7 +23,7 @@ const cols = [
 useCanvas(
   canvasRef,
   (ctx, w, h) => draw(ctx, w, h),
-  [() => doc.rev, () => woices.value.length, () => doc.scrollX, () => doc.zoom],
+  [() => doc.rev, () => woices.value.length, () => doc.scrollX, () => doc.zoom, () => doc.scrollYUnit],
 );
 
 function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
@@ -32,16 +33,27 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   drawGrid(ctx, { w, h, scrollX: doc.scrollX, view, top: 0, bottom: BAND, showNumber: true, numberTop: 0 });
   fillRect(ctx, 0, BAND, w, h - BAND, COLORS.fieldBg);
 
-  // ヘッダ行
+  // ヘッダ行 (固定)
   fillText(ctx, "音色リスト", 4, BAND + 10, COLORS.textBright, 11);
   for (const c of cols) {
     fillText(ctx, c.label, c.x, BAND + 24, COLORS.textDim, 9);
   }
 
+  const fieldTop = BAND + HEADER_H;
+  const fieldH = h - fieldTop;
+  const scrollY = doc.scrollYUnit * ROW_H;
+
+  // クリップ (ヘッダより下のみ)
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, fieldTop, w, fieldH);
+  ctx.clip();
+
   for (let i = 0; i < s.woiceNum; i++) {
     const w2 = s.woiceGet(i);
     if (!w2) continue;
-    const y = BAND + 12 + (i + 1) * ROW_H;
+    const y = fieldTop + i * ROW_H - scrollY;
+    if (y + ROW_H < fieldTop || y > fieldTop + fieldH) continue;
     const vc = w2.getVoice(0);
     fillRect(ctx, 0, y, w, ROW_H, i % 2 ? "rgba(255,255,255,0.02)" : "transparent");
     fillRect(ctx, 0, y, 3, ROW_H, woiceTypeColor(w2.type));
@@ -70,9 +82,16 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     }
     fillText(ctx, info, cols[3]!.x, y + 13, COLORS.text, 10);
   }
+  ctx.restore();
+}
+
+// ホイールで縦スクロール
+function onWheel(e: WheelEvent): void {
+  const maxRow = Math.max(0, woices.value.length - 1);
+  doc.scrollYUnit = Math.max(0, Math.min(maxRow, doc.scrollYUnit + Math.sign(e.deltaY)));
 }
 </script>
 
 <template>
-  <canvas ref="canvasRef" class="field-canvas" />
+  <canvas ref="canvasRef" class="field-canvas" @wheel="onWheel" />
 </template>
