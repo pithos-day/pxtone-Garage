@@ -518,25 +518,31 @@ export function clearScope(): void {
   doc.scope2 = 0;
 }
 
+// 音色を単体ファイルバイト列としてエクスポート。
+// Woice.read は PTV を ptvRead、PTN を ptn.read で直接読むため、
+// PTV は .ptvoice 形式、PTN は .ptnoise 形式 (共にスタンドアロン) で書き出す。
+// PCM のみ mate セクション形式 (ioMatePcmR が読む) を使う。
 export function woiceBytes(idx: number): Uint8Array | null {
   const w = service.woiceGet(idx);
   if (!w) return null;
   const io = new MemoryIo();
-  let ok = false;
   switch (w.type) {
-    case WoiceType.PTV:
-      ok = w.ioMatePtvW(io);
+    case WoiceType.PTV: {
+      const size = w.ptvWrite(io);
+      if (size < 0) return null;
       break;
-    case WoiceType.PTN:
-      ok = w.ioMatePtnW(io);
+    }
+    case WoiceType.PTN: {
+      const vc = w.getVoice(0);
+      if (!vc || !vc.ptn.write(io)) return null;
       break;
+    }
     case WoiceType.PCM:
-      ok = w.ioMatePcmW(io);
+      if (!w.ioMatePcmW(io)) return null;
       break;
     default:
       return null;
   }
-  if (!ok) return null;
   return io.toUint8Array();
 }
 
