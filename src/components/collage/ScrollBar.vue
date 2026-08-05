@@ -1,7 +1,7 @@
 // ドラッグ式スクロールバー (縦/横)
 // 正規化位置 (0..1) で thumb 位置とコンテンツオフセットを対応させる
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { doc, getService } from "../../state/project";
 
 const props = defineProps<{
@@ -70,6 +70,11 @@ const frac = computed(() => {
 });
 
 const thumbPos = computed(() => frac.value * trackRange.value);
+
+// ズーム変更・曲切替などでコンテンツ範囲が縮んだら scrollX をクランプ
+watch(contentRange, (cr) => {
+  if (offset.value > cr) setFrac(1);
+});
 
 function setFrac(f: number): void {
   const clamped = Math.max(0, Math.min(1, f));

@@ -202,6 +202,9 @@ export function newProject(): boolean {
   doc.muted = [];
   doc.scope1 = 0;
   doc.scope2 = 0;
+  doc.scrollX = 0;
+  doc.scrollYUnit = 0;
+  doc.scrollYKey = 0;
   doc.dirty = false;
   clearUndo();
   sync();
@@ -220,6 +223,9 @@ export function openProject(bytes: Uint8Array): string | null {
   doc.muted = [];
   doc.scope1 = 0;
   doc.scope2 = 0;
+  doc.scrollX = 0;
+  doc.scrollYUnit = 0;
+  doc.scrollYKey = 0;
   doc.dirty = false;
   clearUndo();
   sync();

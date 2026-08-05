@@ -69,22 +69,30 @@ export function togglePlay(): void {
   else void play();
 }
 
-export function seekToClock(clock: number): void {
-  const s = getService();
-  if (!s) return;
-  const sec = clockToSec(s, clock);
-  player.seek(sec);
-  positionSample.value = Math.trunc(sec * player.sampleRate);
-}
-
+// クロック → 秒。rate = 60*sps/(tempo*beatClock) は samples/clock なので
+// sec = clock × rate / sps = clock × 60/(tempo×beatClock)
 export function clockToSec(s: { master: { beatTempo: number; beatClock: number } }, clock: number): number {
-  const rate = (60 * player.sampleRate) / (s.master.beatTempo * s.master.beatClock);
-  return clock / rate;
+  return (clock * 60) / (s.master.beatTempo * s.master.beatClock);
 }
 
 export function secToClock(s: { master: { beatTempo: number; beatClock: number } }, sec: number): number {
-  const rate = (60 * player.sampleRate) / (s.master.beatTempo * s.master.beatClock);
-  return Math.trunc(sec * rate);
+  return Math.trunc((sec * s.master.beatTempo * s.master.beatClock) / 60);
+}
+
+// 曲の長さ (クロック) = 再生終端小節 × 拍数 × 分解能
+export function songLengthClock(s: { master: { playMeas: number; beatNum: number; beatClock: number } }): number {
+  return s.master.playMeas * s.master.beatNum * s.master.beatClock;
+}
+
+export function seekToClock(clock: number): void {
+  const s = getService();
+  if (!s) return;
+  // 曲の長さを超えないようにクランプ
+  const maxClock = songLengthClock(s);
+  const c = Math.max(0, Math.min(maxClock, Math.trunc(clock)));
+  const sec = clockToSec(s, c);
+  player.seek(sec);
+  positionSample.value = Math.trunc(sec * player.sampleRate);
 }
 
 export function setLoop(b: boolean): void {
