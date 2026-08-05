@@ -1,0 +1,95 @@
+// 再生範囲マーカー帯 (repeat / last)
+<script setup lang="ts">
+import { ref } from "vue";
+import { useCanvas } from "../../composables/useCanvas";
+import { COLORS } from "../../lib/theme";
+import { drawGrid, fillRect, fillText } from "../../lib/draw";
+import { clockToX, measOfClock } from "../../lib/clock";
+import { doc, getService, clockView as projectClockView, setRepeatMeas, setLastMeas } from "../../state/project";
+
+const canvasRef = ref<HTMLCanvasElement | null>(null);
+const menu = ref<{ x: number; y: number; meas: number } | null>(null);
+
+useCanvas(
+  canvasRef,
+  (ctx, w, h) => draw(ctx, w, h),
+  [() => doc.rev, () => doc.scrollX, () => doc.zoom],
+);
+
+function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  const s = getService();
+  if (!s) return;
+  const view = projectClockView();
+  fillRect(ctx, 0, 0, w, h, COLORS.rulerBg);
+  drawGrid(ctx, { w, h, scrollX: doc.scrollX, view, top: 0, bottom: h });
+
+  const repeatX = clockToX(view, s.master.repeatMeas * view.beatClock * view.beatNum) - doc.scrollX;
+  const lastX = clockToX(view, s.master.lastMeas * view.beatClock * view.beatNum) - doc.scrollX;
+
+  // repeat マーカー
+  if (s.master.repeatMeas > 0) {
+    fillRect(ctx, repeatX, 2, 2, h - 4, "#ff8080");
+    fillText(ctx, "R", repeatX + 3, 11, "#ff8080", 9);
+  }
+  // last マーカー
+  if (s.master.lastMeas > 0) {
+    fillRect(ctx, lastX, 2, 2, h - 4, "#80ff80");
+    fillText(ctx, "L", lastX + 3, 11, "#80ff80", 9);
+  }
+}
+
+function onPointerDown(e: PointerEvent): void {
+  if (e.button === 2) {
+    const c = canvasRef.value!;
+    const r = c.getBoundingClientRect();
+    const x = e.clientX - r.left;
+    const view = projectClockView();
+    const clock = doc.scrollX + (x / view.zoom) * view.beatClock;
+    const meas = measOfClock(view, clock);
+    menu.value = { x: e.clientX, y: e.clientY, meas };
+    e.preventDefault();
+  }
+}
+
+function onMenuAction(action: "setRepeat" | "setLast" | "cutRepeat" | "cutLast"): void {
+  const m = menu.value;
+  menu.value = null;
+  if (!m) return;
+  switch (action) {
+    case "setRepeat":
+      setRepeatMeas(m.meas);
+      break;
+    case "setLast":
+      setLastMeas(m.meas);
+      break;
+    case "cutRepeat":
+      setRepeatMeas(0);
+      break;
+    case "cutLast":
+      setLastMeas(0);
+      break;
+  }
+}
+</script>
+
+<template>
+  <div class="playfield">
+    <canvas ref="canvasRef" class="field-canvas" @pointerdown="onPointerDown" @contextmenu.prevent />
+    <div v-if="menu" class="ctxmenu" :style="{ left: menu.x + 'px', top: menu.y + 'px' }">
+      <button @click="onMenuAction('setRepeat')">Repeat をここに設定</button>
+      <button @click="onMenuAction('setLast')">Last をここに設定</button>
+      <div class="sep" />
+      <button @click="onMenuAction('cutRepeat')">Repeat をクリア</button>
+      <button @click="onMenuAction('cutLast')">Last をクリア</button>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.playfield {
+  height: 16px;
+  position: relative;
+  border-bottom: 1px solid var(--border);
+  cursor: crosshair;
+}
+</style>
