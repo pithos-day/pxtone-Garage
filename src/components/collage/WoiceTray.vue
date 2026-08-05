@@ -23,7 +23,7 @@ function onPointerDown(e: PointerEvent, idx: number): void {
   if (e.button !== 0) return;
   // 試聴
   const w = s.woiceGet(idx);
-  if (w) previewWoice(w, idx, EVENTDEFAULT_KEY, 104, 0.8);
+  if (w) previewWoice(idx, EVENTDEFAULT_KEY, 104, 0.8);
 }
 
 function onMenuAction(action: "remove"): void {

@@ -29,7 +29,7 @@ import {
   EVENTDEFAULT_KEY,
 } from "../../state/project";
 import { currentClock, seekToClock, isPlaying as isPlayingNow } from "../../state/player";
-import { previewWoice } from "../../engine/preview";
+import { previewUnit } from "../../engine/preview";
 import { getUnitColor } from "../../lib/theme";
 
 const BAND = 12;
@@ -245,9 +245,7 @@ function previewAt(y: number): void {
   if (!unit?.woice) return;
   const row = Math.max(0, Math.min(KEYNUM - 1, rowAt(y)));
   const value = valueAtRow(row);
-  let wIdx = -1;
-  for (let w = 0; w < s.woiceNum; w++) if (s.woiceGet(w) === unit.woice) wIdx = w;
-  previewWoice(unit.woice, wIdx, value, EVENTDEFAULT_VELOCITY, 0.8);
+  previewUnit(focus, value, EVENTDEFAULT_VELOCITY, 0.8);
 }
 
 function onPointerDown(e: PointerEvent): void {

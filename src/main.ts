@@ -1,9 +1,10 @@
 import { createApp } from 'vue'
 import './style.css'
 import App from './App.vue'
-import { openProject, newProject, doc, getService, mutate, beginEdit, commitEdit } from './state/project'
+import { openProject, newProject, doc, getService, mutate, beginEdit, commitEdit, exportBytes } from './state/project'
 import { play, stop, seekToClock } from './state/player'
 import { undo, redo, pushUndo } from './state/undo'
+import { renderPreview } from './engine/preview'
 
 createApp(App).mount('#app')
 
@@ -23,5 +24,18 @@ if (import.meta.env.DEV) {
     mutate,
     beginEdit,
     commitEdit,
+    // 単音プレビューのデバッグ用: { len, peak } を返す
+    previewDebug: (unitNo: number, key: number, velocity = 104, sps = 44100) => {
+      const bytes = exportBytes()
+      if (!bytes) return { err: 'no project' }
+      const buf = renderPreview(bytes, { unitNo, woiceIdx: null }, key, velocity, 1.2, sps)
+      if (!buf) return { err: 'renderPreview failed' }
+      let peak = 0
+      for (let i = 0; i < buf.length; i += 20) {
+        const v = Math.abs(buf[i]!)
+        if (v > peak) peak = v
+      }
+      return { len: buf.length, peak }
+    },
   }
 }

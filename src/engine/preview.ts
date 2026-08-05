@@ -1,8 +1,10 @@
 // 単音プレビュー (試聴)。
 // worklet の preview メッセージは未実装のため、メインスレッドで
-// 一時 Service を作りオフライン短レンダリング → AudioBuffer 再生で実現する。
-import { Service, PxtnErr, MemoryIo, WoiceType, EventKind, type Woice } from "pxtone-ts";
-import { woiceBytes } from "../state/project";
+// 一時 Service にプロジェクト全体を読み込み、対象ユニットのみの
+// ノートをオフライン短レンダリング → AudioBuffer 再生で実現する。
+import { Service, PxtnErr, MemoryIo, EventKind, PXTN_MAX_EVENT_NUM } from "pxtone-ts";
+import { exportBytes } from "../state/project";
+import { getService } from "../state/project";
 
 const DEFAULT_VELOCITY = 104;
 const DEFAULT_VOLUME = 104;
@@ -22,29 +24,50 @@ function getCtx(): AudioContext | null {
   }
 }
 
-// mate セクションバイト列から一時 Service で単音をレンダリング
-function renderNote(
-  mateBytes: Uint8Array,
-  type: WoiceType,
+export interface PreviewTarget {
+  unitNo: number | null; // null のとき woiceIdx で新しいユニットを作る
+  woiceIdx: number | null;
+}
+
+// プロジェクトバイト列から単音をレンダリング。
+// 対象ユニット以外を削除し、clock 0 に VOICENO/KEY/VELOCITY/ON を置く
+// (音色は VOICENO イベントで割り当てる — read 直後の unit には woice が未設定)
+export function renderPreview(
+  projectBytes: Uint8Array,
+  target: PreviewTarget,
   key: number,
   velocity: number,
   durSec: number,
   sps: number,
 ): Float32Array | null {
   const s = new Service();
-  if (s.initCollage(4096) !== PxtnErr.OK) return null;
-  const io = new MemoryIo(mateBytes);
-  if (s.woiceRead(0, io, type) !== PxtnErr.OK) return null;
-  if (!s.unitAddNew()) return null;
-  const unit = s.unitGet(0);
-  if (!unit) return null;
-  if (!unit.setWoice(s.woiceGet(0)!)) return null;
-  unit.setNameBuf("preview");
+  if (s.initCollage(PXTN_MAX_EVENT_NUM) !== PxtnErr.OK) return null;
+  if (s.read(new MemoryIo(projectBytes)) !== PxtnErr.OK) return null;
+
+  // 対象ユニットの音色番号 (VOICENO イベントの最後の値) を整理前に取得
+  let voiceNo = target.woiceIdx ?? 0;
+  if (target.unitNo !== null && target.unitNo >= 0) {
+    for (const e of s.evels.records) {
+      if (e.kind === EventKind.VOICENO && e.unitNo === target.unitNo) voiceNo = e.value;
+    }
+  }
+
+  if (target.unitNo !== null && target.unitNo >= 0) {
+    for (let u = s.unitNum - 1; u >= 0; u--) {
+      if (u !== target.unitNo) s.unitRemove(u);
+    }
+  } else {
+    while (s.unitNum > 0) s.unitRemove(s.unitNum - 1);
+    if (!s.unitAddNew()) return null;
+  }
+  if (!s.unitGet(0)) return null;
+
   s.master.set(4, 120, 480);
   s.master.setMeasNum(2);
   s.evels.clear();
   // clockRate = 60*sps/(tempo*beatClock) = sps/960
   const durClocks = Math.max(1, Math.round(durSec * 960));
+  s.evels.recordAddI(0, 0, EventKind.VOICENO, voiceNo);
   s.evels.recordAddI(0, 0, EventKind.KEY, key);
   s.evels.recordAddI(0, 0, EventKind.VELOCITY, velocity);
   s.evels.recordAddI(0, 0, EventKind.ON, durClocks);
@@ -62,24 +85,11 @@ function renderNote(
 let lastSrc: AudioBufferSourceNode | null = null;
 let previewSerial = 0;
 
-// woice の単音をプレビュー再生する。連続呼び出しは前の音を中断する
-export function previewWoice(
-  woice: Woice | null,
-  woiceIdx: number,
-  key: number,
-  velocity: number = DEFAULT_VELOCITY,
-  durSec = 1.2,
-): void {
+// バッファを再生する。連続呼び出しは前の音を中断する
+function playBuffer(work: Float32Array, sps: number, serial: number): void {
   const ctx = getCtx();
-  if (!ctx || !woice) return;
+  if (!ctx) return;
   if (ctx.state === "suspended") void ctx.resume();
-  const mate = woiceBytes(woiceIdx);
-  if (!mate) return;
-  const type = woice.type;
-  const serial = ++previewSerial;
-  const sps = ctx.sampleRate;
-  const work = renderNote(mate, type, key, velocity, durSec, sps);
-  if (!work) return;
   if (serial !== previewSerial) return;
   const buf = ctx.createBuffer(2, work.length / 2, sps);
   const ch0 = buf.getChannelData(0);
@@ -109,6 +119,37 @@ export function previewWoice(
     if (lastSrc === src) lastSrc = null;
   };
   src.start();
+}
+
+// ユニットの音色で単音をプレビュー
+export function previewUnit(unitNo: number, key: number, velocity: number = DEFAULT_VELOCITY, durSec = 1.2): void {
+  const svc = getService();
+  if (!svc) return;
+  const unit = svc.unitGet(unitNo);
+  if (!unit?.woice) return;
+  const bytes = exportBytes();
+  if (!bytes) return;
+  const serial = ++previewSerial;
+  const ctx = getCtx();
+  if (!ctx) return;
+  const work = renderPreview(bytes, { unitNo, woiceIdx: null }, key, velocity, durSec, ctx.sampleRate);
+  if (!work) return;
+  playBuffer(work, ctx.sampleRate, serial);
+}
+
+// 音色単体で単音をプレビュー (プロジェクト内の音色をそのまま使う)
+export function previewWoice(woiceIdx: number, key: number, velocity: number = DEFAULT_VELOCITY, durSec = 1.2): void {
+  const svc = getService();
+  if (!svc) return;
+  if (!svc.woiceGet(woiceIdx)) return;
+  const bytes = exportBytes();
+  if (!bytes) return;
+  const serial = ++previewSerial;
+  const ctx = getCtx();
+  if (!ctx) return;
+  const work = renderPreview(bytes, { unitNo: null, woiceIdx }, key, velocity, durSec, ctx.sampleRate);
+  if (!work) return;
+  playBuffer(work, ctx.sampleRate, serial);
 }
 
 // ベロシティ・音量のデフォルト値

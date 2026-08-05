@@ -22,7 +22,7 @@ import {
   EVENTDEFAULT_KEY,
 } from "../../state/project";
 import { currentClock, seekToClock, isPlaying as isPlayingNow } from "../../state/player";
-import { previewWoice } from "../../engine/preview";
+import { previewUnit } from "../../engine/preview";
 
 const ROW_H = 16;
 const BAND = 12; // 上部ルーラー帯
@@ -189,9 +189,7 @@ function previewAt(x: number, y: number): void {
   const clock = clockAt(x);
   const key = s.evels.getValue(clock, u, 2) || EVENTDEFAULT_KEY; // KEY
   const vel = s.evels.getValue(clock, u, 4) || EVENTDEFAULT_VELOCITY;
-  let wIdx = -1;
-  for (let w = 0; w < s.woiceNum; w++) if (s.woiceGet(w) === unit.woice) wIdx = w;
-  previewWoice(unit.woice, wIdx, key, vel, 0.8);
+  previewUnit(u, key, vel, 0.8);
 }
 
 function onPointerDown(e: PointerEvent): void {
