@@ -121,12 +121,13 @@ function playBuffer(work: Float32Array, sps: number, serial: number): void {
   src.start();
 }
 
-// ユニットの音色で単音をプレビュー
+// ユニットの音色で単音をプレビュー。
+// 音色は read 直後の unit には未設定 (VOICENO イベントで決まる) ため、
+// renderPreview 側で VOICENO から割り当てる。ここではユニット存在のみ確認
 export function previewUnit(unitNo: number, key: number, velocity: number = DEFAULT_VELOCITY, durSec = 1.2): void {
   const svc = getService();
   if (!svc) return;
-  const unit = svc.unitGet(unitNo);
-  if (!unit?.woice) return;
+  if (!svc.unitGet(unitNo)) return;
   const bytes = exportBytes();
   if (!bytes) return;
   const serial = ++previewSerial;

@@ -4,7 +4,7 @@ import App from './App.vue'
 import { openProject, newProject, doc, getService, mutate, beginEdit, commitEdit, exportBytes } from './state/project'
 import { play, stop, seekToClock } from './state/player'
 import { undo, redo, pushUndo } from './state/undo'
-import { renderPreview } from './engine/preview'
+import { renderPreview, previewUnit, previewWoice } from './engine/preview'
 
 createApp(App).mount('#app')
 
@@ -24,6 +24,8 @@ if (import.meta.env.DEV) {
     mutate,
     beginEdit,
     commitEdit,
+    previewUnit,
+    previewWoice,
     // 単音プレビューのデバッグ用: { len, peak } を返す
     previewDebug: (unitNo: number, key: number, velocity = 104, sps = 44100) => {
       const bytes = exportBytes()
