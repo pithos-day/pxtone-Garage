@@ -161,7 +161,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 }
 
 // ---- ポインタ操作 ----
-const drag = ref<{ button: number; x1: number; x2: number; unit: number } | null>(null);
+const drag = ref<{ button: number; x1: number; x2: number; unit: number; undoPushed: boolean } | null>(null);
 
 function fieldOffset(e: PointerEvent): { x: number; y: number } {
   const c = canvasRef.value!;
@@ -210,14 +210,12 @@ function onPointerDown(e: PointerEvent): void {
   if (u < 0 || u >= s.unitNum) return;
   if (e.button === 0) {
     c.setPointerCapture(e.pointerId);
-    beginEdit();
-    drag.value = { button: 0, x1: clockAt(x), x2: clockAt(x), unit: u };
+    drag.value = { button: 0, x1: clockAt(x), x2: clockAt(x), unit: u, undoPushed: false };
     setScope(clockAt(x), clockAt(x) + viewUnit());
     previewAt(x, y);
   } else if (e.button === 2) {
     c.setPointerCapture(e.pointerId);
-    beginEdit();
-    drag.value = { button: 2, x1: clockAt(x), x2: clockAt(x), unit: u };
+    drag.value = { button: 2, x1: clockAt(x), x2: clockAt(x), unit: u, undoPushed: false };
   }
 }
 
@@ -231,6 +229,11 @@ function onPointerMove(e: PointerEvent): void {
   const { x } = fieldOffset(e);
   const clock = clockAt(x);
   if (clock !== d.x2) {
+    // 最初の移動時に undo を積む (クリックのみなら積まない)
+    if (!d.undoPushed) {
+      beginEdit();
+      d.undoPushed = true;
+    }
     d.x2 = clock;
     applyDrag();
   }
@@ -265,9 +268,14 @@ function applyDrag(): void {
 function onPointerUp(e: PointerEvent): void {
   const c = canvasRef.value;
   if (c && c.hasPointerCapture(e.pointerId)) c.releasePointerCapture(e.pointerId);
-  if (drag.value) {
-    drag.value = null;
+  const d = drag.value;
+  drag.value = null;
+  if (!d) return;
+  if (d.undoPushed) {
     commitEdit();
+  } else if (d.button === 0) {
+    // ドラッグなしのクリック = シーク
+    seekToClock(d.x1);
   }
 }
 

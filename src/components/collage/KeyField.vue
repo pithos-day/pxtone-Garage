@@ -219,7 +219,7 @@ function drawNotes(
 }
 
 // ---- ポインタ ----
-const drag = ref<{ button: number; x1: number; x2: number; row: number } | null>(null);
+const drag = ref<{ button: number; x1: number; x2: number; row: number; undoPushed: boolean } | null>(null);
 
 function fieldOffset(e: PointerEvent): { x: number; y: number } {
   const c = canvasRef.value!;
@@ -263,15 +263,18 @@ function onPointerDown(e: PointerEvent): void {
   const row = Math.max(0, Math.min(KEYNUM - 1, rowAt(y)));
   const clock = clockAt(x);
   if (e.button === 0) {
+    if (x < STRIP_W) {
+      // 鍵盤ストリップ: 試聴のみ (シークしない)
+      previewAt(y);
+      return;
+    }
     c.setPointerCapture(e.pointerId);
-    beginEdit();
-    drag.value = { button: 0, x1: clock, x2: clock, row };
+    drag.value = { button: 0, x1: clock, x2: clock, row, undoPushed: false };
     setScope(clock, clock + Math.max(1, doc.divi));
     previewAt(y);
   } else if (e.button === 2) {
     c.setPointerCapture(e.pointerId);
-    beginEdit();
-    drag.value = { button: 2, x1: clock, x2: clock, row };
+    drag.value = { button: 2, x1: clock, x2: clock, row, undoPushed: false };
   }
 }
 
@@ -281,6 +284,11 @@ function onPointerMove(e: PointerEvent): void {
   const { x } = fieldOffset(e);
   const clock = clockAt(x);
   if (clock !== d.x2) {
+    // 最初の移動時に undo を積む (クリックのみなら積まない)
+    if (!d.undoPushed) {
+      beginEdit();
+      d.undoPushed = true;
+    }
     d.x2 = clock;
     applyDrag();
   }
@@ -326,9 +334,14 @@ function applyDrag(): void {
 function onPointerUp(e: PointerEvent): void {
   const c = canvasRef.value;
   if (c && c.hasPointerCapture(e.pointerId)) c.releasePointerCapture(e.pointerId);
-  if (drag.value) {
-    drag.value = null;
+  const d = drag.value;
+  drag.value = null;
+  if (!d) return;
+  if (d.undoPushed) {
     commitEdit();
+  } else if (d.button === 0) {
+    // ドラッグなしのクリック = シーク
+    seekToClock(d.x1);
   }
 }
 
