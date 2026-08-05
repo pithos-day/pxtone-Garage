@@ -1,8 +1,9 @@
-// コラージュ (ptCollage 相当) の全体レイアウト — 段階2: U/W モード
-// (Kモード・オートメーション・フローティングパネルは段階3/4で追加)
+// コラージュ (ptCollage 相当) の全体レイアウト — 段階3: Kモードと再生パネル
+// (オートメーション・その他パネルは段階4で追加)
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted } from "vue";
 import { doc, units, ensureInit } from "../../state/project";
+import { panels } from "../../state/panels";
 import { togglePlay, seekToClock } from "../../state/player";
 import { undo, redo } from "../../state/undo";
 import { ZOOM_TABLE, DIVI_TABLE } from "../../lib/clock";
@@ -11,8 +12,10 @@ import UnitTray from "./UnitTray.vue";
 import WoiceTray from "./WoiceTray.vue";
 import WoiceField from "./WoiceField.vue";
 import UnitField from "./UnitField.vue";
+import KeyField from "./KeyField.vue";
 import PlayField from "./PlayField.vue";
 import ScopeField from "./ScopeField.vue";
+import PlayerPanel from "./PlayerPanel.vue";
 import ScrollBar from "./ScrollBar.vue";
 
 ensureInit();
@@ -92,6 +95,11 @@ function setDivi(d: number): void {
         <button v-for="d in DIVI_TABLE" :key="d" class="btn btn-sm" :class="{ on: doc.divi === d }" @click="setDivi(d)">
           {{ d }}
         </button>
+        <span class="sep-v" />
+        <span class="zoom-label">パネル</span>
+        <button class="btn btn-sm" :class="{ on: panels.player.open }" @click="panels.player.open = !panels.player.open">
+          Player
+        </button>
       </div>
     </div>
     <div class="collage-body">
@@ -103,7 +111,7 @@ function setDivi(d: number): void {
       <div class="collage-field-wrap">
         <UnitField v-if="doc.mode === 'U'" />
         <WoiceField v-if="doc.mode === 'W'" />
-        <div v-if="doc.mode === 'K'" class="k-placeholder">Kモード (ピアノロール) は次の段階で実装</div>
+        <KeyField v-if="doc.mode === 'K'" />
         <ScrollBar class="vscroll" :vertical="true" :length="units.length" />
       </div>
     </div>
@@ -111,6 +119,9 @@ function setDivi(d: number): void {
       <div class="collage-hscroll-spacer" />
       <ScrollBar class="hscroll" :vertical="false" />
     </div>
+
+    <!-- フローティングパネル -->
+    <PlayerPanel v-if="panels.player.open" />
   </div>
 </template>
 
@@ -206,14 +217,6 @@ function setDivi(d: number): void {
   flex: 1;
 }
 
-.k-placeholder {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-dim);
-  font-size: 12px;
-}
 
 .vscroll {
   width: 14px;
