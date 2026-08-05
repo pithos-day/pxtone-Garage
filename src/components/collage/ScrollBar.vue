@@ -1,8 +1,8 @@
 // ドラッグ式スクロールバー (縦/横)
+// 正規化位置 (0..1) で thumb 位置とコンテンツオフセットを対応させる
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { doc, getService } from "../../state/project";
-// clockView is provided by project store
 
 const props = defineProps<{
   vertical?: boolean;
@@ -11,8 +11,18 @@ const props = defineProps<{
 
 const trackRef = ref<HTMLElement | null>(null);
 const dragging = ref(false);
-const offsetAtStart = ref(0);
+const fracAtStart = ref(0);
 const mouseAtStart = ref(0);
+// トラックのリサイズを computed に伝えるための tick
+const viewTick = ref(0);
+
+onMounted(() => {
+  const track = trackRef.value;
+  if (!track) return;
+  const ro = new ResizeObserver(() => viewTick.value++);
+  ro.observe(track);
+  onBeforeUnmount(() => ro.disconnect());
+});
 
 const total = computed(() => {
   if (props.vertical) return Math.max(1, props.length ?? 0);
@@ -20,12 +30,15 @@ const total = computed(() => {
 });
 
 const viewSize = computed(() => {
+  void viewTick.value;
   const track = trackRef.value;
   if (!track) return 1;
   return props.vertical ? track.clientHeight : track.clientWidth;
 });
 
 const contentSize = computed(() => {
+  void doc.rev; // openProject / 編集で再計算
+  void viewTick.value;
   if (props.vertical) return total.value * 16;
   const s = getService();
   if (!s) return 1;
@@ -39,19 +52,41 @@ const thumbSize = computed(() => {
   return Math.max(16, (vs / cs) * vs);
 });
 
+// thumb が動ける範囲 (track 幅 - thumb 幅)
+const trackRange = computed(() => Math.max(1, viewSize.value - thumbSize.value));
+// コンテンツが動ける範囲 (コンテンツ幅 - 表示幅)
+const contentRange = computed(() => Math.max(0, contentSize.value - viewSize.value));
+
 const offset = computed(() => {
   if (props.vertical) return doc.scrollYUnit * 16;
   return doc.scrollX;
 });
 
-const maxOffset = computed(() => Math.max(0, contentSize.value - viewSize.value));
+// 正規化位置 (0..1)
+const frac = computed(() => {
+  const cr = contentRange.value;
+  if (cr <= 0) return 0;
+  return Math.min(1, Math.max(0, offset.value / cr));
+});
+
+const thumbPos = computed(() => frac.value * trackRange.value);
+
+function setFrac(f: number): void {
+  const clamped = Math.max(0, Math.min(1, f));
+  const v = clamped * contentRange.value;
+  if (props.vertical) {
+    doc.scrollYUnit = Math.round(v / 16);
+  } else {
+    doc.scrollX = Math.round(v);
+  }
+}
 
 function onPointerDown(e: PointerEvent): void {
   const track = trackRef.value;
   if (!track) return;
   track.setPointerCapture(e.pointerId);
   dragging.value = true;
-  offsetAtStart.value = offset.value;
+  fracAtStart.value = frac.value;
   mouseAtStart.value = props.vertical ? e.clientY : e.clientX;
 }
 
@@ -60,9 +95,8 @@ function onPointerMove(e: PointerEvent): void {
   const track = trackRef.value;
   if (!track) return;
   const pos = props.vertical ? e.clientY : e.clientX;
-  const cs = Math.max(contentSize.value, viewSize.value);
-  const delta = ((pos - mouseAtStart.value) / viewSize.value) * cs;
-  setOffset(offsetAtStart.value + delta);
+  const d = (pos - mouseAtStart.value) / trackRange.value;
+  setFrac(fracAtStart.value + d);
 }
 
 function onPointerUp(e: PointerEvent): void {
@@ -71,25 +105,15 @@ function onPointerUp(e: PointerEvent): void {
   if (track?.hasPointerCapture(e.pointerId)) track.releasePointerCapture(e.pointerId);
 }
 
-function setOffset(v: number): void {
-  const m = maxOffset.value;
-  const clamped = Math.max(0, Math.min(m, v));
-  if (props.vertical) {
-    doc.scrollYUnit = Math.round(clamped / 16);
-  } else {
-    doc.scrollX = Math.round(clamped);
-  }
-}
-
-// トラッククリックでジャンプ
+// トラッククリックで thumb 中央をそこへジャンプ
 function onTrackClick(e: PointerEvent): void {
   if (dragging.value) return;
   const track = trackRef.value;
   if (!track) return;
   const rect = track.getBoundingClientRect();
   const pos = props.vertical ? e.clientY - rect.top : e.clientX - rect.left;
-  const cs = Math.max(contentSize.value, viewSize.value);
-  setOffset((pos / viewSize.value) * cs - thumbSize.value / 2);
+  const f = (pos - thumbSize.value / 2) / trackRange.value;
+  setFrac(f);
 }
 </script>
 
@@ -107,7 +131,7 @@ function onTrackClick(e: PointerEvent): void {
       class="scroll-thumb"
       :style="{
         [vertical ? 'height' : 'width']: thumbSize + 'px',
-        [vertical ? 'top' : 'left']: offset + 'px',
+        [vertical ? 'top' : 'left']: thumbPos + 'px',
       }"
       @pointerdown.stop="onPointerDown"
     />
