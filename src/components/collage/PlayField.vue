@@ -1,11 +1,12 @@
-// 再生範囲マーカー帯 (repeat / last)
+// 再生範囲マーカー帯 (repeat / last) + ルーラークリックでのシーク
 <script setup lang="ts">
 import { ref } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText } from "../../lib/draw";
-import { clockToX, measOfClock } from "../../lib/clock";
+import { clockToX, measOfClock, xToClock, snapClock } from "../../lib/clock";
 import { doc, getService, clockView as projectClockView, setRepeatMeas, setLastMeas } from "../../state/project";
+import { currentClock, seekToClock, isPlaying as isPlayingNow } from "../../state/player";
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const menu = ref<{ x: number; y: number; meas: number } | null>(null);
@@ -13,7 +14,7 @@ const menu = ref<{ x: number; y: number; meas: number } | null>(null);
 useCanvas(
   canvasRef,
   (ctx, w, h) => draw(ctx, w, h),
-  [() => doc.rev, () => doc.scrollX, () => doc.zoom],
+  [() => doc.rev, () => doc.scrollX, () => doc.zoom, () => currentClock.value],
 );
 
 function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
@@ -36,9 +37,29 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     fillRect(ctx, lastX, 2, 2, h - 4, "#80ff80");
     fillText(ctx, "L", lastX + 3, 11, "#80ff80", 9);
   }
+
+  // プレイヘッド
+  if (isPlayingNow.value) {
+    const px = clockToX(view, currentClock.value) - doc.scrollX;
+    if (px >= 0 && px <= w) {
+      fillRect(ctx, px - 1, 0, 2, h, COLORS.playhead);
+    }
+  }
+}
+
+function clockAt(x: number): number {
+  const view = projectClockView();
+  return snapClock(view, doc.divi, xToClock(view, x + doc.scrollX));
 }
 
 function onPointerDown(e: PointerEvent): void {
+  if (e.button === 0) {
+    // ルーラークリック = シーク
+    const c = canvasRef.value!;
+    const r = c.getBoundingClientRect();
+    seekToClock(clockAt(e.clientX - r.left));
+    return;
+  }
   if (e.button === 2) {
     const c = canvasRef.value!;
     const r = c.getBoundingClientRect();
@@ -90,6 +111,6 @@ function onMenuAction(action: "setRepeat" | "setLast" | "cutRepeat" | "cutLast")
   height: 16px;
   position: relative;
   border-bottom: 1px solid var(--border);
-  cursor: crosshair;
+  cursor: pointer;
 }
 </style>
