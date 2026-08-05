@@ -441,6 +441,7 @@ export function clockView() {
     beatClock: service.master.beatClock,
     beatNum: service.master.beatNum,
     zoom: doc.zoom,
+    measNum: service.master.measNum,
   };
 }
 

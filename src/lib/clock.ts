@@ -45,6 +45,7 @@ export interface ClockView {
   beatClock: number;
   beatNum: number;
   zoom: number; // 1拍のピクセル幅
+  measNum?: number; // グリッド描画範囲 (省略時は制限なし)
 }
 
 export function clockToX(view: ClockView, clock: number): number {

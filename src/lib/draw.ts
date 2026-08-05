@@ -33,7 +33,9 @@ export function drawGrid(
   const { w, h, scrollX, view } = opts;
   const top = opts.top ?? 0;
   const bottom = opts.bottom ?? h;
-  // meas width is derived from view
+  // 1小節の幅 (px) = 拍数 × 1拍の幅
+  const measW = view.beatNum * view.zoom;
+  const measNum = view.measNum ?? Number.POSITIVE_INFINITY;
 
   ctx.save();
   ctx.beginPath();
@@ -43,9 +45,9 @@ export function drawGrid(
   // 背景
   fillRect(ctx, 0, top, w, bottom - top, COLORS.fieldBg);
 
-  // 小節線・拍線
-  const startMeas = Math.floor(scrollX / (view.beatClock * view.beatNum)) - 1;
-  const endMeas = Math.ceil((scrollX + w) / (view.beatClock * view.beatNum)) + 1;
+  // 小節線・拍線 (scrollX は px。曲の小節数まで描画)
+  const startMeas = Math.max(0, Math.floor(scrollX / measW) - 1);
+  const endMeas = Math.min(measNum - 1, Math.ceil((scrollX + w) / measW) + 1);
   for (let m = startMeas; m <= endMeas; m++) {
     const measClock = m * view.beatClock * view.beatNum;
     const x0 = clockToX(view, measClock) - scrollX;
