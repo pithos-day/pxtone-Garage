@@ -75,6 +75,8 @@ useCanvas(
     () => doc.focusUnit,
     () => currentClock.value,
     () => doc.tool,
+    () => doc.scope1,
+    () => doc.scope2,
   ],
 );
 
@@ -135,6 +137,12 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     drawNotes(ctx, s, focus, w, fieldTop, fieldH, view, scrollX, scrollY);
   }
 
+  // スコープ帯・プレイヘッド (鍵盤ストリップ x<STRIP_W には描画しない)
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(STRIP_W, 0, w - STRIP_W, h);
+  ctx.clip();
+
   // スコープ帯
   if (doc.scope2 > doc.scope1) {
     const x1 = clockToX(view, doc.scope1) - scrollX;
@@ -147,6 +155,8 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     const px = clockToX(view, currentClock.value) - scrollX;
     if (px >= 0 && px <= w) fillRect(ctx, px - 1, 0, 2, h, COLORS.playhead);
   }
+
+  ctx.restore();
 }
 
 function drawNotes(

@@ -41,6 +41,8 @@ useCanvas(
     () => doc.focusUnit,
     () => doc.operated.join(","),
     () => doc.muted.join(","),
+    () => doc.scope1,
+    () => doc.scope2,
     () => currentClock.value,
     () => units.value.length,
   ],
