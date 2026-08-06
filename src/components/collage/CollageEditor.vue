@@ -113,10 +113,10 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
       </div>
     </div>
     <div class="collage-body">
-      <div class="collage-tray">
+      <!-- K モードでは鍵盤ストリップが KeyField 内にあるため、左トレイは非表示 -->
+      <div v-if="doc.mode !== 'K'" class="collage-tray">
         <UnitTray v-if="doc.mode === 'U'" />
         <WoiceTray v-if="doc.mode === 'W'" />
-        <div v-if="doc.mode === 'K'" class="tray-title">ピアノロール</div>
       </div>
       <div class="collage-field-wrap">
         <UnitField v-if="doc.mode === 'U'" />
@@ -137,7 +137,7 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
       <VolumeField />
     </div>
     <div class="collage-hscroll">
-      <div class="collage-hscroll-spacer" />
+      <div v-if="doc.mode !== 'K'" class="collage-hscroll-spacer" />
       <ScrollBar class="hscroll" :vertical="false" />
     </div>
   </div>

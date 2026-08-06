@@ -85,63 +85,39 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   if (!s) return;
   const view = projectClockView();
   const scrollX = doc.scrollX;
-
-  // ルーラー帯
-  drawGrid(ctx, { w, h, scrollX, view, top: 0, bottom: BAND, showNumber: true, numberTop: 0 });
+  const fieldW = w - STRIP_W; // フィールド幅 (鍵盤ストリップの右側)
 
   const fieldTop = BAND;
   const fieldH = h - fieldTop;
   const scrollY = doc.scrollYKey * KEY_HEIGHT;
-
-  // 鍵盤ストリップ (左144px) + キーフィールド背景
-  fillRect(ctx, 0, fieldTop, STRIP_W, fieldH, COLORS.panelDark);
-  fillRect(ctx, STRIP_W, fieldTop, w - STRIP_W, fieldH, COLORS.fieldBg);
-
-  // グリッド (拍・小節線)
-  drawGrid(ctx, { w, h, scrollX, view, top: fieldTop, bottom: h, showNumber: false });
-
-  // 鍵盤行
   const startRow = Math.floor(scrollY / KEY_HEIGHT);
   const endRow = Math.min(KEYNUM - 1, startRow + Math.ceil(fieldH / KEY_HEIGHT));
+  const focus = doc.focusUnit;
+
+  // 鍵盤ストリップ (画面左端) の背景
+  fillRect(ctx, 0, fieldTop, STRIP_W, fieldH, COLORS.panelDark);
+
+  // フィールド (グリッド・ノート・スコープ・プレイヘッド) は鍵盤ストリップの右側に描画
+  ctx.save();
+  ctx.translate(STRIP_W, 0);
+
+  // ルーラー帯 (小節番号) — フィールド幅のみ
+  drawGrid(ctx, { w: fieldW, h, scrollX, view, top: 0, bottom: BAND, showNumber: true, numberTop: 0 });
+
+  // フィールド背景 + グリッド (拍・小節線)
+  drawGrid(ctx, { w: fieldW, h, scrollX, view, top: fieldTop, bottom: h, showNumber: false });
+
+  // フィールド側の行色 (鍵盤の白鍵/黒鍵に合わせた縞)
   for (let row = startRow; row <= endRow; row++) {
     const y = fieldTop + row * KEY_HEIGHT - scrollY;
     const white = isWhiteRow(row);
-    fillRect(ctx, 0, y, STRIP_W, KEY_HEIGHT, white ? COLORS.whiteKey : COLORS.blackKey);
-    fillRect(ctx, STRIP_W, y, w - STRIP_W, KEY_HEIGHT, white ? "rgba(64,64,64,0.30)" : "rgba(32,32,32,0.30)");
-  }
-
-  // オクターブラベル (行 12*i に "7-i")
-  for (let i = 0; i <= 8; i++) {
-    const y = fieldTop + i * (KEY_HEIGHT * 12) - scrollY + 4;
-    if (y >= fieldTop - 12 && y <= fieldTop + fieldH + 4) {
-      fillText(ctx, String(7 - i), 6, y, "#e0e0e0", 11);
-    }
-  }
-
-  // 基本キーマーカー (フォーカスユニットの音色)
-  const focus = doc.focusUnit;
-  const unit = focus >= 0 ? s.unitGet(focus) : null;
-  if (unit?.woice) {
-    const vc = unit.woice.getVoice(0);
-    if (vc) {
-      const basicRow = codeToRow(vc.basicKey >> 8);
-      const y = fieldTop + basicRow * KEY_HEIGHT - scrollY + KEY_HEIGHT / 2;
-      if (y > fieldTop && y < fieldTop + fieldH) {
-        fillRect(ctx, STRIP_W - 16, y - 1, 16, 2, COLORS.focusOrange);
-      }
-    }
+    fillRect(ctx, 0, y, fieldW, KEY_HEIGHT, white ? "rgba(64,64,64,0.30)" : "rgba(32,32,32,0.30)");
   }
 
   // イベント (フォーカスユニットのみ)
   if (focus >= 0) {
-    drawNotes(ctx, s, focus, w, fieldTop, fieldH, view, scrollX, scrollY);
+    drawNotes(ctx, s, focus, fieldW, fieldTop, fieldH, view, scrollX, scrollY);
   }
-
-  // スコープ帯・プレイヘッド (鍵盤ストリップ x<STRIP_W には描画しない)
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(STRIP_W, 0, w - STRIP_W, h);
-  ctx.clip();
 
   // スコープ帯
   if (doc.scope2 > doc.scope1) {
@@ -153,10 +129,38 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   // プレイヘッド
   if (isPlayingNow.value) {
     const px = clockToX(view, currentClock.value) - scrollX;
-    if (px >= 0 && px <= w) fillRect(ctx, px - 1, 0, 2, h, COLORS.playhead);
+    if (px >= 0 && px <= fieldW) fillRect(ctx, px - 1, 0, 2, h, COLORS.playhead);
   }
 
   ctx.restore();
+
+  // 鍵盤行 (ストリップ側) — フィールドのグリッドを覆う
+  for (let row = startRow; row <= endRow; row++) {
+    const y = fieldTop + row * KEY_HEIGHT - scrollY;
+    const white = isWhiteRow(row);
+    fillRect(ctx, 0, y, STRIP_W, KEY_HEIGHT, white ? COLORS.whiteKey : COLORS.blackKey);
+  }
+
+  // オクターブラベル (行 12*i に "7-i")
+  for (let i = 0; i <= 8; i++) {
+    const y = fieldTop + i * (KEY_HEIGHT * 12) - scrollY + 4;
+    if (y >= fieldTop - 12 && y <= fieldTop + fieldH + 4) {
+      fillText(ctx, String(7 - i), 6, y, "#e0e0e0", 11);
+    }
+  }
+
+  // 基本キーマーカー (フォーカスユニットの音色)
+  const unit = focus >= 0 ? s.unitGet(focus) : null;
+  if (unit?.woice) {
+    const vc = unit.woice.getVoice(0);
+    if (vc) {
+      const basicRow = codeToRow(vc.basicKey >> 8);
+      const y = fieldTop + basicRow * KEY_HEIGHT - scrollY + KEY_HEIGHT / 2;
+      if (y > fieldTop && y < fieldTop + fieldH) {
+        fillRect(ctx, STRIP_W - 16, y - 1, 16, 2, COLORS.focusOrange);
+      }
+    }
+  }
 }
 
 function drawNotes(
@@ -179,10 +183,10 @@ function drawNotes(
   let curKey = EVENTDEFAULT_KEY;
   let prevClock = startClock;
 
-  // クリップ
+  // クリップ (translate 後の座標系なので 0..w がフィールド幅)
   ctx.save();
   ctx.beginPath();
-  ctx.rect(STRIP_W, fieldTop, w - STRIP_W, fieldH);
+  ctx.rect(0, fieldTop, w, fieldH);
   ctx.clip();
 
   const drawAt = (clock: number, key: number, len: number, depth: "off" | "on"): void => {
@@ -238,9 +242,10 @@ function fieldOffset(e: PointerEvent): { x: number; y: number } {
   return { x: e.clientX - r.left, y: e.clientY - r.top };
 }
 
+// フィールド内の x → clock。フィールドは鍵盤ストリップ (STRIP_W) の右から始まる
 function clockAt(x: number): number {
   const view = projectClockView();
-  return snapClock(view, doc.divi, xToClock(view, x + doc.scrollX));
+  return snapClock(view, doc.divi, xToClock(view, x - STRIP_W + doc.scrollX));
 }
 
 function rowAt(y: number): number {
@@ -262,7 +267,8 @@ function onPointerDown(e: PointerEvent): void {
   if (!c) return;
   const { x, y } = fieldOffset(e);
   if (y < BAND) {
-    if (e.button === 0) seekToClock(clockAt(x));
+    // ルーラー帯クリック = シーク (鍵盤ストリップの上は対象外)
+    if (e.button === 0 && x >= STRIP_W) seekToClock(clockAt(x));
     return;
   }
   const focus = doc.focusUnit;
