@@ -2,7 +2,7 @@
 import { COLORS } from "./theme";
 import { getUnitColor } from "./theme";
 import type { ClockView } from "./clock";
-import { clockToX, measOfClock, clockToMeasBeatClock } from "./clock";
+import { clockToX } from "./clock";
 
 export function fillRect(
   ctx: CanvasRenderingContext2D,
@@ -77,23 +77,6 @@ export function drawGrid(
   ctx.restore();
 }
 
-// プレイヘッド (現在位置)
-export function drawPlayhead(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  top: number,
-  bottom: number,
-): void {
-  fillRect(ctx, x - 1, top, 2, bottom - top, COLORS.playhead);
-  ctx.fillStyle = COLORS.playhead;
-  ctx.beginPath();
-  ctx.moveTo(x - 2, top);
-  ctx.lineTo(x + 2, top);
-  ctx.lineTo(x, top + 4);
-  ctx.closePath();
-  ctx.fill();
-}
-
 // ノートの色 (ユニット色 × ベロシティ/音量)
 export function noteFill(unitNo: number, playing: boolean, vel: number, vol: number): string {
   return getUnitColor(unitNo).note(playing, vel, vol);
@@ -101,12 +84,6 @@ export function noteFill(unitNo: number, playing: boolean, vel: number, vol: num
 
 export function noteShadow(unitNo: number, playing: boolean, vel: number, vol: number): string {
   return getUnitColor(unitNo).shadow(playing, vel, vol);
-}
-
-// クロック位置のラベル (小節:拍:クロック)
-export function clockLabel(view: ClockView, clock: number): string {
-  const [m, b, c] = clockToMeasBeatClock(view, clock);
-  return `${m + 1}:${b + 1}:${c}`;
 }
 
 export function fillText(
@@ -125,5 +102,3 @@ export function fillText(
   ctx.textBaseline = baseline;
   ctx.fillText(text, x, y);
 }
-
-export { measOfClock };

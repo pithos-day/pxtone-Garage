@@ -104,7 +104,3 @@ export function setMasterVolume(v: number): void {
   masterVolume.value = v;
   player.setMasterVolume(v);
 }
-
-export function getTotalSample(): number {
-  return player.totalSampleOf();
-}

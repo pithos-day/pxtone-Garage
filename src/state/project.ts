@@ -552,22 +552,3 @@ export function woiceBytes(idx: number): Uint8Array | null {
   }
   return io.toUint8Array();
 }
-
-// イベントの kind 名称 (コピー種別表示用)
-export const EVENT_NAMES: Record<number, string> = {
-  [EventKind.ON]: "ON",
-  [EventKind.KEY]: "KEY",
-  [EventKind.PAN_VOLUME]: "PAN_VOLUME",
-  [EventKind.VELOCITY]: "VELOCITY",
-  [EventKind.VOLUME]: "VOLUME",
-  [EventKind.PORTAMENT]: "PORTAMENT",
-  [EventKind.BEATCLOCK]: "BEATCLOCK",
-  [EventKind.BEATTEMPO]: "BEATTEMPO",
-  [EventKind.BEATNUM]: "BEATNUM",
-  [EventKind.REPEAT]: "REPEAT",
-  [EventKind.LAST]: "LAST",
-  [EventKind.VOICENO]: "VOICENO",
-  [EventKind.GROUPNO]: "GROUPNO",
-  [EventKind.TUNING]: "TUNING",
-  [EventKind.PAN_TIME]: "PAN_TIME",
-};
