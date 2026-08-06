@@ -1,5 +1,6 @@
 // 音色プロパティ一覧 (W モード) — 縦スクロール対応
 <script setup lang="ts">
+import { WoiceType, VoiceType } from "pxtone-ts";
 import { useCanvas } from "../../composables/useCanvas";
 import { ref } from "vue";
 import { drawGrid, fillRect, fillText } from "../../lib/draw";
@@ -69,13 +70,18 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     let info = "";
     if (vc) {
       switch (w2.type) {
-        case 1:
+        case WoiceType.PCM:
           info = `${vc.pcm.sps}Hz / ${vc.pcm.bps}bit / ${vc.pcm.ch}ch / ${(vc.pcm.sec * 1000).toFixed(0)}ms`;
           break;
-        case 2:
-          info = vc.type === 0 ? `座標波形 ${vc.wave.num}点` : vc.type === 1 ? `倍音 ${vc.wave.num}音` : "?";
+        case WoiceType.PTV:
+          info =
+            vc.type === VoiceType.Coodinate
+              ? `座標波形 ${vc.wave.num}点`
+              : vc.type === VoiceType.Overtone
+                ? `倍音 ${vc.wave.num}音`
+                : "?";
           break;
-        case 3:
+        case WoiceType.PTN:
           info = `${vc.ptn.unitNum}ユニット / ${(vc.ptn.sec * 1000).toFixed(0)}ms`;
           break;
       }

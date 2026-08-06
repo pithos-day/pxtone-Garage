@@ -8,6 +8,7 @@ import {
   EVENTDEFAULT_KEY,
   EVENTDEFAULT_VELOCITY,
 } from "../../state/project";
+import { WoiceType, VoiceType } from "pxtone-ts";
 import { previewWoiceHold, stopPreview } from "../../engine/preview";
 import { woiceTypeColor } from "../../lib/theme";
 
@@ -47,11 +48,15 @@ function woiceSummary(idx: number): string {
   const vc = w.getVoice(0);
   if (!vc) return "";
   switch (w.type) {
-    case 1: // PCM
+    case WoiceType.PCM:
       return `${vc.pcm.sps}Hz/${vc.pcm.bps}bit/${vc.pcm.ch}ch ${(vc.pcm.sec * 1000).toFixed(0)}ms`;
-    case 2: // PTV
-      return vc.type === 0 ? `座標波形 (${vc.wave.num}点)` : vc.type === 1 ? `倍音 (${vc.wave.num}音)` : "?";
-    case 3: // PTN
+    case WoiceType.PTV:
+      return vc.type === VoiceType.Coodinate
+        ? `座標波形 (${vc.wave.num}点)`
+        : vc.type === VoiceType.Overtone
+          ? `倍音 (${vc.wave.num}音)`
+          : "?";
+    case WoiceType.PTN:
       return `${vc.ptn.unitNum}ユニット ${(vc.ptn.sec * 1000).toFixed(0)}ms`;
     default:
       return "";

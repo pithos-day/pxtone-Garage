@@ -1,5 +1,5 @@
 // ptweb / 本家ピストンコラージュの配色を踏襲したダークテーマ定義
-import { EVENTDEFAULT_VELOCITY, EVENTDEFAULT_VOLUME } from "pxtone-ts";
+import { EVENTDEFAULT_VELOCITY, EVENTDEFAULT_VOLUME, WoiceType } from "pxtone-ts";
 
 export const BGCOLOR = "#000010";
 
@@ -86,13 +86,13 @@ export function getUnitColor(unitNo: number): NoteColorGen {
 // 音色タイプ別の表示色 (W モードのトレイ用)
 export function woiceTypeColor(type: number): string {
   switch (type) {
-    case 1: // PCM
+    case WoiceType.PCM:
       return "#00BDFF";
-    case 2: // PTV
+    case WoiceType.PTV:
       return "#FF775D";
-    case 3: // PTN
+    case WoiceType.PTN:
       return "#00C060";
-    case 4: // OGGV
+    case WoiceType.OGGV:
       return "#FFC400";
     default:
       return "#808080";
