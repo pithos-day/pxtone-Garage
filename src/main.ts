@@ -4,7 +4,7 @@ import App from './App.vue'
 import { openProject, newProject, doc, getService, mutate, beginEdit, commitEdit, exportBytes, setTextComment, setTextName, EVENTDEFAULT_VELOCITY } from './state/project'
 import { play, stop, seekToClock } from './state/player'
 import { undo, redo, pushUndo } from './state/undo'
-import { renderPreview, previewUnit, previewWoice, previewUnitHold, previewWoiceHold, stopPreview } from './engine/preview'
+import { renderPreview, previewUnit, previewUnitHold, previewWoiceHold, stopPreview } from './engine/preview'
 import { MemoryIo } from 'pxtone-ts'
 
 createApp(App).mount('#app')
@@ -30,7 +30,6 @@ if (import.meta.env.DEV) {
     setTextComment,
     setTextName,
     previewUnit,
-    previewWoice,
     previewUnitHold,
     previewWoiceHold,
     stopPreview,
