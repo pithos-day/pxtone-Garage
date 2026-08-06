@@ -9,6 +9,9 @@ import { getService } from "../state/project";
 const DEFAULT_VELOCITY = 104;
 const DEFAULT_VOLUME = 104;
 
+// プレビューの再生時間 (秒)
+export const PREVIEW_SEC = 2.5;
+
 let previewCtx: AudioContext | null = null;
 let gainNode: GainNode | null = null;
 
@@ -124,7 +127,7 @@ function playBuffer(work: Float32Array, sps: number, serial: number): void {
 // ユニットの音色で単音をプレビュー。
 // 音色は read 直後の unit には未設定 (VOICENO イベントで決まる) ため、
 // renderPreview 側で VOICENO から割り当てる。ここではユニット存在のみ確認
-export function previewUnit(unitNo: number, key: number, velocity: number = DEFAULT_VELOCITY, durSec = 1.2): void {
+export function previewUnit(unitNo: number, key: number, velocity: number = DEFAULT_VELOCITY, durSec = PREVIEW_SEC): void {
   const svc = getService();
   if (!svc) return;
   if (!svc.unitGet(unitNo)) return;
@@ -139,7 +142,7 @@ export function previewUnit(unitNo: number, key: number, velocity: number = DEFA
 }
 
 // 音色単体で単音をプレビュー (プロジェクト内の音色をそのまま使う)
-export function previewWoice(woiceIdx: number, key: number, velocity: number = DEFAULT_VELOCITY, durSec = 1.2): void {
+export function previewWoice(woiceIdx: number, key: number, velocity: number = DEFAULT_VELOCITY, durSec = PREVIEW_SEC): void {
   const svc = getService();
   if (!svc) return;
   if (!svc.woiceGet(woiceIdx)) return;
@@ -151,6 +154,75 @@ export function previewWoice(woiceIdx: number, key: number, velocity: number = D
   const work = renderPreview(bytes, { unitNo: null, woiceIdx }, key, velocity, durSec, ctx.sampleRate);
   if (!work) return;
   playBuffer(work, ctx.sampleRate, serial);
+}
+
+// ---- 押下中サステイン (押している間ループ再生) ----
+
+let holdSource: AudioBufferSourceNode | null = null;
+
+// ユニットの音色をループ再生で開始する。pointerup まで鳴り続ける
+export function previewUnitHold(
+  unitNo: number,
+  key: number,
+  velocity: number = DEFAULT_VELOCITY,
+  durSec = PREVIEW_SEC,
+): void {
+  const svc = getService();
+  if (!svc) return;
+  if (!svc.unitGet(unitNo)) return;
+  const bytes = exportBytes();
+  if (!bytes) return;
+  const ctx = getCtx();
+  if (!ctx) return;
+  const work = renderPreview(bytes, { unitNo, woiceIdx: null }, key, velocity, durSec, ctx.sampleRate);
+  if (!work) return;
+  stopPreview();
+  if (ctx.state === "suspended") void ctx.resume();
+
+  // ループ点のクリック軽減: 先頭/末尾 10ms フェード
+  const fade = Math.min(Math.trunc(ctx.sampleRate * 0.01), Math.trunc(work.length / 4));
+  if (fade > 0) {
+    for (let i = 0; i < fade; i++) {
+      const g = i / fade;
+      work[i * 2]! *= g;
+      work[i * 2 + 1]! *= g;
+      const last = work.length / 2 - 1 - i;
+      work[last * 2]! *= g;
+      work[last * 2 + 1]! *= g;
+    }
+  }
+
+  const buf = ctx.createBuffer(2, work.length / 2, ctx.sampleRate);
+  const ch0 = buf.getChannelData(0);
+  const ch1 = buf.getChannelData(1);
+  for (let i = 0; i < ch0.length; i++) {
+    ch0[i] = work[i * 2]!;
+    ch1[i] = work[i * 2 + 1]!;
+  }
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  src.loop = true;
+  const g = ctx.createGain();
+  g.gain.value = 1;
+  src.connect(g);
+  g.connect(ctx.destination);
+  holdSource = src;
+  src.onended = () => {
+    if (holdSource === src) holdSource = null;
+  };
+  src.start();
+}
+
+// 押下中サステインを停止する
+export function stopPreview(): void {
+  if (holdSource) {
+    try {
+      holdSource.stop();
+    } catch {
+      /* noop */
+    }
+    holdSource = null;
+  }
 }
 
 // ベロシティ・音量のデフォルト値

@@ -29,7 +29,7 @@ import {
   EVENTDEFAULT_KEY,
 } from "../../state/project";
 import { currentClock, seekToClock, isPlaying as isPlayingNow } from "../../state/player";
-import { previewUnit } from "../../engine/preview";
+import { previewUnitHold, stopPreview } from "../../engine/preview";
 import { getUnitColor } from "../../lib/theme";
 
 const BAND = 12;
@@ -252,6 +252,7 @@ function rowAt(y: number): number {
   return Math.floor((y - BAND) / KEY_HEIGHT) + Math.floor(doc.scrollYKey);
 }
 
+// 押下中サステインで試聴開始 (pointerup まで鳴り続ける)
 function previewAt(y: number): void {
   const s = getService();
   if (!s) return;
@@ -259,7 +260,7 @@ function previewAt(y: number): void {
   if (focus < 0) return;
   const row = Math.max(0, Math.min(KEYNUM - 1, rowAt(y)));
   const value = valueAtRow(row);
-  previewUnit(focus, value, EVENTDEFAULT_VELOCITY, 0.8);
+  previewUnitHold(focus, value, EVENTDEFAULT_VELOCITY);
 }
 
 function onPointerDown(e: PointerEvent): void {
@@ -349,6 +350,7 @@ function applyDrag(): void {
 function onPointerUp(e: PointerEvent): void {
   const c = canvasRef.value;
   if (c && c.hasPointerCapture(e.pointerId)) c.releasePointerCapture(e.pointerId);
+  stopPreview(); // 押下中サステインを停止
   const d = drag.value;
   drag.value = null;
   if (!d) return;

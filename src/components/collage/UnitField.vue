@@ -22,7 +22,7 @@ import {
   EVENTDEFAULT_KEY,
 } from "../../state/project";
 import { currentClock, seekToClock, isPlaying as isPlayingNow } from "../../state/player";
-import { previewUnit } from "../../engine/preview";
+import { previewUnitHold, stopPreview } from "../../engine/preview";
 
 const ROW_H = 16;
 const BAND = 12; // 上部ルーラー帯
@@ -182,6 +182,7 @@ function unitAt(y: number): number {
   return u;
 }
 
+// 押下中サステインで試聴開始 (pointerup まで鳴り続ける)
 function previewAt(x: number, y: number): void {
   const s = getService();
   if (!s) return;
@@ -190,7 +191,7 @@ function previewAt(x: number, y: number): void {
   const clock = clockAt(x);
   const key = s.evels.getValue(clock, u, 2) || EVENTDEFAULT_KEY; // KEY
   const vel = s.evels.getValue(clock, u, 4) || EVENTDEFAULT_VELOCITY;
-  previewUnit(u, key, vel, 0.8);
+  previewUnitHold(u, key, vel);
 }
 
 function onPointerDown(e: PointerEvent): void {
@@ -269,6 +270,7 @@ function applyDrag(): void {
 function onPointerUp(e: PointerEvent): void {
   const c = canvasRef.value;
   if (c && c.hasPointerCapture(e.pointerId)) c.releasePointerCapture(e.pointerId);
+  stopPreview(); // 押下中サステインを停止
   const d = drag.value;
   drag.value = null;
   if (!d) return;
