@@ -213,7 +213,6 @@ function drawNotes(
     if (e.clock > endClock) break;
     if (e.clock + (e.kind === EventKind.ON ? e.value : 0) < startClock) continue;
     if (e.kind === EventKind.ON) {
-      // ON
       if (e.clock > prevClock) drawAt(prevClock, curKey, e.clock - prevClock, "off");
       drawAt(e.clock, curKey, e.value, "on");
       prevClock = e.clock + e.value;
