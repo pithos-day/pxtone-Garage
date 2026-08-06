@@ -16,6 +16,7 @@ import {
   isWhiteRow,
   codeToRow,
 } from "../../lib/clock";
+import { EventKind } from "pxtone-ts";
 import {
   doc,
   getService,
@@ -208,16 +209,16 @@ function drawNotes(
   };
 
   for (const e of records) {
-    if (e.kind === 0) continue;
+    if (e.kind === EventKind.NULL) continue;
     if (e.unitNo !== unitNo) continue;
     if (e.clock > endClock) break;
-    if (e.clock + (e.kind === 1 ? e.value : 0) < startClock) continue;
-    if (e.kind === 1) {
+    if (e.clock + (e.kind === EventKind.ON ? e.value : 0) < startClock) continue;
+    if (e.kind === EventKind.ON) {
       // ON
       if (e.clock > prevClock) drawAt(prevClock, curKey, e.clock - prevClock, "off");
       drawAt(e.clock, curKey, e.value, "on");
       prevClock = e.clock + e.value;
-    } else if (e.kind === 2) {
+    } else if (e.kind === EventKind.KEY) {
       // KEY: 縦線 + 点
       if (e.clock > prevClock) drawAt(prevClock, curKey, e.clock - prevClock, "off");
       const row = rowOfValue(e.value);
@@ -329,21 +330,21 @@ function applyDrag(): void {
   const keyOnly = doc.tool === "hand";
   if (d.button === 0) {
     if (keyOnly) {
-      setEventValue(c1, c2, u, 2, value);
-      addEvent(c1, u, 2, value);
+      setEventValue(c1, c2, u, EventKind.KEY, value);
+      addEvent(c1, u, EventKind.KEY, value);
     } else {
-      deleteEvents(c1, c2, u, 2);
-      addEvent(c1, u, 2, value);
-      deleteEvents(c1, c2, u, 4);
-      addEvent(c1, u, 4, EVENTDEFAULT_VELOCITY);
-      deleteEvents(c1, c2, u, 1);
-      addEvent(c1, u, 1, c2 - c1);
+      deleteEvents(c1, c2, u, EventKind.KEY);
+      addEvent(c1, u, EventKind.KEY, value);
+      deleteEvents(c1, c2, u, EventKind.VELOCITY);
+      addEvent(c1, u, EventKind.VELOCITY, EVENTDEFAULT_VELOCITY);
+      deleteEvents(c1, c2, u, EventKind.ON);
+      addEvent(c1, u, EventKind.ON, c2 - c1);
     }
   } else {
-    deleteEvents(c1, c2, u, 2);
+    deleteEvents(c1, c2, u, EventKind.KEY);
     if (!keyOnly) {
-      deleteEvents(c1, c2, u, 1);
-      deleteEvents(c1, c2, u, 4);
+      deleteEvents(c1, c2, u, EventKind.ON);
+      deleteEvents(c1, c2, u, EventKind.VELOCITY);
     }
   }
   doc.rev++;

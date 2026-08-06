@@ -6,6 +6,7 @@ import { useCanvas } from "../../composables/useCanvas";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText, noteFill, noteShadow } from "../../lib/draw";
 import { clockToX, xToClock, snapClock, ZOOM_TABLE } from "../../lib/clock";
+import { EventKind } from "pxtone-ts";
 import {
   doc,
   units,
@@ -97,27 +98,27 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   let currentVol = EVENTDEFAULT_VOLUME;
 
   for (const e of records) {
-    if (e.kind === 0 || e.unitNo < 0) continue; // NULL
+    if (e.kind === EventKind.NULL || e.unitNo < 0) continue;
     if (e.clock > endClock) break;
-    if (e.clock + (e.kind === 1 ? e.value : 0) < startClock) continue;
+    if (e.clock + (e.kind === EventKind.ON ? e.value : 0) < startClock) continue;
     if (e.unitNo < startRow || e.unitNo > endRow + 1) continue;
     switch (e.kind) {
-      case 1: // ON
+      case EventKind.ON:
         notes.push({ unit: e.unitNo, clock: e.clock, length: e.value, vel: currentVel, vol: currentVol });
         break;
-      case 4: // VELOCITY
+      case EventKind.VELOCITY:
         currentVel = e.value;
         break;
-      case 5: // VOLUME
+      case EventKind.VOLUME:
         currentVol = e.value;
         break;
-      case 2: // KEY
-      case 3: // PAN_VOLUME
-      case 6: // PORTAMENT
-      case 12: // VOICENO
-      case 13: // GROUPNO
-      case 14: // TUNING
-      case 15: // PAN_TIME
+      case EventKind.KEY:
+      case EventKind.PAN_VOLUME:
+      case EventKind.PORTAMENT:
+      case EventKind.VOICENO:
+      case EventKind.GROUPNO:
+      case EventKind.TUNING:
+      case EventKind.PAN_TIME:
         marks.push({ unit: e.unitNo, clock: e.clock, kind: e.kind });
         break;
       default:
@@ -189,8 +190,8 @@ function previewAt(x: number, y: number): void {
   const u = unitAt(y);
   if (u < 0 || u >= s.unitNum) return;
   const clock = clockAt(x);
-  const key = s.evels.getValue(clock, u, 2) || EVENTDEFAULT_KEY; // KEY
-  const vel = s.evels.getValue(clock, u, 4) || EVENTDEFAULT_VELOCITY;
+  const key = s.evels.getValue(clock, u, EventKind.KEY) || EVENTDEFAULT_KEY;
+  const vel = s.evels.getValue(clock, u, EventKind.VELOCITY) || EVENTDEFAULT_VELOCITY;
   previewUnitHold(u, key, vel);
 }
 
@@ -255,14 +256,14 @@ function applyDrag(): void {
   const u = d.unit;
   if (d.button === 0) {
     // 既存削除 → 生成 (本家と同じ手順)
-    deleteEvents(c1, c2, u, 1); // ON
-    deleteEvents(c1, c2, u, 4); // VELOCITY
-    addEvent(c1, u, 1, c2 - c1); // ON
-    addEvent(c1, u, 4, EVENTDEFAULT_VELOCITY); // VELOCITY
+    deleteEvents(c1, c2, u, EventKind.ON);
+    deleteEvents(c1, c2, u, EventKind.VELOCITY);
+    addEvent(c1, u, EventKind.ON, c2 - c1);
+    addEvent(c1, u, EventKind.VELOCITY, EVENTDEFAULT_VELOCITY);
   } else {
-    deleteEvents(c1, c2, u, 1);
-    deleteEvents(c1, c2, u, 2);
-    deleteEvents(c1, c2, u, 4);
+    deleteEvents(c1, c2, u, EventKind.ON);
+    deleteEvents(c1, c2, u, EventKind.KEY);
+    deleteEvents(c1, c2, u, EventKind.VELOCITY);
   }
   doc.rev++;
 }
