@@ -287,7 +287,7 @@ function onWheel(e: WheelEvent): void {
   const maxUnit = Math.max(0, units.value.length - 1);
   if (e.ctrlKey) {
     e.preventDefault();
-    const idx = ZOOM_TABLE.indexOf(doc.zoom);
+    const idx = (ZOOM_TABLE as readonly number[]).indexOf(doc.zoom);
     const next = e.deltaY < 0 ? Math.min(ZOOM_TABLE.length - 1, idx + 1) : Math.max(0, idx - 1);
     doc.zoom = ZOOM_TABLE[next]!;
     return;
