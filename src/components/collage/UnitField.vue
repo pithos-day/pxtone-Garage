@@ -5,7 +5,7 @@ import { ref } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText, noteFill, noteShadow } from "../../lib/draw";
-import { clockToX, xToClock, snapClock } from "../../lib/clock";
+import { clockToX, xToClock, snapClock, ZOOM_TABLE } from "../../lib/clock";
 import {
   doc,
   units,
@@ -287,9 +287,9 @@ function onWheel(e: WheelEvent): void {
   const maxUnit = Math.max(0, units.value.length - 1);
   if (e.ctrlKey) {
     e.preventDefault();
-    const idx = [24, 48, 96, 192].indexOf(doc.zoom);
-    const next = e.deltaY < 0 ? Math.min(3, idx + 1) : Math.max(0, idx - 1);
-    doc.zoom = [24, 48, 96, 192][next]!;
+    const idx = ZOOM_TABLE.indexOf(doc.zoom);
+    const next = e.deltaY < 0 ? Math.min(ZOOM_TABLE.length - 1, idx + 1) : Math.max(0, idx - 1);
+    doc.zoom = ZOOM_TABLE[next]!;
     return;
   }
   if (e.shiftKey) {

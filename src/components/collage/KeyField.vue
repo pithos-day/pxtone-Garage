@@ -12,6 +12,7 @@ import {
   snapClock,
   KEY_HEIGHT,
   KEYNUM,
+  ZOOM_TABLE,
   isWhiteRow,
   codeToRow,
 } from "../../lib/clock";
@@ -365,9 +366,9 @@ function onPointerUp(e: PointerEvent): void {
 function onWheel(e: WheelEvent): void {
   if (e.ctrlKey) {
     e.preventDefault();
-    const idx = [24, 48, 96, 192].indexOf(doc.zoom);
-    const next = e.deltaY < 0 ? Math.min(3, idx + 1) : Math.max(0, idx - 1);
-    doc.zoom = [24, 48, 96, 192][next]!;
+    const idx = ZOOM_TABLE.indexOf(doc.zoom);
+    const next = e.deltaY < 0 ? Math.min(ZOOM_TABLE.length - 1, idx + 1) : Math.max(0, idx - 1);
+    doc.zoom = ZOOM_TABLE[next]!;
     return;
   }
   if (e.shiftKey) {
