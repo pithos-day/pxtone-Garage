@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# ビルド時に生成される AudioWorklet バンドル (scripts/build-worklet.mjs)
+public/worklet
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
