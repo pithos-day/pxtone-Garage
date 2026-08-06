@@ -184,8 +184,6 @@ function previewAt(x: number, y: number): void {
   if (!s) return;
   const u = unitAt(y);
   if (u < 0 || u >= s.unitNum) return;
-  const unit = s.unitGet(u);
-  if (!unit?.woice) return;
   const clock = clockAt(x);
   const key = s.evels.getValue(clock, u, 2) || EVENTDEFAULT_KEY; // KEY
   const vel = s.evels.getValue(clock, u, 4) || EVENTDEFAULT_VELOCITY;

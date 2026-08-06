@@ -241,8 +241,6 @@ function previewAt(y: number): void {
   if (!s) return;
   const focus = doc.focusUnit;
   if (focus < 0) return;
-  const unit = s.unitGet(focus);
-  if (!unit?.woice) return;
   const row = Math.max(0, Math.min(KEYNUM - 1, rowAt(y)));
   const value = valueAtRow(row);
   previewUnit(focus, value, EVENTDEFAULT_VELOCITY, 0.8);
