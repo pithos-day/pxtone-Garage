@@ -160,22 +160,8 @@ export function previewWoice(woiceIdx: number, key: number, velocity: number = D
 
 let holdSource: AudioBufferSourceNode | null = null;
 
-// ユニットの音色をループ再生で開始する。pointerup まで鳴り続ける
-export function previewUnitHold(
-  unitNo: number,
-  key: number,
-  velocity: number = DEFAULT_VELOCITY,
-  durSec = PREVIEW_SEC,
-): void {
-  const svc = getService();
-  if (!svc) return;
-  if (!svc.unitGet(unitNo)) return;
-  const bytes = exportBytes();
-  if (!bytes) return;
-  const ctx = getCtx();
-  if (!ctx) return;
-  const work = renderPreview(bytes, { unitNo, woiceIdx: null }, key, velocity, durSec, ctx.sampleRate);
-  if (!work) return;
+// レンダリング済みバッファをループ再生で開始する
+function startHold(work: Float32Array, ctx: AudioContext): void {
   stopPreview();
   if (ctx.state === "suspended") void ctx.resume();
 
@@ -211,6 +197,44 @@ export function previewUnitHold(
     if (holdSource === src) holdSource = null;
   };
   src.start();
+}
+
+// ユニットの音色をループ再生で開始する。pointerup まで鳴り続ける
+export function previewUnitHold(
+  unitNo: number,
+  key: number,
+  velocity: number = DEFAULT_VELOCITY,
+  durSec = PREVIEW_SEC,
+): void {
+  const svc = getService();
+  if (!svc) return;
+  if (!svc.unitGet(unitNo)) return;
+  const bytes = exportBytes();
+  if (!bytes) return;
+  const ctx = getCtx();
+  if (!ctx) return;
+  const work = renderPreview(bytes, { unitNo, woiceIdx: null }, key, velocity, durSec, ctx.sampleRate);
+  if (!work) return;
+  startHold(work, ctx);
+}
+
+// 音色単体をループ再生で開始する。pointerup まで鳴り続ける
+export function previewWoiceHold(
+  woiceIdx: number,
+  key: number,
+  velocity: number = DEFAULT_VELOCITY,
+  durSec = PREVIEW_SEC,
+): void {
+  const svc = getService();
+  if (!svc) return;
+  if (!svc.woiceGet(woiceIdx)) return;
+  const bytes = exportBytes();
+  if (!bytes) return;
+  const ctx = getCtx();
+  if (!ctx) return;
+  const work = renderPreview(bytes, { unitNo: null, woiceIdx }, key, velocity, durSec, ctx.sampleRate);
+  if (!work) return;
+  startHold(work, ctx);
 }
 
 // 押下中サステインを停止する

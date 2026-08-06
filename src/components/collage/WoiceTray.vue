@@ -7,7 +7,7 @@ import {
   removeWoice,
   EVENTDEFAULT_KEY,
 } from "../../state/project";
-import { previewWoice, PREVIEW_SEC } from "../../engine/preview";
+import { previewWoiceHold, stopPreview } from "../../engine/preview";
 import { woiceTypeColor } from "../../lib/theme";
 
 const menu = ref<{ x: number; y: number; w: number } | null>(null);
@@ -21,9 +21,13 @@ function onPointerDown(e: PointerEvent, idx: number): void {
     return;
   }
   if (e.button !== 0) return;
-  // 試聴
+  // 押下中サステインで試聴 (pointerup まで鳴り続ける)
   const w = s.woiceGet(idx);
-  if (w) previewWoice(idx, EVENTDEFAULT_KEY, 104, PREVIEW_SEC);
+  if (w) previewWoiceHold(idx, EVENTDEFAULT_KEY, 104);
+}
+
+function onPointerUp(): void {
+  stopPreview();
 }
 
 function onMenuAction(action: "remove"): void {
@@ -57,7 +61,7 @@ function woiceSummary(idx: number): string {
 <template>
   <div class="tray">
     <div class="tray-title">音色 ({{ woices.length }})</div>
-    <div class="tray-list" @contextmenu.prevent>
+    <div class="tray-list" @contextmenu.prevent @pointerup="onPointerUp">
       <div
         v-for="w in woices"
         :key="w.index"
