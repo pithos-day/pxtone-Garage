@@ -66,19 +66,22 @@ export interface NoteColorGen {
   shadow(playing: boolean, vel: number, vol: number): string;
 }
 
+// 色の明度計算 (non-playing は暗色、playing は vel/vol に応じて明色側へ補間)
+function noteColor(c: [number, number, number][], playing: boolean, vel: number, vol: number): string {
+  if (!playing) return rgb(c[0]!);
+  let p = Math.min((0.15 + (0.85 * vel) / EVENTDEFAULT_VELOCITY) * (vol / EVENTDEFAULT_VOLUME), 1);
+  if (p < 1) return rgb(lerp(c[0]!, c[1]!, p));
+  const defP = (EVENTDEFAULT_VELOCITY * EVENTDEFAULT_VOLUME) / 128 / 128;
+  const rawP = (vel * vol) / 128 / 128;
+  p = Math.max(0, (rawP - defP) / (1 - defP));
+  return rgb(lerp(c[1]!, c[2]!, p));
+}
+
 export function getUnitColor(unitNo: number): NoteColorGen {
   const cs = UNIT_COLORS[((unitNo % 7) + 7) % 7]!;
   const solid = (which: "note" | "key") => {
     const c = cs[which].map(fromHex) as [number, number, number][];
-    return (playing: boolean, vel: number, vol: number): string => {
-      if (!playing) return rgb(c[0]!);
-      let p = Math.min((0.15 + (0.85 * vel) / EVENTDEFAULT_VELOCITY) * (vol / EVENTDEFAULT_VOLUME), 1);
-      if (p < 1) return rgb(lerp(c[0]!, c[1]!, p));
-      const defP = (EVENTDEFAULT_VELOCITY * EVENTDEFAULT_VOLUME) / 128 / 128;
-      const rawP = (vel * vol) / 128 / 128;
-      p = Math.max(0, (rawP - defP) / (1 - defP));
-      return rgb(lerp(c[1]!, c[2]!, p));
-    };
+    return (playing: boolean, vel: number, vol: number): string => noteColor(c, playing, vel, vol);
   };
   return { note: solid("note"), shadow: solid("key") };
 }
