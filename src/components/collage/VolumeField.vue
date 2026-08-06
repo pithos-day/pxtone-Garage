@@ -34,15 +34,16 @@ const BAND = 12;
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const tuningInput = ref<{ x: number; y: number; clock: number; value: string } | null>(null);
 
-const MODE_DEFAULTS: Record<number, number> = {
-  0: EVENTDEFAULT_VELOCITY, // Velocity
-  1: EVENTDEFAULT_PAN_VOLUME, // Pan_Volume
-  2: EVENTDEFAULT_PAN_TIME, // Pan_Time
-  3: EVENTDEFAULT_VOLUME, // Volume
-  4: EVENTDEFAULT_PORTAMENT, // Portament
-  5: EVENTDEFAULT_VOICENO, // VoiceNo
-  6: EVENTDEFAULT_GROUPNO, // GroupNo
-  7: EVENTDEFAULT_TUNING, // Tuning
+// モード → 書き込み対象イベント種別とデフォルト値 (描画・編集で共通使用)
+const VOLUME_MODES: Record<number, { kind: EventKind; def: number }> = {
+  0: { kind: EventKind.VELOCITY, def: EVENTDEFAULT_VELOCITY },
+  1: { kind: EventKind.PAN_VOLUME, def: EVENTDEFAULT_PAN_VOLUME },
+  2: { kind: EventKind.PAN_TIME, def: EVENTDEFAULT_PAN_TIME },
+  3: { kind: EventKind.VOLUME, def: EVENTDEFAULT_VOLUME },
+  4: { kind: EventKind.PORTAMENT, def: EVENTDEFAULT_PORTAMENT },
+  5: { kind: EventKind.VOICENO, def: EVENTDEFAULT_VOICENO },
+  6: { kind: EventKind.GROUPNO, def: EVENTDEFAULT_GROUPNO },
+  7: { kind: EventKind.TUNING, def: EVENTDEFAULT_TUNING },
 };
 
 useCanvas(
@@ -93,9 +94,9 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     case 3: // Volume: 階段
       {
         const points: { clock: number; value: number }[] = [];
-        const kind = mode === 0 ? 4 : mode === 1 ? 3 : 5;
+        const kind = VOLUME_MODES[mode]!.kind;
         for (const e of records) {
-          if (e.kind === 0 || e.unitNo !== focus || e.clock > endClock) continue;
+          if (e.kind === EventKind.NULL || e.unitNo !== focus || e.clock > endClock) continue;
           if (e.kind === kind) {
             points.push({ clock: e.clock, value: e.value });
           }
@@ -108,7 +109,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
           }
         } else {
           // 階段状ライン
-          let prevY = valueY(MODE_DEFAULTS[mode]!);
+          let prevY = valueY(VOLUME_MODES[mode]!.def);
           ctx.strokeStyle = COLORS.accent;
           ctx.lineWidth = 1;
           ctx.beginPath();
@@ -131,8 +132,8 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     case 4: // Portament: 横棒
       {
         for (const e of records) {
-          if (e.kind === 0 || e.unitNo !== focus) continue;
-          if (e.kind === 6 && e.clock <= endClock) {
+          if (e.kind === EventKind.NULL || e.unitNo !== focus) continue;
+          if (e.kind === EventKind.PORTAMENT && e.clock <= endClock) {
             const x = clockToX(view, e.clock) - doc.scrollX;
             const xw = Math.max(2, clockToX(view, e.value));
             if (x + xw < 0 || x > w) continue;
@@ -144,9 +145,9 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     case 5: // VoiceNo
     case 6: // GroupNo
       {
-        const kind = mode === 5 ? 12 : 13;
+        const kind = VOLUME_MODES[mode]!.kind;
         for (const e of records) {
-          if (e.kind === 0 || e.unitNo !== focus || e.kind !== kind) continue;
+          if (e.kind === EventKind.NULL || e.unitNo !== focus || e.kind !== kind) continue;
           if (e.clock > endClock || e.clock + 10 < startClock) continue;
           const x = clockToX(view, e.clock) - doc.scrollX;
           if (x > w || x < -40) continue;
@@ -160,7 +161,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     case 7: // Tuning: 数値ボックス
       {
         for (const e of records) {
-          if (e.kind === 0 || e.unitNo !== focus || e.kind !== 14) continue;
+          if (e.kind === EventKind.NULL || e.unitNo !== focus || e.kind !== EventKind.TUNING) continue;
           if (e.clock > endClock || e.clock + 10 < startClock) continue;
           const x = clockToX(view, e.clock) - doc.scrollX;
           if (x > w || x < -50) continue;
@@ -213,7 +214,7 @@ function onPointerDown(e: PointerEvent): void {
     if (doc.volumeMode === 7) {
       // Tuning: インライン入力
       const clock = clockAt(x);
-      const cur = s.evels.getValue(clock, doc.focusUnit, 14);
+      const cur = s.evels.getValue(clock, doc.focusUnit, EventKind.TUNING);
       tuningInput.value = {
         x,
         y,
@@ -262,41 +263,33 @@ function applyDragAt(e: PointerEvent, y: number): void {
   const grid = e.ctrlKey ? 8 : 2;
   const value = valueAt(y, grid);
   if (d.button === 0) {
+    const kind = VOLUME_MODES[mode]!.kind;
     switch (mode) {
-      case 0: // Velocity
-        setEventValue(c1, c2, u, 4, value);
+      case 0: // Velocity: 値の書換のみ
+        setEventValue(c1, c2, u, kind, value);
         break;
       case 1: // Pan_Volume
-        deleteEvents(c1, c2, u, 3);
-        addEvent(c1, u, 3, value);
-        setEventValue(c1, c2, u, 3, value);
-        break;
       case 2: // Pan_Time
-        deleteEvents(c1, c2, u, 15);
-        addEvent(c1, u, 15, value);
-        setEventValue(c1, c2, u, 15, value);
-        break;
       case 3: // Volume
-        deleteEvents(c1, c2, u, 5);
-        addEvent(c1, u, 5, value);
-        setEventValue(c1, c2, u, 5, value);
+        deleteEvents(c1, c2, u, kind);
+        addEvent(c1, u, kind, value);
+        setEventValue(c1, c2, u, kind, value);
         break;
-      case 4: // Portament
-        deleteEvents(c1, c2, u, 6);
-        addEvent(c1, u, 6, c2 - c1);
+      case 4: // Portament: 長さを書き込み
+        deleteEvents(c1, c2, u, kind);
+        addEvent(c1, u, kind, c2 - c1);
         break;
-      case 5: // VoiceNo
-        deleteEvents(c1, c2, u, 12);
-        addEvent(c1, u, 12, Math.round((value / 128) * Math.max(0, s.woiceNum - 1)));
+      case 5: // VoiceNo: 値 (0..128) を音色番号へ換算
+        deleteEvents(c1, c2, u, kind);
+        addEvent(c1, u, kind, Math.round((value / 128) * Math.max(0, s.woiceNum - 1)));
         break;
-      case 6: // GroupNo
-        deleteEvents(c1, c2, u, 13);
-        addEvent(c1, u, 13, Math.min(7, Math.round((value / 128) * 7)));
+      case 6: // GroupNo: 値 (0..128) を 0..7 へ換算
+        deleteEvents(c1, c2, u, kind);
+        addEvent(c1, u, kind, Math.min(7, Math.round((value / 128) * 7)));
         break;
     }
   } else {
-    const kinds: Record<number, number> = { 0: 4, 1: 3, 2: 15, 3: 5, 4: 6, 5: 12, 6: 13, 7: 14 };
-    deleteEvents(c1, c2, u, kinds[mode]!);
+    deleteEvents(c1, c2, u, VOLUME_MODES[mode]!.kind);
   }
   doc.rev++;
 }
