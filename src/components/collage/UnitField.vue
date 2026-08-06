@@ -5,7 +5,8 @@ import { ref } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText, noteFill, noteShadow } from "../../lib/draw";
-import { clockToX, xToClock, snapClock, ZOOM_TABLE } from "../../lib/clock";
+import { fieldOffset, clockAtX, zoomByWheel } from "../../lib/field";
+import { clockToX, xToClock } from "../../lib/clock";
 import { EventKind } from "pxtone-ts";
 import {
   doc,
@@ -167,15 +168,8 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 // ---- ポインタ操作 ----
 const drag = ref<{ button: number; x1: number; x2: number; unit: number; undoPushed: boolean } | null>(null);
 
-function fieldOffset(e: PointerEvent): { x: number; y: number } {
-  const c = canvasRef.value!;
-  const r = c.getBoundingClientRect();
-  return { x: e.clientX - r.left, y: e.clientY - r.top };
-}
-
 function clockAt(x: number): number {
-  const view = projectClockView();
-  return snapClock(view, doc.divi, xToClock(view, x + doc.scrollX));
+  return clockAtX(projectClockView(), doc.divi, doc.scrollX, x);
 }
 
 function unitAt(y: number): number {
@@ -198,7 +192,7 @@ function previewAt(x: number, y: number): void {
 function onPointerDown(e: PointerEvent): void {
   const c = canvasRef.value;
   if (!c) return;
-  const { x, y } = fieldOffset(e);
+  const { x, y } = fieldOffset(c, e);
   if (y < BAND) {
     // ルーラー帯クリック = シーク
     if (e.button === 0) {
@@ -229,7 +223,7 @@ function viewUnit(): number {
 function onPointerMove(e: PointerEvent): void {
   const d = drag.value;
   if (!d) return;
-  const { x } = fieldOffset(e);
+  const { x } = fieldOffset(canvasRef.value!, e);
   const clock = clockAt(x);
   if (clock !== d.x2) {
     // 最初の移動時に undo を積む (クリックのみなら積まない)
@@ -286,11 +280,9 @@ function onPointerUp(e: PointerEvent): void {
 // ホイール: 縦スクロール / Shift: 横 / Ctrl: ズーム
 function onWheel(e: WheelEvent): void {
   const maxUnit = Math.max(0, units.value.length - 1);
-  if (e.ctrlKey) {
-    e.preventDefault();
-    const idx = (ZOOM_TABLE as readonly number[]).indexOf(doc.zoom);
-    const next = e.deltaY < 0 ? Math.min(ZOOM_TABLE.length - 1, idx + 1) : Math.max(0, idx - 1);
-    doc.zoom = ZOOM_TABLE[next]!;
+  const zoom = zoomByWheel(e, doc.zoom);
+  if (zoom !== null) {
+    doc.zoom = zoom;
     return;
   }
   if (e.shiftKey) {

@@ -4,7 +4,8 @@ import { ref } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText } from "../../lib/draw";
-import { clockToX, measOfClock, xToClock, snapClock } from "../../lib/clock";
+import { clockAtX } from "../../lib/field";
+import { clockToX, measOfClock } from "../../lib/clock";
 import { doc, getService, clockView as projectClockView, setRepeatMeas, setLastMeas } from "../../state/project";
 import { currentClock, seekToClock, isPlaying as isPlayingNow } from "../../state/player";
 
@@ -48,8 +49,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 }
 
 function clockAt(x: number): number {
-  const view = projectClockView();
-  return snapClock(view, doc.divi, xToClock(view, x + doc.scrollX));
+  return clockAtX(projectClockView(), doc.divi, doc.scrollX, x);
 }
 
 function onPointerDown(e: PointerEvent): void {
