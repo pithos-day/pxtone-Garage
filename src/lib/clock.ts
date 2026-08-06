@@ -8,9 +8,6 @@ export const KEYNUM = 88; // コード 21..108
 export const KEY_CODE_TOP = 108;
 export const KEY_CODE_BOTTOM = 21;
 export const KEY_HEIGHT = 16;
-export const DEFAULT_KEY = 0x6000; // code 96
-export const DEFAULT_BASICKEY = 0x4500; // code 69
-export const DEFAULT_BEATWIDTH = 48;
 
 // code%12 がこの集合なら白鍵 (本家の描画規則を忠実に再現)
 const WHITE_KEYS = new Set([0, 1, 3, 5, 7, 8, 10]);
@@ -22,14 +19,6 @@ export function isWhiteKey(code: number): boolean {
 // ピアノロールの行番号 (0=最上段) ベースの白鍵判定 (本家 if_KeyField の i%12 判定)
 export function isWhiteRow(row: number): boolean {
   return WHITE_KEYS.has(((row % 12) + 12) % 12);
-}
-
-export function keyValueToCode(key: number): number {
-  return key >> 8;
-}
-
-export function codeToKeyValue(code: number): number {
-  return code * 0x100;
 }
 
 // ロー上のコード (0=最上段=コード108)
@@ -54,10 +43,6 @@ export function clockToX(view: ClockView, clock: number): number {
 
 export function xToClock(view: ClockView, x: number): number {
   return (x / view.zoom) * view.beatClock;
-}
-
-export function measWidth(view: ClockView): number {
-  return view.beatNum * view.zoom;
 }
 
 export function measOfClock(view: ClockView, clock: number): number {
@@ -90,8 +75,4 @@ export function beatsToTime(beat: number, beatTempo: number): string {
   const s = Math.floor(sec % 60);
   const ms = Math.floor((sec % 1) * 10);
   return `${m}:${String(s).padStart(2, "0")}.${ms}`;
-}
-
-export function clamp(v: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, v));
 }
