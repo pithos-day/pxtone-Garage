@@ -18,7 +18,7 @@ import {
   sync,
   EVENTDEFAULT_KEY,
 } from "../../state/project";
-import { previewUnit } from "../../engine/preview";
+import { previewUnit, PREVIEW_SEC } from "../../engine/preview";
 
 const rowH = 16;
 const editing = ref<number | null>(null);
@@ -59,7 +59,7 @@ function onPointerDown(e: PointerEvent, idx: number): void {
   // 試聴
   const u = s.unitGet(idx);
   if (u?.woice) {
-    previewUnit(idx, EVENTDEFAULT_KEY, 104, 0.8);
+    previewUnit(idx, EVENTDEFAULT_KEY, 104, PREVIEW_SEC);
   }
 
   // ドラッグ並べ替え

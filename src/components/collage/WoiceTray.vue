@@ -7,7 +7,7 @@ import {
   removeWoice,
   EVENTDEFAULT_KEY,
 } from "../../state/project";
-import { previewWoice } from "../../engine/preview";
+import { previewWoice, PREVIEW_SEC } from "../../engine/preview";
 import { woiceTypeColor } from "../../lib/theme";
 
 const menu = ref<{ x: number; y: number; w: number } | null>(null);
@@ -23,7 +23,7 @@ function onPointerDown(e: PointerEvent, idx: number): void {
   if (e.button !== 0) return;
   // 試聴
   const w = s.woiceGet(idx);
-  if (w) previewWoice(idx, EVENTDEFAULT_KEY, 104, 0.8);
+  if (w) previewWoice(idx, EVENTDEFAULT_KEY, 104, PREVIEW_SEC);
 }
 
 function onMenuAction(action: "remove"): void {
