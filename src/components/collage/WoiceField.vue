@@ -51,25 +51,25 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   ctx.clip();
 
   for (let i = 0; i < s.woiceNum; i++) {
-    const w2 = s.woiceGet(i);
-    if (!w2) continue;
+    const woice = s.woiceGet(i);
+    if (!woice) continue;
     const y = fieldTop + i * ROW_H - scrollY;
     if (y + ROW_H < fieldTop || y > fieldTop + fieldH) continue;
-    const vc = w2.getVoice(0);
+    const vc = woice.getVoice(0);
     fillRect(ctx, 0, y, w, ROW_H, i % 2 ? "rgba(255,255,255,0.02)" : "transparent");
-    fillRect(ctx, 0, y, 3, ROW_H, woiceTypeColor(w2.type));
+    fillRect(ctx, 0, y, 3, ROW_H, woiceTypeColor(woice.type));
     fillText(ctx, String(i), cols[0]!.x, y + 13, COLORS.text, 11);
     // 名前 (カラム幅でクリップ)
     ctx.save();
     ctx.beginPath();
     ctx.rect(cols[1]!.x, y, cols[1]!.w, ROW_H);
     ctx.clip();
-    fillText(ctx, woiceName(w2), cols[1]!.x, y + 13, COLORS.textBright, 11);
+    fillText(ctx, woiceName(woice), cols[1]!.x, y + 13, COLORS.textBright, 11);
     ctx.restore();
-    fillText(ctx, woiceTypeName(w2.type), cols[2]!.x, y + 13, woiceTypeColor(w2.type), 11);
+    fillText(ctx, woiceTypeName(woice.type), cols[2]!.x, y + 13, woiceTypeColor(woice.type), 11);
     let info = "";
     if (vc) {
-      switch (w2.type) {
+      switch (woice.type) {
         case WoiceType.PCM:
           info = `${vc.pcm.sps}Hz / ${vc.pcm.bps}bit / ${vc.pcm.ch}ch / ${(vc.pcm.sec * 1000).toFixed(0)}ms`;
           break;
