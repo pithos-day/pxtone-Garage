@@ -1,7 +1,7 @@
 import { createApp } from 'vue'
 import './style.css'
 import App from './App.vue'
-import { openProject, newProject, doc, getService, mutate, beginEdit, commitEdit, exportBytes, setTextComment, setTextName } from './state/project'
+import { openProject, newProject, doc, getService, mutate, beginEdit, commitEdit, exportBytes, setTextComment, setTextName, EVENTDEFAULT_VELOCITY } from './state/project'
 import { play, stop, seekToClock } from './state/player'
 import { undo, redo, pushUndo } from './state/undo'
 import { renderPreview, previewUnit, previewWoice, previewUnitHold, previewWoiceHold, stopPreview } from './engine/preview'
@@ -35,7 +35,7 @@ if (import.meta.env.DEV) {
     previewWoiceHold,
     stopPreview,
     // 単音プレビューのデバッグ用: { len, peak } を返す
-    previewDebug: (unitNo: number, key: number, velocity = 104, sps = 44100) => {
+    previewDebug: (unitNo: number, key: number, velocity = EVENTDEFAULT_VELOCITY, sps = 44100) => {
       const bytes = exportBytes()
       if (!bytes) return { err: 'no project' }
       const buf = renderPreview(bytes, { unitNo, woiceIdx: null }, key, velocity, 1.2, sps)

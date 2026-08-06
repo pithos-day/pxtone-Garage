@@ -6,6 +6,7 @@ import {
   getService,
   removeWoice,
   EVENTDEFAULT_KEY,
+  EVENTDEFAULT_VELOCITY,
 } from "../../state/project";
 import { previewWoiceHold, stopPreview } from "../../engine/preview";
 import { woiceTypeColor } from "../../lib/theme";
@@ -23,7 +24,7 @@ function onPointerDown(e: PointerEvent, idx: number): void {
   if (e.button !== 0) return;
   // 押下中サステインで試聴 (pointerup まで鳴り続ける)
   const w = s.woiceGet(idx);
-  if (w) previewWoiceHold(idx, EVENTDEFAULT_KEY, 104);
+  if (w) previewWoiceHold(idx, EVENTDEFAULT_KEY, EVENTDEFAULT_VELOCITY);
 }
 
 function onPointerUp(): void {

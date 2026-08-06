@@ -17,6 +17,7 @@ import {
   commitEdit,
   sync,
   EVENTDEFAULT_KEY,
+  EVENTDEFAULT_VELOCITY,
 } from "../../state/project";
 import { previewUnit, PREVIEW_SEC } from "../../engine/preview";
 
@@ -59,7 +60,7 @@ function onPointerDown(e: PointerEvent, idx: number): void {
   // 試聴
   const u = s.unitGet(idx);
   if (u?.woice) {
-    previewUnit(idx, EVENTDEFAULT_KEY, 104, PREVIEW_SEC);
+    previewUnit(idx, EVENTDEFAULT_KEY, EVENTDEFAULT_VELOCITY, PREVIEW_SEC);
   }
 
   // ドラッグ並べ替え

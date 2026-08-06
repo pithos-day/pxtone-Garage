@@ -2,12 +2,12 @@
 // worklet の preview メッセージは未実装のため、メインスレッドで
 // 一時 Service にプロジェクト全体を読み込み、対象ユニットのみの
 // ノートをオフライン短レンダリング → AudioBuffer 再生で実現する。
-import { Service, PxtnErr, MemoryIo, EventKind, PXTN_MAX_EVENT_NUM } from "pxtone-ts";
+import { Service, PxtnErr, MemoryIo, EventKind, PXTN_MAX_EVENT_NUM, EVENTDEFAULT_VELOCITY, EVENTDEFAULT_VOLUME } from "pxtone-ts";
 import { exportBytes } from "../state/project";
 import { getService } from "../state/project";
 
-const DEFAULT_VELOCITY = 104;
-const DEFAULT_VOLUME = 104;
+const DEFAULT_VELOCITY = EVENTDEFAULT_VELOCITY;
+const DEFAULT_VOLUME = EVENTDEFAULT_VOLUME;
 
 // プレビューの再生時間 (秒)
 export const PREVIEW_SEC = 2.5;

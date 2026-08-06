@@ -27,6 +27,7 @@ import {
   setEventValue,
   setScope,
   EVENTDEFAULT_VELOCITY,
+  EVENTDEFAULT_VOLUME,
   EVENTDEFAULT_KEY,
 } from "../../state/project";
 import { currentClock, seekToClock, isPlaying as isPlayingNow } from "../../state/player";
@@ -197,10 +198,10 @@ function drawNotes(
     const x2 = clockToX(view, Math.min(endClock, clock + len)) - scrollX;
     if (x2 <= x1) return;
     if (depth === "off") {
-      fillRect(ctx, x1, y - 1, x2 - x1, 2, color.shadow(false, 104, 104));
+      fillRect(ctx, x1, y - 1, x2 - x1, 2, color.shadow(false, EVENTDEFAULT_VELOCITY, EVENTDEFAULT_VOLUME));
     } else {
       const playing = currentClock.value >= clock && currentClock.value < clock + len;
-      fillRect(ctx, x1, y - 3, x2 - x1, 7, color.note(playing, 104, 104));
+      fillRect(ctx, x1, y - 3, x2 - x1, 7, color.note(playing, EVENTDEFAULT_VELOCITY, EVENTDEFAULT_VOLUME));
       // ヘッド
       fillRect(ctx, x1, y - 3, 2, 7, "#ffffff");
     }

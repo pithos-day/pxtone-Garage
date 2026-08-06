@@ -1,4 +1,5 @@
 // ptweb / 本家ピストンコラージュの配色を踏襲したダークテーマ定義
+import { EVENTDEFAULT_VELOCITY, EVENTDEFAULT_VOLUME } from "pxtone-ts";
 
 export const BGCOLOR = "#000010";
 
@@ -70,8 +71,6 @@ export function getUnitColor(unitNo: number): NoteColorGen {
   const solid = (which: "note" | "key") => {
     const c = cs[which].map(fromHex) as [number, number, number][];
     return (playing: boolean, vel: number, vol: number): string => {
-      const DEFAULT_VELOCITY = 104;
-      const DEFAULT_VOLUME = 104;
       if (!playing) return rgb(c[0]!);
       let p = Math.min((0.15 + (0.85 * vel) / DEFAULT_VELOCITY) * (vol / DEFAULT_VOLUME), 1);
       if (p < 1) return rgb(lerp(c[0]!, c[1]!, p));
