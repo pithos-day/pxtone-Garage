@@ -6,7 +6,6 @@
 export interface RealtimePlayerOptions {
   onPosition?: (sample: number) => void;
   onEnded?: () => void;
-  onLoaded?: (ok: boolean, totalSample: number) => void;
 }
 
 export class RealtimePlayer {
@@ -66,7 +65,6 @@ export class RealtimePlayer {
           this.pendingLoad.resolve(msg.ok);
           this.pendingLoad = null;
         }
-        this.opts.onLoaded?.(msg.ok, msg.totalSample);
         break;
       case "position":
         this.lastPosSample = msg.sample;
