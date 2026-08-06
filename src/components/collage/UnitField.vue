@@ -208,16 +208,12 @@ function onPointerDown(e: PointerEvent): void {
   if (e.button === 0) {
     c.setPointerCapture(e.pointerId);
     drag.value = { button: 0, x1: clockAt(x), x2: clockAt(x), unit: u, undoPushed: false };
-    setScope(clockAt(x), clockAt(x) + viewUnit());
+    setScope(clockAt(x), clockAt(x) + Math.max(1, doc.divi));
     previewAt(x, y);
   } else if (e.button === 2) {
     c.setPointerCapture(e.pointerId);
     drag.value = { button: 2, x1: clockAt(x), x2: clockAt(x), unit: u, undoPushed: false };
   }
-}
-
-function viewUnit(): number {
-  return Math.max(1, doc.divi);
 }
 
 function onPointerMove(e: PointerEvent): void {
@@ -243,7 +239,7 @@ function applyDrag(): void {
   const c1 = Math.min(d.x1, d.x2);
   const c2 = Math.max(d.x1, d.x2);
   if (c2 <= c1) {
-    if (d.button === 0) setScope(c1, c1 + viewUnit());
+    if (d.button === 0) setScope(c1, c1 + Math.max(1, doc.divi));
     return;
   }
   setScope(c1, c2);
