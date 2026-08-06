@@ -80,8 +80,9 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 
   // イベント描画 (ON = ノートバー, その他 = マーク)
   const records = s.evels.records;
-  const endClock = scrollX + Math.ceil((w / view.zoom) * view.beatClock);
-  const startClock = Math.max(0, scrollX - 10);
+  // 表示範囲 (clock)。scrollX は px なので xToClock で変換する
+  const endClock = xToClock(view, scrollX + w);
+  const startClock = Math.max(0, xToClock(view, scrollX) - 10);
 
   interface RowNote {
     unit: number;

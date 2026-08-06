@@ -171,8 +171,9 @@ function drawNotes(
   scrollY: number,
 ): void {
   const records = s.evels.records;
-  const endClock = scrollX + Math.ceil((w / view.zoom) * view.beatClock);
-  const startClock = Math.max(0, scrollX - 10);
+  // 表示範囲 (clock)。scrollX は px なので xToClock で変換する
+  const endClock = xToClock(view, scrollX + w);
+  const startClock = Math.max(0, xToClock(view, scrollX) - 10);
 
   const color = getUnitColor(unitNo);
   let curKey = EVENTDEFAULT_KEY;

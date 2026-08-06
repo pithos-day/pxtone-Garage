@@ -81,8 +81,9 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 
   if (focus < 0 || !s.unitGet(focus)) return;
   const records = s.evels.records;
-  const endClock = doc.scrollX + Math.ceil((w / view.zoom) * view.beatClock);
-  const startClock = Math.max(0, doc.scrollX - 10);
+  // 表示範囲 (clock)。scrollX は px なので xToClock で変換する
+  const endClock = xToClock(view, doc.scrollX + w);
+  const startClock = Math.max(0, xToClock(view, doc.scrollX) - 10);
 
   const valueY = (v: number): number => fTop + fH - (v / 128) * fH;
 
