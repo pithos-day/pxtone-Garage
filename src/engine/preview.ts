@@ -2,25 +2,21 @@
 // worklet の preview メッセージは未実装のため、メインスレッドで
 // 一時 Service にプロジェクト全体を読み込み、対象ユニットのみの
 // ノートをオフライン短レンダリング → AudioBuffer 再生で実現する。
-import { Service, PxtnErr, MemoryIo, EventKind, PXTN_MAX_EVENT_NUM, EVENTDEFAULT_VELOCITY, EVENTDEFAULT_VOLUME } from "pxtone-ts";
+import { Service, PxtnErr, MemoryIo, EventKind, PXTN_MAX_EVENT_NUM, EVENTDEFAULT_VELOCITY } from "pxtone-ts";
 import { exportBytes } from "../state/project";
 import { getService } from "../state/project";
 
 const DEFAULT_VELOCITY = EVENTDEFAULT_VELOCITY;
-const DEFAULT_VOLUME = EVENTDEFAULT_VOLUME;
 
 // プレビューの再生時間 (秒)
 export const PREVIEW_SEC = 2.5;
 
 let previewCtx: AudioContext | null = null;
-let gainNode: GainNode | null = null;
 
 function getCtx(): AudioContext | null {
   if (previewCtx) return previewCtx;
   try {
     previewCtx = new AudioContext();
-    gainNode = previewCtx.createGain();
-    gainNode.connect(previewCtx.destination);
     return previewCtx;
   } catch {
     return null;
@@ -86,14 +82,12 @@ export function renderPreview(
 }
 
 let lastSrc: AudioBufferSourceNode | null = null;
-let previewSerial = 0;
 
 // バッファを再生する。連続呼び出しは前の音を中断する
-function playBuffer(work: Float32Array, sps: number, serial: number): void {
+function playBuffer(work: Float32Array, sps: number): void {
   const ctx = getCtx();
   if (!ctx) return;
   if (ctx.state === "suspended") void ctx.resume();
-  if (serial !== previewSerial) return;
   const buf = ctx.createBuffer(2, work.length / 2, sps);
   const ch0 = buf.getChannelData(0);
   const ch1 = buf.getChannelData(1);
@@ -127,33 +121,42 @@ function playBuffer(work: Float32Array, sps: number, serial: number): void {
 // ユニットの音色で単音をプレビュー。
 // 音色は read 直後の unit には未設定 (VOICENO イベントで決まる) ため、
 // renderPreview 側で VOICENO から割り当てる。ここではユニット存在のみ確認
-export function previewUnit(unitNo: number, key: number, velocity: number = DEFAULT_VELOCITY, durSec = PREVIEW_SEC): void {
+// (hold = false なら 1 回だけ再生、true なら pointerup までループ再生)
+function preview(target: PreviewTarget, key: number, velocity: number, durSec: number, hold: boolean): void {
   const svc = getService();
   if (!svc) return;
-  if (!svc.unitGet(unitNo)) return;
+  if (target.unitNo !== null) {
+    if (!svc.unitGet(target.unitNo)) return;
+  } else if (target.woiceIdx === null || !svc.woiceGet(target.woiceIdx)) {
+    return;
+  }
   const bytes = exportBytes();
   if (!bytes) return;
-  const serial = ++previewSerial;
   const ctx = getCtx();
   if (!ctx) return;
-  const work = renderPreview(bytes, { unitNo, woiceIdx: null }, key, velocity, durSec, ctx.sampleRate);
+  const work = renderPreview(bytes, target, key, velocity, durSec, ctx.sampleRate);
   if (!work) return;
-  playBuffer(work, ctx.sampleRate, serial);
+  if (hold) startHold(work, ctx);
+  else playBuffer(work, ctx.sampleRate);
+}
+
+export function previewUnit(unitNo: number, key: number, velocity: number = DEFAULT_VELOCITY, durSec = PREVIEW_SEC): void {
+  preview({ unitNo, woiceIdx: null }, key, velocity, durSec, false);
 }
 
 // 音色単体で単音をプレビュー (プロジェクト内の音色をそのまま使う)
 export function previewWoice(woiceIdx: number, key: number, velocity: number = DEFAULT_VELOCITY, durSec = PREVIEW_SEC): void {
-  const svc = getService();
-  if (!svc) return;
-  if (!svc.woiceGet(woiceIdx)) return;
-  const bytes = exportBytes();
-  if (!bytes) return;
-  const serial = ++previewSerial;
-  const ctx = getCtx();
-  if (!ctx) return;
-  const work = renderPreview(bytes, { unitNo: null, woiceIdx }, key, velocity, durSec, ctx.sampleRate);
-  if (!work) return;
-  playBuffer(work, ctx.sampleRate, serial);
+  preview({ unitNo: null, woiceIdx }, key, velocity, durSec, false);
+}
+
+// ユニットの音色をループ再生で開始する。pointerup まで鳴り続ける
+export function previewUnitHold(unitNo: number, key: number, velocity: number = DEFAULT_VELOCITY, durSec = PREVIEW_SEC): void {
+  preview({ unitNo, woiceIdx: null }, key, velocity, durSec, true);
+}
+
+// 音色単体をループ再生で開始する。pointerup まで鳴り続ける
+export function previewWoiceHold(woiceIdx: number, key: number, velocity: number = DEFAULT_VELOCITY, durSec = PREVIEW_SEC): void {
+  preview({ unitNo: null, woiceIdx }, key, velocity, durSec, true);
 }
 
 // ---- 押下中サステイン (押している間ループ再生) ----
@@ -199,44 +202,6 @@ function startHold(work: Float32Array, ctx: AudioContext): void {
   src.start();
 }
 
-// ユニットの音色をループ再生で開始する。pointerup まで鳴り続ける
-export function previewUnitHold(
-  unitNo: number,
-  key: number,
-  velocity: number = DEFAULT_VELOCITY,
-  durSec = PREVIEW_SEC,
-): void {
-  const svc = getService();
-  if (!svc) return;
-  if (!svc.unitGet(unitNo)) return;
-  const bytes = exportBytes();
-  if (!bytes) return;
-  const ctx = getCtx();
-  if (!ctx) return;
-  const work = renderPreview(bytes, { unitNo, woiceIdx: null }, key, velocity, durSec, ctx.sampleRate);
-  if (!work) return;
-  startHold(work, ctx);
-}
-
-// 音色単体をループ再生で開始する。pointerup まで鳴り続ける
-export function previewWoiceHold(
-  woiceIdx: number,
-  key: number,
-  velocity: number = DEFAULT_VELOCITY,
-  durSec = PREVIEW_SEC,
-): void {
-  const svc = getService();
-  if (!svc) return;
-  if (!svc.woiceGet(woiceIdx)) return;
-  const bytes = exportBytes();
-  if (!bytes) return;
-  const ctx = getCtx();
-  if (!ctx) return;
-  const work = renderPreview(bytes, { unitNo: null, woiceIdx }, key, velocity, durSec, ctx.sampleRate);
-  if (!work) return;
-  startHold(work, ctx);
-}
-
 // 押下中サステインを停止する
 export function stopPreview(): void {
   if (holdSource) {
@@ -247,13 +212,4 @@ export function stopPreview(): void {
     }
     holdSource = null;
   }
-}
-
-// ベロシティ・音量のデフォルト値
-export function defaultVelocity(): number {
-  return DEFAULT_VELOCITY;
-}
-
-export function defaultVolume(): number {
-  return DEFAULT_VOLUME;
 }
