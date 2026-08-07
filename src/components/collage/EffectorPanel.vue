@@ -139,7 +139,7 @@ function onAddOverdrive(): void {
   justify-content: space-between;
   align-items: center;
   font-size: 11px;
-  color: var(--text-bright);
+  color: var(--foreground);
   margin-bottom: 2px;
 }
 
@@ -149,16 +149,16 @@ function onAddOverdrive(): void {
   align-items: center;
   font-size: 11px;
   padding: 1px 2px;
-  color: var(--text);
+  color: var(--muted-foreground);
 }
 
 .eff-row:hover {
-  background: var(--panel-light);
+  background: var(--secondary);
 }
 
 .eff-empty {
   font-size: 10px;
-  color: var(--text-dim);
+  color: var(--muted-foreground);
   padding: 2px;
 }
 

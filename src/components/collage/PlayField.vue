@@ -30,13 +30,13 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 
   // repeat マーカー
   if (s.master.repeatMeas > 0) {
-    fillRect(ctx, repeatX, 2, 2, h - 4, "#ff8080");
-    fillText(ctx, "R", repeatX + 3, 11, "#ff8080", 9);
+    fillRect(ctx, repeatX, 2, 2, h - 4, COLORS.repeatMark);
+    fillText(ctx, "R", repeatX + 3, 11, COLORS.repeatMark, 9);
   }
   // last マーカー
   if (s.master.lastMeas > 0) {
-    fillRect(ctx, lastX, 2, 2, h - 4, "#80ff80");
-    fillText(ctx, "L", lastX + 3, 11, "#80ff80", 9);
+    fillRect(ctx, lastX, 2, 2, h - 4, COLORS.lastMark);
+    fillText(ctx, "L", lastX + 3, 11, COLORS.lastMark, 9);
   }
 
   // プレイヘッド

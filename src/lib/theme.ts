@@ -1,41 +1,102 @@
-// ptweb / 本家ピストンコラージュの配色を踏襲したダークテーマ定義
+// テーマ色の定義。Canvas 描画用の COLORS は src/theme/*.css が定義する
+// CSS 変数 (shadcn 形式) から読み取る。テーマ切替時は syncThemeColors() を呼ぶ。
+import { reactive } from "vue";
 import { EVENTDEFAULT_VELOCITY, EVENTDEFAULT_VOLUME, WoiceType } from "pxtone-ts";
 
-export const BGCOLOR = "#000010";
+// Canvas 用の色。apply 時に CSS 変数から取り込まれる (テーマ非依存の
+// ユニット7色は除く)。reactive なので書き換えが描画処理に伝わる。
+export const COLORS = reactive({
+  bg: "",
+  panel: "",
+  panelDark: "",
+  panelLight: "",
+  border: "",
+  borderLight: "",
+  text: "",
+  textBright: "",
+  textDim: "",
+  accent: "",
+  accentDark: "",
+  danger: "",
+  playhead: "",
+  measureLine: "",
+  beatLine: "",
+  diviLine: "",
+  measureBox: "",
+  measureText: "",
+  scope: "",
+  scopeBorder: "",
+  scopeFaint: "",
+  fieldBg: "",
+  unitRowBg: "",
+  rowWhite: "",
+  rowBlack: "",
+  zebra: "",
+  scaleLine: "",
+  whiteKey: "",
+  blackKey: "",
+  keyEdge: "",
+  focusOrange: "",
+  focusText: "",
+  focusRow: "",
+  muted: "",
+  rulerBg: "",
+  headerBg: "",
+  octaveText: "",
+  noteHead: "",
+  repeatMark: "",
+  pinnedMark: "",
+  lastMark: "",
+});
 
-export const COLORS = {
-  bg: BGCOLOR,
-  panel: "#14142a",
-  panelDark: "#0c0c1e",
-  panelLight: "#1e1e38",
-  border: "#343255",
-  borderLight: "#69656d",
-  text: "#9d9784",
-  textBright: "#d8d2b8",
-  textDim: "#6a6574",
-  accent: "#00F080",
-  accentDark: "#009c50",
-  danger: "#f00",
-  playhead: "#ffffff",
-  measureLine: "rgba(240,240,240,0.35)",
-  beatLine: "rgba(128,128,128,0.16)",
-  diviLine: "rgba(128,128,128,0.07)",
-  measureBox: "#606060",
-  scope: "rgba(0,240,128,0.35)",
-  scopeBorder: "#00f080",
-  fieldBg: "#101020",
-  unitRowBg: "#400070",
-  whiteKey: "#404040",
-  blackKey: "#202020",
-  keyEdge: "#000000",
-  focusOrange: "#f08000",
-  focusText: "#f08000",
-  muted: "#202028",
-  rulerBg: "#181830",
-  headerBg: "#0e0e20",
-} as const;
+// <html> の data-theme / .dark に対応する CSS 変数を COLORS へ取り込む
+export function syncThemeColors(): void {
+  if (typeof document === "undefined") return;
+  const cs = getComputedStyle(document.documentElement);
+  const v = (name: string): string => cs.getPropertyValue(name).trim();
+  COLORS.bg = v("--background");
+  COLORS.panel = v("--card");
+  COLORS.panelDark = v("--muted");
+  COLORS.panelLight = v("--secondary");
+  COLORS.border = v("--border");
+  COLORS.borderLight = v("--border-strong");
+  COLORS.text = v("--muted-foreground");
+  COLORS.textBright = v("--foreground");
+  COLORS.textDim = v("--muted-foreground");
+  COLORS.accent = v("--primary");
+  COLORS.accentDark = v("--btn-accent-bg");
+  COLORS.danger = v("--destructive");
+  COLORS.playhead = v("--canvas-playhead");
+  COLORS.measureLine = v("--canvas-measure-line");
+  COLORS.beatLine = v("--canvas-beat-line");
+  COLORS.diviLine = v("--canvas-divi-line");
+  COLORS.measureBox = v("--canvas-measure-box");
+  COLORS.measureText = v("--canvas-measure-text");
+  COLORS.scope = v("--canvas-scope");
+  COLORS.scopeBorder = v("--canvas-scope-border");
+  COLORS.scopeFaint = v("--canvas-scope-faint");
+  COLORS.fieldBg = v("--canvas-field-bg");
+  COLORS.rowWhite = v("--canvas-row-white");
+  COLORS.rowBlack = v("--canvas-row-black");
+  COLORS.zebra = v("--canvas-zebra");
+  COLORS.scaleLine = v("--canvas-scale-line");
+  COLORS.whiteKey = v("--canvas-white-key");
+  COLORS.blackKey = v("--canvas-black-key");
+  COLORS.keyEdge = v("--canvas-key-edge");
+  COLORS.focusOrange = v("--canvas-focus");
+  COLORS.focusText = v("--canvas-focus");
+  COLORS.focusRow = v("--focus-row");
+  COLORS.muted = v("--canvas-muted");
+  COLORS.rulerBg = v("--canvas-ruler-bg");
+  COLORS.headerBg = v("--canvas-ruler-bg");
+  COLORS.octaveText = v("--canvas-octave-text");
+  COLORS.noteHead = v("--canvas-note-head");
+  COLORS.repeatMark = v("--repeat-mark");
+  COLORS.pinnedMark = v("--pinned-mark");
+  COLORS.lastMark = v("--last-mark");
+}
 
-// ユニット7色 (ptweb colors.js の note/key 3色)
+// ユニット7色 (ptweb colors.js の note/key 3色) — アイデンティティ色のためテーマ非依存
 export const UNIT_COLORS: { note: string[]; key: string[] }[] = [
   { note: ["#F08000", "#FFFF00", "#FFFF80"], key: ["#C06000", "#F08000", "#FFC400"] },
   { note: ["#FF775D", "#FFC39C", "#FFEDD9"], key: ["#D82E2E", "#FF775D", "#FFC39C"] },

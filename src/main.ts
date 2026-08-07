@@ -1,12 +1,16 @@
 import { createApp } from "vue";
 import "./style.css";
+import "./theme/pxtone.css";
+import "./theme/indigo.css";
 import App from "./App.vue";
+import { initTheme } from "./state/theme";
 import { openProject, newProject, doc, getService, mutate, beginEdit, commitEdit, exportBytes, setTextComment, setTextName, EVENTDEFAULT_VELOCITY } from "./state/project";
 import { play, stop, seekToClock } from "./state/player";
 import { undo, redo, pushUndo } from "./state/undo";
 import { renderPreview, previewUnit, previewUnitHold, previewWoiceHold, stopPreview } from "./engine/preview";
 import { MemoryIo } from "pxtone-ts";
 
+initTheme();
 createApp(App).mount("#app");
 
 // 開発・テスト用フック

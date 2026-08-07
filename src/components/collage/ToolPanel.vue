@@ -64,7 +64,7 @@ function onAllSelect(): void {
   gap: 4px;
   padding: 4px 6px 6px;
   border-bottom: 1px solid var(--border);
-  background: var(--panel-light);
+  background: var(--secondary);
   user-select: none;
 }
 
@@ -84,7 +84,7 @@ function onAllSelect(): void {
 }
 
 .tool-err {
-  color: var(--danger-text, #ff8888);
+  color: var(--danger-text);
   font-size: 10px;
 }
 </style>

@@ -14,6 +14,7 @@ import {
 import { exportPttune, exportWav, openFileDialog } from "../../engine/io";
 import { undo, redo, canUndo, canRedo } from "../../state/undo";
 import { ZOOM_TABLE, DIVI_TABLE } from "../../lib/clock";
+import { THEMES, theme, setThemeName, setDark } from "../../state/theme";
 
 const mode = defineModel<"collage" | "voice" | "noise">({ required: true });
 const emit = defineEmits<{ (e: "project"): void }>();
@@ -133,6 +134,16 @@ const viewMenu = computed<MenuItem[]>(() => [
   { label: "全ユニット表示", action: () => setAllUnitsVisible(!allVisible.value), checked: allVisible.value },
   { sep: true },
   {
+    label: "テーマ",
+    sub: THEMES.map((t) => ({ label: t.label, action: () => setThemeName(t.id), checked: theme.name === t.id })),
+  },
+  {
+    label: theme.dark ? "ライトモード" : "ダークモード",
+    action: () => setDark(!theme.dark),
+    checked: !theme.dark,
+  },
+  { sep: true },
+  {
     label: "ズーム",
     sub: ZOOM_TABLE.map((z) => ({ label: `${z}px`, action: () => (doc.zoom = z), checked: doc.zoom === z })),
   },
@@ -207,7 +218,7 @@ const tabs = [
   display: flex;
   align-items: stretch;
   height: 36px;
-  background: var(--panel-dark);
+  background: var(--muted);
   border-bottom: 1px solid var(--border);
   user-select: none;
   z-index: 30;
@@ -223,21 +234,21 @@ const tabs = [
   border: none;
   border-right: 1px solid var(--border);
   background: transparent;
-  color: var(--text-dim);
+  color: var(--muted-foreground);
   font-size: 17px;
   font-weight: bold;
   cursor: pointer;
 }
 
 .mode-tab:hover {
-  background: var(--panel-light);
-  color: var(--text-bright);
+  background: var(--secondary);
+  color: var(--foreground);
 }
 
 .mode-tab.active {
-  background: var(--panel);
-  color: var(--text-bright);
-  box-shadow: inset 0 3px 0 var(--accent);
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: inset 0 3px 0 var(--primary);
 }
 
 /* メニュー (File / Edit / View) — 左揃え (モードタブの直後) */
@@ -250,15 +261,15 @@ const tabs = [
   padding: 0 14px;
   border: none;
   background: transparent;
-  color: var(--text-dim);
+  color: var(--muted-foreground);
   font-size: 13px;
   cursor: pointer;
 }
 
 .menu-label:hover,
 .menu-label.open {
-  background: var(--panel-light);
-  color: var(--text-bright);
+  background: var(--secondary);
+  color: var(--foreground);
 }
 
 .menu-pop {
@@ -266,9 +277,9 @@ const tabs = [
   top: 100%;
   left: 0;
   min-width: 190px;
-  background: var(--panel);
-  border: 1px solid var(--border-light);
-  box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.7);
+  background: var(--card);
+  border: 1px solid var(--border-strong);
+  box-shadow: 2px 2px 10px var(--shadow);
   padding: 3px 0;
   z-index: 100;
 }
@@ -278,18 +289,18 @@ const tabs = [
   align-items: center;
   padding: 5px 12px;
   font-size: 12px;
-  color: var(--text-bright);
+  color: var(--foreground);
   cursor: pointer;
   position: relative;
   white-space: nowrap;
 }
 
 .menu-item:hover {
-  background: var(--accent-dark);
+  background: var(--btn-accent-bg);
 }
 
 .menu-item.disabled {
-  color: var(--text-dim);
+  color: var(--muted-foreground);
   cursor: default;
 }
 
@@ -299,7 +310,7 @@ const tabs = [
 
 .menu-check {
   width: 16px;
-  color: var(--accent);
+  color: var(--primary);
   font-size: 11px;
   flex: none;
 }
@@ -310,7 +321,7 @@ const tabs = [
 
 .menu-arrow {
   margin-left: 10px;
-  color: var(--text-dim);
+  color: var(--muted-foreground);
   font-size: 10px;
 }
 
@@ -325,9 +336,9 @@ const tabs = [
   left: 100%;
   top: -4px;
   min-width: 150px;
-  background: var(--panel);
-  border: 1px solid var(--border-light);
-  box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.7);
+  background: var(--card);
+  border: 1px solid var(--border-strong);
+  box-shadow: 2px 2px 10px var(--shadow);
   padding: 3px 0;
 }
 </style>

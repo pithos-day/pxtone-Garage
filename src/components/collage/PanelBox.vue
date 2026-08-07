@@ -23,8 +23,8 @@ const emit = defineEmits<{ close: [] }>();
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: var(--panel);
-  border: 1px solid var(--border-light);
+  background: var(--card);
+  border: 1px solid var(--border-strong);
 }
 
 .panelbox-head {
@@ -32,10 +32,10 @@ const emit = defineEmits<{ close: [] }>();
   align-items: center;
   justify-content: space-between;
   padding: 3px 6px;
-  background: var(--panel-light);
+  background: var(--secondary);
   border-bottom: 1px solid var(--border);
   font-size: 11px;
-  color: var(--text-bright);
+  color: var(--foreground);
   user-select: none;
   flex: none;
 }
@@ -43,14 +43,14 @@ const emit = defineEmits<{ close: [] }>();
 .panelbox-close {
   border: none;
   background: transparent;
-  color: var(--text-dim);
+  color: var(--muted-foreground);
   cursor: pointer;
   font-size: 12px;
   padding: 0 4px;
 }
 
 .panelbox-close:hover {
-  color: #ff8888;
+  color: var(--danger-text);
 }
 
 .panelbox-body {

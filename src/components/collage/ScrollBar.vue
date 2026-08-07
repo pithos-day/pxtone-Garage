@@ -153,7 +153,7 @@ function onTrackClick(e: PointerEvent): void {
 <style scoped>
 .scroll-track {
   position: relative;
-  background: var(--panel-dark);
+  background: var(--muted);
   border: 1px solid var(--border);
   cursor: pointer;
   user-select: none;
@@ -162,13 +162,13 @@ function onTrackClick(e: PointerEvent): void {
 
 .scroll-thumb {
   position: absolute;
-  background: #4a4860;
-  border: 1px solid #6a6780;
+  background: var(--scroll-thumb);
+  border: 1px solid var(--scroll-border);
 }
 
 .scroll-thumb:hover,
 .scroll-thumb:active {
-  background: var(--accent-dark);
+  background: var(--btn-accent-bg);
 }
 
 .vertical {

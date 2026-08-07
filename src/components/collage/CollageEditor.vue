@@ -129,7 +129,7 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
   display: flex;
   flex-direction: column;
   position: relative;
-  background: var(--bg);
+  background: var(--background);
 }
 
 .collage-body {
@@ -143,7 +143,7 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
 .collage-pinned {
   flex: none;
   border-bottom: 1px solid var(--border);
-  background: var(--panel-dark);
+  background: var(--muted);
 }
 
 .collage-pinned > :deep(.field-canvas) {
@@ -160,14 +160,14 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
 .collage-vol {
   display: flex;
   border-top: 1px solid var(--border);
-  background: var(--panel-dark);
+  background: var(--muted);
 }
 
 .collage-tray {
   width: 300px;
   flex: none;
   border-right: 1px solid var(--border);
-  background: var(--panel-dark);
+  background: var(--muted);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -181,8 +181,8 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
   justify-content: space-between;
   border: none;
   border-top: 1px solid var(--border);
-  background: var(--panel-light);
-  color: var(--text-dim);
+  background: var(--secondary);
+  color: var(--muted-foreground);
   font-size: 11px;
   padding: 6px 10px;
   cursor: pointer;
@@ -190,15 +190,15 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
 }
 
 .volume-toggle:hover {
-  background: var(--btn-hover, var(--panel-light));
+  background: var(--btn-hover, var(--secondary));
 }
 
 .volume-toggle.on {
-  color: var(--text-bright);
+  color: var(--foreground);
 }
 
 .volume-toggle.on .vt-label {
-  color: var(--accent);
+  color: var(--primary);
 }
 
 .vt-label {
@@ -221,7 +221,7 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
 .collage-ruler-row {
   flex: none;
   display: flex;
-  background: var(--panel-dark);
+  background: var(--muted);
 }
 
 .collage-ruler-spacer {
@@ -264,7 +264,7 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
   gap: 6px;
   padding: 6px;
   border-left: 1px solid var(--border);
-  background: var(--panel-dark);
+  background: var(--muted);
   overflow-y: auto;
   min-height: 0;
 }
@@ -278,7 +278,7 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
 .collage-hscroll {
   display: flex;
   border-top: 1px solid var(--border);
-  background: var(--panel-dark);
+  background: var(--muted);
 }
 
 .collage-hscroll-spacer {

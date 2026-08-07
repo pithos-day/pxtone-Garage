@@ -44,11 +44,11 @@ function toggle(i: number): void {
   align-items: center;
   gap: 6px;
   font-size: 11px;
-  color: var(--text);
+  color: var(--muted-foreground);
   cursor: pointer;
 }
 
 .copier-item input {
-  accent-color: var(--accent);
+  accent-color: var(--primary);
 }
 </style>

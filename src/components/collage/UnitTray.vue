@@ -22,6 +22,7 @@ import {
   EVENTDEFAULT_KEY,
 } from "../../state/project";
 import { previewUnitHold, stopPreview } from "../../engine/preview";
+import { COLORS } from "../../lib/theme";
 
 const editing = ref<number | null>(null);
 const editText = ref("");
@@ -133,7 +134,7 @@ function onMenuAction(action: "edit" | "remove"): void {
         :key="u.index"
         class="unit-row"
         :class="{ focus: u.index === doc.focusUnit, operated: doc.operated.includes(u.index), muted: u.muted }"
-        :style="{ borderLeft: '4px solid ' + (u.pinned ? '#00f080' : 'transparent') }"
+        :style="{ borderLeft: '4px solid ' + (u.pinned ? COLORS.pinnedMark : 'transparent') }"
         @pointerdown="onPointerDown($event, u.index)"
         @dblclick="startEditName(u.index)"
       >
@@ -190,9 +191,9 @@ function onMenuAction(action: "edit" | "remove"): void {
   justify-content: space-between;
   padding: 3px 6px;
   font-size: 11px;
-  color: var(--text-dim);
+  color: var(--muted-foreground);
   border-bottom: 1px solid var(--border);
-  background: var(--panel-light);
+  background: var(--secondary);
 }
 
 .tray-tools {
@@ -211,26 +212,26 @@ function onMenuAction(action: "edit" | "remove"): void {
   gap: 2px;
   padding: 2px 4px;
   font-size: 11px;
-  color: var(--text);
+  color: var(--muted-foreground);
   cursor: pointer;
-  border-bottom: 1px solid rgba(52, 50, 85, 0.4);
+  border-bottom: 1px solid var(--row-border);
 }
 
 .unit-row:hover {
-  background: var(--panel-light);
+  background: var(--secondary);
 }
 
 .unit-row.focus {
-  background: rgba(240, 128, 0, 0.18);
+  background: var(--focus-row);
 }
 
 .unit-row.operated {
-  outline: 1px solid rgba(240, 128, 0, 0.5);
+  outline: 1px solid var(--focus-outline);
   outline-offset: -1px;
 }
 
 .unit-row.muted .unit-name {
-  color: var(--text-dim);
+  color: var(--muted-foreground);
   text-decoration: line-through;
 }
 
@@ -248,7 +249,7 @@ function onMenuAction(action: "edit" | "remove"): void {
   width: 16px;
   height: 16px;
   margin: 0;
-  accent-color: var(--accent);
+  accent-color: var(--primary);
   cursor: pointer;
 }
 
@@ -260,7 +261,7 @@ function onMenuAction(action: "edit" | "remove"): void {
 }
 
 .unit-name {
-  color: var(--text-bright);
+  color: var(--foreground);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -273,7 +274,7 @@ function onMenuAction(action: "edit" | "remove"): void {
 
 .unit-summary {
   font-size: 9px;
-  color: var(--text-dim);
+  color: var(--muted-foreground);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -282,11 +283,11 @@ function onMenuAction(action: "edit" | "remove"): void {
 .tray-empty {
   padding: 8px;
   font-size: 11px;
-  color: var(--text-dim);
+  color: var(--muted-foreground);
   line-height: 1.6;
 }
 
 .ctxmenu .danger {
-  color: #ff8888;
+  color: var(--danger-text);
 }
 </style>

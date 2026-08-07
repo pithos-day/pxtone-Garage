@@ -101,7 +101,7 @@ function onOverlayClick(e: MouseEvent): void {
 .dlg-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: var(--overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -110,17 +110,17 @@ function onOverlayClick(e: MouseEvent): void {
 
 .dlg {
   width: 360px;
-  background: var(--panel);
-  border: 1px solid var(--border-light);
-  box-shadow: 4px 4px 16px rgba(0, 0, 0, 0.7);
+  background: var(--card);
+  border: 1px solid var(--border-strong);
+  box-shadow: 4px 4px 16px var(--shadow);
 }
 
 .dlg-title {
   padding: 8px 12px;
   font-size: 13px;
   font-weight: bold;
-  color: var(--text-bright);
-  background: var(--panel-dark);
+  color: var(--foreground);
+  background: var(--muted);
   border-bottom: 1px solid var(--border);
 }
 
@@ -138,7 +138,7 @@ function onOverlayClick(e: MouseEvent): void {
 
 .unit {
   font-size: 10px;
-  color: var(--text-dim);
+  color: var(--muted-foreground);
 }
 
 .dim {
@@ -146,7 +146,7 @@ function onOverlayClick(e: MouseEvent): void {
 }
 
 .dim span {
-  color: var(--text-dim);
+  color: var(--muted-foreground);
 }
 
 .dlg-buttons {

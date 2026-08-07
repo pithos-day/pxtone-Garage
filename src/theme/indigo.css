@@ -1,4 +1,6 @@
-:root {
+/* Indigo テーマ — shadcn の indigo サンプルをスコープ付きにし、
+ * アプリ固有・Canvas 用トークンを追加したもの。 */
+:root[data-theme="indigo"] {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -14,26 +16,59 @@
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.962 0.018 272.314);
   --border: oklch(0.922 0 0);
+  --border-strong: oklch(0.7 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.785 0.115 274.713);
-  --chart-2: oklch(0.585 0.233 277.117);
-  --chart-3: oklch(0.511 0.262 276.966);
-  --chart-4: oklch(0.457 0.24 277.023);
-  --chart-5: oklch(0.398 0.195 277.366);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.511 0.262 276.966);
-  --sidebar-primary-foreground: oklch(0.962 0.018 272.314);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+
+  /* アプリ固有 (ボタン・メニュー・ダイアログ) */
+  --btn-bg: oklch(0.967 0.001 286.375);
+  --btn-border: oklch(0.922 0 0);
+  --btn-hover: oklch(0.94 0.002 286);
+  --btn-active: oklch(0.92 0.003 286);
+  --btn-accent-bg: oklch(0.457 0.24 277.023);
+  --btn-accent-hover: oklch(0.511 0.262 276.966);
+  --overlay: oklch(0.145 0 0 / 55%);
+  --shadow: oklch(0 0 0 / 30%);
+  --danger-text: oklch(0.577 0.245 27.325);
+  --focus-row: oklch(0.457 0.24 277.023 / 14%);
+  --focus-outline: oklch(0.457 0.24 277.023 / 40%);
+  --pinned-mark: oklch(0.457 0.24 277.023);
+  --row-border: oklch(0.5 0.02 286 / 25%);
+  --scroll-thumb: oklch(0.85 0.01 286);
+  --scroll-border: oklch(0.75 0.01 286);
+
+  /* Canvas 用 (ピアノロール・ボリュームエディタなど) */
+  --canvas-field-bg: oklch(0.985 0.002 286);
+  --canvas-ruler-bg: oklch(0.97 0.001 286);
+  --canvas-measure-line: oklch(0.3 0 0 / 35%);
+  --canvas-beat-line: oklch(0.3 0 0 / 16%);
+  --canvas-divi-line: oklch(0.3 0 0 / 7%);
+  --canvas-measure-box: oklch(0.8 0 0);
+  --canvas-measure-text: oklch(0.457 0.24 277.023);
+  --canvas-playhead: oklch(0.2 0 0);
+  --canvas-scope: oklch(0.457 0.24 277.023 / 35%);
+  --canvas-scope-border: oklch(0.457 0.24 277.023);
+  --canvas-white-key: oklch(0.95 0.001 286);
+  --canvas-black-key: oklch(0.7 0.005 286);
+  --canvas-key-edge: oklch(0.3 0 0);
+  --canvas-focus: oklch(0.711 0.173 56.6);
+  --canvas-octave-text: oklch(0.3 0 0);
+  --canvas-note-head: oklch(0 0 0);
+  --canvas-muted: oklch(0.85 0.01 286);
+  --canvas-panel-dark: oklch(0.955 0.002 286);
+  --canvas-row-white: oklch(0.5 0.01 286 / 18%);
+  --canvas-row-black: oklch(0.4 0.01 286 / 18%);
+  --canvas-scope-faint: oklch(0.457 0.24 277.023 / 10%);
+  --canvas-zebra: oklch(0 0 0 / 2%);
+  --canvas-scale-line: oklch(0.5 0 0 / 15%);
+  --repeat-mark: oklch(0.577 0.245 27.325);
+  --last-mark: oklch(0.596 0.145 163.2);
 }
 
-.dark {
+.dark[data-theme="indigo"] {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -49,20 +84,54 @@
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.962 0.018 272.314);
   --border: oklch(1 0 0 / 10%);
+  --border-strong: oklch(1 0 0 / 25%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.785 0.115 274.713);
-  --chart-2: oklch(0.585 0.233 277.117);
-  --chart-3: oklch(0.511 0.262 276.966);
-  --chart-4: oklch(0.457 0.24 277.023);
-  --chart-5: oklch(0.398 0.195 277.366);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.585 0.233 277.117);
-  --sidebar-primary-foreground: oklch(0.962 0.018 272.314);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --radius: 0.625rem;
+
+  /* アプリ固有 (ボタン・メニュー・ダイアログ) */
+  --btn-bg: oklch(0.32 0.02 286);
+  --btn-border: oklch(0.27 0.02 286);
+  --btn-hover: oklch(0.36 0.02 286);
+  --btn-active: oklch(0.28 0.02 286);
+  --btn-accent-bg: oklch(0.511 0.262 276.966);
+  --btn-accent-hover: oklch(0.585 0.233 277.117);
+  --overlay: oklch(0 0 0 / 55%);
+  --shadow: oklch(0 0 0 / 70%);
+  --danger-text: oklch(0.704 0.191 22.216);
+  --focus-row: oklch(0.585 0.233 277.117 / 18%);
+  --focus-outline: oklch(0.585 0.233 277.117 / 50%);
+  --pinned-mark: oklch(0.785 0.115 274.713);
+  --row-border: oklch(1 0 0 / 10%);
+  --scroll-thumb: oklch(0.35 0.02 286);
+  --scroll-border: oklch(0.42 0.02 286);
+
+  /* Canvas 用 (ピアノロール・ボリュームエディタなど) */
+  --canvas-field-bg: oklch(0.13 0.02 286);
+  --canvas-ruler-bg: oklch(0.17 0.02 286);
+  --canvas-measure-line: oklch(0.9 0 0 / 30%);
+  --canvas-beat-line: oklch(0.6 0 0 / 14%);
+  --canvas-divi-line: oklch(0.6 0 0 / 6%);
+  --canvas-measure-box: oklch(0.3 0 0);
+  --canvas-measure-text: oklch(0.9 0.05 100);
+  --canvas-playhead: oklch(1 0 0);
+  --canvas-scope: oklch(0.585 0.233 277.117 / 35%);
+  --canvas-scope-border: oklch(0.585 0.233 277.117);
+  --canvas-white-key: oklch(0.35 0.02 286);
+  --canvas-black-key: oklch(0.22 0.02 286);
+  --canvas-key-edge: oklch(0 0 0);
+  --canvas-focus: oklch(0.711 0.173 56.6);
+  --canvas-octave-text: oklch(0.9 0 0);
+  --canvas-note-head: oklch(1 0 0);
+  --canvas-muted: oklch(0.24 0.02 286);
+  --canvas-panel-dark: oklch(0.145 0 0);
+  --canvas-row-white: oklch(0.35 0.02 286 / 30%);
+  --canvas-row-black: oklch(0.22 0.02 286 / 30%);
+  --canvas-scope-faint: oklch(0.585 0.233 277.117 / 10%);
+  --canvas-zebra: oklch(1 0 0 / 2%);
+  --canvas-scale-line: oklch(0.6 0 0 / 15%);
+  --repeat-mark: oklch(0.704 0.191 22.216);
+  --last-mark: oklch(0.596 0.145 163.2);
 }

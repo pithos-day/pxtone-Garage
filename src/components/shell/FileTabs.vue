@@ -43,7 +43,7 @@ function onClose(id: number): void {
   display: flex;
   align-items: stretch;
   height: 32px;
-  background: var(--panel-dark);
+  background: var(--muted);
   border-bottom: 1px solid var(--border);
   user-select: none;
   z-index: 20;
@@ -57,20 +57,20 @@ function onClose(id: number): void {
   border: none;
   border-right: 1px solid var(--border);
   background: transparent;
-  color: var(--text-dim);
+  color: var(--muted-foreground);
   font-size: 12px;
   cursor: pointer;
   max-width: 200px;
 }
 
 .file-tab:hover {
-  background: var(--panel-light);
+  background: var(--secondary);
 }
 
 .file-tab.active {
-  background: var(--panel);
-  color: var(--text-bright);
-  box-shadow: inset 0 2px 0 var(--accent);
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: inset 0 2px 0 var(--primary);
 }
 
 .tab-name {
@@ -83,12 +83,12 @@ function onClose(id: number): void {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--primary);
   flex: none;
 }
 
 .tab-close {
-  color: var(--text-dim);
+  color: var(--muted-foreground);
   font-size: 13px;
   padding: 0 3px;
   border-radius: 2px;
@@ -96,8 +96,8 @@ function onClose(id: number): void {
 }
 
 .tab-close:hover {
-  background: var(--danger);
-  color: #fff;
+  background: var(--destructive);
+  color: var(--destructive-foreground);
 }
 
 .tab-new {
@@ -105,13 +105,13 @@ function onClose(id: number): void {
   border: none;
   border-right: 1px solid var(--border);
   background: transparent;
-  color: var(--text-dim);
+  color: var(--muted-foreground);
   font-size: 14px;
   cursor: pointer;
 }
 
 .tab-new:hover {
-  background: var(--panel-light);
-  color: var(--text-bright);
+  background: var(--secondary);
+  color: var(--foreground);
 }
 </style>

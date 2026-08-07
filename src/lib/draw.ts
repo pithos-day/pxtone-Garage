@@ -62,7 +62,7 @@ export function drawGrid(
     if (opts.showNumber) {
       const ny = opts.numberTop ?? top;
       fillRect(ctx, x0, ny, 26, 10, COLORS.measureBox);
-      ctx.fillStyle = "#c8ffc8";
+      ctx.fillStyle = COLORS.measureText;
       ctx.font = "8px sans-serif";
       ctx.textBaseline = "middle";
       ctx.fillText(String(m + 1), x0 + 2, ny + 5);

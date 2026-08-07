@@ -121,7 +121,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     const shadow = noteShadow(n.unit, play, n.vel, n.vol);
     fillRect(ctx, x, y + 3, 2, ROW_H - 6, shadow);
     fillRect(ctx, x + 1, y + 3, Math.max(1, xw - 2), ROW_H - 6, fill);
-    if (play) fillRect(ctx, x + 1, y + 2, 2, ROW_H - 4, "#fff");
+    if (play) fillRect(ctx, x + 1, y + 2, 2, ROW_H - 4, COLORS.playhead);
   }
 
   // その他イベントマーク
@@ -138,7 +138,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   if (doc.scope2 > doc.scope1) {
     const x1 = clockToX(view, doc.scope1) - scrollX;
     const x2 = clockToX(view, doc.scope2) - scrollX;
-    fillRect(ctx, x1, fieldTop, Math.max(0, x2 - x1), fieldH, "rgba(0,240,128,0.10)");
+    fillRect(ctx, x1, fieldTop, Math.max(0, x2 - x1), fieldH, COLORS.scopeFaint);
   }
 
   // プレイヘッド
@@ -154,7 +154,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     const y = fieldTop + i * ROW_H;
     const u = pinned[i]!;
     const isFocus = u === doc.focusUnit;
-    fillRect(ctx, 0, y, NAME_W, ROW_H, isFocus ? "rgba(240,128,0,0.18)" : i % 2 ? "rgba(255,255,255,0.02)" : "transparent");
+    fillRect(ctx, 0, y, NAME_W, ROW_H, isFocus ? COLORS.focusRow : i % 2 ? COLORS.zebra : "transparent");
     fillText(ctx, `${u}: ${units.value[u]?.name ?? ""}`, 2, y + 11, isFocus ? COLORS.focusText : COLORS.text, 10);
   }
 }

@@ -113,7 +113,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   for (let row = startRow; row <= endRow; row++) {
     const y = fieldTop + row * KEY_HEIGHT - scrollY;
     const white = isWhiteRow(row);
-    fillRect(ctx, 0, y, fieldW, KEY_HEIGHT, white ? "rgba(64,64,64,0.30)" : "rgba(32,32,32,0.30)");
+    fillRect(ctx, 0, y, fieldW, KEY_HEIGHT, white ? COLORS.rowWhite : COLORS.rowBlack);
   }
 
   // グリッド線を行色の上に再描画 (行色に覆われないように)
@@ -129,7 +129,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   if (doc.scope2 > doc.scope1) {
     const x1 = clockToX(view, doc.scope1) - scrollX;
     const x2 = clockToX(view, doc.scope2) - scrollX;
-    fillRect(ctx, x1, fieldTop, Math.max(0, x2 - x1), fieldH, "rgba(0,240,128,0.10)");
+    fillRect(ctx, x1, fieldTop, Math.max(0, x2 - x1), fieldH, COLORS.scopeFaint);
   }
 
   // プレイヘッド
@@ -151,7 +151,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   for (let i = 0; i <= 8; i++) {
     const y = fieldTop + i * (KEY_HEIGHT * 12) - scrollY + 4;
     if (y >= fieldTop - 12 && y <= fieldTop + fieldH + 4) {
-      fillText(ctx, String(7 - i), 6, y, "#e0e0e0", 11);
+      fillText(ctx, String(7 - i), 6, y, COLORS.octaveText, 11);
     }
   }
 
@@ -210,7 +210,7 @@ function drawNotes(
       const playing = currentClock.value >= clock && currentClock.value < clock + len;
       fillRect(ctx, x1, y - 3, x2 - x1, 7, color.note(playing, EVENTDEFAULT_VELOCITY, EVENTDEFAULT_VOLUME));
       // ヘッド
-      fillRect(ctx, x1, y - 3, 2, 7, "#ffffff");
+      fillRect(ctx, x1, y - 3, 2, 7, COLORS.noteHead);
     }
   };
 
@@ -229,8 +229,8 @@ function drawNotes(
       const row = rowOfValue(e.value);
       const y = fieldTop + row * KEY_HEIGHT - scrollY + KEY_HEIGHT / 2;
       const x = clockToX(view, e.clock) - scrollX;
-      fillRect(ctx, x - 1, y - 4, 2, 8, "#ffffff");
-      fillRect(ctx, x - 1, y - 4, 2, 2, "#ffffff");
+      fillRect(ctx, x - 1, y - 4, 2, 8, COLORS.noteHead);
+      fillRect(ctx, x - 1, y - 4, 2, 2, COLORS.noteHead);
       curKey = e.value;
       prevClock = e.clock;
     }

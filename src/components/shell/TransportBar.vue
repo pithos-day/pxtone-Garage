@@ -63,7 +63,7 @@ function fmt(sec: number): string {
   gap: 6px;
   height: 34px;
   padding: 0 8px;
-  background: var(--panel-dark);
+  background: var(--muted);
   border-bottom: 1px solid var(--border);
   user-select: none;
   z-index: 20;
@@ -74,8 +74,8 @@ function fmt(sec: number): string {
 }
 
 .btn.on {
-  background: var(--accent-dark);
-  border-color: var(--accent);
+  background: var(--btn-accent-bg);
+  border-color: var(--primary);
 }
 
 .sep {
@@ -87,23 +87,23 @@ function fmt(sec: number): string {
 
 .vol-label {
   font-size: 11px;
-  color: var(--text-dim);
+  color: var(--muted-foreground);
 }
 
 .pct {
   font-size: 10px;
-  color: var(--text-dim);
+  color: var(--muted-foreground);
   width: 30px;
 }
 
 .time {
   font-variant-numeric: tabular-nums;
-  color: var(--text-bright);
+  color: var(--foreground);
   font-size: 12px;
 }
 
 .clock {
-  color: var(--text-dim);
+  color: var(--muted-foreground);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
@@ -114,7 +114,7 @@ function fmt(sec: number): string {
 
 .panel-label {
   font-size: 11px;
-  color: var(--text-dim);
+  color: var(--muted-foreground);
   margin-right: 2px;
 }
 
@@ -124,7 +124,7 @@ function fmt(sec: number): string {
 }
 
 .btn-sm.on {
-  background: var(--accent-dark);
-  border-color: var(--accent);
+  background: var(--btn-accent-bg);
+  border-color: var(--primary);
 }
 </style>

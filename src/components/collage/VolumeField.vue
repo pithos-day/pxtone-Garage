@@ -77,7 +77,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   // 目盛り (128)
   for (let v = 0; v <= 128; v += 16) {
     const y = fTop + fH - (v / 128) * fH;
-    fillRect(ctx, 0, y, w, 1, "rgba(128,128,128,0.15)");
+    fillRect(ctx, 0, y, w, 1, COLORS.scaleLine);
     fillText(ctx, String(v), 2, y - 2, COLORS.textDim, 8);
   }
 

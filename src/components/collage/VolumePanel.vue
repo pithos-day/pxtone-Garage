@@ -30,7 +30,7 @@ defineProps<{ modes: string[] }>();
   gap: 2px;
   padding: 4px;
   border-right: 1px solid var(--border);
-  background: var(--panel-dark);
+  background: var(--muted);
   user-select: none;
 }
 
