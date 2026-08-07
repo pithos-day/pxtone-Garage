@@ -29,6 +29,13 @@ export const currentClock = computed(() => {
 // worklet にロード済みのバイト列が対応するリビジョン
 let loadedRev = -1;
 
+// プロジェクト切替時に呼ぶ: worklet のロード状態を破棄する
+export function resetLoaded(): void {
+  loadedRev = -1;
+  if (isPlaying.value) stop();
+  positionSample.value = 0;
+}
+
 let rafId = 0;
 function tick(): void {
   if (isPlaying.value) {

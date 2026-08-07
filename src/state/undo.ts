@@ -1,16 +1,23 @@
 // スナップショット型 undo/redo。
 // 編集操作の直前に ptcop バイト列を保存し、undo 時はサービスへ読み戻す。
+// 複数プロジェクト対応のため、スタックはタブ切替で差し替えられる (export let)。
 import { ref } from "vue";
 import { MemoryIo, PxtnErr } from "pxtone-ts";
 import { service, EXE_VER } from "./service";
 
 const MAX_UNDO = 100;
 
-const undoStack: Uint8Array[] = [];
-const redoStack: Uint8Array[] = [];
+export let undoStack: Uint8Array[] = [];
+export let redoStack: Uint8Array[] = [];
 
 export const canUndo = ref(false);
 export const canRedo = ref(false);
+
+export function setUndoStacks(u: Uint8Array[], r: Uint8Array[]): void {
+  undoStack = u;
+  redoStack = r;
+  updateFlags();
+}
 
 function updateFlags(): void {
   canUndo.value = undoStack.length > 0;
