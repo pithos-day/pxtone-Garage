@@ -1,0 +1,97 @@
+// 再生コントロールバー。Player パネルから移設した再生・停止・リピート・音量・位置表示。
+<script setup lang="ts">
+import { isPlaying, togglePlay, stop, loop, setLoop, masterVolume, setMasterVolume, positionSample, player, currentClock } from "../../state/player";
+import { getService, clockView as projectClockView } from "../../state/project";
+import { formatClock } from "../../lib/clock";
+
+function timeLabel(): string {
+  const s = getService();
+  if (!s) return "0:00 / 0:00";
+  const totalSec = player.totalSampleOf() / player.sampleRate;
+  const curSec = positionSample.value / player.sampleRate;
+  return `${fmt(curSec)} / ${fmt(totalSec)}`;
+}
+
+function fmt(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const ss = Math.floor(sec % 60);
+  return `${m}:${String(ss).padStart(2, "0")}`;
+}
+</script>
+
+<template>
+  <div class="transport">
+    <button class="btn btn-accent play-btn" @click="togglePlay" :title="isPlaying ? '一時停止 (Space)' : '再生 (Space)'">
+      {{ isPlaying ? "⏸" : "▶" }}
+    </button>
+    <button class="btn" @click="stop" title="停止">⏹</button>
+    <button class="btn" :class="{ on: loop }" @click="setLoop(!loop)" title="リピート">⟳</button>
+    <span class="sep" />
+    <label class="vol-label">音量</label>
+    <input
+      type="range"
+      min="0"
+      max="1"
+      step="0.01"
+      :value="masterVolume"
+      @input="setMasterVolume(parseFloat(($event.target as HTMLInputElement).value))"
+    />
+    <span class="pct">{{ Math.round(masterVolume * 100) }}%</span>
+    <span class="sep" />
+    <span class="time">{{ timeLabel() }}</span>
+    <span class="clock">{{ formatClock(projectClockView(), currentClock) }}</span>
+  </div>
+</template>
+
+<style scoped>
+.transport {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 8px;
+  background: var(--panel-dark);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+  z-index: 20;
+}
+
+.play-btn {
+  width: 38px;
+}
+
+.btn.on {
+  background: var(--accent-dark);
+  border-color: var(--accent);
+}
+
+.sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+.vol-label {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.pct {
+  font-size: 10px;
+  color: var(--text-dim);
+  width: 30px;
+}
+
+.time {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-bright);
+  font-size: 12px;
+}
+
+.clock {
+  color: var(--text-dim);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+</style>

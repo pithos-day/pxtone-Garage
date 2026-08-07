@@ -368,6 +368,13 @@ export function toggleUnitVisible(idx: number): void {
   doc.rev++;
 }
 
+// 全ユニットの表示を一括設定 (View メニュー「全ユニット表示」)
+export function setAllUnitsVisible(visible: boolean): void {
+  for (let u = 0; u < doc.unitVisible.length; u++) doc.unitVisible[u] = visible;
+  sync();
+  doc.rev++;
+}
+
 // ピン留め (上部レーン固定)
 export function toggleUnitPinned(idx: number): void {
   doc.unitPinned[idx] = !(doc.unitPinned[idx] ?? false);
@@ -457,6 +464,23 @@ export function setBeatNum(beatNum: number): void {
 export function setMeasNum(measNum: number): void {
   mutate(() => {
     service.master.setMeasNum(measNum);
+  });
+}
+
+// プロジェクト設定をまとめて1つの undo エントリとして適用 (Project ダイアログ用)
+export function setProjectSettings(o: {
+  name?: string;
+  comment?: string;
+  tempo?: number;
+  beatNum?: number;
+  measNum?: number;
+}): void {
+  mutate(() => {
+    if (o.name !== undefined) service.text.setNameBuf(encodeShiftJis(o.name));
+    if (o.comment !== undefined) service.text.setCommentBuf(encodeShiftJis(o.comment));
+    if (o.tempo !== undefined) service.master.set(service.master.beatNum, o.tempo, service.master.beatClock);
+    if (o.beatNum !== undefined) service.master.set(o.beatNum, service.master.beatTempo, service.master.beatClock);
+    if (o.measNum !== undefined) service.master.setMeasNum(o.measNum);
   });
 }
 

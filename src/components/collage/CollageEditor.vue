@@ -17,8 +17,6 @@ import PlayField from "./PlayField.vue";
 import ScopeField from "./ScopeField.vue";
 import VolumePanel from "./VolumePanel.vue";
 import VolumeField from "./VolumeField.vue";
-import PlayerPanel from "./PlayerPanel.vue";
-import ProjectorPanel from "./ProjectorPanel.vue";
 import EffectorPanel from "./EffectorPanel.vue";
 import CopierPanel from "./CopierPanel.vue";
 import ScrollBar from "./ScrollBar.vue";
@@ -102,8 +100,8 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
         </button>
         <span class="sep-v" />
         <span class="zoom-label">パネル</span>
-        <button v-for="p in (['player', 'projector', 'effector', 'copier'] as const)" :key="p" class="btn btn-sm" :class="{ on: panels[p].open }" @click="panels[p].open = !panels[p].open">
-          {{ { player: "Player", projector: "Projector", effector: "Effector", copier: "Copier" }[p] }}
+        <button v-for="p in (['effector', 'copier'] as const)" :key="p" class="btn btn-sm" :class="{ on: panels[p].open }" @click="panels[p].open = !panels[p].open">
+          {{ { effector: "Effector", copier: "Copier" }[p] }}
         </button>
         <span class="sep-v" />
         <button class="btn btn-sm" :class="{ on: doc.volumeVisible }" @click="doc.volumeVisible = !doc.volumeVisible">
@@ -128,8 +126,6 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
         </div>
         <!-- パネル (ページ埋め込み) -->
         <aside class="collage-sidebar">
-          <PlayerPanel v-if="panels.player.open" />
-          <ProjectorPanel v-if="panels.projector.open" />
           <EffectorPanel v-if="panels.effector.open" />
           <CopierPanel v-if="panels.copier.open" />
         </aside>

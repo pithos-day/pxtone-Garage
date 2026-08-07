@@ -5,8 +5,9 @@ import { ref } from "vue";
 import { Service, PxtnErr, MemoryIo, PXTN_MAX_EVENT_NUM } from "pxtone-ts";
 import { setService } from "./service";
 import { setUndoStacks } from "./undo";
-import { doc, sync, title, comment, pxtnErrorMessage } from "./project";
+import { doc, sync, title, comment, ensureInit, pxtnErrorMessage } from "./project";
 import { resetLoaded } from "./player";
+import { saveProject as downloadProject } from "../engine/io";
 
 export interface ProjectState {
   fileName: string;
@@ -191,9 +192,28 @@ export function closeProject(id: number): void {
   }
 }
 
+// 現在のプロジェクトを ptcop として保存 (asNew でファイル名入力を促す)
+export function saveProjectFile(asNew: boolean): boolean {
+  const p = currentProject();
+  if (!p) return false;
+  let name = doc.fileName || "untitled";
+  if (asNew) {
+    const input = window.prompt("ファイル名を入力してください", name);
+    if (input === null) return false;
+    name = input.trim() || "untitled";
+  }
+  if (!downloadProject(name)) return false;
+  doc.fileName = name;
+  p.fileName = name;
+  doc.dirty = false;
+  p.dirty = false;
+  return true;
+}
+
 // アプリ起動時に1つ目のプロジェクトを作る (doc.ready 済みなら何もしない)
 export function ensureInitialProject(): void {
   if (projects.value.length === 0) {
+    ensureInit();
     newProjectInTab();
   }
 }
