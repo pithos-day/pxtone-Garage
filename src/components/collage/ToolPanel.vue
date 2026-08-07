@@ -7,13 +7,13 @@ import { openFileDialog } from "../../engine/io";
 const errorMsg = ref("");
 
 async function onAddWoice(): Promise<void> {
-  const bytes = await openFileDialog(".ptvoice,.ptnoise,.wav");
-  if (!bytes) return;
-  const head = String.fromCharCode(...bytes.subarray(0, 8));
+  const file = await openFileDialog(".ptvoice,.ptnoise,.wav");
+  if (!file) return;
+  const head = String.fromCharCode(...file.bytes.subarray(0, 8));
   let type = WoiceType.PCM;
   if (head === "PTVOICE-") type = WoiceType.PTV;
   else if (head === "PTNOISE-") type = WoiceType.PTN;
-  const err = addWoice(bytes, type);
+  const err = addWoice(file.bytes, type);
   if (err) {
     errorMsg.value = err;
     setTimeout(() => (errorMsg.value = ""), 4000);

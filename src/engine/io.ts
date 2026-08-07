@@ -16,7 +16,12 @@ export function downloadBytes(bytes: Uint8Array, fileName: string, mime = "appli
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export function openFileDialog(accept: string): Promise<Uint8Array | null> {
+export interface OpenedFile {
+  name: string;
+  bytes: Uint8Array;
+}
+
+export function openFileDialog(accept: string): Promise<OpenedFile | null> {
   return new Promise((resolve) => {
     const input = document.createElement("input");
     input.type = "file";
@@ -27,7 +32,8 @@ export function openFileDialog(accept: string): Promise<Uint8Array | null> {
         resolve(null);
         return;
       }
-      void f.arrayBuffer().then((buf) => resolve(new Uint8Array(buf)));
+      const name = f.name.replace(/\.(ptcop|pttune)$/i, "");
+      void f.arrayBuffer().then((buf) => resolve({ name, bytes: new Uint8Array(buf) }));
     };
     input.click();
   });

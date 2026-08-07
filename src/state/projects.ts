@@ -173,14 +173,19 @@ export function refreshCurrent(): void {
   resetLoaded();
 }
 
-// バイト列を新しいタブで開く。エラーメッセージを返す (成功時 null)
-export function openProjectInTab(bytes: Uint8Array): string | null {
+// バイト列を新しいタブで開く。エラーメッセージを返す (成功時 null)。
+// name はタブ表示用のファイル名 (拡張子なし) で、空の場合は無題のまま
+export function openProjectInTab(bytes: Uint8Array, name?: string): string | null {
   const p = newProjectInTab();
   const svc = services.get(p.id)!;
   const res = svc.read(new MemoryIo(bytes));
   if (res !== PxtnErr.OK) {
     closeProject(p.id);
     return pxtnErrorMessage(res);
+  }
+  if (name) {
+    p.fileName = name;
+    doc.fileName = name;
   }
   // 読み込んだ内容を doc に反映
   refreshCurrent();

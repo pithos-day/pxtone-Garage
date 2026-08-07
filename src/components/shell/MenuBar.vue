@@ -83,9 +83,9 @@ function onNew(): void {
 }
 
 function onOpen(): void {
-  void openFileDialog(".ptcop,.pttune").then((bytes) => {
-    if (!bytes) return;
-    const err = openProjectInTab(bytes);
+  void openFileDialog(".ptcop,.pttune").then((file) => {
+    if (!file) return;
+    const err = openProjectInTab(file.bytes, file.name);
     if (err) window.alert(err);
   });
 }

@@ -71,10 +71,15 @@ switchProject(p2.id);
 check("2タブ目 units=0 のまま", units.value.length === 0);
 
 // ---- 6. openProjectInTab ----
-const p3err = openProjectInTab(bytes!);
+const p3err = openProjectInTab(bytes!, "my-song");
 check("open で新タブ (エラーなし)", p3err === null, `err=${p3err}`);
 const p3Id = currentProjectId.value;
 check("3タブ目に2ユニット復元", units.value.length === 2, `len=${units.value.length}`);
+check("タブ名がファイル名になる", doc.fileName === "my-song", `fileName=${doc.fileName}`);
+check(
+  "タブ表示用の名前も設定される",
+  projects.value.find((p) => p.id === p3Id)?.fileName === "my-song",
+);
 check("テンポ復元 (120)", serviceMod.service.master.beatTempo === 120, `tempo=${serviceMod.service.master.beatTempo}`);
 check("タブ数 3", projects.value.length === 3);
 
