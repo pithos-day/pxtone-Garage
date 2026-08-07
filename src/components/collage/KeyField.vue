@@ -35,7 +35,7 @@ import { currentClock, seekToClock, isPlaying as isPlayingNow } from "../../stat
 import { previewUnitHold, stopPreview } from "../../engine/preview";
 import { getUnitColor } from "../../lib/theme";
 
-const BAND = 12;
+const BAND = 0; // ルーラー帯は PlayField (トラック直上) が担当するため不要
 // 鍵盤ストリップの幅。ピアノ風の単音プレビュー領域で、左パネル (300px) の右に置く。
 // 本家 144px から半分以下に縮小
 const STRIP_W = 64;
@@ -60,7 +60,7 @@ function centerScroll(): void {
     const vc = u?.woice?.getVoice(0);
     if (vc) row = codeToRow(vc.basicKey >> 8);
   }
-  const fieldH = (canvasRef.value?.clientHeight ?? 600) - BAND;
+  const fieldH = canvasRef.value?.clientHeight ?? 600;
   const visible = Math.max(1, Math.ceil(fieldH / KEY_HEIGHT));
   doc.scrollYKey = Math.max(0, Math.min(KEYNUM - 1, row - Math.floor(visible / 2)));
 }
@@ -106,10 +106,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   ctx.save();
   ctx.translate(STRIP_W, 0);
 
-  // ルーラー帯 (小節番号) — フィールド幅のみ
-  drawGrid(ctx, { w: fieldW, h, scrollX, view, top: 0, bottom: BAND, showNumber: true, numberTop: 0 });
-
-  // フィールド背景 + グリッド (拍・小節線)
+  // フィールド背景 + グリッド (拍・小節線)。ルーラー帯は PlayField が担当
   drawGrid(ctx, { w: fieldW, h, scrollX, view, top: fieldTop, bottom: h, showNumber: false });
 
   // フィールド側の行色 (鍵盤の白鍵/黒鍵に合わせた縞)
@@ -254,7 +251,7 @@ function clockAt(x: number): number {
 }
 
 function rowAt(y: number): number {
-  return Math.floor((y - BAND) / KEY_HEIGHT) + Math.floor(doc.scrollYKey);
+  return Math.floor(y / KEY_HEIGHT) + Math.floor(doc.scrollYKey);
 }
 
 // 押下中サステインで試聴開始 (pointerup まで鳴り続ける)
@@ -272,11 +269,6 @@ function onPointerDown(e: PointerEvent): void {
   const c = canvasRef.value;
   if (!c) return;
   const { x, y } = fieldOffset(c, e);
-  if (y < BAND) {
-    // ルーラー帯クリック = シーク (鍵盤ストリップの上は対象外)
-    if (e.button === 0 && x >= STRIP_W) seekToClock(clockAt(x));
-    return;
-  }
   const focus = doc.focusUnit;
   const s = getService();
   if (!s) return;

@@ -1,7 +1,9 @@
-// 再生コントロールバー。Player パネルから移設した再生・停止・リピート・音量・位置表示。
+// 再生コントロールバー。Player パネルから移設した再生・停止・リピート・音量・位置表示と、
+// Effector/Copier パネルのトグル (右揃え)。
 <script setup lang="ts">
 import { isPlaying, togglePlay, stop, loop, setLoop, masterVolume, setMasterVolume, positionSample, player, currentClock } from "../../state/player";
 import { getService, clockView as projectClockView } from "../../state/project";
+import { panels } from "../../state/panels";
 import { formatClock } from "../../lib/clock";
 
 function timeLabel(): string {
@@ -40,6 +42,17 @@ function fmt(sec: number): string {
     <span class="sep" />
     <span class="time">{{ timeLabel() }}</span>
     <span class="clock">{{ formatClock(projectClockView(), currentClock) }}</span>
+    <span class="transport-spacer" />
+    <span class="panel-label">パネル</span>
+    <button
+      v-for="p in (['effector', 'copier'] as const)"
+      :key="p"
+      class="btn btn-sm"
+      :class="{ on: panels[p].open }"
+      @click="panels[p].open = !panels[p].open"
+    >
+      {{ { effector: "Effector", copier: "Copier" }[p] }}
+    </button>
   </div>
 </template>
 
@@ -93,5 +106,25 @@ function fmt(sec: number): string {
   color: var(--text-dim);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
+}
+
+.transport-spacer {
+  flex: 1;
+}
+
+.panel-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-right: 2px;
+}
+
+.btn-sm {
+  padding: 1px 8px;
+  font-size: 11px;
+}
+
+.btn-sm.on {
+  background: var(--accent-dark);
+  border-color: var(--accent);
 }
 </style>

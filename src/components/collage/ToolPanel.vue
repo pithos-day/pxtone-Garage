@@ -58,14 +58,13 @@ function onAllSelect(): void {
 
 <style scoped>
 .toolpanel {
-  width: 144px;
   flex: none;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 6px;
-  border-right: 1px solid var(--border);
-  background: var(--panel-dark);
+  gap: 4px;
+  padding: 4px 6px 6px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel-light);
   user-select: none;
 }
 
@@ -80,12 +79,12 @@ function onAllSelect(): void {
 
 .tool-buttons {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 4px;
 }
 
 .tool-err {
-  color: #ff8888;
+  color: var(--danger-text, #ff8888);
   font-size: 10px;
 }
 </style>

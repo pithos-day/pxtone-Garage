@@ -162,7 +162,6 @@ const tabs = [
         {{ t.label }}
       </button>
     </div>
-    <span class="menu-spacer" />
     <div class="menu-right">
       <button
         v-for="m in (['file', 'edit', 'view'] as const)"
@@ -241,11 +240,7 @@ const tabs = [
   box-shadow: inset 0 3px 0 var(--accent);
 }
 
-.menu-spacer {
-  flex: 1;
-}
-
-/* メニュー (File / Edit / View) */
+/* メニュー (File / Edit / View) — 左揃え (モードタブの直後) */
 .menu-right {
   display: flex;
   position: relative;
@@ -269,7 +264,7 @@ const tabs = [
 .menu-pop {
   position: absolute;
   top: 100%;
-  right: 0;
+  left: 0;
   min-width: 190px;
   background: var(--panel);
   border: 1px solid var(--border-light);

@@ -7,7 +7,6 @@ import { doc, units, ensureInit, pinnedUnits } from "../../state/project";
 import { panels } from "../../state/panels";
 import { togglePlay, seekToClock } from "../../state/player";
 import { undo, redo } from "../../state/undo";
-import { ZOOM_TABLE, DIVI_TABLE } from "../../lib/clock";
 import ToolPanel from "./ToolPanel.vue";
 import UnitTray from "./UnitTray.vue";
 import WoiceTray from "./WoiceTray.vue";
@@ -69,60 +68,41 @@ function onKeydown(e: KeyboardEvent): void {
 onMounted(() => window.addEventListener("keydown", onKeydown));
 onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 
-function setZoom(z: number): void {
-  doc.zoom = z;
-}
-
-function setDivi(d: number): void {
-  doc.divi = d;
-}
-
 const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament", "VoiceNo", "GroupNo", "Tuning"];
 </script>
 
 <template>
   <div class="collage">
-    <div class="collage-header">
-      <ToolPanel />
-      <div class="collage-ruler-col">
-        <PlayField />
-        <ScopeField />
-      </div>
-      <div class="collage-header-right">
-        <span class="zoom-label">ズーム</span>
-        <button v-for="z in ZOOM_TABLE" :key="z" class="btn btn-sm" :class="{ on: doc.zoom === z }" @click="setZoom(z)">
-          {{ z }}
-        </button>
-        <span class="sep-v" />
-        <span class="zoom-label">分割</span>
-        <button v-for="d in DIVI_TABLE" :key="d" class="btn btn-sm" :class="{ on: doc.divi === d }" @click="setDivi(d)">
-          {{ d }}
-        </button>
-        <span class="sep-v" />
-        <span class="zoom-label">パネル</span>
-        <button v-for="p in (['effector', 'copier'] as const)" :key="p" class="btn btn-sm" :class="{ on: panels[p].open }" @click="panels[p].open = !panels[p].open">
-          {{ { effector: "Effector", copier: "Copier" }[p] }}
-        </button>
-        <span class="sep-v" />
-        <button class="btn btn-sm" :class="{ on: doc.volumeVisible }" @click="doc.volumeVisible = !doc.volumeVisible">
-          Volume
-        </button>
-      </div>
-    </div>
     <div class="collage-body">
       <!-- ピン留めユニットのレーン (上部固定) -->
       <div v-if="pinned.length > 0" class="collage-pinned" :style="{ height: (12 + pinned.length * 16) + 'px' }">
         <PinnedLanes />
       </div>
       <div class="collage-main">
-        <!-- 左パネル (W/U で切り替え) -->
+        <!-- 左パネル (ツール + W/U リスト + Volume トグル) -->
         <div class="collage-tray">
+          <ToolPanel />
           <UnitTray v-if="doc.mode === 'U'" />
           <WoiceTray v-if="doc.mode === 'W'" />
+          <button class="volume-toggle" :class="{ on: doc.volumeVisible }" title="ボリュームエディタの表示" @click="doc.volumeVisible = !doc.volumeVisible">
+            <span class="vt-label">Volume</span>
+            <span class="vt-arrow">{{ doc.volumeVisible ? "▾" : "▸" }}</span>
+          </button>
         </div>
-        <div class="collage-field-wrap">
-          <KeyField />
-          <ScrollBar class="vscroll" :vertical="true" :length="88" vertical-kind="key" />
+        <!-- フィールド列: ルーラー (トラック直上) + トラック -->
+        <div class="collage-field-col">
+          <div class="collage-ruler-row">
+            <div class="collage-ruler-spacer" />
+            <div class="collage-ruler-col">
+              <PlayField />
+              <ScopeField />
+            </div>
+            <div class="collage-ruler-vspacer" />
+          </div>
+          <div class="collage-field-wrap">
+            <KeyField />
+            <ScrollBar class="vscroll" :vertical="true" :length="88" vertical-kind="key" />
+          </div>
         </div>
         <!-- パネル (ページ埋め込み) -->
         <aside class="collage-sidebar">
@@ -150,53 +130,6 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
   flex-direction: column;
   position: relative;
   background: var(--bg);
-}
-
-.collage-header {
-  display: flex;
-  align-items: stretch;
-  background: var(--panel-dark);
-  border-bottom: 1px solid var(--border);
-  user-select: none;
-}
-
-.collage-ruler-col {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.collage-header-right {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  padding: 0 6px;
-  border-left: 1px solid var(--border);
-}
-
-.zoom-label {
-  font-size: 10px;
-  color: var(--text-dim);
-  margin: 0 2px;
-}
-
-.sep-v {
-  width: 1px;
-  height: 16px;
-  background: var(--border);
-  margin: 0 4px;
-}
-
-.btn-sm {
-  padding: 1px 6px;
-  font-size: 11px;
-}
-
-.btn-sm.on {
-  background: var(--accent-dark);
-  border-color: var(--accent);
-  color: #fff;
 }
 
 .collage-body {
@@ -240,6 +173,75 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
   overflow: hidden;
 }
 
+/* Volume トグル (左パネル最下部) */
+.volume-toggle {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: none;
+  border-top: 1px solid var(--border);
+  background: var(--panel-light);
+  color: var(--text-dim);
+  font-size: 11px;
+  padding: 6px 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.volume-toggle:hover {
+  background: var(--btn-hover, var(--panel-light));
+}
+
+.volume-toggle.on {
+  color: var(--text-bright);
+}
+
+.volume-toggle.on .vt-label {
+  color: var(--accent);
+}
+
+.vt-label {
+  font-size: 11px;
+}
+
+.vt-arrow {
+  font-size: 9px;
+}
+
+/* フィールド列 (ルーラー + トラック) */
+.collage-field-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ルーラー行: 鍵盤ストリップ分のスペーサ + PlayField + ScopeField をトラック直上に */
+.collage-ruler-row {
+  flex: none;
+  display: flex;
+  background: var(--panel-dark);
+}
+
+.collage-ruler-spacer {
+  width: 64px;
+  flex: none;
+}
+
+.collage-ruler-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.collage-ruler-vspacer {
+  width: 14px;
+  flex: none;
+  border-left: 1px solid var(--border);
+}
+
 .collage-field-wrap {
   flex: 1;
   min-width: 0;
@@ -247,8 +249,10 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
   display: flex;
 }
 
+/* canvas の min-width:auto (固有幅) が vscroll を押し出さないように */
 .collage-field-wrap > :deep(.field-canvas) {
   flex: 1;
+  min-width: 0;
 }
 
 /* パネルサイドバー (ページ埋め込み) */
@@ -264,7 +268,6 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
   overflow-y: auto;
   min-height: 0;
 }
-
 
 .vscroll {
   width: 14px;

@@ -23,7 +23,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   if (!s) return;
   const view = projectClockView();
   fillRect(ctx, 0, 0, w, h, COLORS.rulerBg);
-  drawGrid(ctx, { w, h, scrollX: doc.scrollX, view, top: 0, bottom: h });
+  drawGrid(ctx, { w, h, scrollX: doc.scrollX, view, top: 0, bottom: h, showNumber: true, numberTop: 0 });
 
   const repeatX = clockToX(view, s.master.repeatMeas * view.beatClock * view.beatNum) - doc.scrollX;
   const lastX = clockToX(view, s.master.lastMeas * view.beatClock * view.beatNum) - doc.scrollX;
