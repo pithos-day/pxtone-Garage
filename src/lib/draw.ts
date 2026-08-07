@@ -28,11 +28,13 @@ export function drawGrid(
     bottom?: number;
     showNumber?: boolean;
     numberTop?: number;
+    bg?: boolean; // 背景を塗るか (false なら線のみ。行色の上に再描画する場合)
   },
 ): void {
   const { w, h, scrollX, view } = opts;
   const top = opts.top ?? 0;
   const bottom = opts.bottom ?? h;
+  const fillBg = opts.bg ?? true;
   // 1小節の幅 (px) = 拍数 × 1拍の幅
   const measW = view.beatNum * view.zoom;
   const measNum = view.measNum ?? Number.POSITIVE_INFINITY;
@@ -43,7 +45,7 @@ export function drawGrid(
   ctx.clip();
 
   // 背景
-  fillRect(ctx, 0, top, w, bottom - top, COLORS.fieldBg);
+  if (fillBg) fillRect(ctx, 0, top, w, bottom - top, COLORS.fieldBg);
 
   // 小節線・拍線 (scrollX は px。曲の小節数まで描画)
   const startMeas = Math.max(0, Math.floor(scrollX / measW) - 1);

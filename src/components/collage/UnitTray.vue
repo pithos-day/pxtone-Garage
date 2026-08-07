@@ -1,4 +1,5 @@
-// 左のユニットリスト (フォーカス / operated / 並べ替え / ミュート / メニュー)
+// 左のユニットリスト (U タブ)。
+// 音色一覧と同じデザイン感の行に、表示/再生/ピン留めのチェックボックスを持つ
 <script setup lang="ts">
 import { ref } from "vue";
 import {
@@ -10,6 +11,8 @@ import {
   setOperatedRange,
   clearOperated,
   toggleUnitMute,
+  toggleUnitVisible,
+  toggleUnitPinned,
   replaceUnitRaw,
   removeUnit,
   setUnitName,
@@ -17,15 +20,14 @@ import {
   commitEdit,
   sync,
   EVENTDEFAULT_KEY,
-  EVENTDEFAULT_VELOCITY,
 } from "../../state/project";
-import { previewUnit, PREVIEW_SEC } from "../../engine/preview";
+import { previewUnitHold, stopPreview } from "../../engine/preview";
 
-const rowH = 16;
 const editing = ref<number | null>(null);
 const editText = ref("");
 const menu = ref<{ x: number; y: number; unit: number } | null>(null);
 const trayRef = ref<HTMLElement | null>(null);
+const rowH = ref(16); // 行の実測高さ (ドラッグ並べ替え用)
 
 function onPointerDown(e: PointerEvent, idx: number): void {
   const s = getService();
@@ -33,11 +35,8 @@ function onPointerDown(e: PointerEvent, idx: number): void {
   const tray = trayRef.value;
   const x = e.clientX - (tray?.getBoundingClientRect().left ?? 0);
 
-  // ミュートトグル (先頭14px)
-  if (x < 14 && e.button === 0) {
-    toggleUnitMute(idx);
-    return;
-  }
+  // チェックボックス列 (左 54px) は @pointerdown.stop で処理済み
+  if (x < 54) return;
 
   if (e.button === 2) {
     setFocusUnit(idx);
@@ -57,19 +56,20 @@ function onPointerDown(e: PointerEvent, idx: number): void {
     clearOperated();
   }
 
-  // 試聴
+  // 押下中サステインで試聴
   const u = s.unitGet(idx);
   if (u?.woice) {
-    previewUnit(idx, EVENTDEFAULT_KEY, EVENTDEFAULT_VELOCITY, PREVIEW_SEC);
+    previewUnitHold(idx, EVENTDEFAULT_KEY, 104);
   }
 
   // ドラッグ並べ替え
   if (!e.ctrlKey && !e.shiftKey && tray) {
+    const h = rowH.value || 16;
     let lastTarget = idx;
     let undoPushed = false;
     const onMove = (ev: PointerEvent): void => {
       const dy = ev.clientY - tray.getBoundingClientRect().top;
-      const row = Math.floor(dy / rowH);
+      const row = Math.floor(dy / h);
       if (row >= 0 && row < units.value.length && row !== lastTarget) {
         if (!undoPushed) {
           beginEdit();
@@ -89,6 +89,10 @@ function onPointerDown(e: PointerEvent, idx: number): void {
     tray.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
   }
+}
+
+function onPointerUp(): void {
+  stopPreview();
 }
 
 function startEditName(idx: number): void {
@@ -116,38 +120,52 @@ function onMenuAction(action: "edit" | "remove"): void {
 
 <template>
   <div class="tray">
-    <div class="tray-title">ユニット</div>
-    <div ref="trayRef" class="tray-list" @contextmenu.prevent>
+    <div class="tray-title">
+      ユニット ({{ units.length }})
+      <span class="tray-tools">
+        <button class="btn btn-sm" :class="{ on: doc.tool === 'pen' }" title="ペン (音符)" @click="doc.tool = 'pen'">ペン</button>
+        <button class="btn btn-sm" :class="{ on: doc.tool === 'hand' }" title="ハンド (キーのみ)" @click="doc.tool = 'hand'">キー</button>
+      </span>
+    </div>
+    <div ref="trayRef" class="tray-list" @contextmenu.prevent @pointerup="onPointerUp">
       <div
         v-for="u in units"
         :key="u.index"
         class="unit-row"
-        :class="{
-          focus: u.index === doc.focusUnit,
-          operated: doc.operated.includes(u.index),
-          muted: u.muted,
-        }"
-        :style="{ height: rowH + 'px' }"
+        :class="{ focus: u.index === doc.focusUnit, operated: doc.operated.includes(u.index), muted: u.muted }"
+        :style="{ borderLeft: '4px solid ' + (u.pinned ? '#00f080' : 'transparent') }"
         @pointerdown="onPointerDown($event, u.index)"
         @dblclick="startEditName(u.index)"
       >
-        <span class="unit-mute" :class="{ off: u.muted }" title="ミュート">♪</span>
-        <span v-if="editing !== u.index" class="unit-name" :title="`${u.index}: ${u.name}`">
-          {{ u.index }}. {{ u.name }}
+        <span class="unit-checks" @pointerdown.stop>
+          <input type="checkbox" title="表示 (ピアノロール)" :checked="u.visible" @click.stop="toggleUnitVisible(u.index)" />
+          <input type="checkbox" title="再生" :checked="!u.muted" @click.stop="toggleUnitMute(u.index)" />
+          <input type="checkbox" title="ピン留め (上部に固定)" :checked="u.pinned" @click.stop="toggleUnitPinned(u.index)" />
         </span>
-        <input
-          v-else
-          v-model="editText"
-          class="unit-name-input"
-          maxlength="16"
-          @keydown.enter="commitEditName(u.index)"
-          @keydown.esc="editing = null"
-          @blur="commitEditName(u.index)"
-          @pointerdown.stop
-        />
-        <span v-if="u.woiceIndex >= 0 && editing !== u.index" class="unit-woice" title="音色番号">
-          [{{ u.woiceIndex }}]
+        <span class="unit-info">
+          <span v-if="editing !== u.index" class="unit-name" :title="`${u.index}: ${u.name}`">
+            {{ u.index }}. {{ u.name }}
+          </span>
+          <input
+            v-else
+            v-model="editText"
+            class="unit-name-input"
+            maxlength="16"
+            @keydown.enter="commitEditName(u.index)"
+            @keydown.esc="editing = null"
+            @blur="commitEditName(u.index)"
+            @pointerdown.stop
+          />
+          <span class="unit-summary">
+            {{ u.muted ? "ミュート" : "再生" }} /
+            {{ u.visible ? "表示" : "非表示" }} /
+            {{ u.pinned ? "ピン留め" : "未ピン" }} /
+            音色 {{ u.woiceIndex >= 0 ? u.woiceIndex : "-" }}
+          </span>
         </span>
+      </div>
+      <div v-if="units.length === 0" class="tray-empty">
+        ユニットがありません。<br />ツールパネルの「＋ユニット」から追加
       </div>
     </div>
     <div v-if="menu" class="ctxmenu" :style="{ left: menu.x + 'px', top: menu.y + 'px' }">
@@ -167,6 +185,9 @@ function onMenuAction(action: "edit" | "remove"): void {
 }
 
 .tray-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 3px 6px;
   font-size: 11px;
   color: var(--text-dim);
@@ -174,32 +195,33 @@ function onMenuAction(action: "edit" | "remove"): void {
   background: var(--panel-light);
 }
 
+.tray-tools {
+  display: flex;
+  gap: 2px;
+}
+
 .tray-list {
   flex: 1;
-  overflow: hidden;
-  position: relative;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 .unit-row {
   display: flex;
-  align-items: center;
   gap: 2px;
-  padding: 0 2px;
+  padding: 2px 4px;
   font-size: 11px;
   color: var(--text);
-  cursor: default;
+  cursor: pointer;
   border-bottom: 1px solid rgba(52, 50, 85, 0.4);
-  white-space: nowrap;
-  overflow: hidden;
 }
 
-.unit-row:nth-child(even) {
-  background: rgba(255, 255, 255, 0.02);
+.unit-row:hover {
+  background: var(--panel-light);
 }
 
 .unit-row.focus {
-  background: rgba(240, 128, 0, 0.25);
-  color: #fff;
+  background: rgba(240, 128, 0, 0.18);
 }
 
 .unit-row.operated {
@@ -212,33 +234,54 @@ function onMenuAction(action: "edit" | "remove"): void {
   text-decoration: line-through;
 }
 
-.unit-mute {
-  font-size: 10px;
-  color: var(--accent);
-  width: 12px;
-  text-align: center;
+.unit-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 14px;
+  flex: none;
 }
 
-.unit-mute.off {
-  color: var(--text-dim);
+.unit-checks input {
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.unit-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .unit-name {
-  flex: 1;
+  color: var(--text-bright);
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .unit-name-input {
-  flex: 1;
-  min-width: 0;
   font-size: 11px;
   padding: 0 2px;
 }
 
-.unit-woice {
+.unit-summary {
   font-size: 9px;
-  color: var(--accent);
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tray-empty {
+  padding: 8px;
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.6;
 }
 
 .ctxmenu .danger {

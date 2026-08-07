@@ -1,5 +1,5 @@
-// ユニット別イベントレーン (U モード)
-// 左ドラッグ: 音符 (ON+VELOCITY) 生成、右ドラッグ: 削除、クリック: 試聴
+// ピン留めユニットのイベントレーン (画面上部固定表示)
+// ピン留めしたユニットの行のみを表示し、クリック/ドラッグで編集できる
 <script setup lang="ts">
 import { ref } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
@@ -18,9 +18,8 @@ import {
   addEvent,
   deleteEvents,
   setScope,
-  focusedOrOperated,
+  pinnedUnits,
   EVENTDEFAULT_VELOCITY,
-  EVENTDEFAULT_VOLUME,
   EVENTDEFAULT_KEY,
 } from "../../state/project";
 import { currentClock, seekToClock, isPlaying as isPlayingNow } from "../../state/player";
@@ -28,6 +27,7 @@ import { previewUnitHold, stopPreview } from "../../engine/preview";
 
 const ROW_H = 16;
 const BAND = 12; // 上部ルーラー帯
+const NAME_W = 144; // 左のユニット名領域
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 
@@ -37,16 +37,14 @@ useCanvas(
   [
     () => doc.rev,
     () => doc.scrollX,
-    () => doc.scrollYUnit,
     () => doc.zoom,
     () => doc.divi,
     () => doc.focusUnit,
-    () => doc.operated.join(","),
-    () => doc.muted.join(","),
     () => doc.scope1,
     () => doc.scope2,
     () => currentClock.value,
     () => units.value.length,
+    () => doc.unitPinned.join(","),
   ],
 );
 
@@ -55,35 +53,21 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   if (!s) return;
   const view = projectClockView();
   const scrollX = doc.scrollX;
-  const unitCount = units.value.length;
-
-  // ルーラー帯 (小節番号 + プレイヘッド)
-  drawGrid(ctx, { w, h, scrollX, view, top: 0, bottom: BAND, showNumber: true, numberTop: 0 });
-
-  // 行領域
+  const pinned = pinnedUnits();
   const fieldTop = BAND;
   const fieldH = h - fieldTop;
-  drawGrid(ctx, { w, h, scrollX, view, top: fieldTop, bottom: h });
+  const fieldW = w - NAME_W;
 
-  // ユニット行
-  const startRow = Math.floor(doc.scrollYUnit);
-  const endRow = Math.min(unitCount - 1, startRow + Math.ceil(fieldH / ROW_H));
-  const focused = new Set(focusedOrOperated());
+  // ルーラー帯 + グリッド + イベント (ユニット名領域の右側)
+  ctx.save();
+  ctx.translate(NAME_W, 0);
 
-  // 行背景 + 行名
-  for (let u = startRow; u <= endRow; u++) {
-    const y = fieldTop + (u - doc.scrollYUnit) * ROW_H;
-    const isFocus = u === doc.focusUnit;
-    if (isFocus) fillRect(ctx, 0, y, w, ROW_H, "rgba(240,128,0,0.18)");
-    else if (focused.has(u)) fillRect(ctx, 0, y, w, ROW_H, "rgba(240,128,0,0.08)");
-    else if (doc.muted.includes(u)) fillRect(ctx, 0, y, w, ROW_H, "rgba(0,0,0,0.25)");
-    fillText(ctx, `${u}: ${units.value[u]?.name ?? ""}`, 2, y + 11, doc.muted.includes(u) ? COLORS.textDim : COLORS.text, 10);
-  }
+  drawGrid(ctx, { w: fieldW, h, scrollX, view, top: 0, bottom: BAND, showNumber: true, numberTop: 0 });
+  drawGrid(ctx, { w: fieldW, h, scrollX, view, top: fieldTop, bottom: h });
 
-  // イベント描画 (ON = ノートバー, その他 = マーク)
+  // イベント描画
   const records = s.evels.records;
-  // 表示範囲 (clock)。scrollX は px なので xToClock で変換する
-  const endClock = xToClock(view, scrollX + w);
+  const endClock = xToClock(view, scrollX + fieldW);
   const startClock = Math.max(0, xToClock(view, scrollX) - 10);
 
   interface RowNote {
@@ -96,22 +80,18 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   const notes: RowNote[] = [];
   const marks: { unit: number; clock: number; kind: number }[] = [];
   let currentVel = EVENTDEFAULT_VELOCITY;
-  let currentVol = EVENTDEFAULT_VOLUME;
 
   for (const e of records) {
     if (e.kind === EventKind.NULL || e.unitNo < 0) continue;
     if (e.clock > endClock) break;
     if (e.clock + (e.kind === EventKind.ON ? e.value : 0) < startClock) continue;
-    if (e.unitNo < startRow || e.unitNo > endRow + 1) continue;
+    if (!doc.unitPinned[e.unitNo]) continue;
     switch (e.kind) {
       case EventKind.ON:
-        notes.push({ unit: e.unitNo, clock: e.clock, length: e.value, vel: currentVel, vol: currentVol });
+        notes.push({ unit: e.unitNo, clock: e.clock, length: e.value, vel: currentVel, vol: 104 });
         break;
       case EventKind.VELOCITY:
         currentVel = e.value;
-        break;
-      case EventKind.VOLUME:
-        currentVol = e.value;
         break;
       case EventKind.KEY:
       case EventKind.PAN_VOLUME:
@@ -127,9 +107,11 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     }
   }
 
-  // ノートバー
+  // ノートバー (行 index = ピン留めリスト内の位置)
   for (const n of notes) {
-    const y = fieldTop + (n.unit - doc.scrollYUnit) * ROW_H;
+    const rowIdx = pinned.indexOf(n.unit);
+    if (rowIdx < 0) continue;
+    const y = fieldTop + rowIdx * ROW_H;
     const x = clockToX(view, n.clock) - scrollX;
     const xw = Math.max(2, clockToX(view, n.length));
     const play = currentClock.value >= n.clock && currentClock.value < n.clock + n.length;
@@ -137,15 +119,16 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     const shadow = noteShadow(n.unit, play, n.vel, n.vol);
     fillRect(ctx, x, y + 3, 2, ROW_H - 6, shadow);
     fillRect(ctx, x + 1, y + 3, Math.max(1, xw - 2), ROW_H - 6, fill);
-    // 発音中はヘッドを明るく
     if (play) fillRect(ctx, x + 1, y + 2, 2, ROW_H - 4, "#fff");
   }
 
-  // その他イベントマーク (小縦線)
+  // その他イベントマーク
   for (const m of marks) {
-    const y = fieldTop + (m.unit - doc.scrollYUnit) * ROW_H;
+    const rowIdx = pinned.indexOf(m.unit);
+    if (rowIdx < 0) continue;
+    const y = fieldTop + rowIdx * ROW_H;
     const x = clockToX(view, m.clock) - scrollX;
-    if (x < 0 || x > w) continue;
+    if (x < 0 || x > fieldW) continue;
     fillRect(ctx, x, y + 4, 1, ROW_H - 8, COLORS.accentDark);
   }
 
@@ -159,30 +142,42 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   // プレイヘッド
   if (isPlayingNow.value) {
     const px = clockToX(view, currentClock.value) - scrollX;
-    if (px >= 0 && px <= w) {
-      fillRect(ctx, px - 1, 0, 2, h, COLORS.playhead);
-    }
+    if (px >= 0 && px <= fieldW) fillRect(ctx, px - 1, 0, 2, h, COLORS.playhead);
+  }
+
+  ctx.restore();
+
+  // 左のユニット名 (translate 外)
+  for (let i = 0; i < pinned.length; i++) {
+    const y = fieldTop + i * ROW_H;
+    const u = pinned[i]!;
+    const isFocus = u === doc.focusUnit;
+    fillRect(ctx, 0, y, NAME_W, ROW_H, isFocus ? "rgba(240,128,0,0.18)" : i % 2 ? "rgba(255,255,255,0.02)" : "transparent");
+    fillText(ctx, `${u}: ${units.value[u]?.name ?? ""}`, 2, y + 11, isFocus ? COLORS.focusText : COLORS.text, 10);
   }
 }
 
 // ---- ポインタ操作 ----
 const drag = ref<{ button: number; x1: number; x2: number; unit: number; undoPushed: boolean } | null>(null);
 
+// フィールド内の x → clock (ユニット名領域を除く)
 function clockAt(x: number): number {
-  return clockAtX(projectClockView(), doc.divi, doc.scrollX, x);
+  return clockAtX(projectClockView(), doc.divi, doc.scrollX, x, NAME_W);
 }
 
 function unitAt(y: number): number {
-  const u = Math.floor((y - BAND) / ROW_H) + Math.floor(doc.scrollYUnit);
-  return u;
+  const i = Math.floor((y - BAND) / ROW_H);
+  const pinned = pinnedUnits();
+  if (i < 0 || i >= pinned.length) return -1;
+  return pinned[i]!;
 }
 
-// 押下中サステインで試聴開始 (pointerup まで鳴り続ける)
+// 押下中サステインで試聴開始
 function previewAt(x: number, y: number): void {
   const s = getService();
   if (!s) return;
   const u = unitAt(y);
-  if (u < 0 || u >= s.unitNum) return;
+  if (u < 0) return;
   const clock = clockAt(x);
   const key = s.evels.getValue(clock, u, EventKind.KEY) || EVENTDEFAULT_KEY;
   const vel = s.evels.getValue(clock, u, EventKind.VELOCITY) || EVENTDEFAULT_VELOCITY;
@@ -194,17 +189,14 @@ function onPointerDown(e: PointerEvent): void {
   if (!c) return;
   const { x, y } = fieldOffset(c, e);
   if (y < BAND) {
-    // ルーラー帯クリック = シーク
-    if (e.button === 0) {
-      const clock = clockAt(x);
-      seekToClock(clock);
-    }
+    // ルーラー帯クリック = シーク (ユニット名領域は対象外)
+    if (e.button === 0 && x >= NAME_W) seekToClock(clockAt(x));
     return;
   }
   const u = unitAt(y);
   const s = getService();
   if (!s) return;
-  if (u < 0 || u >= s.unitNum) return;
+  if (u < 0) return;
   if (e.button === 0) {
     c.setPointerCapture(e.pointerId);
     drag.value = { button: 0, x1: clockAt(x), x2: clockAt(x), unit: u, undoPushed: false };
@@ -222,7 +214,6 @@ function onPointerMove(e: PointerEvent): void {
   const { x } = fieldOffset(canvasRef.value!, e);
   const clock = clockAt(x);
   if (clock !== d.x2) {
-    // 最初の移動時に undo を積む (クリックのみなら積まない)
     if (!d.undoPushed) {
       beginEdit();
       d.undoPushed = true;
@@ -245,7 +236,6 @@ function applyDrag(): void {
   setScope(c1, c2);
   const u = d.unit;
   if (d.button === 0) {
-    // 既存削除 → 生成 (本家と同じ手順)
     deleteEvents(c1, c2, u, EventKind.ON);
     deleteEvents(c1, c2, u, EventKind.VELOCITY);
     addEvent(c1, u, EventKind.ON, c2 - c1);
@@ -261,21 +251,19 @@ function applyDrag(): void {
 function onPointerUp(e: PointerEvent): void {
   const c = canvasRef.value;
   if (c && c.hasPointerCapture(e.pointerId)) c.releasePointerCapture(e.pointerId);
-  stopPreview(); // 押下中サステインを停止
+  stopPreview();
   const d = drag.value;
   drag.value = null;
   if (!d) return;
   if (d.undoPushed) {
     commitEdit();
   } else if (d.button === 0) {
-    // ドラッグなしのクリック = シーク
     seekToClock(d.x1);
   }
 }
 
-// ホイール: 縦スクロール / Shift: 横 / Ctrl: ズーム
+// ホイール: Ctrl=ズーム / Shift=横スクロール
 function onWheel(e: WheelEvent): void {
-  const maxUnit = Math.max(0, units.value.length - 1);
   const zoom = zoomByWheel(e, doc.zoom);
   if (zoom !== null) {
     doc.zoom = zoom;
@@ -283,9 +271,7 @@ function onWheel(e: WheelEvent): void {
   }
   if (e.shiftKey) {
     doc.scrollX = Math.max(0, doc.scrollX + (e.deltaY > 0 ? 48 : -48));
-    return;
   }
-  doc.scrollYUnit = Math.max(0, Math.min(maxUnit, doc.scrollYUnit + Math.sign(e.deltaY)));
 }
 </script>
 

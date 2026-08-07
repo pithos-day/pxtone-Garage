@@ -6,7 +6,8 @@ import { doc, getService } from "../../state/project";
 
 const props = defineProps<{
   vertical?: boolean;
-  length?: number; // 縦: ユニット数 (0: 無効)
+  length?: number; // 縦: 行数 (0: 無効)
+  verticalKind?: "unit" | "key"; // 縦: unit=ユニットトレイ / key=ピアノロール鍵盤
 }>();
 
 const trackRef = ref<HTMLElement | null>(null);
@@ -39,7 +40,10 @@ const viewSize = computed(() => {
 const contentSize = computed(() => {
   void doc.rev; // openProject / 編集で再計算
   void viewTick.value;
-  if (props.vertical) return total.value * 16;
+  if (props.vertical) {
+    if (props.verticalKind === "key") return 88 * 16; // ピアノロール鍵盤 (88 行)
+    return total.value * 16;
+  }
   const s = getService();
   if (!s) return 1;
   const meas = Math.max(s.master.measNum, s.master.playMeas + 1);
@@ -58,8 +62,9 @@ const trackRange = computed(() => Math.max(1, viewSize.value - thumbSize.value))
 const contentRange = computed(() => Math.max(0, contentSize.value - viewSize.value));
 
 const offset = computed(() => {
-  if (props.vertical) return doc.scrollYUnit * 16;
-  return doc.scrollX;
+  if (!props.vertical) return doc.scrollX;
+  if (props.verticalKind === "key") return doc.scrollYKey * 16;
+  return doc.scrollYUnit * 16;
 });
 
 // 正規化位置 (0..1)
@@ -79,10 +84,12 @@ watch(contentRange, (cr) => {
 function setFrac(f: number): void {
   const clamped = Math.max(0, Math.min(1, f));
   const v = clamped * contentRange.value;
-  if (props.vertical) {
-    doc.scrollYUnit = Math.round(v / 16);
-  } else {
+  if (!props.vertical) {
     doc.scrollX = Math.round(v);
+  } else if (props.verticalKind === "key") {
+    doc.scrollYKey = Math.max(0, Math.min(87, Math.round(v / 16)));
+  } else {
+    doc.scrollYUnit = Math.round(v / 16);
   }
 }
 

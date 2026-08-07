@@ -26,6 +26,7 @@ import {
   deleteEvents,
   setEventValue,
   setScope,
+  pianoRollUnits,
   EVENTDEFAULT_VELOCITY,
   EVENTDEFAULT_VOLUME,
   EVENTDEFAULT_KEY,
@@ -116,9 +117,13 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     fillRect(ctx, 0, y, fieldW, KEY_HEIGHT, white ? "rgba(64,64,64,0.30)" : "rgba(32,32,32,0.30)");
   }
 
-  // イベント (フォーカスユニットのみ)
-  if (focus >= 0) {
-    drawNotes(ctx, s, focus, fieldW, fieldTop, fieldH, view, scrollX, scrollY);
+  // グリッド線を行色の上に再描画 (行色に覆われないように)
+  drawGrid(ctx, { w: fieldW, h, scrollX, view, top: fieldTop, bottom: h, showNumber: false, bg: false });
+
+  // イベント (フォーカス + 表示 + ピン留めユニットを色分け表示)
+  const rollUnits = pianoRollUnits();
+  for (const u of rollUnits) {
+    drawNotes(ctx, s, u, fieldW, fieldTop, fieldH, view, scrollX, scrollY, u === focus);
   }
 
   // スコープ帯
@@ -175,6 +180,7 @@ function drawNotes(
   view: ReturnType<typeof projectClockView>,
   scrollX: number,
   scrollY: number,
+  isFocus: boolean,
 ): void {
   const records = s.evels.records;
   // 表示範囲 (clock)。scrollX は px なので xToClock で変換する
@@ -190,6 +196,8 @@ function drawNotes(
   ctx.beginPath();
   ctx.rect(0, fieldTop, w, fieldH);
   ctx.clip();
+  // 非フォーカスユニットは半透明 (色分けして重ねて表示)
+  if (!isFocus) ctx.globalAlpha = 0.45;
 
   const drawAt = (clock: number, key: number, len: number, depth: "off" | "on"): void => {
     const row = rowOfValue(key);
@@ -232,6 +240,7 @@ function drawNotes(
   if (endClock > prevClock) drawAt(prevClock, curKey, endClock - prevClock, "off");
 
   ctx.restore();
+  ctx.globalAlpha = 1;
 }
 
 // ---- ポインタ ----

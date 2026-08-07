@@ -23,13 +23,15 @@ import { encodeShiftJis } from "../lib/sjis";
 import { service, ensureService, EXE_VER } from "./service";
 import { pushUndo, clearUndo } from "./undo";
 
-export type ToolMode = "W" | "U" | "K";
+export type ToolMode = "W" | "U";
 
 export interface UnitInfo {
   index: number;
   name: string;
   woiceIndex: number; // 割り当て済み音色 index (-1 = なし)
   muted: boolean;
+  visible: boolean; // ピアノロールにノート表示するか
+  pinned: boolean; // ピン留め (上部レーン固定)
 }
 
 export interface WoiceInfo {
@@ -71,9 +73,11 @@ export const doc = reactive({
   scope2: 0,
   volumeVisible: false,
   volumeMode: 0, // VOLUMEMODE (0=Velocity..7=Tuning)
-  tool: "pen" as "pen" | "hand", // Kモード用ツール
+  tool: "pen" as "pen" | "hand", // ピアノロール用ツール
   copier: [true, true, true, true, true, true, true, true, true] as boolean[],
   muted: [] as number[], // ミュート中のユニット index
+  unitVisible: [] as boolean[], // ピアノロールに表示するユニット
+  unitPinned: [] as boolean[], // ピン留め中のユニット
 });
 
 export const units = ref<UnitInfo[]>([]);
@@ -99,6 +103,11 @@ export function ensureInit(): boolean {
 export function sync(): void {
   if (!doc.ready) return;
   const s = service;
+  // 表示/ピン留め配列をユニット数に合わせる (新規ユニットは表示オン)
+  while (doc.unitVisible.length < s.unitNum) doc.unitVisible.push(true);
+  while (doc.unitPinned.length < s.unitNum) doc.unitPinned.push(false);
+  if (doc.unitVisible.length > s.unitNum) doc.unitVisible.length = s.unitNum;
+  if (doc.unitPinned.length > s.unitNum) doc.unitPinned.length = s.unitNum;
   const us: UnitInfo[] = [];
   for (let i = 0; i < s.unitNum; i++) {
     const u = s.unitGet(i);
@@ -112,7 +121,14 @@ export function sync(): void {
         }
       }
     }
-    us.push({ index: i, name: u.name || `unit ${i}`, woiceIndex: wIdx, muted: doc.muted.includes(i) });
+    us.push({
+      index: i,
+      name: u.name || `unit ${i}`,
+      woiceIndex: wIdx,
+      muted: doc.muted.includes(i),
+      visible: doc.unitVisible[i] ?? true,
+      pinned: doc.unitPinned[i] ?? false,
+    });
   }
   units.value = us;
   const ws: WoiceInfo[] = [];
@@ -343,6 +359,40 @@ export function toggleUnitMute(idx: number): void {
   else doc.muted.push(idx);
   sync();
   doc.rev++;
+}
+
+// ピアノロールにノートを表示するか (表示チェック)
+export function toggleUnitVisible(idx: number): void {
+  doc.unitVisible[idx] = !(doc.unitVisible[idx] ?? true);
+  sync();
+  doc.rev++;
+}
+
+// ピン留め (上部レーン固定)
+export function toggleUnitPinned(idx: number): void {
+  doc.unitPinned[idx] = !(doc.unitPinned[idx] ?? false);
+  sync();
+  doc.rev++;
+}
+
+// ピアノロールにノートを表示するユニット一覧 (フォーカス + 表示 + ピン留め)
+export function pianoRollUnits(): number[] {
+  const set = new Set<number>();
+  if (doc.focusUnit >= 0) set.add(doc.focusUnit);
+  for (let u = 0; u < doc.unitVisible.length; u++) {
+    if (doc.unitVisible[u]) set.add(u);
+    if (doc.unitPinned[u]) set.add(u);
+  }
+  return [...set].sort((a, b) => a - b);
+}
+
+// ピン留め中のユニット一覧
+export function pinnedUnits(): number[] {
+  const out: number[] = [];
+  for (let u = 0; u < doc.unitPinned.length; u++) {
+    if (doc.unitPinned[u]) out.push(u);
+  }
+  return out;
 }
 
 // 編集対象ユニット (フォーカス + operated)

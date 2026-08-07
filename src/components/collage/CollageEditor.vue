@@ -1,7 +1,9 @@
-// コラージュ (ptCollage 相当) の全体レイアウト — 段階4: オートメーションとパネル群
+// コラージュ (ptCollage 相当) の全体レイアウト。
+// 画面中央は常にピアノロール、左パネルは W/U タブで切り替え。
+// ピン留めユニットのレーンは上部に固定表示される。
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted } from "vue";
-import { doc, units, ensureInit } from "../../state/project";
+import { computed, onBeforeUnmount, onMounted } from "vue";
+import { doc, units, ensureInit, pinnedUnits } from "../../state/project";
 import { panels } from "../../state/panels";
 import { togglePlay, seekToClock } from "../../state/player";
 import { undo, redo } from "../../state/undo";
@@ -9,8 +11,7 @@ import { ZOOM_TABLE, DIVI_TABLE } from "../../lib/clock";
 import ToolPanel from "./ToolPanel.vue";
 import UnitTray from "./UnitTray.vue";
 import WoiceTray from "./WoiceTray.vue";
-import WoiceField from "./WoiceField.vue";
-import UnitField from "./UnitField.vue";
+import PinnedLanes from "./PinnedLanes.vue";
 import KeyField from "./KeyField.vue";
 import PlayField from "./PlayField.vue";
 import ScopeField from "./ScopeField.vue";
@@ -23,6 +24,8 @@ import CopierPanel from "./CopierPanel.vue";
 import ScrollBar from "./ScrollBar.vue";
 
 ensureInit();
+
+const pinned = computed(() => pinnedUnits());
 
 function onKeydown(e: KeyboardEvent): void {
   const tag = (e.target as HTMLElement)?.tagName;
@@ -53,10 +56,6 @@ function onKeydown(e: KeyboardEvent): void {
     case "F2":
       e.preventDefault();
       doc.mode = "U";
-      break;
-    case "F3":
-      e.preventDefault();
-      doc.mode = "K";
       break;
     case " ":
       e.preventDefault();
@@ -113,31 +112,35 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
       </div>
     </div>
     <div class="collage-body">
-      <!-- K モードでは鍵盤ストリップが KeyField 内にあるため、左トレイは非表示 -->
-      <div v-if="doc.mode !== 'K'" class="collage-tray">
-        <UnitTray v-if="doc.mode === 'U'" />
-        <WoiceTray v-if="doc.mode === 'W'" />
+      <!-- ピン留めユニットのレーン (上部固定) -->
+      <div v-if="pinned.length > 0" class="collage-pinned" :style="{ height: (12 + pinned.length * 16) + 'px' }">
+        <PinnedLanes />
       </div>
-      <div class="collage-field-wrap">
-        <UnitField v-if="doc.mode === 'U'" />
-        <WoiceField v-if="doc.mode === 'W'" />
-        <KeyField v-if="doc.mode === 'K'" />
-        <ScrollBar class="vscroll" :vertical="true" :length="units.length" />
+      <div class="collage-main">
+        <!-- 左パネル (W/U で切り替え) -->
+        <div class="collage-tray">
+          <UnitTray v-if="doc.mode === 'U'" />
+          <WoiceTray v-if="doc.mode === 'W'" />
+        </div>
+        <div class="collage-field-wrap">
+          <KeyField />
+          <ScrollBar class="vscroll" :vertical="true" :length="88" vertical-kind="key" />
+        </div>
+        <!-- パネル (ページ埋め込み) -->
+        <aside class="collage-sidebar">
+          <PlayerPanel v-if="panels.player.open" />
+          <ProjectorPanel v-if="panels.projector.open" />
+          <EffectorPanel v-if="panels.effector.open" />
+          <CopierPanel v-if="panels.copier.open" />
+        </aside>
       </div>
-      <!-- パネル (ページ埋め込み) -->
-      <aside class="collage-sidebar">
-        <PlayerPanel v-if="panels.player.open" />
-        <ProjectorPanel v-if="panels.projector.open" />
-        <EffectorPanel v-if="panels.effector.open" />
-        <CopierPanel v-if="panels.copier.open" />
-      </aside>
     </div>
     <div v-if="doc.volumeVisible" class="collage-vol">
       <VolumePanel :modes="volumeModes" />
       <VolumeField />
     </div>
     <div class="collage-hscroll">
-      <div v-if="doc.mode !== 'K'" class="collage-hscroll-spacer" />
+      <div class="collage-hscroll-spacer" />
       <ScrollBar class="hscroll" :vertical="false" />
     </div>
   </div>
@@ -204,6 +207,25 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
   flex: 1;
   min-height: 0;
   display: flex;
+  flex-direction: column;
+}
+
+/* ピン留めユニットのレーン (上部固定) */
+.collage-pinned {
+  flex: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel-dark);
+}
+
+.collage-pinned > :deep(.field-canvas) {
+  width: 100%;
+  height: 100%;
+}
+
+.collage-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
 }
 
 .collage-vol {
@@ -220,14 +242,6 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
   display: flex;
   flex-direction: column;
   overflow: hidden;
-}
-
-.tray-title {
-  padding: 8px;
-  font-size: 11px;
-  color: var(--text-dim);
-  text-align: center;
-  margin-top: 40px;
 }
 
 .collage-field-wrap {
