@@ -4,7 +4,7 @@
 import { ref } from "vue";
 import { Service, PxtnErr, MemoryIo, PXTN_MAX_EVENT_NUM } from "pxtone-ts";
 import { setService } from "./service";
-import { setUndoStacks } from "./undo";
+import { setUndoStacks, undoStack, redoStack } from "./undo";
 import { doc, sync, title, comment, ensureInit, pxtnErrorMessage } from "./project";
 import { resetLoaded } from "./player";
 import { saveProject as downloadProject } from "../engine/io";
@@ -83,6 +83,8 @@ function saveCurrent(): void {
   p.dirty = doc.dirty;
   p.title = title.value;
   p.comment = comment.value;
+  p.undoStack = undoStack;
+  p.redoStack = redoStack;
   p.state = {
     fileName: doc.fileName,
     dirty: doc.dirty,
@@ -144,6 +146,7 @@ export function switchProject(id: number): void {
 
 // 空のプロジェクトを新規タブに追加して切り替える
 export function newProjectInTab(): Project {
+  ensureInit();
   const svc = new Service();
   if (svc.initCollage(PXTN_MAX_EVENT_NUM) !== PxtnErr.OK) throw new Error("engine init failed");
   const p: Project = {
@@ -162,6 +165,14 @@ export function newProjectInTab(): Project {
   return p;
 }
 
+// 現在のプロジェクトの内容を UI に再同期する (読み込み後の反映などに使う)
+export function refreshCurrent(): void {
+  if (!currentProject()) return;
+  sync();
+  doc.rev++;
+  resetLoaded();
+}
+
 // バイト列を新しいタブで開く。エラーメッセージを返す (成功時 null)
 export function openProjectInTab(bytes: Uint8Array): string | null {
   const p = newProjectInTab();
@@ -171,9 +182,8 @@ export function openProjectInTab(bytes: Uint8Array): string | null {
     closeProject(p.id);
     return pxtnErrorMessage(res);
   }
-  p.state = { ...p.state, dirty: false, fileName: "" };
-  // restore し直して read 後の内容を反映
-  switchProject(p.id);
+  // 読み込んだ内容を doc に反映
+  refreshCurrent();
   return null;
 }
 

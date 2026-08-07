@@ -25,3 +25,4 @@ public/worklet
 *.njsproj
 *.sln
 *.sw?
+tests/.multiproject.cjs

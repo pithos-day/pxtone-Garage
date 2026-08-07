@@ -4,6 +4,7 @@
 import { ref } from "vue";
 import { MemoryIo, PxtnErr } from "pxtone-ts";
 import { service, EXE_VER } from "./service";
+import { doc, sync } from "./project";
 
 const MAX_UNDO = 100;
 
@@ -74,5 +75,7 @@ export function redo(): boolean {
 function restoreBytes(bytes: Uint8Array): boolean {
   const io = new MemoryIo(bytes);
   if (service.read(io) !== PxtnErr.OK) return false;
+  sync();
+  doc.rev++;
   return true;
 }
