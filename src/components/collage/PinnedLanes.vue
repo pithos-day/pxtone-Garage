@@ -27,7 +27,9 @@ import { previewUnitHold, stopPreview } from "../../engine/preview";
 
 const ROW_H = 16;
 const BAND = 12; // 上部ルーラー帯
-const NAME_W = 144; // 左のユニット名領域
+// 左のユニット名領域 = 左パネル (300px) + 鍵盤ストリップ (64px)。
+// レーンの開始位置をピアノロールフィールドと揃える
+const NAME_W = 364;
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 

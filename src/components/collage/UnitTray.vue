@@ -35,8 +35,8 @@ function onPointerDown(e: PointerEvent, idx: number): void {
   const tray = trayRef.value;
   const x = e.clientX - (tray?.getBoundingClientRect().left ?? 0);
 
-  // チェックボックス列 (左 54px) は @pointerdown.stop で処理済み
-  if (x < 54) return;
+  // チェックボックス列 (表示/再生/ピン留めの横並び領域) は @pointerdown.stop で処理済み
+  if (x < 56) return;
 
   if (e.button === 2) {
     setFocusUnit(idx);
@@ -236,15 +236,17 @@ function onMenuAction(action: "edit" | "remove"): void {
 
 .unit-checks {
   display: flex;
-  flex-direction: column;
-  gap: 1px;
-  width: 14px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  width: 56px;
   flex: none;
 }
 
 .unit-checks input {
-  width: 12px;
-  height: 12px;
+  width: 16px;
+  height: 16px;
   margin: 0;
   accent-color: var(--accent);
   cursor: pointer;

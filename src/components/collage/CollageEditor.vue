@@ -231,7 +231,7 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
 }
 
 .collage-tray {
-  width: 144px;
+  width: 300px;
   flex: none;
   border-right: 1px solid var(--border);
   background: var(--panel-dark);
@@ -279,7 +279,7 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
 }
 
 .collage-hscroll-spacer {
-  width: 144px;
+  width: 364px;
   flex: none;
 }
 

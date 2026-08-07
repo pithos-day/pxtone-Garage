@@ -36,7 +36,9 @@ import { previewUnitHold, stopPreview } from "../../engine/preview";
 import { getUnitColor } from "../../lib/theme";
 
 const BAND = 12;
-const STRIP_W = 144;
+// 鍵盤ストリップの幅。ピアノ風の単音プレビュー領域で、左パネル (300px) の右に置く。
+// 本家 144px から半分以下に縮小
+const STRIP_W = 64;
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 
 // 行 → KEY イベント値 (本家の生成式: value = 0x8700 - row*0x100)
