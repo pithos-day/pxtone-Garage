@@ -104,11 +104,11 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
             <ScrollBar class="vscroll" :vertical="true" :length="88" vertical-kind="key" />
           </div>
         </div>
-        <!-- パネル (ページ埋め込み) -->
-        <aside class="collage-sidebar">
-          <EffectorPanel v-if="panels.effector.open" />
-          <CopierPanel v-if="panels.copier.open" />
-        </aside>
+        <!-- フローティングパネル (Effector / Copier を編集画面上にポップアップ表示) -->
+        <div class="panel-popups">
+          <EffectorPanel v-if="panels.effector.open" class="panel-popup" @close="panels.effector.open = false" />
+          <CopierPanel v-if="panels.copier.open" class="panel-popup" @close="panels.copier.open = false" />
+        </div>
       </div>
     </div>
     <div v-if="doc.volumeVisible" class="collage-vol">
@@ -255,18 +255,24 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
   min-width: 0;
 }
 
-/* パネルサイドバー (ページ埋め込み) */
-.collage-sidebar {
-  width: 250px;
-  flex: none;
+/* フローティングパネル (Effector / Copier ポップアップ) */
+.panel-popups {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 50;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 6px;
-  border-left: 1px solid var(--border);
-  background: var(--muted);
-  overflow-y: auto;
-  min-height: 0;
+  max-height: calc(100% - 16px);
+  pointer-events: none;
+}
+
+.panel-popup {
+  width: 260px;
+  max-height: 70%;
+  box-shadow: 2px 2px 10px var(--shadow);
+  pointer-events: auto;
 }
 
 .vscroll {
