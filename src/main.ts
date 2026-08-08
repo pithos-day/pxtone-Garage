@@ -1,16 +1,46 @@
 import { createApp } from "vue";
 import "./style.css";
-import "./theme/pxtone.css";
-import "./theme/indigo.css";
 import App from "./App.vue";
 import { initTheme } from "./state/theme";
+import { initFonts } from "./state/fonts";
 import { openProject, newProject, doc, getService, mutate, beginEdit, commitEdit, exportBytes, setTextComment, setTextName, EVENTDEFAULT_VELOCITY } from "./state/project";
 import { play, stop, seekToClock, player } from "./state/player";
 import { undo, redo, pushUndo } from "./state/undo";
 import { renderPreview, previewUnit, previewUnitHold, previewWoiceHold, stopPreview } from "./engine/preview";
 import { MemoryIo } from "pxtone-ts";
 
-initTheme();
+// 内蔵フォント (SIL OFL 1.1)
+import "@fontsource/dotgothic16/400.css";
+import "@fontsource/m-plus-rounded-1c/400.css";
+import "@fontsource/m-plus-rounded-1c/700.css";
+import "@fontsource/zen-maru-gothic/400.css";
+import "@fontsource/zen-maru-gothic/700.css";
+import "@fontsource/noto-sans-jp/400.css";
+import "@fontsource/noto-sans-jp/700.css";
+
+// テーマ CSS ソース (?raw でテキストとして取り込み、実行時にパースして注入)
+import pxtoneTheme from "./theme/pxtone.css?raw";
+import pxtonev2Theme from "./theme/pxtonev2.css?raw";
+import pxtonev3Theme from "./theme/pxtonev3.css?raw";
+import indigoTheme from "./theme/indigo.css?raw";
+import astronautsTheme from "./theme/astronauts.css?raw";
+import caffeineTheme from "./theme/caffeine.css?raw";
+import zenTheme from "./theme/zen.css?raw";
+import vintageTheme from "./theme/vintage.css?raw";
+import roseTheme from "./theme/rose.css?raw";
+
+initTheme({
+  pxtone: pxtoneTheme,
+  pxtonev2: pxtonev2Theme,
+  pxtonev3: pxtonev3Theme,
+  indigo: indigoTheme,
+  astronauts: astronautsTheme,
+  caffeine: caffeineTheme,
+  zen: zenTheme,
+  vintage: vintageTheme,
+  rose: roseTheme,
+});
+initFonts();
 createApp(App).mount("#app");
 
 // 開発・テスト用フック

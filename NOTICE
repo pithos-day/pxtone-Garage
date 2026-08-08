@@ -1,0 +1,19 @@
+# Third-party notices
+
+## 同梱フォント (SIL Open Font License 1.1)
+
+pxtone-garage には以下のフォントを同梱しています。すべて SIL Open Font License 1.1
+(OFL-1.1) で提供され、商用利用・改変・再配布が許可されています。
+ライセンス全文は各パッケージ (`node_modules/@fontsource/*/LICENSE`) に含まれます。
+
+| フォント | パッケージ | ライセンス |
+|---|---|---|
+| DotGothic16 | @fontsource/dotgothic16 | SIL OFL 1.1 |
+| M PLUS Rounded 1c | @fontsource/m-plus-rounded-1c | SIL OFL 1.1 |
+| Zen Maru Gothic | @fontsource/zen-maru-gothic | SIL OFL 1.1 |
+| Noto Sans JP | @fontsource/noto-sans-jp | SIL OFL 1.1 |
+
+SIL Open Font License 1.1 の要点:
+- フォントの使用・埋め込み・商用利用は自由
+- フォントファイルの再配布時は本ライセンス文を含めること (npm パッケージ経由で保持される)
+- 単体での販売は不可 (アプリの一部としての同梱は可)

@@ -8,6 +8,18 @@ importers:
 
   .:
     dependencies:
+      '@fontsource/dotgothic16':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/m-plus-rounded-1c':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/noto-sans-jp':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/zen-maru-gothic':
+        specifier: ^5.3.0
+        version: 5.3.0
       pxtone-ts:
         specifier: https://codeberg.org/pithos/pxtone-ts.git
         version: git+https://codeberg.org/pithos/pxtone-ts.git#0171c92ce1fa84ed2e0987361ec4c0e4bd6dbdff
@@ -211,6 +223,18 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@fontsource/dotgothic16@5.3.0':
+    resolution: {integrity: sha512-HYOA4yd61tGyjFvDXG0dzvCdXjmPIVuqDFCaMk2ok0G/eWbub6nJ9NlrHaGOUKUWiypGIoz6vZuzm11uFNdm8w==}
+
+  '@fontsource/m-plus-rounded-1c@5.3.0':
+    resolution: {integrity: sha512-eB/JxJBRXLdfTsBDElsAZDMtHXM58Hf1tKkHoDVZAaUN7a+qYfwNKh4Q2f7Fk9YNg4xPFjTwooVlQyqbhi8CWQ==}
+
+  '@fontsource/noto-sans-jp@5.3.0':
+    resolution: {integrity: sha512-OZbBzZ8LrFRs2RFT2Cc0HUV2C2ZeSfyEXhDJWR0EZuZaraJfRubpvrFmUnCljuBDEkw8Vn6CE/+nf9dj9b+0lg==}
+
+  '@fontsource/zen-maru-gothic@5.3.0':
+    resolution: {integrity: sha512-BuigfmzszMR3AOyAMSocQZ9bEq9o5sGCMOC/laI4TMpba1/KB1jxsdNFXWMUz02wVPd4vAVuMhsV00AQizFj3w==}
 
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
@@ -683,6 +707,14 @@ snapshots:
 
   '@esbuild/win32-x64@0.25.12':
     optional: true
+
+  '@fontsource/dotgothic16@5.3.0': {}
+
+  '@fontsource/m-plus-rounded-1c@5.3.0': {}
+
+  '@fontsource/noto-sans-jp@5.3.0': {}
+
+  '@fontsource/zen-maru-gothic@5.3.0': {}
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
 

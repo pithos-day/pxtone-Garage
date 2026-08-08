@@ -1,0 +1,135 @@
+// テーマ CSS ソース → トークンマップ変換 (純関数)。
+// shadcn ジェネレーター出力 (Tailwind ディレクティブ付き) と素の :root/.dark の
+// 両方に対応する。@規則ブロックはスキップし、:root 系 (ライト) と .dark 系
+// (ダーク) のブロックから --xxx: value のみを抽出・サニタイズする。
+
+export interface ThemeTokens {
+  light: Record<string, string>;
+  dark: Record<string, string>;
+}
+
+// 値のサニタイズ: インジェクション (url()/@/式/構造破壊) を拒否する。
+// 許容: 色 (hex/oklch/hsl/rgb)、calc()/var()、数値、% 等
+const SAFE_VALUE = /^[#()\[\],.%+\-/*\w\s"'':]+$/;
+
+function sanitizeValue(raw: string): string | null {
+  const v = raw.trim();
+  if (!v) return null;
+  if (/url\s*\(/i.test(v)) return null;
+  if (/[@{<>`;]/u.test(v)) return null;
+  if (/expression/i.test(v)) return null;
+  if (!SAFE_VALUE.test(v)) return null;
+  return v;
+}
+
+// セレクタ判定: ":root", ":root[data-theme=...]" などは light 扱い。
+// ".dark", ".dark:not(.light)" などは dark 扱い
+function blockKind(selector: string): "light" | "dark" | null {
+  const s = selector.trim().replace(/\[[^\]]*\]/g, "").replace(/:not\([^)]*\)/g, "").trim();
+  if (s === ":root") return "light";
+  if (s === ".dark" || s === "html.dark") return "dark";
+  return null;
+}
+
+/**
+ * CSS ソースをパースしてテーマトークンを抽出する。
+ * @returns ライト/ダークのトークンマップ (トークン名 → 値)。失敗時は null
+ */
+export function parseThemeCss(source: string): ThemeTokens | null {
+  const n = source.length;
+  let pos = 0;
+  const light: Record<string, string> = {};
+  const dark: Record<string, string> = {};
+
+  const skipToMatchingBrace = (): void => {
+    let depth = 1;
+    pos++; // '{' を飛ばす
+    while (pos < n && depth > 0) {
+      if (source[pos] === "{") depth++;
+      else if (source[pos] === "}") depth--;
+      pos++;
+    }
+  };
+
+  while (pos < n) {
+    // 空白・コメントをスキップ
+    while (pos < n && /\s/.test(source[pos]!)) pos++;
+    while (pos < n && source.startsWith("/*", pos)) {
+      const end = source.indexOf("*/", pos + 2);
+      pos = end < 0 ? n : end + 2;
+      while (pos < n && /\s/.test(source[pos]!)) pos++;
+    }
+    if (pos >= n) break;
+
+    if (source[pos] === "@") {
+      // @規則: ';' で終わる文、または { } ブロック。どちらもスキップ
+      let i = pos;
+      while (i < n && source[i] !== "{" && source[i] !== ";") i++;
+      if (i < n && source[i] === "{") {
+        pos = i;
+        skipToMatchingBrace();
+      } else {
+        pos = i + 1;
+      }
+      continue;
+    }
+
+    // 通常のブロック: セレクタ { body }
+    const braceIdx = source.indexOf("{", pos);
+    if (braceIdx < 0) break;
+    const head = source.slice(pos, braceIdx).trim();
+    pos = braceIdx;
+    skipToMatchingBrace();
+    const body = source.slice(braceIdx + 1, pos - 1);
+
+    const kind = blockKind(head);
+    if (!kind) continue;
+
+    // ブロック内のコメントを除去してから宣言を処理する
+    // (コメントが宣言と同セグメントになると抽出漏れするため)
+    const cleanBody = body.replace(/\/\*[\s\S]*?\*\//g, "");
+
+    // カスタムプロパティ宣言のみ抽出
+    for (const decl of cleanBody.split(";")) {
+      const m = /^(\s*)(--[a-zA-Z0-9-]+)\s*:\s*(.*)$/.exec(decl);
+      if (!m) continue;
+      const name = m[2]!.trim();
+      const value = sanitizeValue(m[3]!);
+      if (!value) continue;
+      // フォント系トークンは対象外 (フォントは独立設定のため)
+      if (name.startsWith("--font-")) continue;
+      (kind === "light" ? light : dark)[name] = value;
+    }
+  }
+
+  if (Object.keys(light).length === 0 && Object.keys(dark).length === 0) return null;
+  return { light, dark };
+}
+
+/**
+ * ベーステーマのトークンに上書きをマージする。
+ * 未定義トークンはベースの値が継承される。
+ */
+export function mergeTokens(
+  base: ThemeTokens,
+  override: ThemeTokens,
+): ThemeTokens {
+  return {
+    light: { ...base.light, ...override.light },
+    dark: { ...base.dark, ...override.dark },
+  };
+}
+
+/**
+ * トークンマップからスコープ付き CSS を生成する。
+ * セレクタ: :root[data-theme="id"] (ライト) / .dark[data-theme="id"] (ダーク)
+ */
+export function buildThemeCss(id: string, tokens: ThemeTokens): string {
+  const lightBlock = Object.entries(tokens.light)
+    .map(([k, v]) => `  ${k}: ${v};`)
+    .join("\n");
+  const darkBlock = Object.entries(tokens.dark)
+    .map(([k, v]) => `  ${k}: ${v};`)
+    .join("\n");
+  return `:root[data-theme="${id}"] {\n${lightBlock}\n}\n.dark[data-theme="${id}"] {\n${darkBlock}\n}`;
+}
