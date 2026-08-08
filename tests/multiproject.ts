@@ -143,6 +143,16 @@ toggleUnitMute(0); // ソロ中に unit0 を再生に → ソロ解除、unit0 �
 check("ソロ中のミュート変更: ソロ解除", doc.soloUnit === -1);
 check("ソロ中のミュート変更: unit0 ミュート解除が反映", !doc.muted.includes(0) && doc.muted.length === 0, `muted=${doc.muted}`);
 
+// ---- 10b. ソロの直接切替では元のバックアップを保持 ----
+toggleUnitMute(0);
+check("切替前: unit0 のみミュート", doc.muted.length === 1 && doc.muted[0] === 0);
+toggleUnitSolo(1);
+toggleUnitSolo(2); // ソロ中に直接切替
+check("切替中: soloUnit=2", doc.soloUnit === 2);
+check("切替中: backup は元のまま", doc.soloBackup.length === 1 && doc.soloBackup[0] === 0);
+toggleUnitSolo(2); // 解除
+check("切替後解除: unit0 のミュートが復元", doc.muted.length === 1 && doc.muted[0] === 0, `muted=${doc.muted}`);
+
 // ---- 11. ユニット削除・並べ替えでソロ/ミュートが追従 ----
 toggleUnitSolo(1);
 check("削除前: soloUnit=1", doc.soloUnit === 1);

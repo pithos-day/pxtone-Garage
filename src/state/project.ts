@@ -436,14 +436,16 @@ export function toggleUnitMute(idx: number): void {
 }
 
 // ソロ切替。ON: 他ユニットを全ミュート、OFF (同ユニット再クリック):
-// ソロ開始前のミュート状態 (soloBackup) を復元
+// ソロ開始前のミュート状態 (soloBackup) を復元。
+// ソロ中の別ユニットへの直接切替ではバックアップを保持する
+// (ソロ由来のミュートで上書きしない)
 export function toggleUnitSolo(idx: number): void {
   if (doc.soloUnit === idx) {
     doc.soloUnit = -1;
     doc.muted = [...doc.soloBackup];
     doc.soloBackup = [];
   } else {
-    doc.soloBackup = [...doc.muted];
+    if (doc.soloUnit === -1) doc.soloBackup = [...doc.muted];
     doc.soloUnit = idx;
     doc.muted = units.value.map((u) => u.index).filter((u) => u !== idx);
   }

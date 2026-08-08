@@ -103,11 +103,17 @@ function onPointerUp(): void {
   stopPreview();
 }
 
-// ソロのラジオクリック。ネイティブのチェックは .prevent で抑止し、
-// checked 状態は常に :checked バインディング (u.soloed) に追従させる
-// (連続クリックでも表示がズレないように)
+// ソロのラジオ操作。
+// ON: ネイティブのチェック (change イベント) で切替。OFF: チェック済みラジオの
+// 再クリック (チェック状態は変わらないため click で処理)。
+// ネイティブのチェックを活かすことで、ブラウザのラジオグループ処理と
+// 表示がズレないようにする
+function onSoloChange(idx: number, e: Event): void {
+  if ((e.target as HTMLInputElement).checked) toggleUnitSolo(idx);
+}
+
 function onSoloClick(idx: number): void {
-  toggleUnitSolo(idx);
+  if (units.value[idx]?.soloed) toggleUnitSolo(idx);
 }
 
 function startEditName(idx: number): void {
@@ -165,7 +171,7 @@ function onMenuAction(action: "edit" | "remove"): void {
           <input type="checkbox" :title="t('unit.play')" :checked="!u.muted" @click.stop="toggleUnitMute(u.index)" />
           <input type="checkbox" :title="t('unit.show')" :checked="u.visible" @click.stop="toggleUnitVisible(u.index)" />
           <input type="checkbox" :title="t('unit.pin')" :checked="u.pinned" @click.stop="toggleUnitPinned(u.index)" />
-          <input type="radio" name="unit-solo" :title="t('unit.solo')" :checked="u.soloed" @click.prevent="onSoloClick(u.index)" />
+          <input type="radio" name="unit-solo" :title="t('unit.solo')" :checked="u.soloed" @change="onSoloChange(u.index, $event)" @click="onSoloClick(u.index)" />
         </span>
         <span class="unit-info">
           <span v-if="editing !== u.index" class="unit-name" :title="`${u.index}: ${u.name}`">
