@@ -10,7 +10,7 @@ import {
 import { doc, units, addUnit, setTempo, exportBytes, ensureInit, toggleUnitSolo, toggleUnitMute, removeUnit, addWoice, WoiceType } from "../src/state/project";
 import * as serviceMod from "../src/state/service";
 import { undo, redo, canUndo, canRedo } from "../src/state/undo";
-import { player, isPlaying } from "../src/state/player";
+import { player, isPlaying, masterVolume } from "../src/state/player";
 
 let failed = 0;
 function check(name: string, cond: boolean, detail = ""): void {
@@ -219,6 +219,7 @@ check("ソロ対象削除: muted は空", doc.muted.length === 0);
       currentTime = 100;
       destination: unknown = {};
       lastSource: { stopTime?: number; stop: (t?: number) => void } | null = null;
+      lastGain: { gain: { value: number; setTargetAtTime: (v: number) => void } } | null = null;
       ramp: RampRec | null = null;
       constructor() {
         MockAudioContext.instances.push(this);
@@ -247,9 +248,13 @@ check("ソロ対象削除: muted は空", doc.muted.length === 0);
           linearRampToValueAtTime(v: number, t: number): void {
             if (v === 0) this._ctx.ramp = { v, t };
           },
+          setTargetAtTime(v: number): void {
+            this.value = v;
+          },
           cancelScheduledValues(): void { /* noop */ },
           _ctx: this,
         };
+        this.lastGain = { gain };
         return { gain, connect(): void { /* noop */ } };
       }
     }
@@ -259,9 +264,15 @@ check("ソロ対象削除: muted は空", doc.muted.length === 0);
     const p = await import("../src/engine/preview");
     globalThis.AudioContext = MockAudioContext as unknown as typeof AudioContext;
     // モジュール内の previewCtx キャッシュは初回呼び出しで作られる
+    masterVolume.value = 0.5;
     p.previewUnitHold(0, 0x6000, 104);
     const mock = MockAudioContext.instances.at(-1)!;
     check("プレビュー開始で hold ソース作成", mock.lastSource !== null, `instances=${MockAudioContext.instances.length}`);
+    check("プレビューの音量にマスター音量が適用", mock.lastGain?.gain.value === 0.5, `value=${mock.lastGain?.gain.value}`);
+    masterVolume.value = 0.8;
+    await new Promise((r) => setTimeout(r, 10));
+    check("音量変更がサステイン中のプレビューに反映", mock.lastGain?.gain.value === 0.8, `value=${mock.lastGain?.gain.value}`);
+    masterVolume.value = 1.0;
     p.stopPreview();
     check(
       "停止時: gain を 0 へランプ (リリースフェード)",

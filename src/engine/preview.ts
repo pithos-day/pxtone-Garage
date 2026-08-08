@@ -5,6 +5,8 @@
 import { Service, PxtnErr, MemoryIo, EventKind, PXTN_MAX_EVENT_NUM, EVENTDEFAULT_VELOCITY } from "pxtone-ts";
 import { exportBytes } from "../state/project";
 import { getService } from "../state/project";
+import { watch } from "vue";
+import { masterVolume } from "../state/player";
 
 const DEFAULT_VELOCITY = EVENTDEFAULT_VELOCITY;
 
@@ -107,7 +109,7 @@ function playBuffer(work: Float32Array, sps: number): void {
       ch1[ch1.length - 1 - i] *= gf;
     }
   }
-  g.gain.value = 1;
+  g.gain.value = masterVolume.value;
   src.connect(g);
   g.connect(ctx.destination);
   if (lastSrc) {
@@ -203,7 +205,8 @@ function startHold(work: Float32Array, ctx: AudioContext): void {
   src.buffer = buf;
   src.loop = true;
   const g = ctx.createGain();
-  g.gain.value = 1;
+  // プレイヤーの音量設定をプレビューにも適用する
+  g.gain.value = masterVolume.value;
   src.connect(g);
   g.connect(ctx.destination);
   holdSource = src;
@@ -214,6 +217,11 @@ function startHold(work: Float32Array, ctx: AudioContext): void {
   };
   src.start();
 }
+
+// プレイヤーの音量設定を押下中サステインの音量にも即時反映する
+watch(masterVolume, (v) => {
+  if (holdGain && holdCtx) holdGain.gain.setTargetAtTime(v, holdCtx.currentTime, 0.005);
+});
 
 // 押下中サステインを停止する (短いフェードをかけてから停止し、ポップを防ぐ)
 export function stopPreview(): void {
