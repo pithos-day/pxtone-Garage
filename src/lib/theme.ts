@@ -147,17 +147,17 @@ export function getUnitColor(unitNo: number): NoteColorGen {
   return { note: solid("note"), shadow: solid("key") };
 }
 
-// 音色タイプ別の表示色 (W モードのトレイ用)
+// 音色タイプ別の表示色 (W モードのトレイ用) — 本家のパレット (COLORINDEX_font_*) 準拠
 export function woiceTypeColor(type: number): string {
   switch (type) {
     case WoiceType.PCM:
-      return "#00BDFF";
+      return "#F9F4F1";
     case WoiceType.PTV:
-      return "#FF775D";
+      return "#FFFF80";
     case WoiceType.PTN:
-      return "#00C060";
+      return "#D0D0FF";
     case WoiceType.OGGV:
-      return "#FFC400";
+      return "#FFDD66";
     default:
       return "#808080";
   }

@@ -1,7 +1,8 @@
-/* pxtone テーマ — 本家ピストンコラージュ (ptweb) の配色を shadcn 形式で再現。
- * ダーク: 本家の深紺 (#00003E) ベース。ライト: 同色相から派生させた明色版。
- * セレクタは :root[data-theme="pxtone"] でスコープし、
- * .dark クラスでライト/ダークを切り替える。 */
+/* pxtone テーマ — 本家ピストンコラージュの配色を shadcn 形式で再現。
+ * 本家の実パレット (colors.png の PLTE) に基づく:
+ *   ウィンドウ背景は #4E4B61、入力フィールドは #00003E、
+ *   フィールド #000010 / ルーラー帯 #800000 / プレイヘッド #F00012 など。
+ * ライトは同色相から派生させた明色版。 */
 :root[data-theme="pxtone"] {
   --background: oklch(0.954 0.011 95.2);
   --foreground: oklch(0.225 0.046 285.9);
@@ -17,11 +18,11 @@
   --muted-foreground: oklch(0.673 0.018 91.6);
   --accent: oklch(0.875 0.015 94.2);
   --accent-foreground: oklch(0.225 0.046 285.9);
-  --destructive: oklch(0.577 0.245 27.325);
+  --destructive: oklch(0.6 0.246 29.2);
   --destructive-foreground: oklch(1 0 0);
   --border: oklch(0.823 0.018 92.7);
   --border-strong: oklch(0.673 0.018 91.6);
-  --input: oklch(0.823 0.018 92.7);
+  --input: oklch(0.424 0.036 291);
   --ring: oklch(0.687 0.173 154);
   --radius: 0.25rem;
 
@@ -71,69 +72,69 @@
 }
 
 .dark[data-theme="pxtone"] {
-  --background: oklch(0.164 0.114 264.1);
-  --foreground: oklch(0.862 0.036 96.3);
-  --card: oklch(0.223 0.104 274.1);
-  --card-foreground: oklch(0.862 0.036 96.3);
-  --popover: oklch(0.223 0.104 274.1);
-  --popover-foreground: oklch(0.862 0.036 96.3);
+  --background: oklch(0.424 0.036 291);
+  --foreground: oklch(0.834 0.062 99.3);
+  --card: oklch(0.424 0.036 291);
+  --card-foreground: oklch(0.834 0.062 99.3);
+  --popover: oklch(0.424 0.036 291);
+  --popover-foreground: oklch(0.834 0.062 99.3);
   --primary: oklch(0.837 0.217 152.6);
-  --primary-foreground: oklch(0.078 0.054 264.1);
-  --secondary: oklch(0.266 0.111 275.7);
-  --secondary-foreground: oklch(0.862 0.036 96.3);
-  --muted: oklch(0.161 0.064 276.5);
+  --primary-foreground: oklch(0.164 0.114 264.1);
+  --secondary: oklch(0.513 0.013 308.2);
+  --secondary-foreground: oklch(0.834 0.062 99.3);
+  --muted: oklch(0.424 0.036 291);
   --muted-foreground: oklch(0.676 0.028 92.5);
-  --accent: oklch(0.266 0.111 275.7);
-  --accent-foreground: oklch(0.862 0.036 96.3);
-  --destructive: oklch(0.66 0.227 26);
+  --accent: oklch(0.513 0.013 308.2);
+  --accent-foreground: oklch(0.834 0.062 99.3);
+  --destructive: oklch(0.6 0.246 29.2);
   --destructive-foreground: oklch(1 0 0);
   --border: oklch(0.336 0.061 285.2);
   --border-strong: oklch(0.513 0.013 308.2);
-  --input: oklch(0.336 0.061 285.2);
+  --input: oklch(0.164 0.114 264.1);
   --ring: oklch(0.837 0.217 152.6);
   --radius: 0.25rem;
 
-  /* アプリ固有 (ボタン・メニュー・ダイアログ) */
+  /* アプリ固有 (ボタン・メニュー・ダイアログ) — 本家のベベル調 */
   --btn-bg: oklch(0.424 0.036 291);
   --btn-border: oklch(0.248 0.087 278.9);
-  --btn-hover: oklch(0.469 0.04 290.3);
-  --btn-active: oklch(0.361 0.038 290.6);
+  --btn-hover: oklch(0.513 0.013 308.2);
+  --btn-active: oklch(0.336 0.061 285.2);
   --btn-accent-bg: oklch(0.502 0.127 153.8);
-  --btn-accent-hover: oklch(0.607 0.159 152.3);
-  --overlay: oklch(0.078 0.054 264.1 / 55%);
+  --btn-accent-hover: oklch(0.574 0.143 154.5);
+  --overlay: oklch(0 0 0 / 55%);
   --shadow: oklch(0 0 0 / 70%);
-  --danger-text: oklch(0.758 0.145 21);
+  --danger-text: oklch(0.773 0.134 18.4);
   --focus-row: oklch(0.711 0.173 56.6 / 18%);
   --focus-outline: oklch(0.711 0.173 56.6 / 50%);
   --pinned-mark: oklch(0.837 0.217 152.6);
   --row-border: oklch(0.336 0.061 285.2 / 40%);
-  --scroll-thumb: oklch(0.413 0.04 288.3);
-  --scroll-border: oklch(0.526 0.039 290.5);
+  --scroll-thumb: oklch(0.513 0.013 308.2);
+  --scroll-border: oklch(0.336 0.061 285.2);
 
-  /* Canvas 用 (ピアノロール・ボリュームエディタなど) */
+  /* Canvas 用 — 本家の実パレット (colors.png) 準拠 */
   --canvas-field-bg: oklch(0.078 0.054 264.1);
-  --canvas-ruler-bg: oklch(0.223 0.046 282);
-  --canvas-measure-line: oklch(0.955 0 0 / 35%);
-  --canvas-beat-line: oklch(0.602 0 0 / 16%);
-  --canvas-divi-line: oklch(0.602 0 0 / 7%);
+  --canvas-ruler-bg: oklch(0.377 0.155 29.2);
+  --canvas-measure-line: oklch(0.931 0.005 145.5);
+  --canvas-beat-line: oklch(0.602 0 0);
+  --canvas-divi-line: oklch(0.489 0 0);
   --canvas-measure-box: oklch(0.489 0 0);
-  --canvas-measure-text: oklch(0.948 0.092 144.8);
-  --canvas-playhead: oklch(1 0 0);
-  --canvas-scope: oklch(0.837 0.217 152.6 / 35%);
-  --canvas-scope-border: oklch(0.837 0.217 152.6);
+  --canvas-measure-text: oklch(0.972 0.015 294.5);
+  --canvas-playhead: oklch(0.6 0.245 28);
+  --canvas-scope: oklch(0.326 0.082 154.2);
+  --canvas-scope-border: oklch(0.765 0.218 148.6);
   --canvas-white-key: oklch(0.371 0 0);
   --canvas-black-key: oklch(0.244 0 0);
   --canvas-key-edge: oklch(0 0 0);
   --canvas-focus: oklch(0.711 0.173 56.6);
-  --canvas-octave-text: oklch(0.907 0 0);
+  --canvas-octave-text: oklch(0.972 0.015 294.5);
   --canvas-note-head: oklch(1 0 0);
-  --canvas-muted: oklch(0.247 0.015 285.2);
-  --canvas-panel-dark: oklch(0.166 0.037 281.6);
+  --canvas-muted: oklch(0.248 0.087 278.9);
+  --canvas-panel-dark: oklch(0.164 0.114 264.1);
   --canvas-row-white: oklch(0.3 0 0 / 30%);
   --canvas-row-black: oklch(0.2 0 0 / 30%);
-  --canvas-scope-faint: oklch(0.837 0.217 152.6 / 10%);
+  --canvas-scope-faint: oklch(0.326 0.082 154.2 / 10%);
   --canvas-zebra: oklch(1 0 0 / 2%);
   --canvas-scale-line: oklch(0.602 0 0 / 15%);
-  --repeat-mark: oklch(0.744 0.155 21.5);
-  --last-mark: oklch(0.899 0.202 143.7);
+  --repeat-mark: oklch(0.6 0.245 28);
+  --last-mark: oklch(0.765 0.218 148.6);
 }
