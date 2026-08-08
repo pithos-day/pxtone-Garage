@@ -98,10 +98,16 @@ function playBuffer(work: Float32Array, sps: number): void {
   const src = ctx.createBufferSource();
   src.buffer = buf;
   const g = ctx.createGain();
-  // 末尾フェードでクリックノイズ回避
+  // 末尾フェードでクリックノイズ回避 (バッファ終端のサンプルを減衰)
   const fade = Math.min(Math.trunc(ch0.length / 2), Math.trunc(sps * 0.05));
-  g.gain.setValueAtTime(1, ctx.currentTime);
-  g.gain.linearRampToValueAtTime(0, ctx.currentTime + fade / sps);
+  if (fade > 0) {
+    for (let i = 0; i < fade; i++) {
+      const gf = i / fade;
+      ch0[ch0.length - 1 - i] *= gf;
+      ch1[ch1.length - 1 - i] *= gf;
+    }
+  }
+  g.gain.value = 1;
   src.connect(g);
   g.connect(ctx.destination);
   if (lastSrc) {
@@ -162,6 +168,11 @@ export function previewWoiceHold(woiceIdx: number, key: number, velocity: number
 // ---- 押下中サステイン (押している間ループ再生) ----
 
 let holdSource: AudioBufferSourceNode | null = null;
+let holdGain: GainNode | null = null;
+let holdCtx: AudioContext | null = null;
+
+// 押下解除時のリリースフェード時間 (秒) — 停止時のポップ (クリックノイズ) を避ける
+const RELEASE_SEC = 0.03;
 
 // レンダリング済みバッファをループ再生で開始する
 function startHold(work: Float32Array, ctx: AudioContext): void {
@@ -196,20 +207,34 @@ function startHold(work: Float32Array, ctx: AudioContext): void {
   src.connect(g);
   g.connect(ctx.destination);
   holdSource = src;
+  holdGain = g;
+  holdCtx = ctx;
   src.onended = () => {
     if (holdSource === src) holdSource = null;
   };
   src.start();
 }
 
-// 押下中サステインを停止する
+// 押下中サステインを停止する (短いフェードをかけてから停止し、ポップを防ぐ)
 export function stopPreview(): void {
-  if (holdSource) {
-    try {
-      holdSource.stop();
-    } catch {
-      /* noop */
+  const src = holdSource;
+  const g = holdGain;
+  const ctx = holdCtx;
+  holdSource = null;
+  holdGain = null;
+  holdCtx = null;
+  if (!src) return;
+  try {
+    if (g && ctx) {
+      const t = ctx.currentTime;
+      g.gain.cancelScheduledValues(t);
+      g.gain.setValueAtTime(g.gain.value, t);
+      g.gain.linearRampToValueAtTime(0, t + RELEASE_SEC);
+      src.stop(t + RELEASE_SEC + 0.01);
+    } else {
+      src.stop();
     }
-    holdSource = null;
+  } catch {
+    /* noop */
   }
 }
