@@ -7,7 +7,7 @@ import {
   closeProject,
   openProjectInTab,
 } from "../src/state/projects";
-import { doc, units, addUnit, setTempo, exportBytes, ensureInit, toggleUnitSolo, toggleUnitMute, removeUnit } from "../src/state/project";
+import { doc, units, addUnit, setTempo, exportBytes, ensureInit, toggleUnitSolo, toggleUnitMute, removeUnit, addWoice, WoiceType } from "../src/state/project";
 import * as serviceMod from "../src/state/service";
 import { undo, redo, canUndo, canRedo } from "../src/state/undo";
 import { player, isPlaying } from "../src/state/player";
@@ -183,6 +183,121 @@ check("ソロ対象削除: muted は空", doc.muted.length === 0);
   check("再生中のソロ変更が worklet に反映", mutedCalls.length > callsAfterMute && mutedCalls.at(-1)?.length === 1, `calls=${JSON.stringify(mutedCalls)}`);
   isPlaying.value = false;
   player.setMutedUnits = orig;
+
+  // ---- 13. 単音プレビュー停止時にリリースフェードがかかる ----
+  {
+    // 有効な PCM 音色 (WAV 形式) を手組みして追加する
+    const data = new Int16Array(4410);
+    for (let i = 0; i < data.length; i++) data[i] = Math.round(Math.sin((i / 4410) * 2 * Math.PI * 100) * 8000);
+    const dataSize = data.length * 2;
+    const pcm = new Uint8Array(44 + dataSize);
+    const dv = new DataView(pcm.buffer);
+    pcm.set([82, 73, 70, 70], 0); // "RIFF"
+    dv.setUint32(4, 36 + dataSize, true);
+    pcm.set([87, 65, 86, 69], 8); // "WAVE"
+    pcm.set([102, 109, 116, 32], 12); // "fmt "
+    dv.setUint32(16, 16, true); // fmt chunk size
+    dv.setUint16(20, 1, true); // formatID (PCM)
+    dv.setUint16(22, 1, true); // ch
+    dv.setUint32(24, 44100, true); // sps
+    dv.setUint32(28, 88200, true); // byteRate
+    dv.setUint16(32, 2, true); // blockAlign
+    dv.setUint16(34, 16, true); // bps
+    pcm.set([100, 97, 116, 97], 36); // "data"
+    dv.setUint32(40, dataSize, true);
+    new Int16Array(pcm.buffer, 44, data.length).set(data);
+
+    interface RampRec {
+      v: number;
+      t: number;
+    }
+    // AudioContext をモックして stopPreview の挙動を検証する
+    class MockAudioContext {
+      static instances: MockAudioContext[] = [];
+      sampleRate = 44100;
+      state = "running";
+      currentTime = 100;
+      destination: unknown = {};
+      lastSource: { stopTime?: number; stop: (t?: number) => void } | null = null;
+      ramp: RampRec | null = null;
+      constructor() {
+        MockAudioContext.instances.push(this);
+      }
+      resume(): void {
+        /* noop */
+      }
+      createBuffer(): { getChannelData: () => Float32Array } {
+        return { getChannelData: () => new Float32Array(0) };
+      }
+      createBufferSource() {
+        const s = {
+          connect(): void { /* noop */ },
+          start(): void { /* noop */ },
+          onended: null as (() => void) | null,
+          stop: (t?: number) => { s.stopTime = t; },
+          stopTime: undefined as number | undefined,
+        };
+        this.lastSource = s;
+        return s;
+      }
+      createGain() {
+        const gain = {
+          value: 1,
+          setValueAtTime(): void { /* noop */ },
+          linearRampToValueAtTime(v: number, t: number): void {
+            if (v === 0) this._ctx.ramp = { v, t };
+          },
+          cancelScheduledValues(): void { /* noop */ },
+          _ctx: this,
+        };
+        return { gain, connect(): void { /* noop */ } };
+      }
+    }
+
+    const addWoiceRes = addWoice(pcm, WoiceType.PCM);
+    check("プレビュー用のPCM音色を追加", addWoiceRes === null, `err=${addWoiceRes}`);
+    const p = await import("../src/engine/preview");
+    globalThis.AudioContext = MockAudioContext as unknown as typeof AudioContext;
+    // モジュール内の previewCtx キャッシュは初回呼び出しで作られる
+    p.previewUnitHold(0, 0x6000, 104);
+    const mock = MockAudioContext.instances.at(-1)!;
+    check("プレビュー開始で hold ソース作成", mock.lastSource !== null, `instances=${MockAudioContext.instances.length}`);
+    p.stopPreview();
+    check(
+      "停止時: gain を 0 へランプ (リリースフェード)",
+      mock.ramp !== null && mock.ramp.v === 0,
+      `ramp=${JSON.stringify(mock.ramp)}`,
+    );
+    check(
+      "停止時: ランプ完了後に stop が予約される",
+      mock.lastSource?.stopTime !== undefined &&
+        mock.ramp !== null &&
+        mock.lastSource.stopTime >= mock.ramp.t,
+      `stopTime=${mock.lastSource?.stopTime} rampT=${mock.ramp?.t}`,
+    );
+  }
+
+  // ---- 14. 初期プロジェクトのみのとき、開くで置き換える ----
+  {
+    while (projects.value.length > 1) closeProject(projects.value[0]!.id);
+    const cur = projects.value[0]!;
+    cur.initial = true;
+    doc.dirty = false;
+    doc.fileName = "";
+    const bytes = exportBytes();
+    check("置き換えテスト用の bytes 取得", bytes !== null);
+    const before = projects.value.length;
+    const err = openProjectInTab(bytes!, "replaced");
+    check("初期プロジェクトのみなら置き換え (タブ数1のまま)", err === null && projects.value.length === before, `len=${projects.value.length} err=${err}`);
+    check("置き換え後: ファイル名が付く", doc.fileName === "replaced", `fileName=${doc.fileName}`);
+    // 編集済みなら置き換えずタブを追加する
+    projects.value[0]!.initial = true;
+    addUnit("X"); // dirty にする
+    const n = projects.value.length;
+    openProjectInTab(bytes!, "second");
+    check("編集済みなら置き換えない (タブ追加)", projects.value.length === n + 1, `len=${projects.value.length}`);
+    closeProject(currentProjectId.value);
+  }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);
   process.exit(failed === 0 ? 0 : 1);

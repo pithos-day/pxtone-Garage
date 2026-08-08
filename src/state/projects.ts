@@ -41,6 +41,7 @@ export interface Project {
   redoStack: Uint8Array[];
   title: string;
   comment: string;
+  initial: boolean; // 起動時に自動生成された初期プロジェクトか
 }
 
 // Service は ref に入れると UnwrapRef が private メンバーを落として型が壊れるため、
@@ -167,6 +168,7 @@ export function newProjectInTab(): Project {
     redoStack: [],
     title: "",
     comment: "",
+    initial: false,
   };
   services.set(p.id, svc);
   projects.value.push(p);
@@ -183,8 +185,16 @@ export function refreshCurrent(): void {
 }
 
 // バイト列を新しいタブで開く。エラーメッセージを返す (成功時 null)。
-// name はタブ表示用のファイル名 (拡張子なし) で、空の場合は無題のまま
+// name はタブ表示用のファイル名 (拡張子なし) で、空の場合は無題のまま。
+// 起動時に自動生成された初期プロジェクト (未編集・無題) だけが存在する場合は、
+// タブを増やさずそのプロジェクトを置き換えて開く
 export function openProjectInTab(bytes: Uint8Array, name?: string): string | null {
+  const cur = currentProject();
+  if (projects.value.length === 1 && cur?.initial && !doc.dirty && !doc.fileName) {
+    projects.value = [];
+    services.delete(cur.id);
+    currentProjectId.value = -1;
+  }
   const p = newProjectInTab();
   const svc = services.get(p.id)!;
   const res = svc.read(new MemoryIo(bytes));
@@ -238,7 +248,8 @@ export function saveProjectFile(asNew: boolean): boolean {
 export function ensureInitialProject(): void {
   if (projects.value.length === 0) {
     ensureInit();
-    newProjectInTab();
+    const p = newProjectInTab();
+    p.initial = true;
   }
 }
 
