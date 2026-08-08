@@ -11,8 +11,12 @@ import {
 import { WoiceType, VoiceType } from "pxtone-ts";
 import { previewWoiceHold, stopPreview } from "../../engine/preview";
 import { woiceTypeColor } from "../../lib/theme";
+import { useCtxMenuClose } from "../../composables/useCtxMenu";
+import { t } from "../../i18n";
 
 const menu = ref<{ x: number; y: number; w: number } | null>(null);
+
+useCtxMenuClose(menu);
 
 function onPointerDown(e: PointerEvent, idx: number): void {
   const s = getService();
@@ -52,12 +56,12 @@ function woiceSummary(idx: number): string {
       return `${vc.pcm.sps}Hz/${vc.pcm.bps}bit/${vc.pcm.ch}ch ${(vc.pcm.sec * 1000).toFixed(0)}ms`;
     case WoiceType.PTV:
       return vc.type === VoiceType.Coodinate
-        ? `座標波形 (${vc.wave.num}点)`
+        ? t("woice.summaryCoord").replace("{n}", String(vc.wave.num))
         : vc.type === VoiceType.Overtone
-          ? `倍音 (${vc.wave.num}音)`
-          : "?";
+          ? t("woice.summaryOvertone").replace("{n}", String(vc.wave.num))
+          : t("woice.summaryUnknown");
     case WoiceType.PTN:
-      return `${vc.ptn.unitNum}ユニット ${(vc.ptn.sec * 1000).toFixed(0)}ms`;
+      return t("woice.summaryPtn").replace("{n}", String(vc.ptn.unitNum)).replace("{ms}", (vc.ptn.sec * 1000).toFixed(0));
     default:
       return "";
   }
@@ -66,7 +70,7 @@ function woiceSummary(idx: number): string {
 
 <template>
   <div class="tray">
-    <div class="tray-title">音色 ({{ woices.length }})</div>
+    <div class="tray-title">{{ t("woice.title") }} ({{ woices.length }})</div>
     <div class="tray-list" @contextmenu.prevent @pointerup="onPointerUp">
       <div
         v-for="w in woices"
@@ -80,11 +84,11 @@ function woiceSummary(idx: number): string {
         <span class="woice-summary">{{ woiceSummary(w.index) }}</span>
       </div>
       <div v-if="woices.length === 0" class="tray-empty">
-        音色がありません。<br />ツールパネルの「＋音色」から<br />.ptvoice / .ptnoise / .wav を追加
+        {{ t("woice.empty") }}
       </div>
     </div>
     <div v-if="menu" class="ctxmenu" :style="{ left: menu.x + 'px', top: menu.y + 'px' }">
-      <button class="danger" @click="onMenuAction('remove')">削除</button>
+      <button class="danger" @click="onMenuAction('remove')">{{ t("common.delete") }}</button>
     </div>
   </div>
 </template>
@@ -151,6 +155,7 @@ function woiceSummary(idx: number): string {
   font-size: 11px;
   color: var(--muted-foreground);
   line-height: 1.6;
+  white-space: pre-line;
 }
 
 .ctxmenu .danger {

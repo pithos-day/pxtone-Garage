@@ -8,6 +8,7 @@ import { setUndoStacks, undoStack, redoStack } from "./undo";
 import { doc, sync, title, comment, ensureInit, pxtnErrorMessage } from "./project";
 import { resetLoaded } from "./player";
 import { saveProject as downloadProject } from "../engine/io";
+import { t } from "../i18n";
 
 export interface ProjectState {
   fileName: string;
@@ -27,6 +28,7 @@ export interface ProjectState {
   muted: number[];
   unitVisible: boolean[];
   unitPinned: boolean[];
+  soloUnit: number;
 }
 
 export interface Project {
@@ -68,6 +70,7 @@ function defaultState(): ProjectState {
     muted: [],
     unitVisible: [],
     unitPinned: [],
+    soloUnit: -1,
   };
 }
 
@@ -103,6 +106,7 @@ function saveCurrent(): void {
     muted: [...doc.muted],
     unitVisible: [...doc.unitVisible],
     unitPinned: [...doc.unitPinned],
+    soloUnit: doc.soloUnit,
   };
 }
 
@@ -128,6 +132,7 @@ function restore(p: Project): void {
   doc.muted = [...st.muted];
   doc.unitVisible = [...st.unitVisible];
   doc.unitPinned = [...st.unitPinned];
+  doc.soloUnit = st.soloUnit;
   title.value = p.title;
   comment.value = p.comment;
   sync();
@@ -213,7 +218,7 @@ export function saveProjectFile(asNew: boolean): boolean {
   if (!p) return false;
   let name = doc.fileName || "untitled";
   if (asNew) {
-    const input = window.prompt("ファイル名を入力してください", name);
+    const input = window.prompt(t("prompt.fileName"), name);
     if (input === null) return false;
     name = input.trim() || "untitled";
   }

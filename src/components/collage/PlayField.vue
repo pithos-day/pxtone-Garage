@@ -8,9 +8,13 @@ import { clockAtX } from "../../lib/field";
 import { clockToX, measOfClock } from "../../lib/clock";
 import { doc, getService, clockView as projectClockView, setRepeatMeas, setLastMeas } from "../../state/project";
 import { currentClock, seekToClock, isPlaying as isPlayingNow } from "../../state/player";
+import { useCtxMenuClose } from "../../composables/useCtxMenu";
+import { t } from "../../i18n";
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const menu = ref<{ x: number; y: number; meas: number } | null>(null);
+
+useCtxMenuClose(menu);
 
 useCanvas(
   canvasRef,
@@ -97,11 +101,11 @@ function onMenuAction(action: "setRepeat" | "setLast" | "cutRepeat" | "cutLast")
   <div class="playfield">
     <canvas ref="canvasRef" class="field-canvas" @pointerdown="onPointerDown" @contextmenu.prevent />
     <div v-if="menu" class="ctxmenu" :style="{ left: menu.x + 'px', top: menu.y + 'px' }">
-      <button @click="onMenuAction('setRepeat')">Repeat をここに設定</button>
-      <button @click="onMenuAction('setLast')">Last をここに設定</button>
+      <button @click="onMenuAction('setRepeat')">{{ t("playfield.setRepeat") }}</button>
+      <button @click="onMenuAction('setLast')">{{ t("playfield.setLast") }}</button>
       <div class="sep" />
-      <button @click="onMenuAction('cutRepeat')">Repeat をクリア</button>
-      <button @click="onMenuAction('cutLast')">Last をクリア</button>
+      <button @click="onMenuAction('cutRepeat')">{{ t("playfield.clearRepeat") }}</button>
+      <button @click="onMenuAction('cutLast')">{{ t("playfield.clearLast") }}</button>
     </div>
   </div>
 </template>

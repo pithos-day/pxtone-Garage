@@ -1,10 +1,12 @@
 // 左のユニットリスト (U タブ)。
-// 音色一覧と同じデザイン感の行に、表示/再生/ピン留めのチェックボックスを持つ
+// 再生/表示/ピン留めのチェックボックスとソロのラジオボタンを持つ。
+// 列ヘッダー付きで、ユニット名の下には割り当て音色名を表示する。
 <script setup lang="ts">
 import { ref } from "vue";
 import {
   doc,
   units,
+  woices,
   getService,
   setFocusUnit,
   toggleOperated,
@@ -13,6 +15,7 @@ import {
   toggleUnitMute,
   toggleUnitVisible,
   toggleUnitPinned,
+  toggleUnitSolo,
   replaceUnitRaw,
   removeUnit,
   setUnitName,
@@ -23,6 +26,8 @@ import {
 } from "../../state/project";
 import { previewUnitHold, stopPreview } from "../../engine/preview";
 import { COLORS } from "../../lib/theme";
+import { useCtxMenuClose } from "../../composables/useCtxMenu";
+import { t } from "../../i18n";
 
 const editing = ref<number | null>(null);
 const editText = ref("");
@@ -30,14 +35,16 @@ const menu = ref<{ x: number; y: number; unit: number } | null>(null);
 const trayRef = ref<HTMLElement | null>(null);
 const rowH = ref(16); // 行の実測高さ (ドラッグ並べ替え用)
 
+useCtxMenuClose(menu);
+
 function onPointerDown(e: PointerEvent, idx: number): void {
   const s = getService();
   if (!s) return;
   const tray = trayRef.value;
   const x = e.clientX - (tray?.getBoundingClientRect().left ?? 0);
 
-  // チェックボックス列 (表示/再生/ピン留めの横並び領域) は @pointerdown.stop で処理済み
-  if (x < 56) return;
+  // チェックボックス列 (再生/表示/ピン/ソロの横並び領域) は @pointerdown.stop で処理済み
+  if (x < 80) return;
 
   if (e.button === 2) {
     setFocusUnit(idx);
@@ -96,6 +103,13 @@ function onPointerUp(): void {
   stopPreview();
 }
 
+// ソロのラジオクリック。ソロ中ユニットの再クリックはネイティブの再チェックを
+// 抑止して解除する (排他性は name="unit-solo" が担保)
+function onSoloClick(idx: number, e: Event): void {
+  if (units.value[idx]?.soloed) e.preventDefault();
+  toggleUnitSolo(idx);
+}
+
 function startEditName(idx: number): void {
   editing.value = idx;
   editText.value = units.value[idx]?.name ?? "";
@@ -122,11 +136,20 @@ function onMenuAction(action: "edit" | "remove"): void {
 <template>
   <div class="tray">
     <div class="tray-title">
-      ユニット ({{ units.length }})
+      {{ t("unit.title") }} ({{ units.length }})
       <span class="tray-tools">
-        <button class="btn btn-sm" :class="{ on: doc.tool === 'pen' }" title="ペン (音符)" @click="doc.tool = 'pen'">ペン</button>
-        <button class="btn btn-sm" :class="{ on: doc.tool === 'hand' }" title="ハンド (キーのみ)" @click="doc.tool = 'hand'">キー</button>
+        <button class="btn btn-sm" :class="{ on: doc.tool === 'pen' }" :title="t('unit.pen')" @click="doc.tool = 'pen'">ペン</button>
+        <button class="btn btn-sm" :class="{ on: doc.tool === 'hand' }" :title="t('unit.hand')" @click="doc.tool = 'hand'">キー</button>
       </span>
+    </div>
+    <div class="unit-header">
+      <span class="unit-header-checks">
+        <span :title="t('unit.play')">{{ t("unit.headerPlay") }}</span>
+        <span :title="t('unit.show')">{{ t("unit.headerShow") }}</span>
+        <span :title="t('unit.pin')">{{ t("unit.headerPin") }}</span>
+        <span :title="t('unit.solo')">{{ t("unit.headerSolo") }}</span>
+      </span>
+      <span class="unit-header-name">{{ t("unit.headerName") }}</span>
     </div>
     <div ref="trayRef" class="tray-list" @contextmenu.prevent @pointerup="onPointerUp">
       <div
@@ -139,9 +162,10 @@ function onMenuAction(action: "edit" | "remove"): void {
         @dblclick="startEditName(u.index)"
       >
         <span class="unit-checks" @pointerdown.stop>
-          <input type="checkbox" title="表示 (ピアノロール)" :checked="u.visible" @click.stop="toggleUnitVisible(u.index)" />
-          <input type="checkbox" title="再生" :checked="!u.muted" @click.stop="toggleUnitMute(u.index)" />
-          <input type="checkbox" title="ピン留め (上部に固定)" :checked="u.pinned" @click.stop="toggleUnitPinned(u.index)" />
+          <input type="checkbox" :title="t('unit.play')" :checked="!u.muted" @click.stop="toggleUnitMute(u.index)" />
+          <input type="checkbox" :title="t('unit.show')" :checked="u.visible" @click.stop="toggleUnitVisible(u.index)" />
+          <input type="checkbox" :title="t('unit.pin')" :checked="u.pinned" @click.stop="toggleUnitPinned(u.index)" />
+          <input type="radio" name="unit-solo" :title="t('unit.solo')" :checked="u.soloed" @click="onSoloClick(u.index, $event)" />
         </span>
         <span class="unit-info">
           <span v-if="editing !== u.index" class="unit-name" :title="`${u.index}: ${u.name}`">
@@ -157,21 +181,14 @@ function onMenuAction(action: "edit" | "remove"): void {
             @blur="commitEditName(u.index)"
             @pointerdown.stop
           />
-          <span class="unit-summary">
-            {{ u.muted ? "ミュート" : "再生" }} /
-            {{ u.visible ? "表示" : "非表示" }} /
-            {{ u.pinned ? "ピン留め" : "未ピン" }} /
-            音色 {{ u.woiceIndex >= 0 ? u.woiceIndex : "-" }}
-          </span>
+          <span class="unit-summary">{{ woices[u.woiceIndex]?.name ?? t("unit.noWoice") }}</span>
         </span>
       </div>
-      <div v-if="units.length === 0" class="tray-empty">
-        ユニットがありません。<br />ツールパネルの「＋ユニット」から追加
-      </div>
+      <div v-if="units.length === 0" class="tray-empty">{{ t("unit.empty") }}</div>
     </div>
     <div v-if="menu" class="ctxmenu" :style="{ left: menu.x + 'px', top: menu.y + 'px' }">
-      <button @click="onMenuAction('edit')">名前を編集</button>
-      <button class="danger" @click="onMenuAction('remove')">削除</button>
+      <button @click="onMenuAction('edit')">{{ t("unit.editName") }}</button>
+      <button class="danger" @click="onMenuAction('remove')">{{ t("common.delete") }}</button>
     </div>
   </div>
 </template>
@@ -199,6 +216,43 @@ function onMenuAction(action: "edit" | "remove"): void {
 .tray-tools {
   display: flex;
   gap: 2px;
+}
+
+/* 列ヘッダー (再生/表示/ピン/ソロ/名前) */
+.unit-header {
+  display: flex;
+  gap: 2px;
+  padding: 2px 4px;
+  font-size: 9px;
+  color: var(--muted-foreground);
+  background: var(--muted);
+  border-bottom: 1px solid var(--border);
+  flex: none;
+  user-select: none;
+}
+
+.unit-header-checks {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  width: 76px;
+  flex: none;
+}
+
+.unit-header-checks span {
+  width: 16px;
+  text-align: center;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.unit-header-name {
+  flex: 1;
+  min-width: 0;
+  padding-left: 2px;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .tray-list {
@@ -241,7 +295,7 @@ function onMenuAction(action: "edit" | "remove"): void {
   align-items: center;
   justify-content: space-between;
   gap: 4px;
-  width: 56px;
+  width: 76px;
   flex: none;
 }
 
@@ -285,6 +339,7 @@ function onMenuAction(action: "edit" | "remove"): void {
   font-size: 11px;
   color: var(--muted-foreground);
   line-height: 1.6;
+  white-space: pre-line;
 }
 
 .ctxmenu .danger {

@@ -7,7 +7,7 @@ import {
   closeProject,
   openProjectInTab,
 } from "../src/state/projects";
-import { doc, units, addUnit, setTempo, exportBytes, ensureInit } from "../src/state/project";
+import { doc, units, addUnit, setTempo, exportBytes, ensureInit, toggleUnitSolo } from "../src/state/project";
 import * as serviceMod from "../src/state/service";
 import { undo, redo, canUndo, canRedo } from "../src/state/undo";
 
@@ -105,6 +105,27 @@ check("最後の1つは閉じられない", (() => {
 })());
 check("残ったタブは 1つ (p2)", currentProjectId.value === p2.id);
 check("p2 は units=0", units.value.length === 0);
+
+// ---- 9. ソロ ----
+addUnit("A");
+addUnit("B");
+addUnit("C");
+check("ソロ前 units=3", units.value.length === 3, `len=${units.value.length}`);
+toggleUnitSolo(1);
+check("ソロON: soloUnit=1", doc.soloUnit === 1);
+check("ソロON: 他2ユニットがミュート", doc.muted.length === 2 && !doc.muted.includes(1));
+check("ソロON: 対象ユニットはミュート外", units.value[1]?.soloed === true);
+toggleUnitSolo(1);
+check("ソロOFF: soloUnit=-1", doc.soloUnit === -1);
+check("ソロOFF: ミュート全解除", doc.muted.length === 0);
+toggleUnitSolo(0);
+check("別ユニットへソロ切替", doc.soloUnit === 0 && doc.muted.includes(1) && doc.muted.includes(2));
+// タブ切替でソロも独立
+const soloP2 = doc.soloUnit;
+newProjectInTab();
+check("新タブはソロなし", doc.soloUnit === -1);
+switchProject(p2.id);
+check("元のタブのソロが復元", doc.soloUnit === soloP2);
 
 console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);
 process.exit(failed === 0 ? 0 : 1);

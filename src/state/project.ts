@@ -22,6 +22,7 @@ import {
 import { encodeShiftJis } from "../lib/sjis";
 import { service, ensureService, EXE_VER } from "./service";
 import { pushUndo, clearUndo } from "./undo";
+import { t } from "../i18n";
 
 export type ToolMode = "W" | "U";
 
@@ -32,6 +33,7 @@ export interface UnitInfo {
   muted: boolean;
   visible: boolean; // ピアノロールにノート表示するか
   pinned: boolean; // ピン留め (上部レーン固定)
+  soloed: boolean; // ソロ中
 }
 
 export interface WoiceInfo {
@@ -78,6 +80,7 @@ export const doc = reactive({
   muted: [] as number[], // ミュート中のユニット index
   unitVisible: [] as boolean[], // ピアノロールに表示するユニット
   unitPinned: [] as boolean[], // ピン留め中のユニット
+  soloUnit: -1, // ソロ中のユニット index (-1 = なし)
 });
 
 export const units = ref<UnitInfo[]>([]);
@@ -128,6 +131,7 @@ export function sync(): void {
       muted: doc.muted.includes(i),
       visible: doc.unitVisible[i] ?? true,
       pinned: doc.unitPinned[i] ?? false,
+      soloed: doc.soloUnit === i,
     });
   }
   units.value = us;
@@ -155,8 +159,14 @@ export function sync(): void {
   title.value = service.text.getNameString();
   comment.value = service.text.getCommentString();
   if (doc.focusUnit >= s.unitNum) doc.focusUnit = -1;
+  if (doc.soloUnit >= s.unitNum) doc.soloUnit = -1;
   doc.operated = doc.operated.filter((u) => u >= 0 && u < s.unitNum);
   doc.muted = doc.muted.filter((u) => u >= 0 && u < s.unitNum);
+  // ソロ中の不変条件: ソロユニット以外を全ミュート
+  if (doc.soloUnit >= 0) {
+    doc.muted = [];
+    for (let u = 0; u < s.unitNum; u++) if (u !== doc.soloUnit) doc.muted.push(u);
+  }
 }
 
 // 音色名を表示用にデコード (本家同様、最初の NUL で終端する C 文字列扱い)
@@ -216,6 +226,7 @@ export function newProject(): boolean {
   doc.focusUnit = -1;
   doc.operated = [];
   doc.muted = [];
+  doc.soloUnit = -1;
   doc.scope1 = 0;
   doc.scope2 = 0;
   doc.scrollX = 0;
@@ -230,13 +241,14 @@ export function newProject(): boolean {
 
 // バイト列から読み込み。エラーメッセージを返す (成功時 null)
 export function openProject(bytes: Uint8Array): string | null {
-  if (!ensureInit()) return "エンジン初期化に失敗しました";
+  if (!ensureInit()) return t("error.engineInit");
   const io = new MemoryIo(bytes);
   const res = service.read(io);
   if (res !== PxtnErr.OK) return pxtnErrorMessage(res);
   doc.focusUnit = -1;
   doc.operated = [];
   doc.muted = [];
+  doc.soloUnit = -1;
   doc.scope1 = 0;
   doc.scope2 = 0;
   doc.scrollX = 0;
@@ -265,15 +277,15 @@ export function markSaved(): void {
 export function pxtnErrorMessage(res: PxtnErr): string {
   switch (res) {
     case PxtnErr.FMT_UNKNOWN:
-      return "対応していないファイル形式です";
+      return t("error.format");
     case PxtnErr.OGG_NO_SUPPORTED:
-      return "OGG音色は未対応です";
+      return t("error.ogg");
     case PxtnErr.DENY_BEATCLOCK:
-      return "beat clock が 480 ではない曲は開けません";
+      return t("error.beatClock");
     case PxtnErr.TOO_MUCH_EVENT:
-      return "イベント数が多すぎます";
+      return t("error.tooManyEvents");
     default:
-      return `読み込みに失敗しました (err=${res})`;
+      return `${t("error.loadWithErr")} (err=${res})`;
   }
 }
 
@@ -354,9 +366,24 @@ export function clearOperated(): void {
 }
 
 export function toggleUnitMute(idx: number): void {
+  // ソロ中に手動でミュートを変えたらソロを解除する
+  if (doc.soloUnit >= 0) doc.soloUnit = -1;
   const i = doc.muted.indexOf(idx);
   if (i >= 0) doc.muted.splice(i, 1);
   else doc.muted.push(idx);
+  sync();
+  doc.rev++;
+}
+
+// ソロ切替。ON: 他ユニットを全ミュート、OFF (同ユニット再クリック): 全ミュート解除
+export function toggleUnitSolo(idx: number): void {
+  if (doc.soloUnit === idx) {
+    doc.soloUnit = -1;
+    doc.muted = [];
+  } else {
+    doc.soloUnit = idx;
+    doc.muted = units.value.map((u) => u.index).filter((u) => u !== idx);
+  }
   sync();
   doc.rev++;
 }
@@ -413,7 +440,7 @@ export function focusedOrOperated(): number[] {
 
 // PTV/PTN/PCM ファイルバイト列を音色として追加
 export function addWoice(bytes: Uint8Array, type: WoiceType): string | null {
-  if (!doc.ready) return "エンジン未初期化";
+  if (!doc.ready) return t("error.notReady");
   let err: string | null = null;
   mutate(() => {
     const io = new MemoryIo(bytes);
