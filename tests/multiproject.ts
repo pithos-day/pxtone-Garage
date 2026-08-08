@@ -10,6 +10,7 @@ import {
 import { doc, units, addUnit, setTempo, exportBytes, ensureInit, toggleUnitSolo, toggleUnitMute, removeUnit } from "../src/state/project";
 import * as serviceMod from "../src/state/service";
 import { undo, redo, canUndo, canRedo } from "../src/state/undo";
+import { player, isPlaying } from "../src/state/player";
 
 let failed = 0;
 function check(name: string, cond: boolean, detail = ""): void {
@@ -164,5 +165,25 @@ removeUnit(0); // ソロ対象の削除 → ソロ解除 + backup 復元 (空)
 check("ソロ対象削除: soloUnit=-1", doc.soloUnit === -1);
 check("ソロ対象削除: muted は空", doc.muted.length === 0);
 
-console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);
-process.exit(failed === 0 ? 0 : 1);
+// ---- 12. 再生中のミュート/ソロ変更が worklet に反映される ----
+(async () => {
+  const mutedCalls: number[][] = [];
+  const orig = player.setMutedUnits;
+  player.setMutedUnits = (u: number[]) => {
+    mutedCalls.push([...u]);
+  };
+  isPlaying.value = true;
+  addUnit("D"); // 2ユニットにしてソロ対象を作る
+  toggleUnitMute(0);
+  await new Promise((r) => setTimeout(r, 10));
+  const callsAfterMute = mutedCalls.length;
+  check("再生中のミュート変更が worklet に反映", callsAfterMute >= 1 && mutedCalls.at(-1)?.includes(0), `calls=${mutedCalls.length}`);
+  toggleUnitSolo(0);
+  await new Promise((r) => setTimeout(r, 10));
+  check("再生中のソロ変更が worklet に反映", mutedCalls.length > callsAfterMute && mutedCalls.at(-1)?.length === 1, `calls=${JSON.stringify(mutedCalls)}`);
+  isPlaying.value = false;
+  player.setMutedUnits = orig;
+
+  console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);
+  process.exit(failed === 0 ? 0 : 1);
+})();

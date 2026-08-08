@@ -1,5 +1,5 @@
 // 再生状態の管理。worklet プレイヤーとの橋渡し
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { RealtimePlayer } from "../engine/realtime-player";
 import { getService, exportBytes, doc } from "./project";
 
@@ -17,6 +17,15 @@ export const isPlaying = ref(false);
 export const positionSample = ref(0);
 export const loop = ref(false);
 export const masterVolume = ref(1.0);
+
+// ミュート/ソロ切替を再生中も worklet へ即時反映する。
+// getter が毎回プレーン配列を生成するため postMessage にも安全。
+watch(
+  () => [...doc.muted],
+  (muted) => {
+    if (isPlaying.value) player.setMutedUnits(muted);
+  },
+);
 
 // 現在の再生位置 (クロック)
 export const currentClock = computed(() => {
