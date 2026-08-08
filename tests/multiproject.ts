@@ -7,7 +7,7 @@ import {
   closeProject,
   openProjectInTab,
 } from "../src/state/projects";
-import { doc, units, addUnit, setTempo, exportBytes, ensureInit, toggleUnitSolo } from "../src/state/project";
+import { doc, units, addUnit, setTempo, exportBytes, ensureInit, toggleUnitSolo, toggleUnitMute, removeUnit } from "../src/state/project";
 import * as serviceMod from "../src/state/service";
 import { undo, redo, canUndo, canRedo } from "../src/state/undo";
 
@@ -126,6 +126,33 @@ newProjectInTab();
 check("新タブはソロなし", doc.soloUnit === -1);
 switchProject(p2.id);
 check("元のタブのソロが復元", doc.soloUnit === soloP2);
+
+// ---- 10. ソロ解除で元のミュート状態を復元 ----
+// ユニット0をミュート → ユニット1をソロ → 解除 → ユニット0だけミュートのまま
+toggleUnitMute(0);
+check("手動ミュート: unit0のみ", doc.muted.length === 1 && doc.muted[0] === 0);
+toggleUnitSolo(1);
+check("ソロ中: muted は solo 由来", doc.muted.length === 2 && !doc.muted.includes(1));
+toggleUnitSolo(1);
+check("ソロ解除: unit0 のミュートが復元", doc.muted.length === 1 && doc.muted[0] === 0, `muted=${doc.muted}`);
+check("ソロ解除: soloBackup は空", doc.soloBackup.length === 0);
+// ソロ中に手動ミュート変更 → ソロ解除 + 変更が反映
+toggleUnitSolo(2);
+check("再ソロ: soloBackup に unit0 が保存", doc.soloBackup.length === 1 && doc.soloBackup[0] === 0);
+toggleUnitMute(0); // ソロ中に unit0 を再生に → ソロ解除、unit0 のみミュート解除
+check("ソロ中のミュート変更: ソロ解除", doc.soloUnit === -1);
+check("ソロ中のミュート変更: unit0 ミュート解除が反映", !doc.muted.includes(0) && doc.muted.length === 0, `muted=${doc.muted}`);
+
+// ---- 11. ユニット削除・並べ替えでソロ/ミュートが追従 ----
+toggleUnitSolo(1);
+check("削除前: soloUnit=1", doc.soloUnit === 1);
+removeUnit(0); // 削除で index がずれる
+check("他ユニット削除: soloUnit が 0 に追従", doc.soloUnit === 0, `soloUnit=${doc.soloUnit}`);
+check("他ユニット削除: muted は残りの1ユニットのみ", doc.muted.length === 1 && doc.muted[0] === 1);
+toggleUnitSolo(0);
+removeUnit(0); // ソロ対象の削除 → ソロ解除 + backup 復元 (空)
+check("ソロ対象削除: soloUnit=-1", doc.soloUnit === -1);
+check("ソロ対象削除: muted は空", doc.muted.length === 0);
 
 console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);
 process.exit(failed === 0 ? 0 : 1);

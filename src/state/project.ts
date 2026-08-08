@@ -81,6 +81,7 @@ export const doc = reactive({
   unitVisible: [] as boolean[], // ピアノロールに表示するユニット
   unitPinned: [] as boolean[], // ピン留め中のユニット
   soloUnit: -1, // ソロ中のユニット index (-1 = なし)
+  soloBackup: [] as number[], // ソロ開始時のミュート状態 (解除時に復元)
 });
 
 export const units = ref<UnitInfo[]>([]);
@@ -159,9 +160,15 @@ export function sync(): void {
   title.value = service.text.getNameString();
   comment.value = service.text.getCommentString();
   if (doc.focusUnit >= s.unitNum) doc.focusUnit = -1;
-  if (doc.soloUnit >= s.unitNum) doc.soloUnit = -1;
   doc.operated = doc.operated.filter((u) => u >= 0 && u < s.unitNum);
   doc.muted = doc.muted.filter((u) => u >= 0 && u < s.unitNum);
+  doc.soloBackup = doc.soloBackup.filter((u) => u >= 0 && u < s.unitNum);
+  if (doc.soloUnit >= s.unitNum) {
+    // ソロ対象が消えた: ソロを解除して元のミュート状態を復元
+    doc.soloUnit = -1;
+    doc.muted = [...doc.soloBackup];
+    doc.soloBackup = [];
+  }
   // ソロ中の不変条件: ソロユニット以外を全ミュート
   if (doc.soloUnit >= 0) {
     doc.muted = [];
@@ -227,6 +234,7 @@ export function newProject(): boolean {
   doc.operated = [];
   doc.muted = [];
   doc.soloUnit = -1;
+  doc.soloBackup = [];
   doc.scope1 = 0;
   doc.scope2 = 0;
   doc.scrollX = 0;
@@ -249,6 +257,7 @@ export function openProject(bytes: Uint8Array): string | null {
   doc.operated = [];
   doc.muted = [];
   doc.soloUnit = -1;
+  doc.soloBackup = [];
   doc.scope1 = 0;
   doc.scope2 = 0;
   doc.scrollX = 0;
@@ -304,22 +313,61 @@ export function addUnit(name?: string): boolean {
 }
 
 export function removeUnit(idx: number): void {
+  // 削除されるユニット番号を UI 状態 (選択/ミュート/ソロ/表示/ピン) に反映してから削除
+  const shift = (n: number): number => (n === idx ? -1 : n > idx ? n - 1 : n);
+  doc.operated = doc.operated.map(shift).filter((n) => n >= 0);
+  doc.muted = doc.muted.map(shift).filter((n) => n >= 0);
+  doc.soloBackup = doc.soloBackup.map(shift).filter((n) => n >= 0);
+  doc.unitVisible = shiftArr(doc.unitVisible, idx);
+  doc.unitPinned = shiftArr(doc.unitPinned, idx);
+  if (doc.soloUnit === idx) {
+    // ソロ対象の削除: ソロ解除して元のミュート状態を復元
+    doc.soloUnit = -1;
+    doc.muted = [...doc.soloBackup];
+    doc.soloBackup = [];
+  } else if (doc.soloUnit > idx) {
+    doc.soloUnit--;
+  }
   mutate(() => {
     service.unitRemove(idx);
     service.evels.recordUnitNoMiss(idx);
   });
 }
 
+function shiftArr(a: boolean[], idx: number): boolean[] {
+  if (idx < 0 || idx >= a.length) return a;
+  return [...a.slice(0, idx), ...a.slice(idx + 1)];
+}
+
 export function replaceUnit(oldPlace: number, newPlace: number): void {
   if (oldPlace === newPlace) return;
   mutate(() => {
-    service.unitReplace(oldPlace, newPlace);
-    service.evels.recordUnitNoReplace(oldPlace, newPlace);
+    replaceUnitRaw(oldPlace, newPlace);
   });
 }
 
 // ドラッグ中など、undo を自前で管理する場合の生操作
 export function replaceUnitRaw(oldPlace: number, newPlace: number): void {
+  // ユニット番号の移動に合わせて UI 状態も移動させる
+  const move = <T>(a: T[]): T[] => {
+    if (oldPlace >= a.length) return a;
+    const out = [...a];
+    const [v] = out.splice(oldPlace, 1);
+    out.splice(Math.min(newPlace, out.length), 0, v!);
+    return out;
+  };
+  doc.operated = move(doc.operated);
+  doc.muted = move(doc.muted);
+  doc.soloBackup = move(doc.soloBackup);
+  doc.unitVisible = move(doc.unitVisible);
+  doc.unitPinned = move(doc.unitPinned);
+  if (doc.soloUnit >= 0) {
+    const n = Math.max(units.value.length, oldPlace + 1, newPlace + 1);
+    const order = [...Array(n).keys()];
+    const [moved] = order.splice(oldPlace, 1);
+    order.splice(Math.min(newPlace, order.length), 0, moved!);
+    doc.soloUnit = order[doc.soloUnit] ?? -1;
+  }
   service.unitReplace(oldPlace, newPlace);
   service.evels.recordUnitNoReplace(oldPlace, newPlace);
 }
@@ -366,21 +414,36 @@ export function clearOperated(): void {
 }
 
 export function toggleUnitMute(idx: number): void {
-  // ソロ中に手動でミュートを変えたらソロを解除する
-  if (doc.soloUnit >= 0) doc.soloUnit = -1;
-  const i = doc.muted.indexOf(idx);
-  if (i >= 0) doc.muted.splice(i, 1);
-  else doc.muted.push(idx);
+  if (doc.soloUnit >= 0) {
+    // ソロ中の手動変更: ソロを解除し、元のミュート状態に今回の変更を反映
+    const wasMuted = doc.muted.includes(idx);
+    doc.muted = [...doc.soloBackup];
+    doc.soloUnit = -1;
+    doc.soloBackup = [];
+    const i = doc.muted.indexOf(idx);
+    if (wasMuted) {
+      if (i >= 0) doc.muted.splice(i, 1);
+    } else if (i < 0) {
+      doc.muted.push(idx);
+    }
+  } else {
+    const i = doc.muted.indexOf(idx);
+    if (i >= 0) doc.muted.splice(i, 1);
+    else doc.muted.push(idx);
+  }
   sync();
   doc.rev++;
 }
 
-// ソロ切替。ON: 他ユニットを全ミュート、OFF (同ユニット再クリック): 全ミュート解除
+// ソロ切替。ON: 他ユニットを全ミュート、OFF (同ユニット再クリック):
+// ソロ開始前のミュート状態 (soloBackup) を復元
 export function toggleUnitSolo(idx: number): void {
   if (doc.soloUnit === idx) {
     doc.soloUnit = -1;
-    doc.muted = [];
+    doc.muted = [...doc.soloBackup];
+    doc.soloBackup = [];
   } else {
+    doc.soloBackup = [...doc.muted];
     doc.soloUnit = idx;
     doc.muted = units.value.map((u) => u.index).filter((u) => u !== idx);
   }
