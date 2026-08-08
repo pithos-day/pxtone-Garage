@@ -1,6 +1,7 @@
 // ボリュームモード切替パネル (縦に8モード)
 <script setup lang="ts">
 import { doc } from "../../state/project";
+import { t } from "../../i18n";
 
 defineProps<{ modes: string[] }>();
 </script>
@@ -17,7 +18,7 @@ defineProps<{ modes: string[] }>();
     >
       {{ m }}
     </button>
-    <button class="btn btn-sm vol-close" title="閉じる" @click="doc.volumeVisible = false">✕</button>
+    <button class="btn btn-sm vol-close" :title="t('common.close')" @click="doc.volumeVisible = false">✕</button>
   </div>
 </template>
 

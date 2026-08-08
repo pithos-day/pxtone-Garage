@@ -8,10 +8,11 @@ import {
   newProjectInTab,
   closeProject,
 } from "../../state/projects";
+import { t } from "../../i18n";
 
 function onClose(id: number): void {
   const p = projects.value.find((x) => x.id === id);
-  if (p?.dirty && !window.confirm("未保存の変更は破棄されます。閉じますか?")) return;
+  if (p?.dirty && !window.confirm(t("confirm.close"))) return;
   closeProject(id);
 }
 </script>
@@ -23,18 +24,18 @@ function onClose(id: number): void {
       :key="p.id"
       class="file-tab"
       :class="{ active: p.id === currentProjectId }"
-      :title="p.fileName || '無題'"
+      :title="p.fileName || t('common.untitled')"
       @click="switchProject(p.id)"
     >
       <span v-if="p.dirty" class="dirty-dot" />
-      <span class="tab-name">{{ p.fileName || "無題" }}</span>
+      <span class="tab-name">{{ p.fileName || t("common.untitled") }}</span>
       <span
         v-if="projects.length > 1"
         class="tab-close"
         @click.stop="onClose(p.id)"
       >×</span>
     </button>
-    <button class="tab-new" title="新規プロジェクト" @click="newProjectInTab()">＋</button>
+    <button class="tab-new" :title="t('common.newProject')" @click="newProjectInTab()">＋</button>
   </div>
 </template>
 

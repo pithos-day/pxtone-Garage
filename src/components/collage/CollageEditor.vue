@@ -19,6 +19,7 @@ import VolumeField from "./VolumeField.vue";
 import EffectorPanel from "./EffectorPanel.vue";
 import CopierPanel from "./CopierPanel.vue";
 import ScrollBar from "./ScrollBar.vue";
+import { t } from "../../i18n";
 
 ensureInit();
 
@@ -84,7 +85,7 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
           <ToolPanel />
           <UnitTray v-if="doc.mode === 'U'" />
           <WoiceTray v-if="doc.mode === 'W'" />
-          <button class="volume-toggle" :class="{ on: doc.volumeVisible }" title="ボリュームエディタの表示" @click="doc.volumeVisible = !doc.volumeVisible">
+          <button class="volume-toggle" :class="{ on: doc.volumeVisible }" :title="t('common.volumeToggle')" @click="doc.volumeVisible = !doc.volumeVisible">
             <span class="vt-label">Volume</span>
             <span class="vt-arrow">{{ doc.volumeVisible ? "▾" : "▸" }}</span>
           </button>

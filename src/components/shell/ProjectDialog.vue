@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { getService, setProjectSettings } from "../../state/project";
+import { t } from "../../i18n";
 
 const emit = defineEmits<{ (e: "close"): void }>();
 
@@ -62,36 +63,36 @@ function onOverlayClick(e: MouseEvent): void {
 <template>
   <div class="dlg-overlay" @click="onOverlayClick">
     <div class="dlg" role="dialog" aria-label="Project">
-      <div class="dlg-title">Project</div>
+      <div class="dlg-title">{{ t("project.title") }}</div>
       <div class="dlg-body">
-        <div class="row"><label>曲名</label><input v-model="name" type="text" maxlength="64" class="grow" /></div>
-        <div class="row"><label>コメント</label><input v-model="comment" type="text" maxlength="200" class="grow" /></div>
+        <div class="row"><label>{{ t("project.name") }}</label><input v-model="name" type="text" maxlength="64" class="grow" /></div>
+        <div class="row"><label>{{ t("project.comment") }}</label><input v-model="comment" type="text" maxlength="200" class="grow" /></div>
         <div class="row">
-          <label>テンポ</label>
+          <label>{{ t("project.tempo") }}</label>
           <input v-model="tempo" type="number" min="1" max="400" step="0.01" />
           <span class="unit">BPM</span>
         </div>
         <div class="row">
-          <label>拍子</label>
+          <label>{{ t("project.beatNum") }}</label>
           <input v-model.number="beatNum" type="number" min="1" max="16" />
-          <span class="unit">拍/小節</span>
+          <span class="unit">{{ t("project.beatPerMeas") }}</span>
         </div>
         <div class="row">
-          <label>小節数</label>
+          <label>{{ t("project.measNum") }}</label>
           <input v-model.number="measNum" type="number" min="1" max="9999" />
         </div>
         <div class="row dim">
-          <label>Repeat</label>
-          <span>{{ getService()?.master.repeatMeas }} 小節目</span>
+          <label>{{ t("project.repeat") }}</label>
+          <span>{{ getService()?.master.repeatMeas }} {{ t("project.measUnit") }}</span>
         </div>
         <div class="row dim">
-          <label>Last</label>
-          <span>{{ getService()?.master.lastMeas }} 小節目</span>
+          <label>{{ t("project.last") }}</label>
+          <span>{{ getService()?.master.lastMeas }} {{ t("project.measUnit") }}</span>
         </div>
       </div>
       <div class="dlg-buttons">
-        <button class="btn btn-accent" @click="onSave">保存</button>
-        <button class="btn" @click="onCancel">キャンセル</button>
+        <button class="btn btn-accent" @click="onSave">{{ t("common.save") }}</button>
+        <button class="btn" @click="onCancel">{{ t("common.cancel") }}</button>
       </div>
     </div>
   </div>

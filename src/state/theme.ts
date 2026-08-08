@@ -7,10 +7,8 @@ import { doc } from "./project";
 
 export type ThemeName = "pxtone" | "indigo";
 
-export const THEMES: { id: ThemeName; label: string }[] = [
-  { id: "pxtone", label: "ピストンコラージュ" },
-  { id: "indigo", label: "Indigo" },
-];
+// 利用可能なテーマ id (表示名は i18n の settings.theme* を使用)
+export const THEMES: ThemeName[] = ["pxtone", "indigo"];
 
 const STORAGE_THEME = "pxtone-garage-theme";
 const STORAGE_DARK = "pxtone-garage-dark";

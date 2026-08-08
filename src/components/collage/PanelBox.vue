@@ -1,5 +1,7 @@
 // サイドバーに埋め込むパネル (タイトル + 閉じる + ボディ)
 <script setup lang="ts">
+import { t } from "../../i18n";
+
 defineProps<{
   title: string;
 }>();
@@ -10,7 +12,7 @@ const emit = defineEmits<{ close: [] }>();
   <section class="panelbox">
     <header class="panelbox-head">
       <span>{{ title }}</span>
-      <button class="panelbox-close" title="閉じる" @click="emit('close')">✕</button>
+      <button class="panelbox-close" :title="t('common.close')" @click="emit('close')">✕</button>
     </header>
     <div class="panelbox-body">
       <slot />

@@ -6,15 +6,19 @@ import MenuBar from "./MenuBar.vue";
 import FileTabs from "./FileTabs.vue";
 import TransportBar from "./TransportBar.vue";
 import ProjectDialog from "./ProjectDialog.vue";
+import SettingsDialog from "./SettingsDialog.vue";
 import CollageTab from "../collage/CollageEditor.vue";
 import VoiceTab from "../voice/VoiceEditor.vue";
 import NoiseTab from "../noise/NoiseEditor.vue";
 import { ensureInitialProject } from "../../state/projects";
+import { initLanguage } from "../../i18n";
 
 const activeTab = ref<"collage" | "voice" | "noise">("collage");
 const projectDialogOpen = ref(false);
+const settingsDialogOpen = ref(false);
 
 ensureInitialProject();
+initLanguage();
 
 // ブラウザのコンテキストメニューをアプリ全体で無効化
 // (アプリ独自の右クリックメニューは preventDefault だけで動作する)
@@ -27,7 +31,7 @@ window.addEventListener(
 
 <template>
   <div class="app-shell">
-    <MenuBar v-model="activeTab" @project="projectDialogOpen = true" />
+    <MenuBar v-model="activeTab" @project="projectDialogOpen = true" @settings="settingsDialogOpen = true" />
     <FileTabs />
     <TransportBar />
     <main class="app-main">
@@ -36,6 +40,7 @@ window.addEventListener(
       <NoiseTab v-show="activeTab === 'noise'" />
     </main>
     <ProjectDialog v-if="projectDialogOpen" @close="projectDialogOpen = false" />
+    <SettingsDialog v-if="settingsDialogOpen" @close="settingsDialogOpen = false" />
   </div>
 </template>
 

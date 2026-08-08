@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import PanelBox from "./PanelBox.vue";
+import { t } from "../../i18n";
 import {
   delays,
   overdrives,
@@ -50,11 +51,11 @@ function onAddOverdrive(): void {
 </script>
 
 <template>
-  <PanelBox title="Effector">
+  <PanelBox :title="t('effector.title')">
     <div class="eff-body">
       <div class="eff-section">
         <div class="eff-head">
-          <span>Delay ({{ delays.length }})</span>
+          <span>{{ t("effector.delay") }} ({{ delays.length }})</span>
           <button class="btn btn-sm" @click="onAddDelay">＋</button>
         </div>
         <div v-for="d in delays" :key="'d' + d.index" class="eff-row" @dblclick="onEditDelay(d.index)">
@@ -62,37 +63,37 @@ function onAddOverdrive(): void {
           <span>{{ d.freq.toFixed(2) }}</span>
           <span>{{ d.rate.toFixed(0) }}%</span>
           <span>G{{ d.group }}</span>
-          <button class="btn btn-sm" @click="onEditDelay(d.index)">編集</button>
+          <button class="btn btn-sm" @click="onEditDelay(d.index)">{{ t("common.edit") }}</button>
           <button class="btn btn-sm btn-danger" @click="removeDelay(d.index)">✕</button>
         </div>
-        <div v-if="delays.length === 0" class="eff-empty">なし</div>
+        <div v-if="delays.length === 0" class="eff-empty">{{ t("effector.none") }}</div>
       </div>
       <div class="eff-section">
         <div class="eff-head">
-          <span>OverDrive ({{ overdrives.length }})</span>
+          <span>{{ t("effector.overdrive") }} ({{ overdrives.length }})</span>
           <button class="btn btn-sm" @click="onAddOverdrive">＋</button>
         </div>
         <div v-for="o in overdrives" :key="'o' + o.index" class="eff-row" @dblclick="onEditOverdrive(o.index)">
           <span>cut {{ o.cut }}%</span>
           <span>amp {{ o.amp.toFixed(2) }}</span>
           <span>G{{ o.group }}</span>
-          <button class="btn btn-sm" @click="onEditOverdrive(o.index)">編集</button>
+          <button class="btn btn-sm" @click="onEditOverdrive(o.index)">{{ t("common.edit") }}</button>
           <button class="btn btn-sm btn-danger" @click="removeOverdrive(o.index)">✕</button>
         </div>
-        <div v-if="overdrives.length === 0" class="eff-empty">なし</div>
+        <div v-if="overdrives.length === 0" class="eff-empty">{{ t("effector.none") }}</div>
       </div>
     </div>
 
     <div v-if="editing" class="eff-edit">
       <template v-if="editing.kind === 'delay'">
         <div class="row">
-          <label>単位</label>
+          <label>{{ t("effector.unit") }}</label>
           <select v-model.number="form.unit">
             <option v-for="(u, i) in DELAY_UNITS" :key="u" :value="i">{{ u }}</option>
           </select>
         </div>
         <div class="row">
-          <label>長さ</label>
+          <label>{{ t("effector.length") }}</label>
           <input type="number" v-model.number="form.freq" step="0.01" min="0" />
         </div>
         <div class="row">
@@ -116,7 +117,7 @@ function onAddOverdrive(): void {
       </div>
       <div class="row">
         <button class="btn btn-accent" @click="commitEdit">OK</button>
-        <button class="btn" @click="editing = null">キャンセル</button>
+        <button class="btn" @click="editing = null">{{ t("common.cancel") }}</button>
       </div>
     </div>
   </PanelBox>

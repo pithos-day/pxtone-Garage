@@ -3,6 +3,7 @@
 import PanelBox from "./PanelBox.vue";
 import { doc } from "../../state/project";
 import { EventKind } from "pxtone-ts";
+import { t } from "../../i18n";
 
 const KINDS = [
   { i: 0, label: "ON", kind: EventKind.ON },
@@ -22,7 +23,7 @@ function toggle(i: number): void {
 </script>
 
 <template>
-  <PanelBox title="Copier (コピー種別)">
+  <PanelBox :title="t('copier.title')">
     <div class="copier-body">
       <label v-for="k in KINDS" :key="k.i" class="copier-item">
         <input type="checkbox" :checked="doc.copier[k.i]" @change="toggle(k.i)" />

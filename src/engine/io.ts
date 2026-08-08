@@ -2,6 +2,7 @@
 import { Service, PxtnErr, MemoryIo } from "pxtone-ts";
 import { EXE_VER } from "../state/service";
 import { exportBytes } from "../state/project";
+import { t } from "../i18n";
 
 export function downloadBytes(bytes: Uint8Array, fileName: string, mime = "application/octet-stream"): void {
   const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
@@ -66,11 +67,11 @@ export function exportPttune(bytes: Uint8Array, fileName: string): boolean {
 // WAV 書き出し (オフライン全曲レンダリング)
 export function exportWav(bytes: Uint8Array, fileName: string, sps = 44100): string | null {
   const s = new Service();
-  if (s.init() !== PxtnErr.OK) return "エンジン初期化失敗";
-  if (s.read(new MemoryIo(bytes)) !== PxtnErr.OK) return "読み込み失敗";
-  if (s.tonesReady() !== PxtnErr.OK) return "音色変換失敗";
-  if (!s.setDestinationQuality(2, sps)) return "品質設定失敗";
-  if (!s.mooPreparation(null)) return "再生準備失敗";
+  if (s.init() !== PxtnErr.OK) return t("error.engineInitIo");
+  if (s.read(new MemoryIo(bytes)) !== PxtnErr.OK) return t("error.loadFailed");
+  if (s.tonesReady() !== PxtnErr.OK) return t("error.tonesReady");
+  if (!s.setDestinationQuality(2, sps)) return t("error.quality");
+  if (!s.mooPreparation(null)) return t("error.prepare");
   const total = s.mooGetSamplingEnd();
   const pcm = new Int16Array(total * 2);
   const CHUNK = 44100;

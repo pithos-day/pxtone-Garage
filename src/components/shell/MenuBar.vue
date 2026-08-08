@@ -14,10 +14,10 @@ import {
 import { exportPttune, exportWav, openFileDialog } from "../../engine/io";
 import { undo, redo, canUndo, canRedo } from "../../state/undo";
 import { ZOOM_TABLE, DIVI_TABLE } from "../../lib/clock";
-import { THEMES, theme, setThemeName, setDark } from "../../state/theme";
+import { t } from "../../i18n";
 
 const mode = defineModel<"collage" | "voice" | "noise">({ required: true });
-const emit = defineEmits<{ (e: "project"): void }>();
+const emit = defineEmits<{ (e: "project"): void; (e: "settings"): void }>();
 
 interface MenuItem {
   label?: string;
@@ -77,7 +77,7 @@ onBeforeUnmount(() => {
 // ---- アクション ----
 
 function onNew(): void {
-  if (!doc.dirty || window.confirm("未保存の変更は破棄されます。新規作成しますか?")) {
+  if (!doc.dirty || window.confirm(t("confirm.new"))) {
     newProjectInTab();
   }
 }
@@ -105,50 +105,41 @@ function onExportWav(): void {
 
 function onClose(): void {
   const id = currentProjectId.value;
-  if (doc.dirty && !window.confirm("未保存の変更は破棄されます。閉じますか?")) return;
+  if (doc.dirty && !window.confirm(t("confirm.close"))) return;
   closeProject(id);
 }
 
 const allVisible = computed(() => doc.unitVisible.length > 0 && doc.unitVisible.every(Boolean));
 
 const fileMenu = computed<MenuItem[]>(() => [
-  { label: "新規作成", action: onNew },
-  { label: "開く...", action: onOpen },
-  { label: "保存", action: () => saveProjectFile(false) },
-  { label: "別名で保存...", action: () => saveProjectFile(true) },
+  { label: t("menu.file.new"), action: onNew },
+  { label: t("menu.file.open"), action: onOpen },
+  { label: t("menu.file.save"), action: () => saveProjectFile(false) },
+  { label: t("menu.file.saveAs"), action: () => saveProjectFile(true) },
   { sep: true },
-  { label: "書き出し (.pttune)", action: onExportPttune },
-  { label: "書き出し (WAV)...", action: onExportWav },
+  { label: t("menu.file.exportPttune"), action: onExportPttune },
+  { label: t("menu.file.exportWav"), action: onExportWav },
   { sep: true },
-  { label: "Project...", action: () => emit("project") },
+  { label: t("menu.file.project"), action: () => emit("project") },
+  { label: t("menu.file.settings"), action: () => emit("settings") },
   { sep: true },
-  { label: "閉じる", action: onClose },
+  { label: t("menu.file.close"), action: onClose },
 ]);
 
 const editMenu = computed<MenuItem[]>(() => [
-  { label: "元に戻す", action: () => undo(), disabled: !canUndo.value },
-  { label: "やり直す", action: () => redo(), disabled: !canRedo.value },
+  { label: t("menu.edit.undo"), action: () => undo(), disabled: !canUndo.value },
+  { label: t("menu.edit.redo"), action: () => redo(), disabled: !canRedo.value },
 ]);
 
 const viewMenu = computed<MenuItem[]>(() => [
-  { label: "全ユニット表示", action: () => setAllUnitsVisible(!allVisible.value), checked: allVisible.value },
+  { label: t("menu.view.showAllUnits"), action: () => setAllUnitsVisible(!allVisible.value), checked: allVisible.value },
   { sep: true },
   {
-    label: "テーマ",
-    sub: THEMES.map((t) => ({ label: t.label, action: () => setThemeName(t.id), checked: theme.name === t.id })),
-  },
-  {
-    label: theme.dark ? "ライトモード" : "ダークモード",
-    action: () => setDark(!theme.dark),
-    checked: !theme.dark,
-  },
-  { sep: true },
-  {
-    label: "ズーム",
+    label: t("menu.view.zoom"),
     sub: ZOOM_TABLE.map((z) => ({ label: `${z}px`, action: () => (doc.zoom = z), checked: doc.zoom === z })),
   },
   {
-    label: "分割",
+    label: t("menu.view.division"),
     sub: DIVI_TABLE.map((d) => ({ label: `${d}`, action: () => (doc.divi = d), checked: doc.divi === d })),
   },
 ]);

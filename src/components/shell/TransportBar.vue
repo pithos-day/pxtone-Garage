@@ -5,6 +5,7 @@ import { isPlaying, togglePlay, stop, loop, setLoop, masterVolume, setMasterVolu
 import { getService, clockView as projectClockView } from "../../state/project";
 import { panels } from "../../state/panels";
 import { formatClock } from "../../lib/clock";
+import { t } from "../../i18n";
 
 function timeLabel(): string {
   const s = getService();
@@ -23,13 +24,13 @@ function fmt(sec: number): string {
 
 <template>
   <div class="transport">
-    <button class="btn btn-accent play-btn" @click="togglePlay" :title="isPlaying ? '一時停止 (Space)' : '再生 (Space)'">
+    <button class="btn btn-accent play-btn" @click="togglePlay" :title="isPlaying ? t('transport.pause') : t('transport.play')">
       {{ isPlaying ? "⏸" : "▶" }}
     </button>
-    <button class="btn" @click="stop" title="停止">⏹</button>
-    <button class="btn" :class="{ on: loop }" @click="setLoop(!loop)" title="リピート">⟳</button>
+    <button class="btn" @click="stop" :title="t('transport.stop')">⏹</button>
+    <button class="btn" :class="{ on: loop }" @click="setLoop(!loop)" :title="t('transport.loop')">⟳</button>
     <span class="sep" />
-    <label class="vol-label">音量</label>
+    <label class="vol-label">{{ t("transport.volume") }}</label>
     <input
       type="range"
       min="0"
@@ -43,7 +44,7 @@ function fmt(sec: number): string {
     <span class="time">{{ timeLabel() }}</span>
     <span class="clock">{{ formatClock(projectClockView(), currentClock) }}</span>
     <span class="transport-spacer" />
-    <span class="panel-label">パネル</span>
+    <span class="panel-label">{{ t("transport.panels") }}</span>
     <button
       v-for="p in (['effector', 'copier'] as const)"
       :key="p"
