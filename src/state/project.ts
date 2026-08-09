@@ -766,7 +766,7 @@ export function clearScope(): void {
 // 開始小節を設定 (同値なら解除)。end が start 以下なら end を start+1 に調整
 // (本家の if_PlayField_SetStartMeas 準拠)
 export function setPlayStart(meas: number): void {
-  if (meas === doc.playStart) {
+  if (meas < 0 || meas === doc.playStart) {
     doc.playStart = -1;
   } else {
     const max = service.master.measNum - 1;
@@ -778,7 +778,7 @@ export function setPlayStart(meas: number): void {
 
 // 終了小節を設定 (同値なら解除)。start 以上にクランプ (本家の SetEndMeas 準拠)
 export function setPlayEnd(meas: number): void {
-  if (meas === doc.playEnd) {
+  if (meas < 0 || meas === doc.playEnd) {
     doc.playEnd = -1;
   } else {
     const max = service.master.measNum;

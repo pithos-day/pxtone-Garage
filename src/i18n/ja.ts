@@ -145,6 +145,10 @@ const ja = {
   "playfield.setLast": "Last をここに設定",
   "playfield.clearRepeat": "Repeat をクリア",
   "playfield.clearLast": "Last をクリア",
+  "playfield.setStart": "Start をここに設定",
+  "playfield.setEnd": "End をここに設定",
+  "playfield.clearStart": "Start をクリア",
+  "playfield.clearEnd": "End をクリア",
 
   // 確認ダイアログ
   "confirm.new": "未保存の変更は破棄されます。新規作成しますか?",

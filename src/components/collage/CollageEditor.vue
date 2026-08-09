@@ -19,6 +19,7 @@ import VolumeField from "./VolumeField.vue";
 import EffectorPanel from "./EffectorPanel.vue";
 import CopierPanel from "./CopierPanel.vue";
 import ScrollBar from "./ScrollBar.vue";
+import MeasNoField from "./MeasNoField.vue";
 import { t } from "../../i18n";
 
 ensureInit();
@@ -95,6 +96,7 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
           <div class="collage-ruler-row">
             <div class="collage-ruler-spacer" />
             <div class="collage-ruler-col">
+              <MeasNoField />
               <PlayField />
               <ScopeField />
             </div>

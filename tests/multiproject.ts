@@ -10,7 +10,7 @@ import {
 import { doc, units, addUnit, setTempo, exportBytes, ensureInit, toggleUnitSolo, toggleUnitMute, removeUnit, addWoice, WoiceType, copyMeas, changeEventValue, addUnitWithWoice, getAllEvents, sync, setPlayStart, setPlayEnd } from "../src/state/project";
 import * as serviceMod from "../src/state/service";
 import { undo, redo, canUndo, canRedo } from "../src/state/undo";
-import { player, isPlaying, masterVolume } from "../src/state/player";
+import { player, isPlaying, masterVolume, loop } from "../src/state/player";
 import { parseThemeCss, mergeTokens, buildThemeCss } from "../src/lib/themeParse";
 import { EventKind } from "pxtone-ts";
 
@@ -485,6 +485,14 @@ check("ソロ対象削除: muted は空", doc.muted.length === 0);
     check("setPlayStart: end が start 以下なら調整", doc.playEnd === 5);
     setPlayEnd(2); // start(4) より下 → start+1 にクランプ
     check("setPlayEnd: start 以下はクランプ", doc.playEnd === 5);
+    setPlayStart(-1); // カット
+    setPlayEnd(-1);
+    check("setPlayStart/End のカット (-1)", doc.playStart === -1 && doc.playEnd === -1);
+    setPlayStart(4);
+    setPlayEnd(8);
+    setPlayStart(4); // 同値で解除
+    check("setPlayStart 同値で解除 (2回目)", doc.playStart === -1);
+    check("REPEAT がデフォルトで ON", loop.value === true, `loop=${loop.value}`);
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);

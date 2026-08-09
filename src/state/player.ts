@@ -15,7 +15,7 @@ export const player = new RealtimePlayer({
 
 export const isPlaying = ref(false);
 export const positionSample = ref(0);
-export const loop = ref(false);
+export const loop = ref(true);
 export const masterVolume = ref(1.0);
 
 // ミュート/ソロ切替を再生中も worklet へ即時反映する。
