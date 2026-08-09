@@ -18,7 +18,7 @@ export const BUNDLED_FONTS: FontOption[] = [
   { family: "Noto Sans JP", label: "Noto Sans JP", source: "builtin" },
 ];
 
-export const DEFAULT_FONT_FAMILY = "DotGothic16";
+export const DEFAULT_FONT_FAMILY = "Noto Sans JP";
 
 const STORAGE_FONT = "pxtone-garage-font";
 
