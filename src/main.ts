@@ -22,7 +22,6 @@ import "@fontsource/noto-sans-jp/700.css";
 // テーマ CSS ソース (?raw でテキストとして取り込み、実行時にパースして注入)
 import pxtoneTheme from "./theme/pxtone.css?raw";
 import indigoTheme from "./theme/indigo.css?raw";
-import astronautsTheme from "./theme/astronauts.css?raw";
 import caffeineTheme from "./theme/caffeine.css?raw";
 import zenTheme from "./theme/zen.css?raw";
 import vintageTheme from "./theme/vintage.css?raw";
@@ -31,7 +30,6 @@ import roseTheme from "./theme/rose.css?raw";
 initTheme({
   pxtone: pxtoneTheme,
   indigo: indigoTheme,
-  astronauts: astronautsTheme,
   caffeine: caffeineTheme,
   zen: zenTheme,
   vintage: vintageTheme,

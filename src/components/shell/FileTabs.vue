@@ -65,7 +65,8 @@ function onClose(id: number): void {
 }
 
 .file-tab:hover {
-  background: var(--secondary);
+  background: var(--card);
+  color: var(--card-foreground);
 }
 
 .file-tab.active {
@@ -112,7 +113,7 @@ function onClose(id: number): void {
 }
 
 .tab-new:hover {
-  background: var(--secondary);
-  color: var(--foreground);
+  background: var(--card);
+  color: var(--card-foreground);
 }
 </style>

@@ -25,7 +25,6 @@ export interface UserTheme {
 export const BUILTIN_THEMES: { id: string; name: string }[] = [
   { id: "pxtone", name: "pxtone" },
   { id: "indigo", name: "Indigo" },
-  { id: "astronauts", name: "Astronauts" },
   { id: "caffeine", name: "Caffeine" },
   { id: "zen", name: "Zen" },
   { id: "vintage", name: "Vintage" },

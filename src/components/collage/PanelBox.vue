@@ -25,7 +25,7 @@ const emit = defineEmits<{ close: [] }>();
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: var(--card);
+  background: var(--background);
   border: 1px solid var(--border);
 }
 
@@ -34,10 +34,10 @@ const emit = defineEmits<{ close: [] }>();
   align-items: center;
   justify-content: space-between;
   padding: 3px 6px;
-  background: var(--secondary);
+  background: var(--background);
   border-bottom: 1px solid var(--border);
   font-size: 11px;
-  color: var(--secondary-foreground);
+  color: var(--foreground);
   user-select: none;
   flex: none;
 }
@@ -45,7 +45,7 @@ const emit = defineEmits<{ close: [] }>();
 .panelbox-close {
   border: none;
   background: transparent;
-  color: var(--muted-foreground);
+  color: var(--foreground);
   cursor: pointer;
   font-size: 12px;
   padding: 0 4px;

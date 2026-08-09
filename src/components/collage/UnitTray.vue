@@ -277,7 +277,15 @@ function onMenuAction(action: "edit" | "remove"): void {
 }
 
 .unit-row:hover {
-  background: var(--secondary);
+  background: var(--card);
+}
+
+.unit-row:hover:not(.focus) .unit-name {
+  color: var(--card-foreground);
+}
+
+.unit-row:hover:not(.focus) .unit-summary {
+  color: var(--card-foreground);
 }
 
 .unit-row.focus {
@@ -329,6 +337,8 @@ function onMenuAction(action: "edit" | "remove"): void {
 .unit-name-input {
   font-size: 11px;
   padding: 0 2px;
+  background: var(--secondary);
+  color: var(--secondary-foreground);
 }
 
 .unit-summary {

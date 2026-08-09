@@ -127,7 +127,15 @@ function woiceSummary(idx: number): string {
 }
 
 .woice-row:hover {
-  background: var(--secondary);
+  background: var(--card);
+}
+
+.woice-row:hover:not(.focus) .woice-name {
+  color: var(--card-foreground);
+}
+
+.woice-row:hover:not(.focus) .woice-summary {
+  color: var(--card-foreground);
 }
 
 .woice-name {

@@ -185,7 +185,7 @@ function onOverlayClick(e: MouseEvent): void {
 
 .dlg {
   width: 460px;
-  background: var(--popover);
+  background: var(--background);
   border: 1px solid var(--border);
   box-shadow: 4px 4px 16px rgb(0 0 0 / 0.35);
 }

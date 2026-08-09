@@ -172,7 +172,8 @@ function onRemoveOverdrive(idx: number): void {
 }
 
 .eff-row:hover {
-  background: var(--secondary);
+  background: var(--card);
+  color: var(--card-foreground);
 }
 
 .eff-empty {

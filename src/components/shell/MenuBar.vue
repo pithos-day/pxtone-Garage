@@ -270,8 +270,8 @@ const tabs = [
 
 .menu-label:hover,
 .menu-label.open {
-  background: var(--accent);
-  color: var(--accent-foreground);
+  background: var(--card);
+  color: var(--card-foreground);
 }
 
 .menu-pop {
@@ -303,7 +303,7 @@ const tabs = [
 }
 
 .menu-item.disabled {
-  color: var(--muted-foreground);
+  color: var(--background);
   cursor: default;
 }
 
