@@ -144,7 +144,7 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
 .collage-pinned {
   flex: none;
   border-bottom: 1px solid var(--border);
-  background: var(--muted);
+  background: var(--background);
 }
 
 .collage-pinned > :deep(.field-canvas) {
@@ -161,14 +161,14 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
 .collage-vol {
   display: flex;
   border-top: 1px solid var(--border);
-  background: var(--muted);
+  background: var(--background);
 }
 
 .collage-tray {
   width: 300px;
   flex: none;
   border-right: 1px solid var(--border);
-  background: var(--muted);
+  background: var(--background);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -182,7 +182,7 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
   justify-content: space-between;
   border: none;
   border-top: 1px solid var(--border);
-  background: var(--secondary);
+  background: var(--muted);
   color: var(--muted-foreground);
   font-size: 11px;
   padding: 6px 10px;
@@ -222,7 +222,7 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
 .collage-ruler-row {
   flex: none;
   display: flex;
-  background: var(--muted);
+  background: var(--background);
 }
 
 .collage-ruler-spacer {
@@ -285,7 +285,7 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
 .collage-hscroll {
   display: flex;
   border-top: 1px solid var(--border);
-  background: var(--muted);
+  background: var(--background);
 }
 
 .collage-hscroll-spacer {

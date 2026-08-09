@@ -12,6 +12,12 @@ export interface ThemeTokens {
 // 許容: 色 (hex/oklch/hsl/rgb)、calc()/var()、数値、% 等
 const SAFE_VALUE = /^[#()\[\],.%+\-/*\w\s"'':]+$/;
 
+// ジェネレーター由来でアプリが使わないトークン (接頭辞で判定)。
+// これらはベース (pxtone) テーマから継承される。
+// --shadow* はジェネレーターが「白グロー」を定義するため除外
+// (アプリの --shadow はダイアログの影に使う)。
+const DENY_PREFIXES = ["--color-", "--shadow", "--tracking-", "--chart-", "--sidebar-", "--radius-sm", "--radius-md", "--radius-lg", "--radius-xl"];
+
 function sanitizeValue(raw: string): string | null {
   const v = raw.trim();
   if (!v) return null;
@@ -94,10 +100,12 @@ export function parseThemeCss(source: string): ThemeTokens | null {
       const m = /^(\s*)(--[a-zA-Z0-9-]+)\s*:\s*(.*)$/.exec(decl);
       if (!m) continue;
       const name = m[2]!.trim();
-      const value = sanitizeValue(m[3]!);
-      if (!value) continue;
       // フォント系トークンは対象外 (フォントは独立設定のため)
       if (name.startsWith("--font-")) continue;
+      // ジェネレーターのユーティリティ専用トークンは対象外
+      if (DENY_PREFIXES.some((p) => name.startsWith(p))) continue;
+      const value = sanitizeValue(m[3]!);
+      if (!value) continue;
       (kind === "light" ? light : dark)[name] = value;
     }
   }

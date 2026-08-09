@@ -312,6 +312,21 @@ export function addUnit(name?: string): boolean {
   return ok;
 }
 
+// 名前と音色を指定してユニットを追加 (1つの undo エントリ)。
+// woiceIdx が -1 の場合は音色なし
+export function addUnitWithWoice(name: string | undefined, woiceIdx: number): boolean {
+  let ok = false;
+  mutate(() => {
+    ok = service.unitAddNew();
+    if (!ok) return;
+    const u = service.unitGet(service.unitNum - 1);
+    if (name) u?.setNameBuf(name);
+    const w = woiceIdx >= 0 ? service.woiceGet(woiceIdx) : null;
+    if (u && w) u.setWoice(w);
+  });
+  return ok;
+}
+
 export function removeUnit(idx: number): void {
   // 削除されるユニット番号を UI 状態 (選択/ミュート/ソロ/表示/ピン) に反映してから削除
   const shift = (n: number): number => (n === idx ? -1 : n > idx ? n - 1 : n);
@@ -639,6 +654,48 @@ export function deleteEvents(clock1: number, clock2: number, unitNo: number, kin
 
 export function setEventValue(clock1: number, clock2: number, unitNo: number, kind: number, value: number): void {
   service.evels.recordValueSet(clock1, clock2, unitNo, kind, value);
+}
+
+// 範囲内のイベント値を加算変更する (本家の「ベロシティ/パン/ボリューム」相当)。
+// 対象はフォーカス+選択中のユニット。加算は recordValueChange が
+// 種別ごとの上限 (0..128 等) にクランプする
+export function changeEventValue(clock1: number, clock2: number, kind: number, value: number): void {
+  const targets = focusedOrOperated();
+  if (targets.length === 0) return;
+  mutate(() => {
+    for (const u of targets) {
+      service.evels.recordValueChange(clock1, clock2, u, kind, value);
+    }
+  });
+}
+
+// 小節コピー (本家の「小節コピー」相当)。
+// [c1, c2) のイベントを対象ユニット (フォーカス+選択) から kinds で
+// フィルタして収集し、to 位置から幅×times 分ペーストする。
+// ON イベントの長さはコピー範囲内にクランプする
+export function copyMeas(c1: number, c2: number, to: number, times: number, kinds: number[]): void {
+  if (c2 <= c1 || times < 1) return;
+  const targets = focusedOrOperated();
+  if (targets.length === 0) return;
+  const width = c2 - c1;
+  mutate(() => {
+    const copied: { clock: number; unitNo: number; kind: number; value: number }[] = [];
+    for (const e of service.evels.records) {
+      if (e.kind === EventKind.NULL) continue;
+      if (e.clock < c1 || e.clock >= c2) continue;
+      if (!targets.includes(e.unitNo)) continue;
+      if (!kinds.includes(e.kind)) continue;
+      let value = e.value;
+      if (e.kind === EventKind.ON && e.clock + e.value > c2) value = c2 - e.clock;
+      copied.push({ clock: e.clock - c1, unitNo: e.unitNo, kind: e.kind, value });
+    }
+    for (let i = 0; i < times; i++) {
+      const base = to + i * width;
+      for (const ev of copied) {
+        service.evels.recordAddI(base + ev.clock, ev.unitNo, ev.kind, ev.value);
+      }
+    }
+  });
 }
 
 // ---- エフェクト ----

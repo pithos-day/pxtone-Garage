@@ -111,7 +111,7 @@ function onOverlayClick(e: MouseEvent): void {
 
 .dlg {
   width: 360px;
-  background: var(--card);
+  background: var(--popover);
   border: 1px solid var(--border-strong);
   box-shadow: 4px 4px 16px var(--shadow);
 }

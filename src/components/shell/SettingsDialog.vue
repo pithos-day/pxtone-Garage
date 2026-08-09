@@ -30,11 +30,13 @@ const importName = ref("");
 const importCss = ref("");
 const importError = ref("");
 
-function openImport(): void {
-  importing.value = true;
-  importError.value = "";
-  importName.value = "";
-  importCss.value = "";
+function toggleImport(): void {
+  importing.value = !importing.value;
+  if (importing.value) {
+    importError.value = "";
+    importName.value = "";
+    importCss.value = "";
+  }
 }
 
 function onImportFile(e: Event): void {
@@ -100,9 +102,10 @@ function onOverlayClick(e: MouseEvent): void {
           </select>
           <button v-if="isUserTheme(theme.name)" class="btn btn-sm" :title="t('settings.deleteTheme')" @click="onDeleteTheme">✕</button>
         </div>
-        <div class="row">
-          <button class="btn btn-sm" @click="openImport">{{ t("settings.importTheme") }}</button>
-        </div>
+        <button class="disclosure" @click="toggleImport">
+          <span class="disclosure-arrow">{{ importing ? "▾" : "▸" }}</span>
+          {{ t("settings.importTheme") }}
+        </button>
         <div v-if="importing" class="import-box">
           <div class="row">
             <label>{{ t("settings.importThemeName") }}</label>
@@ -110,7 +113,7 @@ function onOverlayClick(e: MouseEvent): void {
           </div>
           <textarea v-model="importCss" class="import-css" :placeholder="t('settings.importThemeCss')" spellcheck="false" />
           <div class="row">
-            <label class="file-label">
+            <label class="file-label btn btn-sm">
               {{ t("settings.loadFile") }}
               <input type="file" accept=".css,text/css" @change="onImportFile" />
             </label>
@@ -232,6 +235,30 @@ select {
   accent-color: var(--primary);
 }
 
+/* テーマインポート (展開/折りたたみ) */
+.disclosure {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  border: 1px solid var(--border);
+  background: var(--btn-bg);
+  color: var(--foreground);
+  font-size: 12px;
+  padding: 5px 8px;
+  cursor: pointer;
+  border-radius: var(--radius);
+}
+
+.disclosure:hover {
+  background: var(--btn-hover);
+}
+
+.disclosure-arrow {
+  font-size: 9px;
+  color: var(--muted-foreground);
+}
+
 /* テーマインポート */
 .import-box {
   display: flex;
@@ -251,10 +278,7 @@ select {
 }
 
 .file-label {
-  font-size: 11px;
-  color: var(--accent-foreground);
   cursor: pointer;
-  min-width: 0;
 }
 
 .file-label input {

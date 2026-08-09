@@ -1,11 +1,13 @@
 <script setup lang="ts">
 // モード切替 (W/U) + ツールボタン
 import { ref } from "vue";
-import { doc, units, addUnit, addWoice, WoiceType } from "../../state/project";
+import { doc, addWoice, WoiceType } from "../../state/project";
+import AddUnitDialog from "./AddUnitDialog.vue";
 import { openFileDialog } from "../../engine/io";
 import { t } from "../../i18n";
 
 const errorMsg = ref("");
+const showAddUnit = ref(false);
 
 async function onAddWoice(): Promise<void> {
   const file = await openFileDialog(".ptvoice,.ptnoise,.wav");
@@ -34,9 +36,10 @@ async function onAddWoice(): Promise<void> {
         <span v-if="errorMsg" class="tool-err">{{ errorMsg }}</span>
       </template>
       <template v-else>
-        <button class="btn btn-sm" @click="addUnit(`unit ${units.length + 1}`)">{{ t("tool.addUnit") }}</button>
+        <button class="btn btn-sm" @click="showAddUnit = true">{{ t("tool.addUnit") }}</button>
       </template>
     </div>
+    <AddUnitDialog v-if="showAddUnit" @close="showAddUnit = false" />
   </div>
 </template>
 
@@ -48,7 +51,7 @@ async function onAddWoice(): Promise<void> {
   gap: 4px;
   padding: 4px 6px 6px;
   border-bottom: 1px solid var(--border);
-  background: var(--secondary);
+  background: var(--background);
   user-select: none;
 }
 

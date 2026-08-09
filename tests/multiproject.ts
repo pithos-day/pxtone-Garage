@@ -7,11 +7,12 @@ import {
   closeProject,
   openProjectInTab,
 } from "../src/state/projects";
-import { doc, units, addUnit, setTempo, exportBytes, ensureInit, toggleUnitSolo, toggleUnitMute, removeUnit, addWoice, WoiceType } from "../src/state/project";
+import { doc, units, addUnit, setTempo, exportBytes, ensureInit, toggleUnitSolo, toggleUnitMute, removeUnit, addWoice, WoiceType, copyMeas, changeEventValue, addUnitWithWoice, getAllEvents } from "../src/state/project";
 import * as serviceMod from "../src/state/service";
 import { undo, redo, canUndo, canRedo } from "../src/state/undo";
 import { player, isPlaying, masterVolume } from "../src/state/player";
 import { parseThemeCss, mergeTokens, buildThemeCss } from "../src/lib/themeParse";
+import { EventKind } from "pxtone-ts";
 
 let failed = 0;
 function check(name: string, cond: boolean, detail = ""): void {
@@ -341,7 +342,7 @@ check("ソロ対象削除: muted は空", doc.muted.length === 0);
     check("dark トークン抽出", t?.dark["--background"] === "oklch(0.148 0 0)");
     check("--font-* は除外", !("--font-sans" in (t?.light ?? {})) && !("--font-sans" in (t?.dark ?? {})));
     check("@theme/@layer の変数は除外", !("--color-background" in (t?.light ?? {})));
-    check("shadow 等の関数値は保持", t?.light["--shadow-sm"]?.startsWith("0px 1px 2px"));
+    check("--shadow* は拒否 (ベースから継承)", !("--shadow-sm" in (t?.light ?? {})) && !("--shadow" in (t?.light ?? {})));
 
     // 素の :root/.dark (rose 形式)
     const plain = parseThemeCss(":root { --background: oklch(1 0 0); }\n.dark { --background: oklch(0.5 0 0); }");
@@ -364,6 +365,98 @@ check("ソロ対象削除: muted は空", doc.muted.length === 0);
     const css = buildThemeCss("test-x", merged);
     check("注入CSS: ライトスコープ", css.includes(':root[data-theme="test-x"]') && css.includes("--background: oklch(1 0 0);"));
     check("注入CSS: ダークスコープ", css.includes('.dark[data-theme="test-x"]') && css.includes("--background: oklch(0.148 0 0);"));
+  }
+
+  // ---- 15. themeParse (ジェネレーターCSS → トークンマップ) ----
+  {
+    // Tailwind ディレクティブ付きの shadcn ジェネレーター出力
+    const gen = `@import "tailwindcss";
+@custom-variant dark (&:is(.dark *));
+:root {
+  --background: oklch(1 0 0);
+  --primary: oklch(0.514 0.222 16.935);
+  --radius: 0.625rem;
+  --font-sans: "Inter", sans-serif;
+  --shadow-sm: 0px 1px 2px hsl(0 0% 0% / 0.1);
+}
+.dark {
+  --background: oklch(0.148 0 0);
+  --primary: oklch(0.702 0.2 45);
+  --radius: 0.5rem;
+  --font-sans: "Inter", sans-serif;
+}
+@theme inline {
+  --color-background: var(--background);
+}
+@layer base {
+  * { @apply border-border; }
+}`;
+    const t = parseThemeCss(gen);
+    check("ジェネレーターCSSをパース", t !== null);
+    check("light トークン抽出", t?.light["--background"] === "oklch(1 0 0)" && t?.light["--primary"] === "oklch(0.514 0.222 16.935)");
+    check("dark トークン抽出", t?.dark["--background"] === "oklch(0.148 0 0)");
+    check("--font-* は除外", !("--font-sans" in (t?.light ?? {})) && !("--font-sans" in (t?.dark ?? {})));
+    check("@theme/@layer の変数は除外", !("--color-background" in (t?.light ?? {})));
+    check("--shadow* は拒否 (ベースから継承)", !("--shadow-sm" in (t?.light ?? {})) && !("--shadow" in (t?.light ?? {})));
+
+    // 素の :root/.dark (rose 形式)
+    const plain = parseThemeCss(":root { --background: oklch(1 0 0); }\n.dark { --background: oklch(0.5 0 0); }");
+    check("素の :root/.dark をパース", plain?.light["--background"] === "oklch(1 0 0)" && plain?.dark["--background"] === "oklch(0.5 0 0)");
+
+    // サニタイズ: インジェクション拒否
+    const evil = parseThemeCss(`:root { --background: oklch(1 0 0); --x: url("https://evil/"); --y: red; --z: }bad; }`);
+    check("url() を拒否", evil !== null && !("--x" in evil.light));
+    check("不正構造を拒否", !("--z" in (evil?.light ?? {})));
+
+    // マージ (未定義トークンはベースから継承)
+    const base = parseThemeCss(":root { --background: oklch(0 0 0); --btn-bg: red; }\n.dark { --background: oklch(1 0 0); }")!;
+    const merged = mergeTokens(base, t!);
+    check("マージ: テーマ側が優先", merged.light["--background"] === "oklch(1 0 0)");
+    check("マージ: 未定義はベースから継承", merged.light["--btn-bg"] === "red");
+    check("マージ: dark も適用", merged.dark["--background"] === "oklch(0.148 0 0)");
+    check("マージ: dark の未定義は空", merged.dark["--btn-bg"] === undefined);
+
+    // スコープ付き CSS 生成
+    const css = buildThemeCss("test-x", merged);
+    check("注入CSS: ライトスコープ", css.includes(':root[data-theme="test-x"]') && css.includes("--background: oklch(1 0 0);"));
+    check("注入CSS: ダークスコープ", css.includes('.dark[data-theme="test-x"]') && css.includes("--background: oklch(0.148 0 0);"));
+  }
+
+  // ---- 16. 小節コピー / イベント音量 / ユニット追加 ----
+  {
+    const s = serviceMod.service;
+    // イベントを用意 (unit0 に clock 0 で KEY+VELOCITY+ON, unit1 に clock 240 で VELOCITY)
+    doc.operated = [];
+    doc.focusUnit = -1;
+    s.evels.clear();
+    s.evels.recordAddI(0, 0, EventKind.KEY, 0x6000);
+    s.evels.recordAddI(0, 0, EventKind.VELOCITY, 64);
+    s.evels.recordAddI(0, 0, EventKind.ON, 480);
+    s.evels.recordAddI(240, 1, EventKind.VELOCITY, 80);
+    doc.operated = [0, 1];
+
+    // 小節コピー: [0, 480) を clock 960 に 2 回
+    copyMeas(0, 480, 960, 2, [EventKind.ON, EventKind.VELOCITY]);
+    const events = getAllEvents();
+    const at = (clock: number, unitNo: number, kind: EventKind): boolean =>
+      events.some((e) => e.clock === clock && e.unitNo === unitNo && e.kind === kind);
+    check("コピー: 対象ユニットのイベントがコピーされる", at(960, 0, EventKind.KEY) || at(960, 0, EventKind.VELOCITY));
+    check("コピー: 種類フィルタ (KEY はコピーされない)", !at(960, 0, EventKind.KEY));
+    check("コピー: 2回分ペースト", at(960, 0, EventKind.ON) && at(1440, 0, EventKind.ON));
+    check("コピー: 対象外ユニットはコピーされない", !at(960, 1, EventKind.VELOCITY));
+
+    // イベント音量 (加算 + クランプ)
+    changeEventValue(0, 960, EventKind.VELOCITY, 100);
+    const vel = getAllEvents().find((e) => e.clock === 0 && e.kind === EventKind.VELOCITY);
+    check("音量加算: 64+100 が 128 にクランプ", vel?.value === 128, `vel=${vel?.value}`);
+
+    // ユニット追加 (名前 + 音色)
+    const wIdx = serviceMod.service.woiceNum - 1;
+    const added = addUnitWithWoice("u-テスト", wIdx);
+    check("addUnitWithWoice: 追加される", added);
+    const last = serviceMod.service.unitGet(serviceMod.service.unitNum - 1);
+    check("addUnitWithWoice: 名前が付く", last?.name === "u-テスト");
+    check("addUnitWithWoice: 音色が割り当てられる", last?.woice === serviceMod.service.woiceGet(wIdx));
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);

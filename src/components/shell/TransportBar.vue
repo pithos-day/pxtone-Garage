@@ -64,7 +64,7 @@ function fmt(sec: number): string {
   gap: 6px;
   height: 34px;
   padding: 0 8px;
-  background: var(--muted);
+  background: var(--background);
   border-bottom: 1px solid var(--border);
   user-select: none;
   z-index: 20;

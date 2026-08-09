@@ -7,6 +7,8 @@ import FileTabs from "./FileTabs.vue";
 import TransportBar from "./TransportBar.vue";
 import ProjectDialog from "./ProjectDialog.vue";
 import SettingsDialog from "./SettingsDialog.vue";
+import CopyMeasDialog from "./CopyMeasDialog.vue";
+import EventVolumeDialog from "./EventVolumeDialog.vue";
 import CollageTab from "../collage/CollageEditor.vue";
 import VoiceTab from "../voice/VoiceEditor.vue";
 import NoiseTab from "../noise/NoiseEditor.vue";
@@ -16,6 +18,8 @@ import { initLanguage } from "../../i18n";
 const activeTab = ref<"collage" | "voice" | "noise">("collage");
 const projectDialogOpen = ref(false);
 const settingsDialogOpen = ref(false);
+const copyMeasOpen = ref(false);
+const eventVolumeMode = ref<null | "velocity" | "pantime" | "panvolume" | "volume">(null);
 
 ensureInitialProject();
 initLanguage();
@@ -27,11 +31,33 @@ window.addEventListener(
   (e) => e.preventDefault(),
   true,
 );
+
+// インプットフォーカスの解除: テキスト入力がフォーカス中に、
+// その入力の外側をクリックしたら blur() を呼んで確実に解除する
+// (一部の要素では既定のフォーカス移動が起きないため)
+window.addEventListener(
+  "pointerdown",
+  (e) => {
+    const el = document.activeElement;
+    if (!el || (el.tagName !== "INPUT" && el.tagName !== "TEXTAREA")) return;
+    if (el === e.target || el.contains(e.target as Node)) return;
+    const t = e.target as HTMLElement | null;
+    if (t && t.closest?.(".dlg, .ctxmenu")) return;
+    (el as HTMLElement).blur();
+  },
+  true,
+);
 </script>
 
 <template>
   <div class="app-shell">
-    <MenuBar v-model="activeTab" @project="projectDialogOpen = true" @settings="settingsDialogOpen = true" />
+    <MenuBar
+      v-model="activeTab"
+      @project="projectDialogOpen = true"
+      @settings="settingsDialogOpen = true"
+      @copy-meas="copyMeasOpen = true"
+      @event-volume="(m) => (eventVolumeMode = m)"
+    />
     <FileTabs />
     <TransportBar />
     <main class="app-main">
@@ -41,6 +67,8 @@ window.addEventListener(
     </main>
     <ProjectDialog v-if="projectDialogOpen" @close="projectDialogOpen = false" />
     <SettingsDialog v-if="settingsDialogOpen" @close="settingsDialogOpen = false" />
+    <CopyMeasDialog v-if="copyMeasOpen" @close="copyMeasOpen = false" />
+    <EventVolumeDialog v-if="eventVolumeMode" :mode="eventVolumeMode" @close="eventVolumeMode = null" />
   </div>
 </template>
 

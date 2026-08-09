@@ -44,7 +44,7 @@ function onClose(id: number): void {
   display: flex;
   align-items: stretch;
   height: 32px;
-  background: var(--muted);
+  background: var(--background);
   border-bottom: 1px solid var(--border);
   user-select: none;
   z-index: 20;
@@ -69,7 +69,7 @@ function onClose(id: number): void {
 }
 
 .file-tab.active {
-  background: var(--card);
+  background: var(--background);
   color: var(--foreground);
   box-shadow: inset 0 2px 0 var(--primary);
 }

@@ -17,7 +17,12 @@ import { ZOOM_TABLE, DIVI_TABLE } from "../../lib/clock";
 import { t } from "../../i18n";
 
 const mode = defineModel<"collage" | "voice" | "noise">({ required: true });
-const emit = defineEmits<{ (e: "project"): void; (e: "settings"): void }>();
+const emit = defineEmits<{
+  (e: "project"): void;
+  (e: "settings"): void;
+  (e: "copyMeas"): void;
+  (e: "eventVolume", mode: "velocity" | "pantime" | "panvolume" | "volume"): void;
+}>();
 
 interface MenuItem {
   label?: string;
@@ -129,6 +134,12 @@ const fileMenu = computed<MenuItem[]>(() => [
 const editMenu = computed<MenuItem[]>(() => [
   { label: t("menu.edit.undo"), action: () => undo(), disabled: !canUndo.value },
   { label: t("menu.edit.redo"), action: () => redo(), disabled: !canRedo.value },
+  { sep: true },
+  { label: t("menu.edit.copyMeas"), action: () => emit("copyMeas") },
+  { label: t("menu.edit.velocity"), action: () => emit("eventVolume", "velocity") },
+  { label: t("menu.edit.panTime"), action: () => emit("eventVolume", "pantime") },
+  { label: t("menu.edit.panVolume"), action: () => emit("eventVolume", "panvolume") },
+  { label: t("menu.edit.volume"), action: () => emit("eventVolume", "volume") },
 ]);
 
 const viewMenu = computed<MenuItem[]>(() => [
@@ -209,7 +220,7 @@ const tabs = [
   display: flex;
   align-items: stretch;
   height: 36px;
-  background: var(--muted);
+  background: var(--background);
   border-bottom: 1px solid var(--border);
   user-select: none;
   z-index: 30;
@@ -237,7 +248,7 @@ const tabs = [
 }
 
 .mode-tab.active {
-  background: var(--card);
+  background: var(--background);
   color: var(--foreground);
   box-shadow: inset 0 3px 0 var(--primary);
 }
@@ -268,7 +279,7 @@ const tabs = [
   top: 100%;
   left: 0;
   min-width: 190px;
-  background: var(--card);
+  background: var(--popover);
   border: 1px solid var(--border-strong);
   box-shadow: 2px 2px 10px var(--shadow);
   padding: 3px 0;
@@ -327,7 +338,7 @@ const tabs = [
   left: 100%;
   top: -4px;
   min-width: 150px;
-  background: var(--card);
+  background: var(--popover);
   border: 1px solid var(--border-strong);
   box-shadow: 2px 2px 10px var(--shadow);
   padding: 3px 0;

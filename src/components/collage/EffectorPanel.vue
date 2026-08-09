@@ -1,6 +1,6 @@
 // エフェクトパネル (Delay / OverDrive) — フローティング
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import PanelBox from "./PanelBox.vue";
 import { t } from "../../i18n";
 import {
@@ -13,11 +13,16 @@ import {
   removeOverdrive,
   updateOverdrive,
 } from "../../state/project";
+import { getService } from "../../state/project";
 
 const editing = ref<{ kind: "delay" | "overdrive"; idx: number } | null>(null);
 const form = ref({ unit: 0, freq: 0.25, rate: 50, group: 0, cut: 0, amp: 1 });
 
 const DELAY_UNITS = ["BEAT", "MEAS", "SECOND"];
+
+// 上限 (本家: Delay 4 / OverDrive 2)
+const delayMax = computed(() => getService()?.delayMax ?? 4);
+const overdriveMax = computed(() => getService()?.overdriveMax ?? 2);
 
 function onEditDelay(idx: number): void {
   const d = delays.value[idx];
@@ -42,11 +47,24 @@ function commitEdit(): void {
 }
 
 function onAddDelay(): void {
+  if (delays.value.length >= delayMax.value) return;
   addDelay(0, 0.25, 50, 0);
 }
 
 function onAddOverdrive(): void {
+  if (overdrives.value.length >= overdriveMax.value) return;
   addOverdrive(0, 1, 0);
+}
+
+// 編集中のエフェクトが削除されたら編集画面も閉じる
+function onRemoveDelay(idx: number): void {
+  if (editing.value?.kind === "delay" && editing.value.idx === idx) editing.value = null;
+  removeDelay(idx);
+}
+
+function onRemoveOverdrive(idx: number): void {
+  if (editing.value?.kind === "overdrive" && editing.value.idx === idx) editing.value = null;
+  removeOverdrive(idx);
 }
 </script>
 
@@ -55,8 +73,8 @@ function onAddOverdrive(): void {
     <div class="eff-body">
       <div class="eff-section">
         <div class="eff-head">
-          <span>{{ t("effector.delay") }} ({{ delays.length }})</span>
-          <button class="btn btn-sm" @click="onAddDelay">＋</button>
+          <span>{{ t("effector.delay") }} ({{ delays.length }}/{{ delayMax }})</span>
+          <button class="btn btn-sm" :disabled="delays.length >= delayMax" @click="onAddDelay">＋</button>
         </div>
         <div v-for="d in delays" :key="'d' + d.index" class="eff-row" @dblclick="onEditDelay(d.index)">
           <span>{{ DELAY_UNITS[d.unit] ?? d.unit }}</span>
@@ -64,21 +82,21 @@ function onAddOverdrive(): void {
           <span>{{ d.rate.toFixed(0) }}%</span>
           <span>G{{ d.group }}</span>
           <button class="btn btn-sm" @click="onEditDelay(d.index)">{{ t("common.edit") }}</button>
-          <button class="btn btn-sm btn-danger" @click="removeDelay(d.index)">✕</button>
+          <button class="btn btn-sm btn-danger" @click="onRemoveDelay(d.index)">✕</button>
         </div>
         <div v-if="delays.length === 0" class="eff-empty">{{ t("effector.none") }}</div>
       </div>
       <div class="eff-section">
         <div class="eff-head">
-          <span>{{ t("effector.overdrive") }} ({{ overdrives.length }})</span>
-          <button class="btn btn-sm" @click="onAddOverdrive">＋</button>
+          <span>{{ t("effector.overdrive") }} ({{ overdrives.length }}/{{ overdriveMax }})</span>
+          <button class="btn btn-sm" :disabled="overdrives.length >= overdriveMax" @click="onAddOverdrive">＋</button>
         </div>
         <div v-for="o in overdrives" :key="'o' + o.index" class="eff-row" @dblclick="onEditOverdrive(o.index)">
           <span>cut {{ o.cut }}%</span>
           <span>amp {{ o.amp.toFixed(2) }}</span>
           <span>G{{ o.group }}</span>
           <button class="btn btn-sm" @click="onEditOverdrive(o.index)">{{ t("common.edit") }}</button>
-          <button class="btn btn-sm btn-danger" @click="removeOverdrive(o.index)">✕</button>
+          <button class="btn btn-sm btn-danger" @click="onRemoveOverdrive(o.index)">✕</button>
         </div>
         <div v-if="overdrives.length === 0" class="eff-empty">{{ t("effector.none") }}</div>
       </div>

@@ -1,6 +1,7 @@
 // Canvas 描画ヘルパ (グリッド・ノート・プレイヘッドなど)
 import { COLORS } from "./theme";
 import { getUnitColor } from "./theme";
+import { canvasFontStack } from "../state/fonts";
 import type { ClockView } from "./clock";
 import { clockToX } from "./clock";
 
@@ -63,7 +64,7 @@ export function drawGrid(
       const ny = opts.numberTop ?? top;
       fillRect(ctx, x0, ny, 26, 10, COLORS.measureBox);
       ctx.fillStyle = COLORS.measureText;
-      ctx.font = "8px sans-serif";
+      ctx.font = `8px ${canvasFontStack()}`;
       ctx.textBaseline = "middle";
       ctx.fillText(String(m + 1), x0 + 2, ny + 5);
     }
@@ -99,7 +100,7 @@ export function fillText(
   baseline: CanvasTextBaseline = "alphabetic",
 ): void {
   ctx.fillStyle = color;
-  ctx.font = `${size}px sans-serif`;
+  ctx.font = `${size}px ${canvasFontStack()}`;
   ctx.textAlign = align;
   ctx.textBaseline = baseline;
   ctx.fillText(text, x, y);

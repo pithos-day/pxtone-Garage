@@ -37,6 +37,12 @@ export function setFont(family: string): void {
   }
 }
 
+// Canvas 描画用のフォントスタック (例: "DotGothic16", sans-serif)。
+// ctx.font のファミリ部分にそのまま使える
+export function canvasFontStack(): string {
+  return `"${fontFamily.value}", sans-serif`;
+}
+
 export function initFonts(): void {
   let family = DEFAULT_FONT_FAMILY;
   try {

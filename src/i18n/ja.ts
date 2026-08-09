@@ -9,6 +9,7 @@ const ja = {
   "common.delete": "削除",
   "common.edit": "編集",
   "common.newProject": "新規プロジェクト",
+  "common.ok": "OK",
   "common.volumeToggle": "ボリュームエディタの表示",
 
   // メニュー: File
@@ -25,6 +26,23 @@ const ja = {
   // メニュー: Edit
   "menu.edit.undo": "元に戻す",
   "menu.edit.redo": "やり直す",
+  "menu.edit.copyMeas": "小節コピー...",
+  "menu.edit.velocity": "ベロシティ...",
+  "menu.edit.panTime": "パン (時間差)...",
+  "menu.edit.panVolume": "パン (音量)...",
+  "menu.edit.volume": "ボリューム...",
+
+  // 小節コピー / イベント音量ダイアログ
+  "copymeas.title": "小節コピー",
+  "copymeas.from": "コピー元",
+  "copymeas.to": "コピー先 (範囲終端)",
+  "copymeas.dest": "貼り付け位置",
+  "copymeas.times": "回数",
+  "copymeas.meas": "小節",
+  "copymeas.beat": "拍",
+  "copymeas.clock": "クロック",
+  "copymeas.kinds": "コピーするイベント",
+  "eventvol.value": "加算値",
 
   // メニュー: View
   "menu.view.showAllUnits": "全ユニット表示",
@@ -84,6 +102,10 @@ const ja = {
   "unit.pen": "ペン (音符)",
   "unit.hand": "ハンド (キーのみ)",
   "unit.editName": "名前を編集",
+  "unit.addTitle": "ユニットを追加",
+  "unit.addWoice": "音色",
+  "unit.addWoiceNone": "なし",
+  "unit.addName": "名前",
   "unit.noWoice": "—",
   "unit.empty": "ユニットがありません。\nツールパネルの「＋ユニット」から追加",
 
