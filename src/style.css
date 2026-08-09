@@ -51,8 +51,8 @@ body {
 
 /* ---- ボタン ---- */
 .btn {
-  background: var(--btn-bg);
-  border: 1px solid var(--btn-border);
+  background: var(--background);
+  border: 1px solid var(--border);
   color: var(--foreground);
   padding: 3px 10px;
   font-size: 12px;
@@ -61,11 +61,12 @@ body {
 }
 
 .btn:hover {
-  background: var(--btn-hover);
+  background: var(--accent);
+  color: var(--accent-foreground);
 }
 
 .btn:active {
-  background: var(--btn-active);
+  background: color-mix(in srgb, var(--accent) 80%, transparent);
 }
 
 .btn:disabled {
@@ -74,18 +75,18 @@ body {
 }
 
 .btn-accent {
-  background: var(--btn-accent-bg);
+  background: var(--primary);
   border-color: var(--primary);
   color: var(--primary-foreground);
 }
 
 .btn-accent:hover {
-  background: var(--btn-accent-hover);
+  background: color-mix(in srgb, var(--primary) 90%, transparent);
 }
 
 .btn-danger {
   border-color: var(--destructive);
-  color: var(--danger-text);
+  color: var(--destructive);
 }
 
 /* ---- プレースホルダ ---- */
@@ -137,10 +138,11 @@ input[type="range"] {
 
 input[type="text"],
 input[type="number"],
-select {
-  background: var(--muted);
+select,
+textarea {
+  background: var(--secondary);
   border: 1px solid var(--border);
-  color: var(--foreground);
+  color: var(--secondary-foreground);
   font-size: 12px;
   padding: 2px 4px;
   border-radius: 2px;
@@ -151,8 +153,8 @@ select {
   position: fixed;
   z-index: 100;
   background: var(--popover);
-  border: 1px solid var(--border-strong);
-  box-shadow: 2px 2px 10px var(--shadow);
+  border: 1px solid var(--border);
+  box-shadow: 2px 2px 10px rgb(0 0 0 / 0.35);
   min-width: 140px;
   padding: 2px 0;
 }
@@ -163,7 +165,7 @@ select {
   text-align: left;
   border: none;
   background: transparent;
-  color: var(--foreground);
+  color: var(--popover-foreground);
   padding: 4px 12px;
   font-size: 12px;
   cursor: pointer;

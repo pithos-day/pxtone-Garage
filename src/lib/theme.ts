@@ -45,7 +45,6 @@ export const COLORS = reactive({
   octaveText: "",
   noteHead: "",
   repeatMark: "",
-  pinnedMark: "",
   lastMark: "",
 });
 
@@ -54,18 +53,27 @@ export function syncThemeColors(): void {
   if (typeof document === "undefined") return;
   const cs = getComputedStyle(document.documentElement);
   const v = (name: string): string => cs.getPropertyValue(name).trim();
-  COLORS.bg = v("--background");
+  const bg = v("--background");
+  const fg = v("--foreground");
+  const primary = v("--primary");
+  const border = v("--border");
+  const destructive = v("--destructive");
+  const mix = (a: string, b: string, pa: number): string =>
+    `color-mix(in srgb, ${a} ${Math.round(pa * 100)}%, ${b})`;
+  const alpha = (a: string, pa: number): string =>
+    `color-mix(in srgb, ${a} ${Math.round(pa * 100)}%, transparent)`;
+  COLORS.bg = bg;
   COLORS.panel = v("--card");
   COLORS.panelDark = v("--muted");
   COLORS.panelLight = v("--secondary");
-  COLORS.border = v("--border");
-  COLORS.borderLight = v("--border-strong");
+  COLORS.border = border;
+  COLORS.borderLight = border;
   COLORS.text = v("--muted-foreground");
-  COLORS.textBright = v("--foreground");
+  COLORS.textBright = fg;
   COLORS.textDim = v("--muted-foreground");
-  COLORS.accent = v("--primary");
-  COLORS.accentDark = v("--btn-accent-bg");
-  COLORS.danger = v("--destructive");
+  COLORS.accent = primary;
+  COLORS.accentDark = mix(primary, bg, 75);
+  COLORS.danger = destructive;
   COLORS.playhead = v("--canvas-playhead");
   COLORS.measureLine = v("--canvas-measure-line");
   COLORS.beatLine = v("--canvas-beat-line");
@@ -85,15 +93,14 @@ export function syncThemeColors(): void {
   COLORS.keyEdge = v("--canvas-key-edge");
   COLORS.focusOrange = v("--canvas-focus");
   COLORS.focusText = v("--canvas-focus");
-  COLORS.focusRow = v("--focus-row");
+  COLORS.focusRow = alpha(primary, 15);
   COLORS.muted = v("--canvas-muted");
   COLORS.rulerBg = v("--canvas-ruler-bg");
   COLORS.headerBg = v("--canvas-ruler-bg");
   COLORS.octaveText = v("--canvas-octave-text");
   COLORS.noteHead = v("--canvas-note-head");
-  COLORS.repeatMark = v("--repeat-mark");
-  COLORS.pinnedMark = v("--pinned-mark");
-  COLORS.lastMark = v("--last-mark");
+  COLORS.repeatMark = destructive;
+  COLORS.lastMark = primary;
 }
 
 // ユニット7色 (ptweb colors.js の note/key 3色) — アイデンティティ色のためテーマ非依存

@@ -75,8 +75,9 @@ function fmt(sec: number): string {
 }
 
 .btn.on {
-  background: var(--btn-accent-bg);
+  background: var(--primary);
   border-color: var(--primary);
+  color: var(--primary-foreground);
 }
 
 .sep {
@@ -125,7 +126,8 @@ function fmt(sec: number): string {
 }
 
 .btn-sm.on {
-  background: var(--btn-accent-bg);
+  background: var(--primary);
   border-color: var(--primary);
+  color: var(--primary-foreground);
 }
 </style>

@@ -162,13 +162,13 @@ function onTrackClick(e: PointerEvent): void {
 
 .scroll-thumb {
   position: absolute;
-  background: var(--scroll-thumb);
-  border: 1px solid var(--scroll-border);
+  background: var(--border);
+  border: 1px solid color-mix(in srgb, var(--border) 60%, var(--background));
 }
 
 .scroll-thumb:hover,
 .scroll-thumb:active {
-  background: var(--btn-accent-bg);
+  background: var(--primary);
 }
 
 .vertical {

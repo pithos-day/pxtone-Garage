@@ -1,28 +1,9 @@
-/* アプリ固有トークン (テーマ非依存)。
- * src/theme/*.css は shadcn 標準キーのみを持ち、ボタン・ダイアログ・
- * キャンバス描画用の色はこのファイルが提供する。
+/* Canvas 描画用トークン (テーマ非依存)。
+ * src/theme/*.css は shadcn 標準キーのみを持ち、ピアノロール等の
+ * Canvas 描画色はこのファイルが提供する。
  * ライト (:root) / ダーク (.dark) の 2 系統を持つ (値は pxtone テーマ由来)。 */
 
 :root {
-  /* ボタン・メニュー・ダイアログ */
-  --border-strong: oklch(0.673 0.018 91.6);
-  --btn-bg: oklch(0.925 0.014 93);
-  --btn-border: oklch(0.76 0.019 92.7);
-  --btn-hover: oklch(0.899 0.014 97.5);
-  --btn-active: oklch(0.875 0.015 94.2);
-  --btn-accent-bg: oklch(0.574 0.143 154.5);
-  --btn-accent-hover: oklch(0.687 0.173 154);
-  --overlay: oklch(0.225 0.046 285.9 / 55%);
-  --shadow: oklch(0 0 0 / 30%);
-  --danger-text: oklch(0.55 0.22 26);
-  --focus-row: oklch(0.711 0.173 56.6 / 14%);
-  --focus-outline: oklch(0.711 0.173 56.6 / 40%);
-  --pinned-mark: oklch(0.574 0.143 154.5);
-  --row-border: oklch(0.5 0.02 90 / 25%);
-  --scroll-thumb: oklch(0.75 0.015 94);
-  --scroll-border: oklch(0.65 0.02 92);
-
-  /* Canvas 用 (ピアノロール・ボリュームエディタなど) */
   --canvas-field-bg: oklch(0.976 0.007 97.4);
   --canvas-ruler-bg: oklch(0.955 0 0);
   --canvas-measure-line: oklch(0.3 0 0 / 35%);
@@ -46,30 +27,10 @@
   --canvas-scope-faint: oklch(0.687 0.173 154 / 10%);
   --canvas-zebra: oklch(0 0 0 / 2%);
   --canvas-scale-line: oklch(0.5 0 0 / 15%);
-  --repeat-mark: oklch(0.744 0.155 21.5);
-  --last-mark: oklch(0.574 0.143 154.5);
 }
 
 .dark {
-  /* ボタン・メニュー・ダイアログ — 本家のベベル調 */
-  --border-strong: oklch(0.513 0.013 308.2);
-  --btn-bg: oklch(0.424 0.036 291);
-  --btn-border: oklch(0.248 0.087 278.9);
-  --btn-hover: oklch(0.513 0.013 308.2);
-  --btn-active: oklch(0.336 0.061 285.2);
-  --btn-accent-bg: oklch(0.502 0.127 153.8);
-  --btn-accent-hover: oklch(0.574 0.143 154.5);
-  --overlay: oklch(0 0 0 / 55%);
-  --shadow: oklch(0 0 0 / 70%);
-  --danger-text: oklch(0.773 0.134 18.4);
-  --focus-row: oklch(0.711 0.173 56.6 / 18%);
-  --focus-outline: oklch(0.711 0.173 56.6 / 50%);
-  --pinned-mark: oklch(0.837 0.217 152.6);
-  --row-border: oklch(0.336 0.061 285.2 / 40%);
-  --scroll-thumb: oklch(0.513 0.013 308.2);
-  --scroll-border: oklch(0.336 0.061 285.2);
-
-  /* Canvas 用 — 本家の実パレット (colors.png) 準拠 */
+  /* 本家の実パレット (colors.png) 準拠 */
   --canvas-field-bg: oklch(0.078 0.054 264.1);
   --canvas-ruler-bg: oklch(0.377 0.155 29.2);
   --canvas-measure-line: oklch(0.931 0.005 145.5);
@@ -93,6 +54,4 @@
   --canvas-scope-faint: oklch(0.326 0.082 154.2 / 10%);
   --canvas-zebra: oklch(1 0 0 / 2%);
   --canvas-scale-line: oklch(0.602 0 0 / 15%);
-  --repeat-mark: oklch(0.6 0.245 28);
-  --last-mark: oklch(0.765 0.218 148.6);
 }

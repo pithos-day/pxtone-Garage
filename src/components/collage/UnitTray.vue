@@ -25,7 +25,6 @@ import {
   EVENTDEFAULT_KEY,
 } from "../../state/project";
 import { previewUnitHold, stopPreview } from "../../engine/preview";
-import { COLORS } from "../../lib/theme";
 import { useCtxMenuClose } from "../../composables/useCtxMenu";
 import { t } from "../../i18n";
 
@@ -163,7 +162,7 @@ function onMenuAction(action: "edit" | "remove"): void {
         :key="u.index"
         class="unit-row"
         :class="{ focus: u.index === doc.focusUnit, operated: doc.operated.includes(u.index), muted: u.muted }"
-        :style="{ borderLeft: '4px solid ' + (u.pinned ? COLORS.pinnedMark : 'transparent') }"
+        :style="{ borderLeft: '4px solid ' + (u.pinned ? 'var(--primary)' : 'transparent') }"
         @pointerdown="onPointerDown($event, u.index)"
         @dblclick="startEditName(u.index)"
       >
@@ -274,7 +273,7 @@ function onMenuAction(action: "edit" | "remove"): void {
   font-size: 11px;
   color: var(--muted-foreground);
   cursor: pointer;
-  border-bottom: 1px solid var(--row-border);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
 }
 
 .unit-row:hover {
@@ -282,11 +281,11 @@ function onMenuAction(action: "edit" | "remove"): void {
 }
 
 .unit-row.focus {
-  background: var(--focus-row);
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
 }
 
 .unit-row.operated {
-  outline: 1px solid var(--focus-outline);
+  outline: 1px solid color-mix(in srgb, var(--primary) 40%, transparent);
   outline-offset: -1px;
 }
 
@@ -349,6 +348,6 @@ function onMenuAction(action: "edit" | "remove"): void {
 }
 
 .ctxmenu .danger {
-  color: var(--danger-text);
+  color: var(--destructive);
 }
 </style>

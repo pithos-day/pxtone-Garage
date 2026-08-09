@@ -176,7 +176,7 @@ function onOverlayClick(e: MouseEvent): void {
 .dlg-overlay {
   position: fixed;
   inset: 0;
-  background: var(--overlay);
+  background: rgb(0 0 0 / 55%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -186,8 +186,8 @@ function onOverlayClick(e: MouseEvent): void {
 .dlg {
   width: 460px;
   background: var(--popover);
-  border: 1px solid var(--border-strong);
-  box-shadow: 4px 4px 16px var(--shadow);
+  border: 1px solid var(--border);
+  box-shadow: 4px 4px 16px rgb(0 0 0 / 0.35);
 }
 
 .dlg-title {
@@ -242,7 +242,7 @@ select {
   gap: 4px;
   width: 100%;
   border: 1px solid var(--border);
-  background: var(--btn-bg);
+  background: var(--background);
   color: var(--foreground);
   font-size: 12px;
   padding: 5px 8px;
@@ -251,7 +251,8 @@ select {
 }
 
 .disclosure:hover {
-  background: var(--btn-hover);
+  background: var(--accent);
+  color: var(--accent-foreground);
 }
 
 .disclosure-arrow {
@@ -286,7 +287,7 @@ select {
 }
 
 .import-err {
-  color: var(--danger-text);
+  color: var(--destructive);
   font-size: 11px;
 }
 

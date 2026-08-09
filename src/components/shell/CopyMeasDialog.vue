@@ -145,7 +145,7 @@ function onOverlayClick(e: MouseEvent): void {
 .dlg-overlay {
   position: fixed;
   inset: 0;
-  background: var(--overlay);
+  background: rgb(0 0 0 / 55%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -155,8 +155,8 @@ function onOverlayClick(e: MouseEvent): void {
 .dlg {
   width: 420px;
   background: var(--popover);
-  border: 1px solid var(--border-strong);
-  box-shadow: 4px 4px 16px var(--shadow);
+  border: 1px solid var(--border);
+  box-shadow: 4px 4px 16px rgb(0 0 0 / 0.35);
 }
 
 .dlg-title {

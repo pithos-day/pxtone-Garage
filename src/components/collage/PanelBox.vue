@@ -26,7 +26,7 @@ const emit = defineEmits<{ close: [] }>();
   flex-direction: column;
   min-height: 0;
   background: var(--card);
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--border);
 }
 
 .panelbox-head {
@@ -37,7 +37,7 @@ const emit = defineEmits<{ close: [] }>();
   background: var(--secondary);
   border-bottom: 1px solid var(--border);
   font-size: 11px;
-  color: var(--foreground);
+  color: var(--secondary-foreground);
   user-select: none;
   flex: none;
 }
@@ -52,7 +52,7 @@ const emit = defineEmits<{ close: [] }>();
 }
 
 .panelbox-close:hover {
-  color: var(--danger-text);
+  color: var(--destructive);
 }
 
 .panelbox-body {

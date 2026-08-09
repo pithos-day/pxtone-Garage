@@ -122,7 +122,7 @@ function woiceSummary(idx: number): string {
   padding: 2px 4px;
   font-size: 11px;
   color: var(--muted-foreground);
-  border-bottom: 1px solid var(--row-border);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
   cursor: pointer;
 }
 
@@ -159,6 +159,6 @@ function woiceSummary(idx: number): string {
 }
 
 .ctxmenu .danger {
-  color: var(--danger-text);
+  color: var(--destructive);
 }
 </style>

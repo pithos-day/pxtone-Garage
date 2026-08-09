@@ -191,7 +191,8 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
 }
 
 .volume-toggle:hover {
-  background: var(--btn-hover, var(--secondary));
+  background: var(--accent);
+  color: var(--accent-foreground);
 }
 
 .volume-toggle.on {
@@ -272,7 +273,7 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
 .panel-popup {
   width: 260px;
   max-height: 70%;
-  box-shadow: 2px 2px 10px var(--shadow);
+  box-shadow: 2px 2px 10px rgb(0 0 0 / 0.35);
   pointer-events: auto;
 }
 

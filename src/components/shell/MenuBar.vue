@@ -243,8 +243,8 @@ const tabs = [
 }
 
 .mode-tab:hover {
-  background: var(--secondary);
-  color: var(--foreground);
+  background: var(--accent);
+  color: var(--accent-foreground);
 }
 
 .mode-tab.active {
@@ -270,8 +270,8 @@ const tabs = [
 
 .menu-label:hover,
 .menu-label.open {
-  background: var(--secondary);
-  color: var(--foreground);
+  background: var(--accent);
+  color: var(--accent-foreground);
 }
 
 .menu-pop {
@@ -280,8 +280,8 @@ const tabs = [
   left: 0;
   min-width: 190px;
   background: var(--card);
-  border: 1px solid var(--border-strong);
-  box-shadow: 2px 2px 10px var(--shadow);
+  border: 1px solid var(--border);
+  box-shadow: 2px 2px 10px rgb(0 0 0 / 0.35);
   padding: 3px 0;
   z-index: 100;
 }
@@ -291,14 +291,15 @@ const tabs = [
   align-items: center;
   padding: 5px 12px;
   font-size: 12px;
-  color: var(--foreground);
+  color: var(--card-foreground);
   cursor: pointer;
   position: relative;
   white-space: nowrap;
 }
 
 .menu-item:hover {
-  background: var(--btn-accent-bg);
+  background: var(--primary);
+  color: var(--primary-foreground);
 }
 
 .menu-item.disabled {
@@ -339,8 +340,8 @@ const tabs = [
   top: -4px;
   min-width: 150px;
   background: var(--card);
-  border: 1px solid var(--border-strong);
-  box-shadow: 2px 2px 10px var(--shadow);
+  border: 1px solid var(--border);
+  box-shadow: 2px 2px 10px rgb(0 0 0 / 0.35);
   padding: 3px 0;
 }
 </style>
