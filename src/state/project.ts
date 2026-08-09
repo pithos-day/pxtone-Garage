@@ -82,6 +82,8 @@ export const doc = reactive({
   unitPinned: [] as boolean[], // ピン留め中のユニット
   soloUnit: -1, // ソロ中のユニット index (-1 = なし)
   soloBackup: [] as number[], // ソロ開始時のミュート状態 (解除時に復元)
+  playStart: -1, // 編集用再生範囲の開始小節 (0-based, -1 = 未設定)
+  playEnd: -1, // 編集用再生範囲の終了小節 (0-based, -1 = 未設定)
 });
 
 export const units = ref<UnitInfo[]>([]);
@@ -124,6 +126,13 @@ export function sync(): void {
           break;
         }
       }
+    } else {
+      // read 直後は unit.woice が未設定 (VOICENO イベントで決まる) ため、
+      // 最後の VOICENO イベント値から音色を解決する
+      for (const e of s.evels.records) {
+        if (e.kind === EventKind.VOICENO && e.unitNo === i) wIdx = e.value;
+      }
+      if (wIdx >= s.woiceNum) wIdx = -1;
     }
     us.push({
       index: i,
@@ -235,6 +244,8 @@ export function newProject(): boolean {
   doc.muted = [];
   doc.soloUnit = -1;
   doc.soloBackup = [];
+  doc.playStart = -1;
+  doc.playEnd = -1;
   doc.scope1 = 0;
   doc.scope2 = 0;
   doc.scrollX = 0;
@@ -258,6 +269,8 @@ export function openProject(bytes: Uint8Array): string | null {
   doc.muted = [];
   doc.soloUnit = -1;
   doc.soloBackup = [];
+  doc.playStart = -1;
+  doc.playEnd = -1;
   doc.scope1 = 0;
   doc.scope2 = 0;
   doc.scrollX = 0;
@@ -746,6 +759,32 @@ export function setScope(clock1: number, clock2: number): void {
 export function clearScope(): void {
   doc.scope1 = 0;
   doc.scope2 = 0;
+}
+
+// ---- 編集用再生範囲 (Start/End) ----
+
+// 開始小節を設定 (同値なら解除)。end が start 以下なら end を start+1 に調整
+// (本家の if_PlayField_SetStartMeas 準拠)
+export function setPlayStart(meas: number): void {
+  if (meas === doc.playStart) {
+    doc.playStart = -1;
+  } else {
+    const max = service.master.measNum - 1;
+    doc.playStart = Math.max(0, Math.min(meas, max));
+    if (doc.playEnd !== -1 && doc.playEnd <= doc.playStart) doc.playEnd = doc.playStart + 1;
+  }
+  doc.rev++;
+}
+
+// 終了小節を設定 (同値なら解除)。start 以上にクランプ (本家の SetEndMeas 準拠)
+export function setPlayEnd(meas: number): void {
+  if (meas === doc.playEnd) {
+    doc.playEnd = -1;
+  } else {
+    const max = service.master.measNum;
+    doc.playEnd = Math.max(doc.playStart >= 0 ? doc.playStart + 1 : 0, Math.min(meas, max));
+  }
+  doc.rev++;
 }
 
 // 音色を単体ファイルバイト列としてエクスポート。

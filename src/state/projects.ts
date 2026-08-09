@@ -30,6 +30,8 @@ export interface ProjectState {
   unitPinned: boolean[];
   soloUnit: number;
   soloBackup: number[];
+  playStart: number;
+  playEnd: number;
 }
 
 export interface Project {
@@ -74,6 +76,8 @@ function defaultState(): ProjectState {
     unitPinned: [],
     soloUnit: -1,
     soloBackup: [],
+    playStart: -1,
+    playEnd: -1,
   };
 }
 
@@ -111,6 +115,8 @@ function saveCurrent(): void {
     unitPinned: [...doc.unitPinned],
     soloUnit: doc.soloUnit,
     soloBackup: [...doc.soloBackup],
+    playStart: doc.playStart,
+    playEnd: doc.playEnd,
   };
 }
 
@@ -138,6 +144,8 @@ function restore(p: Project): void {
   doc.unitPinned = [...st.unitPinned];
   doc.soloUnit = st.soloUnit;
   doc.soloBackup = [...st.soloBackup];
+  doc.playStart = st.playStart;
+  doc.playEnd = st.playEnd;
   title.value = p.title;
   comment.value = p.comment;
   sync();

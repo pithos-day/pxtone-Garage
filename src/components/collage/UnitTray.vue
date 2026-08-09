@@ -71,12 +71,15 @@ function onPointerDown(e: PointerEvent, idx: number): void {
 
   // ドラッグ並べ替え
   if (!e.ctrlKey && !e.shiftKey && tray) {
-    const h = rowH.value || 16;
+    // 行の実測高さ (スクロール位置も考慮してマウスと同期させる)
+    const first = tray.querySelector<HTMLElement>(".unit-row");
+    const h = first?.offsetHeight ?? 24;
+    rowH.value = h;
     let lastTarget = idx;
     let undoPushed = false;
     const onMove = (ev: PointerEvent): void => {
       const dy = ev.clientY - tray.getBoundingClientRect().top;
-      const row = Math.floor(dy / h);
+      const row = Math.floor((tray.scrollTop + dy) / h);
       if (row >= 0 && row < units.value.length && row !== lastTarget) {
         if (!undoPushed) {
           beginEdit();
@@ -119,6 +122,7 @@ function startEditName(idx: number): void {
   editing.value = idx;
   editText.value = units.value[idx]?.name ?? "";
   menu.value = null;
+  // 入力欄は autofocus でフォーカスされ、外側クリック (blur) で編集状態が解除される
 }
 
 function commitEditName(idx: number): void {
@@ -180,6 +184,7 @@ function onMenuAction(action: "edit" | "remove"): void {
             v-else
             v-model="editText"
             class="unit-name-input"
+            autofocus
             maxlength="16"
             @keydown.enter="commitEditName(u.index)"
             @keydown.esc="editing = null"

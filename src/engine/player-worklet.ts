@@ -12,7 +12,7 @@ import type { VomitPreparation } from "pxtone-ts";
 
 // ---- メイン⇔worklet メッセージ型 ----
 type MainToWorklet =
-  | { type: "load"; bytes: ArrayBuffer; sps: number }
+  | { type: "load"; bytes: ArrayBuffer; sps: number; playStart: number; playEnd: number }
   | { type: "play" }
   | { type: "stop" }
   | { type: "seek"; sample: number }
@@ -44,6 +44,8 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
   private volume = 1.0;
   private mutedUnits: number[] = [];
   private lastPosNotifySample = -1;
+  private playStart = -1;
+  private playEnd = -1;
 
   constructor() {
     super();
@@ -57,7 +59,7 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
   private onMessage(msg: MainToWorklet): void {
     switch (msg.type) {
       case "load":
-        this.doLoad(msg.bytes, msg.sps);
+        this.doLoad(msg.bytes, msg.sps, msg.playStart, msg.playEnd);
         break;
       case "play":
         if (this.service?.mooIsEndVomit()) this.reseek(0);
@@ -95,7 +97,7 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
     }
   }
 
-  private doLoad(bytes: ArrayBuffer, sps: number): void {
+  private doLoad(bytes: ArrayBuffer, sps: number, playStart = -1, playEnd = -1): void {
     this.sps = sps;
     const svc = new Service();
     let error = "";
@@ -121,11 +123,12 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
       svc.mooSetMasterVolume(this.volume);
       return true;
     })();
-
     this.service = ok ? svc : null;
     this.loaded = ok;
     this.playing = false;
     this.lastPosNotifySample = -1;
+    this.playStart = playStart;
+    this.playEnd = playEnd;
     if (ok) {
       this.applyMute();
       this.reseek(0);
@@ -145,12 +148,14 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
     const svc = this.service;
     const max = svc.mooGetSamplingEnd();
     const s = Math.max(0, Math.min(max, Math.trunc(sample)));
+    // 編集用再生範囲 (Start/End) を反映。startPosSample が 0 のときだけ
+    // startPosMeas が開始位置に使われる (mooPreparation の仕様)
     const prep: VomitPreparation = {
-      startPosMeas: 0,
+      startPosMeas: this.playStart >= 0 ? this.playStart : 0,
       startPosSample: s,
       startPosFloat: 0,
-      measEnd: 0,
-      measRepeat: 0,
+      measEnd: this.playEnd > 0 ? this.playEnd : 0,
+      measRepeat: this.playStart >= 0 && this.playEnd > 0 ? this.playStart : 0,
       fadeinSec: 0,
       flags: (this.loop ? PXTN_VOMIT_PREP_FLAG_LOOP : 0) | PXTN_VOMIT_PREP_FLAG_UNIT_MUTE,
       masterVolume: this.volume,
@@ -182,7 +187,8 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
       this.post({ type: "ended" });
     } else {
       const pos = svc.mooGetSamplingOffset();
-      if (pos - this.lastPosNotifySample >= Math.trunc(this.sps / 10)) {
+      // ループで位置が巻き戻った場合も即座に通知する (プレイヘッド追従のため)
+      if (pos < this.lastPosNotifySample || pos - this.lastPosNotifySample >= Math.trunc(this.sps / 10)) {
         this.lastPosNotifySample = pos;
         this.post({ type: "position", sample: pos });
       }

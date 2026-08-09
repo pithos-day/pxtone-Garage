@@ -30,12 +30,14 @@ export function drawGrid(
     showNumber?: boolean;
     numberTop?: number;
     bg?: boolean; // 背景を塗るか (false なら線のみ。行色の上に再描画する場合)
+    skipNumberMeas?: number[]; // 小節番号ボックスを描画しない小節 index (マーカーと重なる場所)
   },
 ): void {
   const { w, h, scrollX, view } = opts;
   const top = opts.top ?? 0;
   const bottom = opts.bottom ?? h;
   const fillBg = opts.bg ?? true;
+  const skip = opts.skipNumberMeas;
   // 1小節の幅 (px) = 拍数 × 1拍の幅
   const measW = view.beatNum * view.zoom;
   const measNum = view.measNum ?? Number.POSITIVE_INFINITY;
@@ -60,7 +62,7 @@ export function drawGrid(
     ctx.moveTo(x0 + 0.5, top);
     ctx.lineTo(x0 + 0.5, bottom);
     ctx.stroke();
-    if (opts.showNumber) {
+    if (opts.showNumber && !skip?.includes(m)) {
       const ny = opts.numberTop ?? top;
       fillRect(ctx, x0, ny, 26, 10, COLORS.measureBox);
       ctx.fillStyle = COLORS.measureText;

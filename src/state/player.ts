@@ -60,9 +60,20 @@ export async function play(): Promise<void> {
   if (!bytes) return;
   if (loadedRev !== doc.rev) {
     const pos = positionSample.value;
-    const ok = await player.load(bytes);
+    const ok = await player.load(bytes, doc.playStart, doc.playEnd);
     if (ok) loadedRev = doc.rev;
     if (pos > 0) player.seek(pos / player.sampleRate);
+  }
+  // 編集用再生範囲の開始位置より前なら Start まで移動する
+  if (doc.playStart >= 0) {
+    const startSample = Math.trunc(
+      (doc.playStart * s.master.beatNum * s.master.beatClock * player.sampleRate * 60) /
+        (s.master.beatTempo * s.master.beatClock),
+    );
+    if (positionSample.value < startSample) {
+      positionSample.value = startSample;
+      player.seek(startSample / player.sampleRate);
+    }
   }
   player.setLoop(loop.value);
   player.setMasterVolume(masterVolume.value);

@@ -7,7 +7,7 @@ import {
   closeProject,
   openProjectInTab,
 } from "../src/state/projects";
-import { doc, units, addUnit, setTempo, exportBytes, ensureInit, toggleUnitSolo, toggleUnitMute, removeUnit, addWoice, WoiceType, copyMeas, changeEventValue, addUnitWithWoice, getAllEvents } from "../src/state/project";
+import { doc, units, addUnit, setTempo, exportBytes, ensureInit, toggleUnitSolo, toggleUnitMute, removeUnit, addWoice, WoiceType, copyMeas, changeEventValue, addUnitWithWoice, getAllEvents, sync, setPlayStart, setPlayEnd } from "../src/state/project";
 import * as serviceMod from "../src/state/service";
 import { undo, redo, canUndo, canRedo } from "../src/state/undo";
 import { player, isPlaying, masterVolume } from "../src/state/player";
@@ -457,6 +457,34 @@ check("ソロ対象削除: muted は空", doc.muted.length === 0);
     const last = serviceMod.service.unitGet(serviceMod.service.unitNum - 1);
     check("addUnitWithWoice: 名前が付く", last?.name === "u-テスト");
     check("addUnitWithWoice: 音色が割り当てられる", last?.woice === serviceMod.service.woiceGet(wIdx));
+  }
+
+  // ---- 17. VOICENO イベントからの音色解決 / Start-End 状態 ----
+  {
+    // 音色を割り当てず VOICENO イベントだけのユニット (開いた直後相当)
+    const wIdx = serviceMod.service.woiceNum - 1;
+    addUnit("VoiceNoOnly");
+    const ui = serviceMod.service.unitNum - 1;
+    serviceMod.service.evels.recordAddI(0, ui, EventKind.VOICENO, wIdx);
+    sync();
+    check("VOICENO から音色が解決される", units.value.at(-1)?.woiceIndex === wIdx, `wIdx=${units.value.at(-1)?.woiceIndex}`);
+    // 範囲外の VOICENO は -1 になる
+    serviceMod.service.evels.recordAddI(0, ui, EventKind.VOICENO, 999);
+    sync();
+    check("範囲外 VOICENO は -1", units.value.at(-1)?.woiceIndex === -1, `wIdx=${units.value.at(-1)?.woiceIndex}`);
+
+    // Start/End 状態
+    check("playStart 初期値 -1", doc.playStart === -1 && doc.playEnd === -1);
+    serviceMod.service.master.setMeasNum(16); // クランプ検証のため小節数を拡大
+    setPlayStart(2);
+    setPlayEnd(5);
+    check("setPlayStart/setPlayEnd", doc.playStart === 2 && doc.playEnd === 5);
+    setPlayStart(2); // 同値で解除
+    check("setPlayStart 同値で解除", doc.playStart === -1);
+    setPlayStart(4);
+    check("setPlayStart: end が start 以下なら調整", doc.playEnd === 5);
+    setPlayEnd(2); // start(4) より下 → start+1 にクランプ
+    check("setPlayEnd: start 以下はクランプ", doc.playEnd === 5);
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);

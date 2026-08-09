@@ -79,12 +79,12 @@ export class RealtimePlayer {
     }
   }
 
-  async load(bytes: Uint8Array): Promise<boolean> {
+  async load(bytes: Uint8Array, playStart = -1, playEnd = -1): Promise<boolean> {
     await this.init();
     const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
     const ok = await new Promise<boolean>((resolve) => {
       this.pendingLoad = { resolve };
-      this.node!.port.postMessage({ type: "load", bytes: buf, sps: this.sps }, [buf]);
+      this.node!.port.postMessage({ type: "load", bytes: buf, sps: this.sps, playStart, playEnd }, [buf]);
     });
     return ok;
   }
