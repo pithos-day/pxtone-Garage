@@ -182,7 +182,7 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
   justify-content: space-between;
   border: none;
   border-top: 1px solid var(--border);
-  background: var(--muted);
+  background: var(--background);
   color: var(--muted-foreground);
   font-size: 11px;
   padding: 6px 10px;

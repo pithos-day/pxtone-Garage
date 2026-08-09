@@ -164,7 +164,7 @@ function onOverlayClick(e: MouseEvent): void {
   font-size: 13px;
   font-weight: bold;
   color: var(--foreground);
-  background: var(--muted);
+  background: var(--background);
   border-bottom: 1px solid var(--border);
 }
 

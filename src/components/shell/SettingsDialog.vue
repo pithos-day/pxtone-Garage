@@ -195,7 +195,7 @@ function onOverlayClick(e: MouseEvent): void {
   font-size: 13px;
   font-weight: bold;
   color: var(--foreground);
-  background: var(--muted);
+  background: var(--background);
   border-bottom: 1px solid var(--border);
 }
 
@@ -266,7 +266,7 @@ select {
   gap: 6px;
   padding: 8px;
   border: 1px solid var(--border);
-  background: var(--muted);
+  background: var(--background);
 }
 
 .import-css {

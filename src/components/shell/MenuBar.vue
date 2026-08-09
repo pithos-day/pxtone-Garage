@@ -279,7 +279,7 @@ const tabs = [
   top: 100%;
   left: 0;
   min-width: 190px;
-  background: var(--popover);
+  background: var(--card);
   border: 1px solid var(--border-strong);
   box-shadow: 2px 2px 10px var(--shadow);
   padding: 3px 0;
@@ -338,7 +338,7 @@ const tabs = [
   left: 100%;
   top: -4px;
   min-width: 150px;
-  background: var(--popover);
+  background: var(--card);
   border: 1px solid var(--border-strong);
   box-shadow: 2px 2px 10px var(--shadow);
   padding: 3px 0;

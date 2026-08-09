@@ -6,6 +6,15 @@
   box-sizing: border-box;
 }
 
+/* 選択フォントをボタン・入力欄にも適用する。
+ * UA スタイル (Chrome の button=Arial 等) はフォントを継承しないため明示する */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
 body {
   margin: 0;
   height: 100vh;

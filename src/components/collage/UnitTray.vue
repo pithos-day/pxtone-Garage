@@ -216,7 +216,7 @@ function onMenuAction(action: "edit" | "remove"): void {
   font-size: 11px;
   color: var(--muted-foreground);
   border-bottom: 1px solid var(--border);
-  background: var(--muted);
+  background: var(--background);
 }
 
 .tray-tools {
@@ -231,7 +231,7 @@ function onMenuAction(action: "edit" | "remove"): void {
   padding: 2px 4px;
   font-size: 9px;
   color: var(--muted-foreground);
-  background: var(--muted);
+  background: var(--background);
   border-bottom: 1px solid var(--border);
   flex: none;
   user-select: none;
