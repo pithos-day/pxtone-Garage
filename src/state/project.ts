@@ -471,23 +471,31 @@ export function clearOperated(): void {
   doc.operated = [];
 }
 
+// 配列に idx があれば削除、なければ追加
+function toggleInArray(arr: number[], idx: number): number[] {
+  const out = [...arr];
+  const i = out.indexOf(idx);
+  if (i >= 0) out.splice(i, 1);
+  else out.push(idx);
+  return out;
+}
+
 export function toggleUnitMute(idx: number): void {
   if (doc.soloUnit >= 0) {
     // ソロ中の手動変更: ソロを解除し、元のミュート状態に今回の変更を反映
     const wasMuted = doc.muted.includes(idx);
-    doc.muted = [...doc.soloBackup];
+    const restored = [...doc.soloBackup];
     doc.soloUnit = -1;
     doc.soloBackup = [];
-    const i = doc.muted.indexOf(idx);
+    const i = restored.indexOf(idx);
     if (wasMuted) {
-      if (i >= 0) doc.muted.splice(i, 1);
+      if (i >= 0) restored.splice(i, 1);
     } else if (i < 0) {
-      doc.muted.push(idx);
+      restored.push(idx);
     }
+    doc.muted = restored;
   } else {
-    const i = doc.muted.indexOf(idx);
-    if (i >= 0) doc.muted.splice(i, 1);
-    else doc.muted.push(idx);
+    doc.muted = toggleInArray(doc.muted, idx);
   }
   sync();
   doc.rev++;
