@@ -440,20 +440,6 @@ export function setFocusUnit(idx: number): void {
   doc.focusUnit = idx;
 }
 
-// イベントデフォルト値の再エクスポート
-export {
-  WoiceType,
-  EVENTDEFAULT_KEY,
-  EVENTDEFAULT_VELOCITY,
-  EVENTDEFAULT_VOLUME,
-  EVENTDEFAULT_PAN_VOLUME,
-  EVENTDEFAULT_PAN_TIME,
-  EVENTDEFAULT_PORTAMENT,
-  EVENTDEFAULT_VOICENO,
-  EVENTDEFAULT_GROUPNO,
-  EVENTDEFAULT_TUNING,
-};
-
 export function toggleOperated(idx: number): void {
   const i = doc.operated.indexOf(idx);
   if (i >= 0) doc.operated.splice(i, 1);
@@ -624,7 +610,7 @@ export function setMeasNum(measNum: number): void {
 }
 
 // プロジェクト設定をまとめて1つの undo エントリとして適用 (Project ダイアログ用)
-export function setProjectSettings(o: {
+export function setProjectSettings(settings: {
   name?: string;
   comment?: string;
   tempo?: number;
@@ -632,11 +618,11 @@ export function setProjectSettings(o: {
   measNum?: number;
 }): void {
   mutate(() => {
-    if (o.name !== undefined) service.text.setNameBuf(encodeShiftJis(o.name));
-    if (o.comment !== undefined) service.text.setCommentBuf(encodeShiftJis(o.comment));
-    if (o.tempo !== undefined) service.master.set(service.master.beatNum, o.tempo, service.master.beatClock);
-    if (o.beatNum !== undefined) service.master.set(o.beatNum, service.master.beatTempo, service.master.beatClock);
-    if (o.measNum !== undefined) service.master.setMeasNum(o.measNum);
+    if (settings.name !== undefined) service.text.setNameBuf(encodeShiftJis(settings.name));
+    if (settings.comment !== undefined) service.text.setCommentBuf(encodeShiftJis(settings.comment));
+    if (settings.tempo !== undefined) service.master.set(service.master.beatNum, settings.tempo, service.master.beatClock);
+    if (settings.beatNum !== undefined) service.master.set(settings.beatNum, service.master.beatTempo, service.master.beatClock);
+    if (settings.measNum !== undefined) service.master.setMeasNum(settings.measNum);
   });
 }
 
@@ -853,3 +839,17 @@ export function woiceBytes(idx: number): Uint8Array | null {
   }
   return io.toUint8Array();
 }
+
+// イベントデフォルト値の再エクスポート
+export {
+  WoiceType,
+  EVENTDEFAULT_KEY,
+  EVENTDEFAULT_VELOCITY,
+  EVENTDEFAULT_VOLUME,
+  EVENTDEFAULT_PAN_VOLUME,
+  EVENTDEFAULT_PAN_TIME,
+  EVENTDEFAULT_PORTAMENT,
+  EVENTDEFAULT_VOICENO,
+  EVENTDEFAULT_GROUPNO,
+  EVENTDEFAULT_TUNING,
+};
