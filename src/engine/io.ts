@@ -39,7 +39,10 @@ export function openFileDialog(accept: string): Promise<OpenedFile | null> {
         return;
       }
       const name = f.name.replace(/\.(ptcop|pttune)$/i, "");
-      void f.arrayBuffer().then((buf) => resolve({ name, bytes: new Uint8Array(buf) }));
+      void f
+        .arrayBuffer()
+        .then((buf) => resolve({ name, bytes: new Uint8Array(buf) }))
+        .catch(() => resolve(null));
     };
     input.click();
   });
@@ -89,19 +92,25 @@ export function exportWav(bytes: Uint8Array, fileName: string, sps = 44100): str
   return null;
 }
 
+// WAV ヘッダ (44 バイト = RIFF 12 + fmt 24 + data 8)。fmt チャンクは PCM で固定 16 バイト
+const WAV_HEADER_SIZE = 44;
+const WAV_FMT_CHUNK_SIZE = 16;
+
+// pcm は 16bit サンプル前提 (dataSize はチャンネル込みバイト数)。
+// bps はヘッダの blockAlign/bitsPerSample にのみ使われる
 export function makeWav(pcm: Int16Array, sps: number, chNum: number, bps: number): Uint8Array {
   const dataSize = pcm.length * 2;
-  const buf = new ArrayBuffer(44 + dataSize);
+  const buf = new ArrayBuffer(WAV_HEADER_SIZE + dataSize);
   const dv = new DataView(buf);
   const u8 = new Uint8Array(buf);
   const writeStr = (off: number, s: string): void => {
     for (let i = 0; i < s.length; i++) u8[off + i] = s.charCodeAt(i);
   };
   writeStr(0, "RIFF");
-  dv.setUint32(4, 36 + dataSize, true);
+  dv.setUint32(4, WAV_FMT_CHUNK_SIZE + 20 + dataSize, true);
   writeStr(8, "WAVE");
   writeStr(12, "fmt ");
-  dv.setUint32(16, 16, true);
+  dv.setUint32(16, WAV_FMT_CHUNK_SIZE, true);
   dv.setUint16(20, 1, true);
   dv.setUint16(22, chNum, true);
   dv.setUint32(24, sps, true);
@@ -110,6 +119,6 @@ export function makeWav(pcm: Int16Array, sps: number, chNum: number, bps: number
   dv.setUint16(34, bps, true);
   writeStr(36, "data");
   dv.setUint32(40, dataSize, true);
-  new Int16Array(buf, 44).set(pcm);
+  new Int16Array(buf, WAV_HEADER_SIZE).set(pcm);
   return u8;
 }
