@@ -385,7 +385,7 @@ check("ソロ対象削除: muted は空", doc.muted.length === 0);
     const events = getAllEvents();
     const at = (clock: number, unitNo: number, kind: EventKind): boolean =>
       events.some((e) => e.clock === clock && e.unitNo === unitNo && e.kind === kind);
-    check("コピー: 対象ユニットのイベントがコピーされる", at(960, 0, EventKind.KEY) || at(960, 0, EventKind.VELOCITY));
+    check("コピー: 対象ユニットのイベントがコピーされる", at(960, 0, EventKind.VELOCITY));
     check("コピー: 種類フィルタ (KEY はコピーされない)", !at(960, 0, EventKind.KEY));
     check("コピー: 2回分ペースト", at(960, 0, EventKind.ON) && at(1440, 0, EventKind.ON));
     check("コピー: 対象外ユニットはコピーされない", !at(960, 1, EventKind.VELOCITY));
@@ -426,7 +426,8 @@ check("ソロ対象削除: muted は空", doc.muted.length === 0);
     check("setPlayStart/setPlayEnd", doc.playStart === 2 && doc.playEnd === 5);
     setPlayStart(2); // 同値で解除
     check("setPlayStart 同値で解除", doc.playStart === -1);
-    setPlayStart(4);
+    setPlayEnd(3);
+    setPlayStart(4); // end(3) が start(4) 以下 → end を start+1 (5) に調整
     check("setPlayStart: end が start 以下なら調整", doc.playEnd === 5);
     setPlayEnd(2); // start(4) より下 → start+1 にクランプ
     check("setPlayEnd: start 以下はクランプ", doc.playEnd === 5);
