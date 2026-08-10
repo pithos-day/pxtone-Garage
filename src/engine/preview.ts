@@ -8,8 +8,6 @@ import { getService } from "../state/project";
 import { watch } from "vue";
 import { masterVolume } from "../state/player";
 
-const DEFAULT_VELOCITY = EVENTDEFAULT_VELOCITY;
-
 // プレビューの再生時間 (秒)
 export const PREVIEW_SEC = 2.5;
 
@@ -66,7 +64,8 @@ export function renderPreview(
   s.master.set(4, 120, 480);
   s.master.setMeasNum(2);
   s.evels.clear();
-  // clockRate = 60*sps/(tempo*beatClock) = sps/960
+  // clockRate (samples/clock) = 60*sps/(tempo*beatClock) = sps/960。
+  // 960 は上記の tempo=120, beatClock=480 から導かれる clocks/秒
   const durClocks = Math.max(1, Math.round(durSec * 960));
   s.evels.recordAddI(0, 0, EventKind.VOICENO, voiceNo);
   s.evels.recordAddI(0, 0, EventKind.KEY, key);
@@ -85,6 +84,28 @@ export function renderPreview(
 
 let lastSrc: AudioBufferSourceNode | null = null;
 
+// インターリーブされたステレオ PCM を AudioBuffer の各チャンネルへ展開する
+function deinterleave(work: Float32Array, ch0: Float32Array, ch1: Float32Array): void {
+  for (let i = 0; i < ch0.length; i++) {
+    ch0[i] = work[i * 2]!;
+    ch1[i] = work[i * 2 + 1]!;
+  }
+}
+
+// バッファの末尾 (head なら先頭も) をフェードし、ループ点・終端のクリックノイズを避ける
+function applyFade(ch0: Float32Array, ch1: Float32Array, fade: number, head: boolean): void {
+  if (fade <= 0) return;
+  for (let i = 0; i < fade; i++) {
+    const g = i / fade;
+    ch0[ch0.length - 1 - i] *= g;
+    ch1[ch1.length - 1 - i] *= g;
+    if (head) {
+      ch0[i] *= g;
+      ch1[i] *= g;
+    }
+  }
+}
+
 // バッファを再生する。連続呼び出しは前の音を中断する
 function playBuffer(work: Float32Array, sps: number): void {
   const ctx = getCtx();
@@ -93,22 +114,13 @@ function playBuffer(work: Float32Array, sps: number): void {
   const buf = ctx.createBuffer(2, work.length / 2, sps);
   const ch0 = buf.getChannelData(0);
   const ch1 = buf.getChannelData(1);
-  for (let i = 0; i < ch0.length; i++) {
-    ch0[i] = work[i * 2]!;
-    ch1[i] = work[i * 2 + 1]!;
-  }
+  deinterleave(work, ch0, ch1);
+  // 末尾フェードでクリックノイズ回避 (バッファ終端のサンプルを減衰)
+  const fade = Math.min(Math.trunc(ch0.length / 2), Math.trunc(sps * 0.05));
+  applyFade(ch0, ch1, fade, false);
   const src = ctx.createBufferSource();
   src.buffer = buf;
   const g = ctx.createGain();
-  // 末尾フェードでクリックノイズ回避 (バッファ終端のサンプルを減衰)
-  const fade = Math.min(Math.trunc(ch0.length / 2), Math.trunc(sps * 0.05));
-  if (fade > 0) {
-    for (let i = 0; i < fade; i++) {
-      const gf = i / fade;
-      ch0[ch0.length - 1 - i] *= gf;
-      ch1[ch1.length - 1 - i] *= gf;
-    }
-  }
   g.gain.value = masterVolume.value;
   src.connect(g);
   g.connect(ctx.destination);
@@ -148,22 +160,17 @@ function preview(target: PreviewTarget, key: number, velocity: number, durSec: n
   else playBuffer(work, ctx.sampleRate);
 }
 
-export function previewUnit(unitNo: number, key: number, velocity: number = DEFAULT_VELOCITY, durSec = PREVIEW_SEC): void {
+export function previewUnit(unitNo: number, key: number, velocity: number = EVENTDEFAULT_VELOCITY, durSec = PREVIEW_SEC): void {
   preview({ unitNo, woiceIdx: null }, key, velocity, durSec, false);
 }
 
-// 音色単体で単音をプレビュー (プロジェクト内の音色をそのまま使う)
-export function previewWoice(woiceIdx: number, key: number, velocity: number = DEFAULT_VELOCITY, durSec = PREVIEW_SEC): void {
-  preview({ unitNo: null, woiceIdx }, key, velocity, durSec, false);
-}
-
 // ユニットの音色をループ再生で開始する。pointerup まで鳴り続ける
-export function previewUnitHold(unitNo: number, key: number, velocity: number = DEFAULT_VELOCITY, durSec = PREVIEW_SEC): void {
+export function previewUnitHold(unitNo: number, key: number, velocity: number = EVENTDEFAULT_VELOCITY, durSec = PREVIEW_SEC): void {
   preview({ unitNo, woiceIdx: null }, key, velocity, durSec, true);
 }
 
 // 音色単体をループ再生で開始する。pointerup まで鳴り続ける
-export function previewWoiceHold(woiceIdx: number, key: number, velocity: number = DEFAULT_VELOCITY, durSec = PREVIEW_SEC): void {
+export function previewWoiceHold(woiceIdx: number, key: number, velocity: number = EVENTDEFAULT_VELOCITY, durSec = PREVIEW_SEC): void {
   preview({ unitNo: null, woiceIdx }, key, velocity, durSec, true);
 }
 
@@ -181,26 +188,14 @@ function startHold(work: Float32Array, ctx: AudioContext): void {
   stopPreview();
   if (ctx.state === "suspended") void ctx.resume();
 
-  // ループ点のクリック軽減: 先頭/末尾 10ms フェード
-  const fade = Math.min(Math.trunc(ctx.sampleRate * 0.01), Math.trunc(work.length / 4));
-  if (fade > 0) {
-    for (let i = 0; i < fade; i++) {
-      const g = i / fade;
-      work[i * 2]! *= g;
-      work[i * 2 + 1]! *= g;
-      const last = work.length / 2 - 1 - i;
-      work[last * 2]! *= g;
-      work[last * 2 + 1]! *= g;
-    }
-  }
-
   const buf = ctx.createBuffer(2, work.length / 2, ctx.sampleRate);
   const ch0 = buf.getChannelData(0);
   const ch1 = buf.getChannelData(1);
-  for (let i = 0; i < ch0.length; i++) {
-    ch0[i] = work[i * 2]!;
-    ch1[i] = work[i * 2 + 1]!;
-  }
+  deinterleave(work, ch0, ch1);
+  // ループ点のクリック軽減: 先頭/末尾 10ms フェード
+  const fade = Math.min(Math.trunc(ctx.sampleRate * 0.01), Math.trunc(work.length / 4));
+  applyFade(ch0, ch1, fade, true);
+
   const src = ctx.createBufferSource();
   src.buffer = buf;
   src.loop = true;
