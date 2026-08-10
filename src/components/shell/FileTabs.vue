@@ -10,6 +10,10 @@ import {
 } from "../../state/projects";
 import { t } from "../../i18n";
 
+function tabTitle(p: { fileName: string }): string {
+  return p.fileName || t("common.untitled");
+}
+
 function onClose(id: number): void {
   const p = projects.value.find((x) => x.id === id);
   if (p?.dirty && !window.confirm(t("confirm.close"))) return;
@@ -24,11 +28,11 @@ function onClose(id: number): void {
       :key="p.id"
       class="file-tab"
       :class="{ active: p.id === currentProjectId }"
-      :title="p.fileName || t('common.untitled')"
+      :title="tabTitle(p)"
       @click="switchProject(p.id)"
     >
       <span v-if="p.dirty" class="dirty-dot" />
-      <span class="tab-name">{{ p.fileName || t("common.untitled") }}</span>
+      <span class="tab-name">{{ tabTitle(p) }}</span>
       <span
         v-if="projects.length > 1"
         class="tab-close"

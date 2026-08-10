@@ -10,7 +10,7 @@ export function useCanvas(
   draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void,
   deps: (() => unknown)[] = [],
 ): CanvasHost {
-  let pending = 0;
+  let pendingRaf: number | null = null;
   let observer: ResizeObserver | null = null;
 
   function render(): void {
@@ -34,9 +34,9 @@ export function useCanvas(
   }
 
   function schedule(): void {
-    if (pending) return;
-    pending = requestAnimationFrame(() => {
-      pending = 0;
+    if (pendingRaf !== null) return;
+    pendingRaf = requestAnimationFrame(() => {
+      pendingRaf = null;
       render();
     });
   }
@@ -59,7 +59,7 @@ export function useCanvas(
   onBeforeUnmount(() => {
     observer?.disconnect();
     observer = null;
-    if (pending) cancelAnimationFrame(pending);
+    if (pendingRaf !== null) cancelAnimationFrame(pendingRaf);
   });
 
   return { schedule };

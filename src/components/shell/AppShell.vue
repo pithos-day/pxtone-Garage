@@ -21,6 +21,8 @@ const settingsDialogOpen = ref(false);
 const copyMeasOpen = ref(false);
 const eventVolumeKind = ref<null | EventVolumeMode>(null);
 
+// マウント前に初期プロジェクトと言語設定を済ませておく
+// (テンプレートの初期描画が空の doc/service を参照しないようにするため)
 ensureInitialProject();
 initLanguage();
 

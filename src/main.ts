@@ -4,7 +4,19 @@ import "./canvas.css";
 import App from "./App.vue";
 import { initTheme } from "./state/theme";
 import { initFonts } from "./state/fonts";
-import { openProject, newProject, doc, getService, mutate, beginEdit, commitEdit, exportBytes, setTextComment, setTextName, EVENTDEFAULT_VELOCITY } from "./state/project";
+import {
+  openProject,
+  newProject,
+  doc,
+  getService,
+  mutate,
+  beginEdit,
+  commitEdit,
+  exportBytes,
+  setTextComment,
+  setTextName,
+  EVENTDEFAULT_VELOCITY,
+} from "./state/project";
 import { play, stop, seekToClock, player } from "./state/player";
 import { undo, redo, pushUndo } from "./state/undo";
 import { renderPreview, previewUnit, previewUnitHold, previewWoiceHold, stopPreview } from "./engine/preview";
@@ -64,6 +76,7 @@ if (import.meta.env.DEV) {
     previewWoiceHold,
     stopPreview,
     // 単音プレビューのデバッグ用: { len, peak } を返す
+    // (durSec=1.2 秒でレンダリングし、20サンプル間隔でピークを走査する)
     previewDebug: (unitNo: number, key: number, velocity = EVENTDEFAULT_VELOCITY, sps = 44100) => {
       const bytes = exportBytes();
       if (!bytes) return { err: "no project" };
