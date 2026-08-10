@@ -201,17 +201,21 @@ export function refreshCurrent(): void {
   resetLoaded();
 }
 
-// バイト列を新しいタブで開く。エラーメッセージを返す (成功時 null)。
-// name はタブ表示用のファイル名 (拡張子なし) で、空の場合は無題のまま。
 // 起動時に自動生成された初期プロジェクト (未編集・無題) だけが存在する場合は、
 // タブを増やさずそのプロジェクトを置き換えて開く
-export function openProjectInTab(bytes: Uint8Array, name?: string): string | null {
+function replaceInitialProjectIfPossible(): void {
   const cur = currentProject();
   if (projects.value.length === 1 && cur?.initial && !doc.dirty && !doc.fileName) {
     projects.value = [];
     services.delete(cur.id);
     currentProjectId.value = -1;
   }
+}
+
+// バイト列を新しいタブで開く。エラーメッセージを返す (成功時 null)。
+// name はタブ表示用のファイル名 (拡張子なし) で、空の場合は無題のまま
+export function openProjectInTab(bytes: Uint8Array, name?: string): string | null {
+  replaceInitialProjectIfPossible();
   const p = newProjectInTab();
   const svc = services.get(p.id)!;
   const res = svc.read(new MemoryIo(bytes));
@@ -243,16 +247,21 @@ export function closeProject(id: number): void {
   }
 }
 
-// 現在のプロジェクトを ptcop として保存 (asNew でファイル名入力を促す)
-export function saveProjectFile(asNew: boolean): boolean {
+// 現在のプロジェクトを ptcop として保存 (ファイル名を確認せず既存名で)
+export function saveProject(): boolean {
+  return saveProjectFileAs(doc.fileName || "untitled");
+}
+
+// ファイル名入力を促して保存 (名前を付けて保存)
+export function saveProjectAs(): boolean {
+  const input = window.prompt(t("prompt.fileName"), doc.fileName || "untitled");
+  if (input === null) return false;
+  return saveProjectFileAs(input.trim() || "untitled");
+}
+
+function saveProjectFileAs(name: string): boolean {
   const p = currentProject();
   if (!p) return false;
-  let name = doc.fileName || "untitled";
-  if (asNew) {
-    const input = window.prompt(t("prompt.fileName"), name);
-    if (input === null) return false;
-    name = input.trim() || "untitled";
-  }
   if (!downloadProjectFile(name)) return false;
   doc.fileName = name;
   p.fileName = name;

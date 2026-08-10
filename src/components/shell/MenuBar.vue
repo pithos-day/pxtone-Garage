@@ -8,7 +8,8 @@ import {
   newProjectInTab,
   openProjectInTab,
   closeProject,
-  saveProjectFile,
+  saveProject,
+  saveProjectAs,
   currentProjectId,
 } from "../../state/projects";
 import { exportPttune, exportWav, openFileDialog } from "../../engine/io";
@@ -119,8 +120,8 @@ const allVisible = computed(() => doc.unitVisible.length > 0 && doc.unitVisible.
 const fileMenu = computed<MenuItem[]>(() => [
   { label: t("menu.file.new"), action: onNew },
   { label: t("menu.file.open"), action: onOpen },
-  { label: t("menu.file.save"), action: () => saveProjectFile(false) },
-  { label: t("menu.file.saveAs"), action: () => saveProjectFile(true) },
+  { label: t("menu.file.save"), action: () => saveProject() },
+  { label: t("menu.file.saveAs"), action: () => saveProjectAs() },
   { sep: true },
   { label: t("menu.file.exportPttune"), action: onExportPttune },
   { label: t("menu.file.exportWav"), action: onExportWav },
