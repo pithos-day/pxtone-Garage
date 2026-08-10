@@ -16,13 +16,14 @@ import { exportPttune, exportWav, openFileDialog } from "../../engine/io";
 import { undo, redo, canUndo, canRedo } from "../../state/undo";
 import { ZOOM_TABLE, DIVI_TABLE } from "../../lib/clock";
 import { t } from "../../i18n";
+import type { EventVolumeMode } from "./EventVolumeDialog";
 
 const mode = defineModel<"collage" | "voice" | "noise">({ required: true });
 const emit = defineEmits<{
   (e: "project"): void;
   (e: "settings"): void;
   (e: "copyMeas"): void;
-  (e: "eventVolume", mode: "velocity" | "pantime" | "panvolume" | "volume"): void;
+  (e: "eventVolume", kind: EventVolumeMode): void;
 }>();
 
 interface MenuItem {

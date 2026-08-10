@@ -8,7 +8,10 @@ import { EventKind } from "pxtone-ts";
 import { t } from "../../i18n";
 import ModalDialog from "./ModalDialog.vue";
 
-const props = defineProps<{ mode: "velocity" | "pantime" | "panvolume" | "volume" }>();
+// 対象イベント種別 (MenuBar/AppShell と共有する)
+export type EventVolumeMode = "velocity" | "pantime" | "panvolume" | "volume";
+
+const props = defineProps<{ kind: EventVolumeMode }>();
 const emit = defineEmits<{ (e: "close"): void }>();
 
 const form = reactive({
@@ -21,21 +24,21 @@ const form = reactive({
   value: 0,
 });
 
-const TITLES: Record<string, string> = {
+const TITLES: Record<EventVolumeMode, string> = {
   velocity: "menu.edit.velocity",
   pantime: "menu.edit.panTime",
   panvolume: "menu.edit.panVolume",
   volume: "menu.edit.volume",
 };
 
-const KINDS: Record<string, EventKind> = {
+const KINDS: Record<EventVolumeMode, EventKind> = {
   velocity: EventKind.VELOCITY,
   pantime: EventKind.PAN_TIME,
   panvolume: EventKind.PAN_VOLUME,
   volume: EventKind.VOLUME,
 };
 
-const title = computed(() => t(TITLES[props.mode]!));
+const title = computed(() => t(TITLES[props.kind]));
 
 const beatClock = (): number => getService()?.master.beatClock ?? 480;
 const beatNum = (): number => getService()?.master.beatNum ?? 4;
@@ -59,7 +62,7 @@ onMounted(initFromScope);
 function onOk(): void {
   const c1 = measBeatClockToClock(view(), form.fromMeas, form.fromBeat, form.fromClock);
   const c2 = measBeatClockToClock(view(), form.toMeas, form.toBeat, form.toClock);
-  changeEventValue(c1, c2, KINDS[props.mode]!, form.value);
+  changeEventValue(c1, c2, KINDS[props.kind], form.value);
   emit("close");
 }
 </script>

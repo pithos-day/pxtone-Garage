@@ -8,7 +8,7 @@ import TransportBar from "./TransportBar.vue";
 import ProjectDialog from "./ProjectDialog.vue";
 import SettingsDialog from "./SettingsDialog.vue";
 import CopyMeasDialog from "./CopyMeasDialog.vue";
-import EventVolumeDialog from "./EventVolumeDialog.vue";
+import EventVolumeDialog, { type EventVolumeMode } from "./EventVolumeDialog.vue";
 import CollageTab from "../collage/CollageEditor.vue";
 import VoiceTab from "../voice/VoiceEditor.vue";
 import NoiseTab from "../noise/NoiseEditor.vue";
@@ -19,7 +19,7 @@ const activeTab = ref<"collage" | "voice" | "noise">("collage");
 const projectDialogOpen = ref(false);
 const settingsDialogOpen = ref(false);
 const copyMeasOpen = ref(false);
-const eventVolumeMode = ref<null | "velocity" | "pantime" | "panvolume" | "volume">(null);
+const eventVolumeKind = ref<null | EventVolumeMode>(null);
 
 ensureInitialProject();
 initLanguage();
@@ -56,7 +56,7 @@ window.addEventListener(
       @project="projectDialogOpen = true"
       @settings="settingsDialogOpen = true"
       @copy-meas="copyMeasOpen = true"
-      @event-volume="(m) => (eventVolumeMode = m)"
+      @event-volume="(kind) => (eventVolumeKind = kind)"
     />
     <FileTabs />
     <TransportBar />
@@ -68,7 +68,7 @@ window.addEventListener(
     <ProjectDialog v-if="projectDialogOpen" @close="projectDialogOpen = false" />
     <SettingsDialog v-if="settingsDialogOpen" @close="settingsDialogOpen = false" />
     <CopyMeasDialog v-if="copyMeasOpen" @close="copyMeasOpen = false" />
-    <EventVolumeDialog v-if="eventVolumeMode" :mode="eventVolumeMode" @close="eventVolumeMode = null" />
+    <EventVolumeDialog v-if="eventVolumeKind" :kind="eventVolumeKind" @close="eventVolumeKind = null" />
   </div>
 </template>
 
