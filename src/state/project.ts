@@ -20,7 +20,7 @@ import {
   type EveRecord,
 } from "pxtone-ts";
 import { encodeShiftJis } from "../lib/sjis";
-import { service, ensureService, EXE_VER } from "./service";
+import { service, ensureService } from "./service";
 import { pushUndo, clearUndo, snapshotProject } from "./undo";
 import { t } from "../i18n";
 
