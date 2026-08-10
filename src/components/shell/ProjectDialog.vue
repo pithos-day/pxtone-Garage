@@ -31,11 +31,11 @@ onMounted(() => {
 });
 
 function onSubmit(): void {
-  const t = parseFloat(tempo.value);
+  const tempoNum = parseFloat(tempo.value);
   setProjectSettings({
     name: name.value,
     comment: comment.value,
-    tempo: Number.isFinite(t) && t > 0 ? t : original.tempo,
+    tempo: Number.isFinite(tempoNum) && tempoNum > 0 ? tempoNum : original.tempo,
     beatNum: beatNum.value >= 1 && beatNum.value <= 16 ? beatNum.value : original.beatNum,
     measNum: measNum.value >= 1 ? measNum.value : original.measNum,
   });
@@ -43,11 +43,11 @@ function onSubmit(): void {
 }
 
 function onCancel(): void {
-  const t = parseFloat(tempo.value);
+  const tempoNum = parseFloat(tempo.value);
   const changed =
     name.value !== original.name ||
     comment.value !== original.comment ||
-    (Number.isFinite(t) && t !== original.tempo) ||
+    (Number.isFinite(tempoNum) && tempoNum !== original.tempo) ||
     beatNum.value !== original.beatNum ||
     measNum.value !== original.measNum;
   if (changed) {
