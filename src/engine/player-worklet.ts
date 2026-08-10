@@ -76,52 +76,42 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
     if (!svc) return;
     svc.mooSetMuteByUnit(true);
     for (let u = 0; u < svc.unitNum; u++) {
+      // setPlayed(false) = そのユニットを発音しない (ミュート)
       svc.unitGet(u)?.setPlayed(!this.mutedUnits.includes(u));
     }
   }
 
+  // Service の初期化・読み込み・準備を行う。エラー名を返す (成功時は svc + error "")
+  private loadService(bytes: ArrayBuffer, sps: number): { svc: Service | null; error: string } {
+    const svc = new Service();
+    if (svc.initCollage(500000) !== PxtnErr.OK) return { svc: null, error: "init" };
+    const io = new MemoryIo(new Uint8Array(bytes));
+    if (svc.read(io) !== PxtnErr.OK) return { svc: null, error: "read" };
+    if (svc.tonesReady() !== PxtnErr.OK) return { svc: null, error: "tonesReady" };
+    if (!svc.setDestinationQuality(2, sps)) return { svc: null, error: "quality" };
+    svc.mooSetLoop(this.loop);
+    svc.mooSetMasterVolume(this.volume);
+    return { svc, error: "" };
+  }
+
   private doLoad(bytes: ArrayBuffer, sps: number, playStart = -1, playEnd = -1): void {
     this.sps = sps;
-    const svc = new Service();
-    let error = "";
-    const ok = ((): boolean => {
-      if (svc.initCollage(500000) !== PxtnErr.OK) {
-        error = "init";
-        return false;
-      }
-      const io = new MemoryIo(new Uint8Array(bytes));
-      if (svc.read(io) !== PxtnErr.OK) {
-        error = "read";
-        return false;
-      }
-      if (svc.tonesReady() !== PxtnErr.OK) {
-        error = "tonesReady";
-        return false;
-      }
-      if (!svc.setDestinationQuality(2, sps)) {
-        error = "quality";
-        return false;
-      }
-      svc.mooSetLoop(this.loop);
-      svc.mooSetMasterVolume(this.volume);
-      return true;
-    })();
-    this.service = ok ? svc : null;
-    this.loaded = ok;
+    const { svc, error } = this.loadService(bytes, sps);
+    this.service = svc;
+    this.loaded = svc !== null;
     this.playing = false;
     this.lastPosNotifySample = -1;
     this.playStart = playStart;
     this.playEnd = playEnd;
-    if (ok) {
+    if (svc) {
       this.applyMute();
       this.reseek(0);
     }
-
     this.post({
       type: "loaded",
-      ok,
+      ok: svc !== null,
       error,
-      totalSample: ok ? svc.mooGetSamplingEnd() : 0,
+      totalSample: svc ? svc.mooGetSamplingEnd() : 0,
     });
   }
 
@@ -170,13 +160,18 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
       this.post({ type: "ended" });
     } else {
       const pos = svc.mooGetSamplingOffset();
-      // ループで位置が巻き戻った場合も即座に通知する (プレイヘッド追従のため)
-      if (pos < this.lastPosNotifySample || pos - this.lastPosNotifySample >= Math.trunc(this.sps / 10)) {
+      if (this.shouldNotifyPosition(pos)) {
         this.lastPosNotifySample = pos;
         this.post({ type: "position", sample: pos });
       }
     }
     return true;
+  }
+
+  // ループで位置が巻き戻った場合も即座に通知する (プレイヘッド追従のため)。
+  // 通常時は 100ms 間隔で通知する
+  private shouldNotifyPosition(pos: number): boolean {
+    return pos < this.lastPosNotifySample || pos - this.lastPosNotifySample >= Math.trunc(this.sps / 10);
   }
 }
 
