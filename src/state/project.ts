@@ -585,11 +585,16 @@ export function replaceWoice(oldPlace: number, newPlace: number): void {
   });
 }
 
-export function setUnitWoice(unitIdx: number, woiceIdx: number): void {
+// ユニットの名前と音色をまとめて変更 (1つの undo エントリ)。
+// name が空文字列の場合は名前を変更しない。
+export function setUnitNameAndWoice(unitIdx: number, name: string, woiceIdx: number): void {
   mutate(() => {
     const u = service.unitGet(unitIdx);
+    if (!u) return;
+    const trimmed = name.trim();
+    if (trimmed) u.setNameBuf(trimmed);
     const w = service.woiceGet(woiceIdx);
-    if (u && w) u.setWoice(w);
+    if (w) u.setWoice(w);
   });
 }
 

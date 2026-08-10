@@ -101,6 +101,8 @@ const ja = {
   "unit.pen": "ペン (音符)",
   "unit.hand": "ハンド (キーのみ)",
   "unit.editName": "名前を編集",
+  "unit.changeWoice": "音色を変更",
+  "unit.changeTitle": "ユニットを編集",
   "unit.addTitle": "ユニットを追加",
   "unit.addWoice": "音色",
   "unit.addWoiceNone": "なし",

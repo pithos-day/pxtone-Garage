@@ -22,6 +22,7 @@ import {
   copyMeas,
   changeEventValue,
   addUnitWithWoice,
+  setUnitNameAndWoice,
   getAllEvents,
   sync,
   setPlayStart,
@@ -49,6 +50,30 @@ function check(name: string, cond: boolean, detail = ""): void {
 function checkEq<T>(actual: T, expected: T, name: string): void {
   if (actual === expected) console.log(`ok   ${name}`);
   else fail(name, `expected=${JSON.stringify(expected)} actual=${JSON.stringify(actual)}`);
+}
+
+// 有効な PCM 音色 (WAV 形式) を手組みして生成する
+function buildPcmWav(): Uint8Array {
+  const data = new Int16Array(4410);
+  for (let i = 0; i < data.length; i++) data[i] = Math.round(Math.sin((i / 4410) * 2 * Math.PI * 100) * 8000);
+  const dataSize = data.length * 2;
+  const pcm = new Uint8Array(44 + dataSize);
+  const dv = new DataView(pcm.buffer);
+  pcm.set([82, 73, 70, 70], 0); // "RIFF"
+  dv.setUint32(4, 36 + dataSize, true);
+  pcm.set([87, 65, 86, 69], 8); // "WAVE"
+  pcm.set([102, 109, 116, 32], 12); // "fmt "
+  dv.setUint32(16, 16, true); // fmt chunk size
+  dv.setUint16(20, 1, true); // formatID (PCM)
+  dv.setUint16(22, 1, true); // ch
+  dv.setUint32(24, 44100, true); // sps
+  dv.setUint32(28, 88200, true); // byteRate
+  dv.setUint16(32, 2, true); // blockAlign
+  dv.setUint16(34, 16, true); // bps
+  pcm.set([100, 97, 116, 97], 36); // "data"
+  dv.setUint32(40, dataSize, true);
+  new Int16Array(pcm.buffer, 44, data.length).set(data);
+  return pcm;
 }
 
 // ---- 1. 初期プロジェクト ----
@@ -229,26 +254,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
   // ---- 13. 単音プレビュー停止時にリリースフェードがかかる ----
   {
-    // 有効な PCM 音色 (WAV 形式) を手組みして追加する
-    const data = new Int16Array(4410);
-    for (let i = 0; i < data.length; i++) data[i] = Math.round(Math.sin((i / 4410) * 2 * Math.PI * 100) * 8000);
-    const dataSize = data.length * 2;
-    const pcm = new Uint8Array(44 + dataSize);
-    const dv = new DataView(pcm.buffer);
-    pcm.set([82, 73, 70, 70], 0); // "RIFF"
-    dv.setUint32(4, 36 + dataSize, true);
-    pcm.set([87, 65, 86, 69], 8); // "WAVE"
-    pcm.set([102, 109, 116, 32], 12); // "fmt "
-    dv.setUint32(16, 16, true); // fmt chunk size
-    dv.setUint16(20, 1, true); // formatID (PCM)
-    dv.setUint16(22, 1, true); // ch
-    dv.setUint32(24, 44100, true); // sps
-    dv.setUint32(28, 88200, true); // byteRate
-    dv.setUint16(32, 2, true); // blockAlign
-    dv.setUint16(34, 16, true); // bps
-    pcm.set([100, 97, 116, 97], 36); // "data"
-    dv.setUint32(40, dataSize, true);
-    new Int16Array(pcm.buffer, 44, data.length).set(data);
+    const pcm = buildPcmWav();
 
     interface RampRec {
       v: number;
@@ -436,13 +442,26 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     const vel = getAllEvents().find((e) => e.clock === 0 && e.kind === EventKind.VELOCITY);
     checkEq(vel?.value, 128, "音量加算: 64+100 が 128 にクランプ");
 
-    // ユニット追加 (名前 + 音色)
+    // ユニット追加 (名前 + 音色)。音色変更の検証用に音色を 2 個以上にしておく
+    while (serviceMod.service.woiceNum < 2) addWoice(buildPcmWav(), WoiceType.PCM);
     const wIdx = serviceMod.service.woiceNum - 1;
     const added = addUnitWithWoice("u-テスト", wIdx);
     checkEq(added, true, "addUnitWithWoice: 追加される");
     const last = serviceMod.service.unitGet(serviceMod.service.unitNum - 1);
     checkEq(last?.name, "u-テスト", "addUnitWithWoice: 名前が付く");
     checkEq(last?.woice, serviceMod.service.woiceGet(wIdx), "addUnitWithWoice: 音色が割り当てられる");
+
+    // ユニット名と音色の変更 (まとめて 1 undo エントリ)
+    const ui2 = serviceMod.service.unitNum - 1;
+    const wIdx2 = wIdx - 1;
+    setUnitNameAndWoice(ui2, "u-変更", wIdx2);
+    const changed = serviceMod.service.unitGet(ui2);
+    checkEq(changed?.name, "u-変更", "setUnitNameAndWoice: 名前が変わる");
+    checkEq(changed?.woice, serviceMod.service.woiceGet(wIdx2), "setUnitNameAndWoice: 音色が変わる");
+    // 空文字の名前では名前を変更しない
+    const prevName = changed?.name;
+    setUnitNameAndWoice(ui2, "  ", wIdx2);
+    checkEq(serviceMod.service.unitGet(ui2)?.name, prevName, "setUnitNameAndWoice: 空名前は変更しない");
   }
 
   // ---- 17. VOICENO イベントからの音色解決 / Start-End 状態 ----

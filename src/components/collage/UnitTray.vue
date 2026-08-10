@@ -27,10 +27,12 @@ import {
 import { previewUnitHold, stopPreview } from "../../engine/preview";
 import { useCtxMenuClose } from "../../composables/useCtxMenu";
 import { t } from "../../i18n";
+import ChangeUnitDialog from "./ChangeUnitDialog.vue";
 
 const editing = ref<number | null>(null);
 const editText = ref("");
 const menu = ref<{ x: number; y: number; unit: number } | null>(null);
+const changeUnit = ref(-1);
 const trayRef = ref<HTMLElement | null>(null);
 
 useCtxMenuClose(menu);
@@ -136,12 +138,13 @@ function commitEditName(idx: number): void {
   editing.value = null;
 }
 
-function onMenuAction(action: "edit" | "remove"): void {
+function onMenuAction(action: "edit" | "remove" | "change"): void {
   const u = menu.value?.unit;
   menu.value = null;
   if (u === undefined) return;
   if (action === "edit") startEditName(u);
   else if (action === "remove") removeUnit(u);
+  else changeUnit.value = u;
 }
 </script>
 
@@ -200,9 +203,11 @@ function onMenuAction(action: "edit" | "remove"): void {
       <div v-if="units.length === 0" class="tray-empty">{{ t("unit.empty") }}</div>
     </div>
     <div v-if="menu" class="ctxmenu" :style="{ left: menu.x + 'px', top: menu.y + 'px' }">
+      <button v-if="woices.length > 0" @click="onMenuAction('change')">{{ t("unit.changeWoice") }}</button>
       <button @click="onMenuAction('edit')">{{ t("unit.editName") }}</button>
       <button class="danger" @click="onMenuAction('remove')">{{ t("common.delete") }}</button>
     </div>
+    <ChangeUnitDialog v-if="changeUnit >= 0" :unit-idx="changeUnit" @close="changeUnit = -1" />
   </div>
 </template>
 
