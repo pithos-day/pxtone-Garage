@@ -21,7 +21,7 @@ import {
 } from "pxtone-ts";
 import { encodeShiftJis } from "../lib/sjis";
 import { service, ensureService, EXE_VER } from "./service";
-import { pushUndo, clearUndo } from "./undo";
+import { pushUndo, clearUndo, snapshotProject } from "./undo";
 import { t } from "../i18n";
 
 export type ToolMode = "W" | "U";
@@ -317,9 +317,7 @@ export function openProject(bytes: Uint8Array): string | null {
 // 現在のプロジェクトを ptcop バイト列へ
 export function exportBytes(): Uint8Array | null {
   if (!doc.ready) return null;
-  const io = new MemoryIo();
-  if (service.write(io, false, EXE_VER) !== PxtnErr.OK) return null;
-  return io.toUint8Array();
+  return snapshotProject();
 }
 
 // 保存した状態をクリーンに
@@ -424,6 +422,8 @@ export function replaceUnitRaw(oldPlace: number, newPlace: number): void {
   doc.unitVisible = move(doc.unitVisible);
   doc.unitPinned = move(doc.unitPinned);
   if (doc.soloUnit >= 0) {
+    // 番号と同じ並べ替えを index 順配列に適用し、soloUnit の新位置を引く
+    // (unitReplace 後に数値として換算できないため配列経由で追従する)
     const n = Math.max(units.value.length, oldPlace + 1, newPlace + 1);
     const order = [...Array(n).keys()];
     const [moved] = order.splice(oldPlace, 1);
