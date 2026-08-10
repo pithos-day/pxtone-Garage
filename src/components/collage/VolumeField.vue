@@ -92,6 +92,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   switch (mode) {
     case 0: // Velocity: 点
     case 1: // Pan_Volume: 階段
+    case 2: // Pan_Time: 階段 (本家 if_VolumeField は Volume と同じ描画)
     case 3: // Volume: 階段
       {
         const points: { clock: number; value: number }[] = [];
