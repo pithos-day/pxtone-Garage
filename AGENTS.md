@@ -1,0 +1,21 @@
+# AGENTS.md
+
+pxtone-garage はピストンコラージュ (ptCollage) 互換の Web DAW。
+
+## コマンド
+
+- `pnpm test` — 自前ハーネス (esbuild バンドル → node 実行)。テストフレームワークなし
+
+## 規約
+
+- 編集の正本は state 層のエンジン Service。`doc` (reactive) は UI 購読用ミラーで、
+  undo を伴う編集は単発なら `mutate(fn)`、ドラッグ等は `beginEdit()` + `commitEdit()` で包む
+- コメントは日本語
+- 時間は「クロック」単位 (beatClock=480 基準)、スクロール位置 scrollX は px
+
+## ドメイン用語・不変条件
+
+- Repeat: UI は 1-based (0=なし)、ファイル/エンジンは 0-based。変換は `fileRepeatToUi` / `uiRepeatToFile`
+- 選択範囲 scope は半開区間 [scope1, scope2)
+- KEY イベント値 (0x8700 ベース) とピッチ番号 (108 ベース) は別座標系
+- ソロ中は「ソロユニット以外を全ミュート」が不変条件
