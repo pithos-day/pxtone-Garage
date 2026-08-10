@@ -781,11 +781,6 @@ export function setScope(clock1: number, clock2: number): void {
   doc.scope2 = Math.max(clock1, clock2);
 }
 
-export function clearScope(): void {
-  doc.scope1 = 0;
-  doc.scope2 = 0;
-}
-
 // ---- 編集用再生範囲 (Start/End) ----
 
 // 開始小節を設定 (同値なら解除)。end が start 以下なら end を start+1 に調整
@@ -810,34 +805,6 @@ export function setPlayEnd(meas: number): void {
     doc.playEnd = Math.max(doc.playStart >= 0 ? doc.playStart + 1 : 0, Math.min(meas, max));
   }
   doc.rev++;
-}
-
-// 音色を単体ファイルバイト列としてエクスポート。
-// Woice.read は PTV を ptvRead、PTN を ptn.read で直接読むため、
-// PTV は .ptvoice 形式、PTN は .ptnoise 形式 (共にスタンドアロン) で書き出す。
-// PCM のみ mate セクション形式 (ioMatePcmR が読む) を使う。
-export function woiceBytes(idx: number): Uint8Array | null {
-  const w = service.woiceGet(idx);
-  if (!w) return null;
-  const io = new MemoryIo();
-  switch (w.type) {
-    case WoiceType.PTV: {
-      const size = w.ptvWrite(io);
-      if (size < 0) return null;
-      break;
-    }
-    case WoiceType.PTN: {
-      const vc = w.getVoice(0);
-      if (!vc || !vc.ptn.write(io)) return null;
-      break;
-    }
-    case WoiceType.PCM:
-      if (!w.ioMatePcmW(io)) return null;
-      break;
-    default:
-      return null;
-  }
-  return io.toUint8Array();
 }
 
 // イベントデフォルト値の再エクスポート
