@@ -16,7 +16,7 @@ import { exportPttune, exportWav, openFileDialog } from "../../engine/io";
 import { undo, redo, canUndo, canRedo } from "../../state/undo";
 import { ZOOM_TABLE, DIVI_TABLE } from "../../lib/clock";
 import { t } from "../../i18n";
-import type { EventVolumeMode } from "./EventVolumeDialog";
+import type { EventVolumeMode } from "./EventVolumeDialog.vue";
 
 const mode = defineModel<"collage" | "voice" | "noise">({ required: true });
 const emit = defineEmits<{
