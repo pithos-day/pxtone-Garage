@@ -3,6 +3,7 @@
 import { onMounted, ref } from "vue";
 import { getService, doc, setProjectSettings } from "../../state/project";
 import { t } from "../../i18n";
+import ModalDialog from "./ModalDialog.vue";
 
 const emit = defineEmits<{ (e: "close"): void }>();
 
@@ -54,84 +55,43 @@ function onCancel(): void {
   }
   emit("close");
 }
-
-function onOverlayClick(e: MouseEvent): void {
-  if ((e.target as HTMLElement).classList.contains("dlg-overlay")) onCancel();
-}
 </script>
 
 <template>
-  <div class="dlg-overlay" @click="onOverlayClick">
-    <div class="dlg" role="dialog" aria-label="Project">
-      <div class="dlg-title">{{ t("project.title") }}</div>
-      <div class="dlg-body">
-        <div class="row"><label>{{ t("project.name") }}</label><input v-model="name" type="text" maxlength="64" class="grow" /></div>
-        <div class="row"><label>{{ t("project.comment") }}</label><input v-model="comment" type="text" maxlength="200" class="grow" /></div>
-        <div class="row">
-          <label>{{ t("project.tempo") }}</label>
-          <input v-model="tempo" type="number" min="1" max="400" step="0.01" />
-          <span class="unit">BPM</span>
-        </div>
-        <div class="row">
-          <label>{{ t("project.beatNum") }}</label>
-          <input v-model.number="beatNum" type="number" min="1" max="16" />
-          <span class="unit">{{ t("project.beatPerMeas") }}</span>
-        </div>
-        <div class="row">
-          <label>{{ t("project.measNum") }}</label>
-          <input v-model.number="measNum" type="number" min="1" max="9999" />
-        </div>
-        <div class="row dim">
-          <label>{{ t("project.repeat") }}</label>
-          <span>{{ doc.repeatMeas }} {{ t("project.measUnit") }}</span>
-        </div>
-        <div class="row dim">
-          <label>{{ t("project.last") }}</label>
-          <span>{{ getService()?.master.lastMeas }} {{ t("project.measUnit") }}</span>
-        </div>
-      </div>
-      <div class="dlg-buttons">
-        <button class="btn btn-accent" @click="onSave">{{ t("common.save") }}</button>
-        <button class="btn" @click="onCancel">{{ t("common.cancel") }}</button>
-      </div>
+  <ModalDialog label="Project" width="360px" body-gap="8px" @close="onCancel">
+    <template #title>{{ t("project.title") }}</template>
+    <div class="row"><label>{{ t("project.name") }}</label><input v-model="name" type="text" maxlength="64" class="grow" /></div>
+    <div class="row"><label>{{ t("project.comment") }}</label><input v-model="comment" type="text" maxlength="200" class="grow" /></div>
+    <div class="row">
+      <label>{{ t("project.tempo") }}</label>
+      <input v-model="tempo" type="number" min="1" max="400" step="0.01" />
+      <span class="unit">BPM</span>
     </div>
-  </div>
+    <div class="row">
+      <label>{{ t("project.beatNum") }}</label>
+      <input v-model.number="beatNum" type="number" min="1" max="16" />
+      <span class="unit">{{ t("project.beatPerMeas") }}</span>
+    </div>
+    <div class="row">
+      <label>{{ t("project.measNum") }}</label>
+      <input v-model.number="measNum" type="number" min="1" max="9999" />
+    </div>
+    <div class="row dim">
+      <label>{{ t("project.repeat") }}</label>
+      <span>{{ doc.repeatMeas }} {{ t("project.measUnit") }}</span>
+    </div>
+    <div class="row dim">
+      <label>{{ t("project.last") }}</label>
+      <span>{{ getService()?.master.lastMeas }} {{ t("project.measUnit") }}</span>
+    </div>
+    <template #buttons>
+      <button class="btn btn-accent" @click="onSave">{{ t("common.save") }}</button>
+      <button class="btn" @click="onCancel">{{ t("common.cancel") }}</button>
+    </template>
+  </ModalDialog>
 </template>
 
 <style scoped>
-.dlg-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgb(0 0 0 / 55%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 200;
-}
-
-.dlg {
-  width: 360px;
-  background: var(--background);
-  border: 1px solid var(--border);
-  box-shadow: 4px 4px 16px rgb(0 0 0 / 0.35);
-}
-
-.dlg-title {
-  padding: 8px 12px;
-  font-size: 13px;
-  font-weight: bold;
-  color: var(--foreground);
-  background: var(--background);
-  border-bottom: 1px solid var(--border);
-}
-
-.dlg-body {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-}
-
 .grow {
   flex: 1;
   min-width: 0;
@@ -148,12 +108,5 @@ function onOverlayClick(e: MouseEvent): void {
 
 .dim span {
   color: var(--muted-foreground);
-}
-
-.dlg-buttons {
-  display: flex;
-  justify-content: flex-end;
-  gap: 6px;
-  padding: 0 12px 12px;
 }
 </style>

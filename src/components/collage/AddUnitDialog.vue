@@ -4,6 +4,7 @@
 import { onMounted, ref, watch } from "vue";
 import { units, woices, addUnitWithWoice } from "../../state/project";
 import { t } from "../../i18n";
+import ModalDialog from "../shell/ModalDialog.vue";
 
 const emit = defineEmits<{ (e: "close"): void }>();
 
@@ -39,80 +40,32 @@ function onOk(): void {
   addUnitWithWoice(name.value.trim() || defaultName(idx), idx);
   emit("close");
 }
-
-function onOverlayClick(e: MouseEvent): void {
-  if ((e.target as HTMLElement).classList.contains("dlg-overlay")) emit("close");
-}
 </script>
 
 <template>
-  <div class="dlg-overlay" @click="onOverlayClick">
-    <div class="dlg" role="dialog" aria-label="add-unit">
-      <div class="dlg-title">{{ t("unit.addTitle") }}</div>
-      <div class="dlg-body">
-        <div class="row">
-          <label>{{ t("unit.addWoice") }}</label>
-          <select v-model.number="woiceIdx" class="grow">
-            <option v-if="!hasWoice()" :value="-1">{{ t("unit.addWoiceNone") }}</option>
-            <option v-for="w in woices" :key="w.index" :value="w.index">{{ w.index }}. {{ w.name }}</option>
-          </select>
-        </div>
-        <div class="row">
-          <label>{{ t("unit.addName") }}</label>
-          <input v-model="name" type="text" class="grow" maxlength="16" @input="onNameInput" @keydown.enter="onOk" @keydown.esc="emit('close')" />
-        </div>
-      </div>
-      <div class="dlg-buttons">
-        <button class="btn btn-accent" @click="onOk">{{ t("common.ok") }}</button>
-        <button class="btn" @click="emit('close')">{{ t("common.cancel") }}</button>
-      </div>
+  <ModalDialog label="add-unit" width="360px" body-gap="8px" @close="emit('close')">
+    <template #title>{{ t("unit.addTitle") }}</template>
+    <div class="row">
+      <label>{{ t("unit.addWoice") }}</label>
+      <select v-model.number="woiceIdx" class="grow">
+        <option v-if="!hasWoice()" :value="-1">{{ t("unit.addWoiceNone") }}</option>
+        <option v-for="w in woices" :key="w.index" :value="w.index">{{ w.index }}. {{ w.name }}</option>
+      </select>
     </div>
-  </div>
+    <div class="row">
+      <label>{{ t("unit.addName") }}</label>
+      <input v-model="name" type="text" class="grow" maxlength="16" @input="onNameInput" @keydown.enter="onOk" @keydown.esc="emit('close')" />
+    </div>
+    <template #buttons>
+      <button class="btn btn-accent" @click="onOk">{{ t("common.ok") }}</button>
+      <button class="btn" @click="emit('close')">{{ t("common.cancel") }}</button>
+    </template>
+  </ModalDialog>
 </template>
 
 <style scoped>
-.dlg-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgb(0 0 0 / 55%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 200;
-}
-
-.dlg {
-  width: 360px;
-  background: var(--background);
-  border: 1px solid var(--border);
-  box-shadow: 4px 4px 16px rgb(0 0 0 / 0.35);
-}
-
-.dlg-title {
-  padding: 8px 12px;
-  font-size: 13px;
-  font-weight: bold;
-  color: var(--foreground);
-  background: var(--background);
-  border-bottom: 1px solid var(--border);
-}
-
-.dlg-body {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-}
-
 .grow {
   flex: 1;
   min-width: 0;
-}
-
-.dlg-buttons {
-  display: flex;
-  justify-content: flex-end;
-  gap: 6px;
-  padding: 0 12px 12px;
 }
 </style>

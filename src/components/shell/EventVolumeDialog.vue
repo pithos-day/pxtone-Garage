@@ -6,6 +6,7 @@ import { doc, getService, clockView as projectClockView, changeEventValue } from
 import { clockToMeasBeatClock, measBeatClockToClock } from "../../lib/clock";
 import { EventKind } from "pxtone-ts";
 import { t } from "../../i18n";
+import ModalDialog from "./ModalDialog.vue";
 
 const props = defineProps<{ mode: "velocity" | "pantime" | "panvolume" | "volume" }>();
 const emit = defineEmits<{ (e: "close"): void }>();
@@ -61,74 +62,33 @@ function onOk(): void {
   changeEventValue(c1, c2, KINDS[props.mode]!, form.value);
   emit("close");
 }
-
-function onOverlayClick(e: MouseEvent): void {
-  if ((e.target as HTMLElement).classList.contains("dlg-overlay")) emit("close");
-}
 </script>
 
 <template>
-  <div class="dlg-overlay" @click="onOverlayClick">
-    <div class="dlg" role="dialog" aria-label="event-volume">
-      <div class="dlg-title">{{ title }}</div>
-      <div class="dlg-body">
-        <div class="range">
-          <label>{{ t("copymeas.meas") }}</label><input v-model.number="form.fromMeas" type="number" min="1" />
-          <label>{{ t("copymeas.beat") }}</label><input v-model.number="form.fromBeat" type="number" min="1" :max="beatNum()" />
-          <label>{{ t("copymeas.clock") }}</label><input v-model.number="form.fromClock" type="number" min="0" :max="beatClock() - 1" />
-          <span class="dash">〜</span>
-          <label>{{ t("copymeas.meas") }}</label><input v-model.number="form.toMeas" type="number" min="1" />
-          <label>{{ t("copymeas.beat") }}</label><input v-model.number="form.toBeat" type="number" min="1" :max="beatNum()" />
-          <label>{{ t("copymeas.clock") }}</label><input v-model.number="form.toClock" type="number" min="0" :max="beatClock() - 1" />
-        </div>
-        <div class="row">
-          <label>{{ t("eventvol.value") }}</label>
-          <input v-model.number="form.value" type="number" min="-96" max="96" />
-          <span class="hint">-96..96</span>
-        </div>
-      </div>
-      <div class="dlg-buttons">
-        <button class="btn btn-accent" @click="onOk">{{ t("common.ok") }}</button>
-        <button class="btn" @click="emit('close')">{{ t("common.cancel") }}</button>
-      </div>
+  <ModalDialog label="event-volume" width="460px" body-gap="10px" @close="emit('close')">
+    <template #title>{{ title }}</template>
+    <div class="range">
+      <label>{{ t("copymeas.meas") }}</label><input v-model.number="form.fromMeas" type="number" min="1" />
+      <label>{{ t("copymeas.beat") }}</label><input v-model.number="form.fromBeat" type="number" min="1" :max="beatNum()" />
+      <label>{{ t("copymeas.clock") }}</label><input v-model.number="form.fromClock" type="number" min="0" :max="beatClock() - 1" />
+      <span class="dash">〜</span>
+      <label>{{ t("copymeas.meas") }}</label><input v-model.number="form.toMeas" type="number" min="1" />
+      <label>{{ t("copymeas.beat") }}</label><input v-model.number="form.toBeat" type="number" min="1" :max="beatNum()" />
+      <label>{{ t("copymeas.clock") }}</label><input v-model.number="form.toClock" type="number" min="0" :max="beatClock() - 1" />
     </div>
-  </div>
+    <div class="row">
+      <label>{{ t("eventvol.value") }}</label>
+      <input v-model.number="form.value" type="number" min="-96" max="96" />
+      <span class="hint">-96..96</span>
+    </div>
+    <template #buttons>
+      <button class="btn btn-accent" @click="onOk">{{ t("common.ok") }}</button>
+      <button class="btn" @click="emit('close')">{{ t("common.cancel") }}</button>
+    </template>
+  </ModalDialog>
 </template>
 
 <style scoped>
-.dlg-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgb(0 0 0 / 55%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 200;
-}
-
-.dlg {
-  width: 460px;
-  background: var(--background);
-  border: 1px solid var(--border);
-  box-shadow: 4px 4px 16px rgb(0 0 0 / 0.35);
-}
-
-.dlg-title {
-  padding: 8px 12px;
-  font-size: 13px;
-  font-weight: bold;
-  color: var(--foreground);
-  background: var(--background);
-  border-bottom: 1px solid var(--border);
-}
-
-.dlg-body {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px;
-}
-
 .range {
   display: flex;
   gap: 4px;
@@ -169,12 +129,5 @@ function onOverlayClick(e: MouseEvent): void {
 .hint {
   font-size: 10px;
   color: var(--muted-foreground);
-}
-
-.dlg-buttons {
-  display: flex;
-  justify-content: flex-end;
-  gap: 6px;
-  padding: 0 12px 12px;
 }
 </style>

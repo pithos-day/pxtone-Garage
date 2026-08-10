@@ -6,6 +6,7 @@ import { doc, getService, clockView as projectClockView, copyMeas } from "../../
 import { clockToMeasBeatClock, measBeatClockToClock } from "../../lib/clock";
 import { EventKind } from "pxtone-ts";
 import { t } from "../../i18n";
+import ModalDialog from "./ModalDialog.vue";
 
 const emit = defineEmits<{ (e: "close"): void }>();
 
@@ -80,99 +81,58 @@ function onOk(): void {
   copyMeas(c1, c2, dest, times, enabledKinds());
   emit("close");
 }
-
-function onOverlayClick(e: MouseEvent): void {
-  if ((e.target as HTMLElement).classList.contains("dlg-overlay")) emit("close");
-}
 </script>
 
 <template>
-  <div class="dlg-overlay" @click="onOverlayClick">
-    <div class="dlg" role="dialog" aria-label="copy-meas">
-      <div class="dlg-title">{{ t("copymeas.title") }}</div>
-      <div class="dlg-body">
-        <div class="section">
-          <div class="section-title">{{ t("copymeas.from") }}</div>
-          <div class="range">
-            <label>{{ t("copymeas.meas") }}</label><input v-model.number="form.fromMeas" type="number" min="1" />
-            <label>{{ t("copymeas.beat") }}</label><input v-model.number="form.fromBeat" type="number" min="1" :max="beatNum()" />
-            <label>{{ t("copymeas.clock") }}</label><input v-model.number="form.fromClock" type="number" min="0" :max="beatClock() - 1" />
-          </div>
-        </div>
-        <div class="section">
-          <div class="section-title">{{ t("copymeas.to") }}</div>
-          <div class="range">
-            <label>{{ t("copymeas.meas") }}</label><input v-model.number="form.toMeas" type="number" min="1" />
-            <label>{{ t("copymeas.beat") }}</label><input v-model.number="form.toBeat" type="number" min="1" :max="beatNum()" />
-            <label>{{ t("copymeas.clock") }}</label><input v-model.number="form.toClock" type="number" min="0" :max="beatClock() - 1" />
-          </div>
-        </div>
-        <div class="section">
-          <div class="section-title">{{ t("copymeas.dest") }}</div>
-          <div class="range">
-            <label>{{ t("copymeas.meas") }}</label><input v-model.number="form.destMeas" type="number" min="1" />
-            <label>{{ t("copymeas.beat") }}</label><input v-model.number="form.destBeat" type="number" min="1" :max="beatNum()" />
-            <label>{{ t("copymeas.clock") }}</label><input v-model.number="form.destClock" type="number" min="0" :max="beatClock() - 1" />
-            <label>{{ t("copymeas.times") }}</label><input v-model.number="form.times" type="number" min="1" />
-          </div>
-        </div>
-        <div class="section">
-          <div class="section-title">{{ t("copymeas.kinds") }}</div>
-          <div class="kinds">
-            <label><input type="checkbox" v-model="kinds.on" /> ON</label>
-            <label><input type="checkbox" v-model="kinds.key" /> KEY</label>
-            <label><input type="checkbox" v-model="kinds.panTime" /> PAN_TIME</label>
-            <label><input type="checkbox" v-model="kinds.panVolume" /> PAN_VOLUME</label>
-            <label><input type="checkbox" v-model="kinds.volume" /> VOLUME</label>
-            <label><input type="checkbox" v-model="kinds.portament" /> PORTAMENT</label>
-            <label><input type="checkbox" v-model="kinds.voiceNo" /> VOICENO</label>
-            <label><input type="checkbox" v-model="kinds.groupNo" /> GROUPNO</label>
-            <label><input type="checkbox" v-model="kinds.tuning" /> TUNING</label>
-          </div>
-        </div>
-      </div>
-      <div class="dlg-buttons">
-        <button class="btn btn-accent" @click="onOk">{{ t("common.ok") }}</button>
-        <button class="btn" @click="emit('close')">{{ t("common.cancel") }}</button>
+  <ModalDialog label="copy-meas" width="420px" body-gap="8px" @close="emit('close')">
+    <template #title>{{ t("copymeas.title") }}</template>
+    <div class="section">
+      <div class="section-title">{{ t("copymeas.from") }}</div>
+      <div class="range">
+        <label>{{ t("copymeas.meas") }}</label><input v-model.number="form.fromMeas" type="number" min="1" />
+        <label>{{ t("copymeas.beat") }}</label><input v-model.number="form.fromBeat" type="number" min="1" :max="beatNum()" />
+        <label>{{ t("copymeas.clock") }}</label><input v-model.number="form.fromClock" type="number" min="0" :max="beatClock() - 1" />
       </div>
     </div>
-  </div>
+    <div class="section">
+      <div class="section-title">{{ t("copymeas.to") }}</div>
+      <div class="range">
+        <label>{{ t("copymeas.meas") }}</label><input v-model.number="form.toMeas" type="number" min="1" />
+        <label>{{ t("copymeas.beat") }}</label><input v-model.number="form.toBeat" type="number" min="1" :max="beatNum()" />
+        <label>{{ t("copymeas.clock") }}</label><input v-model.number="form.toClock" type="number" min="0" :max="beatClock() - 1" />
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-title">{{ t("copymeas.dest") }}</div>
+      <div class="range">
+        <label>{{ t("copymeas.meas") }}</label><input v-model.number="form.destMeas" type="number" min="1" />
+        <label>{{ t("copymeas.beat") }}</label><input v-model.number="form.destBeat" type="number" min="1" :max="beatNum()" />
+        <label>{{ t("copymeas.clock") }}</label><input v-model.number="form.destClock" type="number" min="0" :max="beatClock() - 1" />
+        <label>{{ t("copymeas.times") }}</label><input v-model.number="form.times" type="number" min="1" />
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-title">{{ t("copymeas.kinds") }}</div>
+      <div class="kinds">
+        <label><input type="checkbox" v-model="kinds.on" /> ON</label>
+        <label><input type="checkbox" v-model="kinds.key" /> KEY</label>
+        <label><input type="checkbox" v-model="kinds.panTime" /> PAN_TIME</label>
+        <label><input type="checkbox" v-model="kinds.panVolume" /> PAN_VOLUME</label>
+        <label><input type="checkbox" v-model="kinds.volume" /> VOLUME</label>
+        <label><input type="checkbox" v-model="kinds.portament" /> PORTAMENT</label>
+        <label><input type="checkbox" v-model="kinds.voiceNo" /> VOICENO</label>
+        <label><input type="checkbox" v-model="kinds.groupNo" /> GROUPNO</label>
+        <label><input type="checkbox" v-model="kinds.tuning" /> TUNING</label>
+      </div>
+    </div>
+    <template #buttons>
+      <button class="btn btn-accent" @click="onOk">{{ t("common.ok") }}</button>
+      <button class="btn" @click="emit('close')">{{ t("common.cancel") }}</button>
+    </template>
+  </ModalDialog>
 </template>
 
 <style scoped>
-.dlg-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgb(0 0 0 / 55%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 200;
-}
-
-.dlg {
-  width: 420px;
-  background: var(--background);
-  border: 1px solid var(--border);
-  box-shadow: 4px 4px 16px rgb(0 0 0 / 0.35);
-}
-
-.dlg-title {
-  padding: 8px 12px;
-  font-size: 13px;
-  font-weight: bold;
-  color: var(--foreground);
-  background: var(--background);
-  border-bottom: 1px solid var(--border);
-}
-
-.dlg-body {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-}
-
 .section {
   border: 1px solid var(--border);
   padding: 6px;
@@ -214,12 +174,5 @@ function onOverlayClick(e: MouseEvent): void {
   font-size: 11px;
   color: var(--foreground);
   cursor: pointer;
-}
-
-.dlg-buttons {
-  display: flex;
-  justify-content: flex-end;
-  gap: 6px;
-  padding: 0 12px 12px;
 }
 </style>
