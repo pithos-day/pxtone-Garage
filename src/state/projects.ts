@@ -7,7 +7,7 @@ import { setService, service } from "./service";
 import { setUndoStacks, undoStack, redoStack } from "./undo";
 import { doc, sync, title, comment, ensureInit, pxtnErrorMessage, fileRepeatToUi } from "./project";
 import { resetLoaded } from "./player";
-import { saveProject as downloadProject } from "../engine/io";
+import { downloadProjectFile } from "../engine/io";
 import { t } from "../i18n";
 
 export interface ProjectState {
@@ -253,7 +253,7 @@ export function saveProjectFile(asNew: boolean): boolean {
     if (input === null) return false;
     name = input.trim() || "untitled";
   }
-  if (!downloadProject(name)) return false;
+  if (!downloadProjectFile(name)) return false;
   doc.fileName = name;
   p.fileName = name;
   doc.dirty = false;

@@ -45,8 +45,8 @@ export function sanitizeFileName(name: string, ext: string): string {
   return (base || "untitled") + ext;
 }
 
-// ptcop 保存
-export function saveProject(fileName: string): Uint8Array | null {
+// ptcop のダウンロード発火 (保存)
+export function downloadProjectFile(fileName: string): Uint8Array | null {
   const bytes = exportBytes();
   if (!bytes) return null;
   downloadBytes(bytes, sanitizeFileName(fileName, ".ptcop"));
