@@ -26,6 +26,9 @@ import { t } from "../i18n";
 
 export type ToolMode = "W" | "U";
 
+// CopierPanel の KINDS 数 (イベント種類 index 0..8)
+const COPIER_KIND_NUM = 9;
+
 export interface UnitInfo {
   index: number;
   name: string;
@@ -76,7 +79,8 @@ export const doc = reactive({
   volumeVisible: false,
   volumeMode: 0, // VOLUMEMODE (0=Velocity..7=Tuning)
   tool: "pen" as "pen" | "hand", // ピアノロール用ツール
-  copier: [true, true, true, true, true, true, true, true, true] as boolean[],
+  // コピー対象の種類フラグ。CopierPanel の KINDS (index 0..8) と対応
+  copier: Array(COPIER_KIND_NUM).fill(true) as boolean[],
   muted: [] as number[], // ミュート中のユニット index
   unitVisible: [] as boolean[], // ピアノロールに表示するユニット
   unitPinned: [] as boolean[], // ピン留め中のユニット
