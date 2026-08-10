@@ -1,7 +1,7 @@
 // AudioWorklet プレイヤーのメインスレッド側ラッパー。
 // pxtone-ts の検証用実装 (web/realtime-player.ts) をベースに、
 // ユニット個別ミュート (setMutedUnits) と base path 対応を追加したもの。
-
+import type { WorkletToMain } from "./worklet-messages";
 
 export interface RealtimePlayerOptions {
   onPosition?: (sample: number) => void;
@@ -137,8 +137,3 @@ export class RealtimePlayer {
     }
   }
 }
-
-type WorkletToMain =
-  | { type: "loaded"; ok: boolean; error: string; totalSample: number }
-  | { type: "position"; sample: number }
-  | { type: "ended" };

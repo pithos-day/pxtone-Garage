@@ -4,26 +4,9 @@
 // pxtone-ts の検証用実装 (web/player-worklet.ts) をベースに、ユニット個別ミュート
 // (setMutedUnits) を追加したもの。esbuild で単一ファイルにバンドルされる。
 
-import { Service } from "pxtone-ts";
-import { MemoryIo } from "pxtone-ts";
-import { PxtnErr } from "pxtone-ts";
-import { PXTN_VOMIT_PREP_FLAG_LOOP, PXTN_VOMIT_PREP_FLAG_UNIT_MUTE } from "pxtone-ts";
+import { Service, MemoryIo, PxtnErr, PXTN_VOMIT_PREP_FLAG_LOOP, PXTN_VOMIT_PREP_FLAG_UNIT_MUTE } from "pxtone-ts";
 import type { VomitPreparation } from "pxtone-ts";
-
-// ---- メイン⇔worklet メッセージ型 ----
-type MainToWorklet =
-  | { type: "load"; bytes: ArrayBuffer; sps: number; playStart: number; playEnd: number }
-  | { type: "play" }
-  | { type: "stop" }
-  | { type: "seek"; sample: number }
-  | { type: "setLoop"; loop: boolean }
-  | { type: "setMasterVolume"; volume: number }
-  | { type: "setMutedUnits"; units: number[] };
-
-type WorkletToMain =
-  | { type: "loaded"; ok: boolean; error: string; totalSample: number }
-  | { type: "position"; sample: number }
-  | { type: "ended" };
+import type { MainToWorklet, WorkletToMain } from "./worklet-messages";
 
 // AudioWorklet グローバルスコープの最小型定義
 declare class AudioWorkletProcessor {
