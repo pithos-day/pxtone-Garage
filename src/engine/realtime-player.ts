@@ -2,6 +2,7 @@
 // pxtone-ts の検証用実装 (web/realtime-player.ts) をベースに、
 // ユニット個別ミュート (setMutedUnits) と base path 対応を追加したもの。
 import type { WorkletToMain } from "./worklet-messages";
+import { toArrayBuffer } from "./io";
 
 export interface RealtimePlayerOptions {
   onPosition?: (sample: number) => void;
@@ -12,7 +13,7 @@ export class RealtimePlayer {
   private ctx: AudioContext | null = null;
   private node: AudioWorkletNode | null = null;
   private sps = 44100;
-  private totalSample = 0;
+  private totalSamples = 0;
   private playing = false;
   private lastPosSample = 0;
   private lastPosTime = 0;
@@ -32,12 +33,12 @@ export class RealtimePlayer {
     return this.playing;
   }
 
-  totalSampleOf(): number {
-    return this.totalSample;
+  get totalSample(): number {
+    return this.totalSamples;
   }
 
   get durationSec(): number {
-    return this.totalSample / this.sps;
+    return this.totalSamples / this.sps;
   }
 
   async init(): Promise<void> {
@@ -60,7 +61,7 @@ export class RealtimePlayer {
   private onMessage(msg: WorkletToMain): void {
     switch (msg.type) {
       case "loaded":
-        this.totalSample = msg.totalSample;
+        this.totalSamples = msg.totalSample;
         if (this.pendingLoad) {
           this.pendingLoad.resolve(msg.ok);
           this.pendingLoad = null;
@@ -73,7 +74,7 @@ export class RealtimePlayer {
         break;
       case "ended":
         this.playing = false;
-        this.lastPosSample = this.totalSample;
+        this.lastPosSample = this.totalSamples;
         this.opts.onEnded?.();
         break;
     }
@@ -81,7 +82,7 @@ export class RealtimePlayer {
 
   async load(bytes: Uint8Array, playStart = -1, playEnd = -1): Promise<boolean> {
     await this.init();
-    const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+    const buf = toArrayBuffer(bytes);
     const ok = await new Promise<boolean>((resolve) => {
       this.pendingLoad = { resolve };
       this.node!.port.postMessage({ type: "load", bytes: buf, sps: this.sps, playStart, playEnd }, [buf]);
@@ -124,7 +125,7 @@ export class RealtimePlayer {
   getCurrentSample(): number {
     if (!this.playing) return this.lastPosSample;
     const elapsed = (performance.now() - this.lastPosTime) / 1000;
-    return Math.min(this.lastPosSample + elapsed * this.sps, this.totalSample);
+    return Math.min(this.lastPosSample + elapsed * this.sps, this.totalSamples);
   }
 
   dispose(): void {

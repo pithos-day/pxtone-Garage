@@ -10,7 +10,7 @@ import { t } from "../../i18n";
 function timeLabel(): string {
   const s = getService();
   if (!s) return "0:00 / 0:00";
-  const totalSec = player.totalSampleOf() / player.sampleRate;
+  const totalSec = player.totalSample / player.sampleRate;
   const curSec = positionSample.value / player.sampleRate;
   return `${fmt(curSec)} / ${fmt(totalSec)}`;
 }

@@ -4,8 +4,13 @@ import { EXE_VER } from "../state/service";
 import { exportBytes } from "../state/project";
 import { t } from "../i18n";
 
+// Uint8Array が ArrayBuffer の部分ビューでも Blob/postMessage に渡せる ArrayBuffer へ
+export function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+}
+
 export function downloadBytes(bytes: Uint8Array, fileName: string, mime = "application/octet-stream"): void {
-  const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+  const buf = toArrayBuffer(bytes);
   const blob = new Blob([buf], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

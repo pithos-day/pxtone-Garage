@@ -9,7 +9,7 @@ export const player = new RealtimePlayer({
   },
   onEnded: () => {
     isPlaying.value = false;
-    positionSample.value = player.totalSampleOf();
+    positionSample.value = player.totalSample;
   },
 });
 
