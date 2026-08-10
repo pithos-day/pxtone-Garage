@@ -63,6 +63,44 @@ async function ensureLoaded(bytes: Uint8Array): Promise<void> {
   if (pos > 0) player.seek(pos / player.sampleRate);
 }
 
+// 再生中に編集 (doc.rev 変更) が入ったら worklet へ再ロードし、
+// 再生位置を維持して変更を即時反映する (音色変更・イベント編集など)
+let refreshing = false;
+watch(
+  () => doc.rev,
+  () => {
+    if (isPlaying.value) void refreshWhilePlaying();
+  },
+);
+
+async function refreshWhilePlaying(): Promise<void> {
+  if (refreshing) return;
+  if (typeof AudioContext === "undefined") return; // テスト環境 (node) では再生がないため何もしない
+  refreshing = true;
+  try {
+    for (;;) {
+      const s = getService();
+      if (!s) return;
+      const rev0 = doc.rev;
+      const bytes = exportBytes();
+      if (!bytes) return;
+      const ok = await player.load(bytes, doc.playStart, doc.playEnd);
+      if (!ok) return;
+      if (doc.rev !== rev0) continue; // ロード中にさらに編集された → 最新状態で再ロード
+      loadedRev = rev0;
+      const pos = player.getCurrentSample();
+      if (pos > 0) player.seek(pos / player.sampleRate);
+      player.setLoop(loop.value);
+      player.setMasterVolume(masterVolume.value);
+      player.setMutedUnits([...doc.muted]);
+      player.play();
+      return;
+    }
+  } finally {
+    refreshing = false;
+  }
+}
+
 // 編集用再生範囲の開始位置より前なら Start まで移動する
 function clampToPlayStart(s: NonNullable<ReturnType<typeof getService>>): void {
   if (doc.playStart < 0) return;
