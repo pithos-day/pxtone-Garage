@@ -69,36 +69,41 @@ function onPointerDown(e: PointerEvent, idx: number): void {
     previewUnitHold(idx, EVENTDEFAULT_KEY, 104);
   }
 
-  // ドラッグ並べ替え
+  // ドラッグ並べ替え (ctrl/shift 選択中は無効)
   if (!e.ctrlKey && !e.shiftKey && tray) {
-    // 行の実測高さ (スクロール位置も考慮してマウスと同期させる)
-    const first = tray.querySelector<HTMLElement>(".unit-row");
-    const h = first?.offsetHeight ?? 24;
-    rowH.value = h;
-    let lastTarget = idx;
-    let undoPushed = false;
-    const onMove = (ev: PointerEvent): void => {
-      const dy = ev.clientY - tray.getBoundingClientRect().top;
-      const row = Math.floor((tray.scrollTop + dy) / h);
-      if (row >= 0 && row < units.value.length && row !== lastTarget) {
-        if (!undoPushed) {
-          beginEdit();
-          undoPushed = true;
-        }
-        replaceUnitRaw(lastTarget, row);
-        lastTarget = row;
-        sync();
-        doc.rev++;
-      }
-    };
-    const onUp = (): void => {
-      tray.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      if (undoPushed) commitEdit();
-    };
-    tray.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
+    startDragReorder(tray, idx);
   }
+}
+
+// 行の実測高さを基準に、ドラッグ中のマウス位置へユニットを逐次並べ替える
+// (undo は並べ替え開始時の1エントリにまとめる)
+function startDragReorder(tray: HTMLElement, idx: number): void {
+  const first = tray.querySelector<HTMLElement>(".unit-row");
+  const h = first?.offsetHeight ?? 24;
+  rowH.value = h;
+  let lastTarget = idx;
+  let undoPushed = false;
+  const onMove = (ev: PointerEvent): void => {
+    const dy = ev.clientY - tray.getBoundingClientRect().top;
+    const row = Math.floor((tray.scrollTop + dy) / h);
+    if (row >= 0 && row < units.value.length && row !== lastTarget) {
+      if (!undoPushed) {
+        beginEdit();
+        undoPushed = true;
+      }
+      replaceUnitRaw(lastTarget, row);
+      lastTarget = row;
+      sync();
+      doc.rev++;
+    }
+  };
+  const onUp = (): void => {
+    tray.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onUp);
+    if (undoPushed) commitEdit();
+  };
+  tray.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onUp);
 }
 
 function onPointerUp(): void {
