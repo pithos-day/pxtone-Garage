@@ -2,11 +2,12 @@
 // ベロシティ / パン(時間差) / パン(音量) / ボリューム の値を範囲内で加算する。
 <script setup lang="ts">
 import { computed, onMounted, reactive } from "vue";
-import { doc, getService, clockView as projectClockView, changeEventValue } from "../../state/project";
+import { doc, clockView as projectClockView, changeEventValue } from "../../state/project";
 import { clockToMeasBeatClock, measBeatClockToClock } from "../../lib/clock";
 import { EventKind } from "pxtone-ts";
 import { t } from "../../i18n";
 import ModalDialog from "./ModalDialog.vue";
+import MeasBeatClockRange from "./MeasBeatClockRange.vue";
 
 // 対象イベント種別 (MenuBar/AppShell と共有する)
 export type EventVolumeMode = "velocity" | "pantime" | "panvolume" | "volume";
@@ -40,8 +41,6 @@ const KINDS: Record<EventVolumeMode, EventKind> = {
 
 const title = computed(() => t(TITLES[props.kind]));
 
-const beatClock = (): number => getService()?.master.beatClock ?? 480;
-const beatNum = (): number => getService()?.master.beatNum ?? 4;
 const view = (): ReturnType<typeof projectClockView> => projectClockView();
 
 // 選択範囲 (半開区間 [scope1, scope2)) を from/to フォームに初期化
@@ -71,13 +70,17 @@ function onSubmit(): void {
   <ModalDialog label="event-volume" width="460px" body-gap="10px" @close="emit('close')">
     <template #title>{{ title }}</template>
     <div class="range">
-      <label>{{ t("copymeas.meas") }}</label><input v-model.number="form.fromMeas" type="number" min="1" />
-      <label>{{ t("copymeas.beat") }}</label><input v-model.number="form.fromBeat" type="number" min="1" :max="beatNum()" />
-      <label>{{ t("copymeas.clock") }}</label><input v-model.number="form.fromClock" type="number" min="0" :max="beatClock() - 1" />
+      <MeasBeatClockRange
+        v-model:meas="form.fromMeas"
+        v-model:beat="form.fromBeat"
+        v-model:clock="form.fromClock"
+      />
       <span class="dash">〜</span>
-      <label>{{ t("copymeas.meas") }}</label><input v-model.number="form.toMeas" type="number" min="1" />
-      <label>{{ t("copymeas.beat") }}</label><input v-model.number="form.toBeat" type="number" min="1" :max="beatNum()" />
-      <label>{{ t("copymeas.clock") }}</label><input v-model.number="form.toClock" type="number" min="0" :max="beatClock() - 1" />
+      <MeasBeatClockRange
+        v-model:meas="form.toMeas"
+        v-model:beat="form.toBeat"
+        v-model:clock="form.toClock"
+      />
     </div>
     <div class="row">
       <label>{{ t("eventvolume.value") }}</label>

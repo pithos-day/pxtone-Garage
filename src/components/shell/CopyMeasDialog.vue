@@ -2,11 +2,12 @@
 // コピー元範囲・コピー先・回数・イベント種類を指定してコピーする。
 <script setup lang="ts">
 import { onMounted, reactive } from "vue";
-import { doc, getService, clockView as projectClockView, copyMeas } from "../../state/project";
+import { doc, clockView as projectClockView, copyMeas } from "../../state/project";
 import { clockToMeasBeatClock, measBeatClockToClock } from "../../lib/clock";
 import { EventKind } from "pxtone-ts";
 import { t } from "../../i18n";
 import ModalDialog from "./ModalDialog.vue";
+import MeasBeatClockRange from "./MeasBeatClockRange.vue";
 
 const emit = defineEmits<{ (e: "close"): void }>();
 
@@ -36,8 +37,6 @@ const kinds = reactive({
   tuning: true,
 });
 
-const beatClock = (): number => getService()?.master.beatClock ?? 480;
-const beatNum = (): number => getService()?.master.beatNum ?? 4;
 const view = (): ReturnType<typeof projectClockView> => projectClockView();
 
 // 選択範囲 (半開区間 [scope1, scope2)) を from/to/dest フォームに初期化
@@ -89,25 +88,31 @@ function onSubmit(): void {
     <div class="section">
       <div class="section-title">{{ t("copymeas.from") }}</div>
       <div class="range">
-        <label>{{ t("copymeas.meas") }}</label><input v-model.number="form.fromMeas" type="number" min="1" />
-        <label>{{ t("copymeas.beat") }}</label><input v-model.number="form.fromBeat" type="number" min="1" :max="beatNum()" />
-        <label>{{ t("copymeas.clock") }}</label><input v-model.number="form.fromClock" type="number" min="0" :max="beatClock() - 1" />
+        <MeasBeatClockRange
+          v-model:meas="form.fromMeas"
+          v-model:beat="form.fromBeat"
+          v-model:clock="form.fromClock"
+        />
       </div>
     </div>
     <div class="section">
       <div class="section-title">{{ t("copymeas.to") }}</div>
       <div class="range">
-        <label>{{ t("copymeas.meas") }}</label><input v-model.number="form.toMeas" type="number" min="1" />
-        <label>{{ t("copymeas.beat") }}</label><input v-model.number="form.toBeat" type="number" min="1" :max="beatNum()" />
-        <label>{{ t("copymeas.clock") }}</label><input v-model.number="form.toClock" type="number" min="0" :max="beatClock() - 1" />
+        <MeasBeatClockRange
+          v-model:meas="form.toMeas"
+          v-model:beat="form.toBeat"
+          v-model:clock="form.toClock"
+        />
       </div>
     </div>
     <div class="section">
       <div class="section-title">{{ t("copymeas.dest") }}</div>
       <div class="range">
-        <label>{{ t("copymeas.meas") }}</label><input v-model.number="form.destMeas" type="number" min="1" />
-        <label>{{ t("copymeas.beat") }}</label><input v-model.number="form.destBeat" type="number" min="1" :max="beatNum()" />
-        <label>{{ t("copymeas.clock") }}</label><input v-model.number="form.destClock" type="number" min="0" :max="beatClock() - 1" />
+        <MeasBeatClockRange
+          v-model:meas="form.destMeas"
+          v-model:beat="form.destBeat"
+          v-model:clock="form.destClock"
+        />
         <label>{{ t("copymeas.times") }}</label><input v-model.number="form.times" type="number" min="1" />
       </div>
     </div>
