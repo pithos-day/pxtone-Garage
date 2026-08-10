@@ -35,7 +35,7 @@ function onNameInput(): void {
   nameDirty.value = true;
 }
 
-function onOk(): void {
+function onSubmit(): void {
   const idx = hasWoice() ? Math.max(0, woiceIdx.value) : -1;
   addUnitWithWoice(name.value.trim() || defaultName(idx), idx);
   emit("close");
@@ -54,10 +54,10 @@ function onOk(): void {
     </div>
     <div class="row">
       <label>{{ t("unit.addName") }}</label>
-      <input v-model="name" type="text" class="grow" maxlength="16" @input="onNameInput" @keydown.enter="onOk" @keydown.esc="emit('close')" />
+      <input v-model="name" type="text" class="grow" maxlength="16" @input="onNameInput" @keydown.enter="onSubmit" @keydown.esc="emit('close')" />
     </div>
     <template #buttons>
-      <button class="btn btn-accent" @click="onOk">{{ t("common.ok") }}</button>
+      <button class="btn btn-accent" @click="onSubmit">{{ t("common.ok") }}</button>
       <button class="btn" @click="emit('close')">{{ t("common.cancel") }}</button>
     </template>
   </ModalDialog>

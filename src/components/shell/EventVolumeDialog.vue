@@ -26,8 +26,8 @@ const form = reactive({
 
 const TITLES: Record<EventVolumeMode, string> = {
   velocity: "menu.edit.velocity",
-  pantime: "menu.edit.panTime",
-  panvolume: "menu.edit.panVolume",
+  pantime: "menu.edit.pantime",
+  panvolume: "menu.edit.panvolume",
   volume: "menu.edit.volume",
 };
 
@@ -59,7 +59,7 @@ function initFromScope(): void {
 
 onMounted(initFromScope);
 
-function onOk(): void {
+function onSubmit(): void {
   const c1 = measBeatClockToClock(view(), form.fromMeas, form.fromBeat, form.fromClock);
   const c2 = measBeatClockToClock(view(), form.toMeas, form.toBeat, form.toClock);
   changeEventValue(c1, c2, KINDS[props.kind], form.value);
@@ -85,7 +85,7 @@ function onOk(): void {
       <span class="hint">-96..96</span>
     </div>
     <template #buttons>
-      <button class="btn btn-accent" @click="onOk">{{ t("common.ok") }}</button>
+      <button class="btn btn-accent" @click="onSubmit">{{ t("common.ok") }}</button>
       <button class="btn" @click="emit('close')">{{ t("common.cancel") }}</button>
     </template>
   </ModalDialog>

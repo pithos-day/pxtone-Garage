@@ -30,7 +30,7 @@ onMounted(() => {
   original.measNum = s.master.measNum;
 });
 
-function onSave(): void {
+function onSubmit(): void {
   const t = parseFloat(tempo.value);
   setProjectSettings({
     name: name.value,
@@ -85,7 +85,7 @@ function onCancel(): void {
       <span>{{ getService()?.master.lastMeas }} {{ t("project.measUnit") }}</span>
     </div>
     <template #buttons>
-      <button class="btn btn-accent" @click="onSave">{{ t("common.save") }}</button>
+      <button class="btn btn-accent" @click="onSubmit">{{ t("common.save") }}</button>
       <button class="btn" @click="onCancel">{{ t("common.cancel") }}</button>
     </template>
   </ModalDialog>

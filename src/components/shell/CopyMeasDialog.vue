@@ -73,7 +73,7 @@ function enabledKinds(): number[] {
   return out;
 }
 
-function onOk(): void {
+function onSubmit(): void {
   const c1 = measBeatClockToClock(view(), form.fromMeas, form.fromBeat, form.fromClock);
   const c2 = measBeatClockToClock(view(), form.toMeas, form.toBeat, form.toClock);
   const dest = measBeatClockToClock(view(), form.destMeas, form.destBeat, form.destClock);
@@ -126,7 +126,7 @@ function onOk(): void {
       </div>
     </div>
     <template #buttons>
-      <button class="btn btn-accent" @click="onOk">{{ t("common.ok") }}</button>
+      <button class="btn btn-accent" @click="onSubmit">{{ t("common.ok") }}</button>
       <button class="btn" @click="emit('close')">{{ t("common.cancel") }}</button>
     </template>
   </ModalDialog>

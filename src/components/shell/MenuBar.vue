@@ -139,8 +139,8 @@ const editMenu = computed<MenuItem[]>(() => [
   { sep: true },
   { label: t("menu.edit.copyMeas"), action: () => emit("copyMeas") },
   { label: t("menu.edit.velocity"), action: () => emit("eventVolume", "velocity") },
-  { label: t("menu.edit.panTime"), action: () => emit("eventVolume", "pantime") },
-  { label: t("menu.edit.panVolume"), action: () => emit("eventVolume", "panvolume") },
+  { label: t("menu.edit.pantime"), action: () => emit("eventVolume", "pantime") },
+  { label: t("menu.edit.panvolume"), action: () => emit("eventVolume", "panvolume") },
   { label: t("menu.edit.volume"), action: () => emit("eventVolume", "volume") },
 ]);
 

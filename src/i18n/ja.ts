@@ -28,8 +28,8 @@ const ja = {
   "menu.edit.redo": "やり直す",
   "menu.edit.copyMeas": "小節コピー...",
   "menu.edit.velocity": "ベロシティ...",
-  "menu.edit.panTime": "パン (時間差)...",
-  "menu.edit.panVolume": "パン (音量)...",
+  "menu.edit.pantime": "パン (時間差)...",
+  "menu.edit.panvolume": "パン (音量)...",
   "menu.edit.volume": "ボリューム...",
 
   // 小節コピー / イベント音量ダイアログ
