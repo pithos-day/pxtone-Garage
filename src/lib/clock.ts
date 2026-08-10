@@ -16,9 +16,10 @@ export function isWhiteKey(code: number): boolean {
   return WHITE_KEYS.has(((code % 12) + 12) % 12);
 }
 
-// ピアノロールの行番号 (0=最上段) ベースの白鍵判定 (本家 if_KeyField の i%12 判定)
+// ピアノロールの行番号 (0=最上段) ベースの白鍵判定 (本家 if_KeyField の i%12 判定)。
+// 判定ロジック自体は isWhiteKey と同一
 export function isWhiteRow(row: number): boolean {
-  return WHITE_KEYS.has(((row % 12) + 12) % 12);
+  return isWhiteKey(row);
 }
 
 // ロー上のコード (0=最上段=コード108)
@@ -90,6 +91,6 @@ export function beatsToTime(beat: number, beatTempo: number): string {
   const sec = (beat / beatTempo) * 60;
   const m = Math.floor(sec / 60);
   const s = Math.floor(sec % 60);
-  const ms = Math.floor((sec % 1) * 10);
-  return `${m}:${String(s).padStart(2, "0")}.${ms}`;
+  const ds = Math.floor((sec % 1) * 10); // 1/10 秒
+  return `${m}:${String(s).padStart(2, "0")}.${ds}`;
 }

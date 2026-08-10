@@ -14,11 +14,12 @@ export function clockAtX(view: ClockView, divi: number, scrollX: number, x: numb
 }
 
 // Ctrl+ホイールのズーム切替。新しいズーム倍率を返す (Ctrl 以外は null)
+// ZOOM_TABLE に現在値がない場合は最小ズームへ落とす
 export function zoomByWheel(e: WheelEvent, current: number): number | null {
   if (!e.ctrlKey) return null;
   e.preventDefault();
-  const table = ZOOM_TABLE as readonly number[];
-  const idx = table.indexOf(current);
-  const next = e.deltaY < 0 ? Math.min(table.length - 1, idx + 1) : Math.max(0, idx - 1);
-  return table[next]!;
+  const idx = ZOOM_TABLE.indexOf(current);
+  const base = idx < 0 ? 0 : idx;
+  const next = e.deltaY < 0 ? Math.min(ZOOM_TABLE.length - 1, base + 1) : Math.max(0, base - 1);
+  return ZOOM_TABLE[next]!;
 }
