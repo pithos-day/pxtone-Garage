@@ -109,12 +109,25 @@ export function ensureInit(): boolean {
 // サービスからミラーへ同期
 export function sync(): void {
   if (!doc.ready) return;
-  const s = service;
-  // 表示/ピン留め配列をユニット数に合わせる (新規ユニットは表示オン)
+  syncUnits();
+  syncWoiceList();
+  syncEffects();
+  syncMeta();
+  cleanupSelection();
+}
+
+// 表示/ピン留め配列をユニット数に合わせる (新規ユニットは表示オン)
+function syncUnitVisibility(s: typeof service): void {
   while (doc.unitVisible.length < s.unitNum) doc.unitVisible.push(true);
   while (doc.unitPinned.length < s.unitNum) doc.unitPinned.push(false);
   if (doc.unitVisible.length > s.unitNum) doc.unitVisible.length = s.unitNum;
   if (doc.unitPinned.length > s.unitNum) doc.unitPinned.length = s.unitNum;
+}
+
+// ユニット一覧 (音色は u.woice か最後の VOICENO イベントから解決)
+function syncUnits(): void {
+  const s = service;
+  syncUnitVisibility(s);
   const us: UnitInfo[] = [];
   for (let i = 0; i < s.unitNum; i++) {
     const u = s.unitGet(i);
@@ -146,6 +159,10 @@ export function sync(): void {
     });
   }
   units.value = us;
+}
+
+function syncWoiceList(): void {
+  const s = service;
   const ws: WoiceInfo[] = [];
   for (let i = 0; i < s.woiceNum; i++) {
     const w = s.woiceGet(i);
@@ -153,6 +170,10 @@ export function sync(): void {
     ws.push({ index: i, name: woiceName(w), type: w.type, typeName: woiceTypeName(w.type) });
   }
   woices.value = ws;
+}
+
+function syncEffects(): void {
+  const s = service;
   const ds: DelayInfo[] = [];
   for (let i = 0; i < s.delayNum; i++) {
     const d = s.delayGet(i);
@@ -167,8 +188,16 @@ export function sync(): void {
     os.push({ index: i, cut: o.cut, amp: o.amp, group: o.group });
   }
   overdrives.value = os;
+}
+
+function syncMeta(): void {
   title.value = service.text.getNameString();
   comment.value = service.text.getCommentString();
+}
+
+// 削除・読み込み後に選択/ミュート/ソロ状態をユニット数へ整合化する
+function cleanupSelection(): void {
+  const s = service;
   if (doc.focusUnit >= s.unitNum) doc.focusUnit = -1;
   doc.operated = doc.operated.filter((u) => u >= 0 && u < s.unitNum);
   doc.muted = doc.muted.filter((u) => u >= 0 && u < s.unitNum);
