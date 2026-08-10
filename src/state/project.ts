@@ -356,7 +356,8 @@ export function addUnit(name?: string): boolean {
 }
 
 // 名前と音色を指定してユニットを追加 (1つの undo エントリ)。
-// woiceIdx が -1 の場合は音色なし
+// woiceIdx が -1 の場合は音色なし。
+// 再生は VOICENO イベントから音色を決定するため、clock 0 に割当を書く。
 export function addUnitWithWoice(name: string | undefined, woiceIdx: number): boolean {
   return (
     mutate(() => {
@@ -365,7 +366,10 @@ export function addUnitWithWoice(name: string | undefined, woiceIdx: number): bo
         const u = service.unitGet(service.unitNum - 1);
         if (name) u?.setNameBuf(name);
         const w = woiceIdx >= 0 ? service.woiceGet(woiceIdx) : null;
-        if (u && w) u.setWoice(w);
+        if (u && w) {
+          u.setWoice(w);
+          service.evels.recordAddI(0, service.unitNum - 1, EventKind.VOICENO, woiceIdx);
+        }
       }
       return ok;
     }) ?? false
@@ -587,6 +591,8 @@ export function replaceWoice(oldPlace: number, newPlace: number): void {
 
 // ユニットの名前と音色をまとめて変更 (1つの undo エントリ)。
 // name が空文字列の場合は名前を変更しない。
+// 再生・プレビューは VOICENO イベントから音色を決定するため、setWoice に
+// 加えてユニットの全 VOICENO イベントを書き換える (無ければ clock 0 に追加)。
 export function setUnitNameAndWoice(unitIdx: number, name: string, woiceIdx: number): void {
   mutate(() => {
     const u = service.unitGet(unitIdx);
@@ -594,7 +600,11 @@ export function setUnitNameAndWoice(unitIdx: number, name: string, woiceIdx: num
     const trimmed = name.trim();
     if (trimmed) u.setNameBuf(trimmed);
     const w = service.woiceGet(woiceIdx);
-    if (w) u.setWoice(w);
+    if (!w) return;
+    u.setWoice(w);
+    const end = service.evels.records.reduce((m, e) => Math.max(m, e.clock + 1), 0);
+    const n = service.evels.recordValueSet(0, end, unitIdx, EventKind.VOICENO, woiceIdx);
+    if (n === 0) service.evels.recordAddI(0, unitIdx, EventKind.VOICENO, woiceIdx);
   });
 }
 

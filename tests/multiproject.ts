@@ -450,6 +450,9 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     const last = serviceMod.service.unitGet(serviceMod.service.unitNum - 1);
     checkEq(last?.name, "u-テスト", "addUnitWithWoice: 名前が付く");
     checkEq(last?.woice, serviceMod.service.woiceGet(wIdx), "addUnitWithWoice: 音色が割り当てられる");
+    // 再生は VOICENO イベントから音色を決定するため、clock 0 に割当が書かれる
+    const vnOf = (u: number) => getAllEvents().filter((e) => e.unitNo === u && e.kind === EventKind.VOICENO);
+    checkEq(vnOf(serviceMod.service.unitNum - 1).at(-1)?.value, wIdx, "addUnitWithWoice: clock 0 に VOICENO が書かれる");
 
     // ユニット名と音色の変更 (まとめて 1 undo エントリ)
     const ui2 = serviceMod.service.unitNum - 1;
@@ -458,10 +461,21 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     const changed = serviceMod.service.unitGet(ui2);
     checkEq(changed?.name, "u-変更", "setUnitNameAndWoice: 名前が変わる");
     checkEq(changed?.woice, serviceMod.service.woiceGet(wIdx2), "setUnitNameAndWoice: 音色が変わる");
+    checkEq(vnOf(ui2).at(-1)?.value, wIdx2, "setUnitNameAndWoice: 最後の VOICENO が新音色になる");
     // 空文字の名前では名前を変更しない
     const prevName = changed?.name;
     setUnitNameAndWoice(ui2, "  ", wIdx2);
     checkEq(serviceMod.service.unitGet(ui2)?.name, prevName, "setUnitNameAndWoice: 空名前は変更しない");
+    // 既存の VOICENO はすべて新音色に書き換わる
+    serviceMod.service.evels.recordAddI(240, ui2, EventKind.VOICENO, wIdx);
+    serviceMod.service.evels.recordAddI(960, ui2, EventKind.VOICENO, wIdx);
+    setUnitNameAndWoice(ui2, "", wIdx2);
+    const vns = vnOf(ui2);
+    check(
+      "setUnitNameAndWoice: 全 VOICENO が新音色に書き換わる",
+      vns.length >= 3 && vns.every((e) => e.value === wIdx2),
+      `values=${JSON.stringify(vns.map((e) => e.value))}`,
+    );
   }
 
   // ---- 17. VOICENO イベントからの音色解決 / Start-End 状態 ----
