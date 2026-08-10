@@ -677,12 +677,17 @@ export function clockView() {
   };
 }
 
+// 実イベントか (NULL プレースホルダでない)
+function isMeaningfulEvent(e: EveRecord): boolean {
+  return e.kind !== EventKind.NULL;
+}
+
 // 範囲内のイベント一覧 (unitNo, kind でフィルタ可)
 export function eventsInRange(clock1: number, clock2: number, unitNo?: number): EveRecord[] {
   const records = service.evels.records;
   const out: EveRecord[] = [];
   for (const e of records) {
-    if (e.kind === EventKind.NULL) continue;
+    if (!isMeaningfulEvent(e)) continue;
     if (e.clock < clock1 || e.clock > clock2) continue;
     if (unitNo !== undefined && e.unitNo !== unitNo) continue;
     out.push(e);
@@ -691,7 +696,7 @@ export function eventsInRange(clock1: number, clock2: number, unitNo?: number): 
 }
 
 export function getAllEvents(): EveRecord[] {
-  return service.evels.records.filter((e) => e.kind !== EventKind.NULL);
+  return service.evels.records.filter(isMeaningfulEvent);
 }
 
 export function addEvent(clock: number, unitNo: number, kind: number, value: number): void {
@@ -732,7 +737,7 @@ export function copyMeas(c1: number, c2: number, to: number, times: number, kind
   mutate(() => {
     const copied: { clock: number; unitNo: number; kind: number; value: number }[] = [];
     for (const e of service.evels.records) {
-      if (e.kind === EventKind.NULL) continue;
+      if (!isMeaningfulEvent(e)) continue;
       if (e.clock < c1 || e.clock >= c2) continue;
       if (!targets.includes(e.unitNo)) continue;
       if (!kinds.includes(e.kind)) continue;
