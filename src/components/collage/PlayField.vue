@@ -8,7 +8,7 @@ import { useCanvas } from "../../composables/useCanvas";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText } from "../../lib/draw";
 import { clockAtX } from "../../lib/field";
-import { clockToX, measOfClock } from "../../lib/clock";
+import { clockToX, measOfClock, xToClock } from "../../lib/clock";
 import {
   doc,
   getService,
@@ -96,7 +96,7 @@ function onPointerDown(e: PointerEvent): void {
   if (e.button === 2) {
     const x = e.clientX - r.left;
     const view = projectClockView();
-    const clock = doc.scrollX + (x / view.zoom) * view.beatClock;
+    const clock = xToClock(view, doc.scrollX + x);
     const meas = measOfClock(view, clock);
     // 上段 (Repeat/Last) か下段 (Start/End) か
     const y = e.clientY - r.top;
@@ -126,7 +126,7 @@ function onPointerUp(e: PointerEvent): void {
   // ドラッグ = Start/End 設定 (本家準拠: 小節の前半=Start、後半=End)
   const view = projectClockView();
   const x = d.x0 - r.left;
-  const clock = doc.scrollX + (x / view.zoom) * view.beatClock;
+  const clock = xToClock(view, doc.scrollX + x);
   const measW = view.beatNum * view.beatClock;
   const fMeas = clock / measW;
   const meas = Math.floor(fMeas);
