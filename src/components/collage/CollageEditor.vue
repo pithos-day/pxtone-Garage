@@ -42,7 +42,7 @@ function onKeydown(e: KeyboardEvent): void {
         return;
       case "a":
         e.preventDefault();
-        doc.operated = units.value.map((u) => u.index);
+        doc.selectedUnits = units.value.map((u) => u.index);
         return;
     }
     return;

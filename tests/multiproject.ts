@@ -426,14 +426,14 @@ check("ソロ対象削除: muted は空", doc.muted.length === 0);
   {
     const s = serviceMod.service;
     // イベントを用意 (unit0 に clock 0 で KEY+VELOCITY+ON, unit1 に clock 240 で VELOCITY)
-    doc.operated = [];
+    doc.selectedUnits = [];
     doc.focusUnit = -1;
     s.evels.clear();
     s.evels.recordAddI(0, 0, EventKind.KEY, 0x6000);
     s.evels.recordAddI(0, 0, EventKind.VELOCITY, 64);
     s.evels.recordAddI(0, 0, EventKind.ON, 480);
     s.evels.recordAddI(240, 1, EventKind.VELOCITY, 80);
-    doc.operated = [0, 1];
+    doc.selectedUnits = [0, 1];
 
     // 小節コピー: [0, 480) を clock 960 に 2 回
     copyMeas(0, 480, 960, 2, [EventKind.ON, EventKind.VELOCITY]);

@@ -9,9 +9,9 @@ import {
   woices,
   getService,
   setFocusUnit,
-  toggleOperated,
-  setOperatedRange,
-  clearOperated,
+  toggleSelected,
+  selectRange,
+  clearSelection,
   toggleUnitMute,
   toggleUnitVisible,
   toggleUnitPinned,
@@ -54,13 +54,13 @@ function onPointerDown(e: PointerEvent, idx: number): void {
   if (e.button !== 0) return;
 
   if (e.ctrlKey || e.metaKey) {
-    toggleOperated(idx);
+    toggleSelected(idx);
   } else if (e.shiftKey) {
-    if (doc.focusUnit >= 0) setOperatedRange(idx);
+    if (doc.focusUnit >= 0) selectRange(idx);
     else setFocusUnit(idx);
   } else {
     setFocusUnit(idx);
-    clearOperated();
+    clearSelection();
   }
 
   // 押下中サステインで試聴
@@ -165,7 +165,7 @@ function onMenuAction(action: "edit" | "remove"): void {
         v-for="u in units"
         :key="u.index"
         class="unit-row"
-        :class="{ focus: u.index === doc.focusUnit, operated: doc.operated.includes(u.index), muted: u.muted }"
+        :class="{ focus: u.index === doc.focusUnit, selected: doc.selectedUnits.includes(u.index), muted: u.muted }"
         :style="{ borderLeft: '4px solid ' + (u.pinned ? 'var(--primary)' : 'transparent') }"
         @pointerdown="onPointerDown($event, u.index)"
         @dblclick="startEditName(u.index)"
@@ -297,7 +297,7 @@ function onMenuAction(action: "edit" | "remove"): void {
   background: color-mix(in srgb, var(--primary) 15%, transparent);
 }
 
-.unit-row.operated {
+.unit-row.selected {
   outline: 1px solid color-mix(in srgb, var(--primary) 40%, transparent);
   outline-offset: -1px;
 }

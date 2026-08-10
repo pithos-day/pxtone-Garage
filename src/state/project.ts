@@ -68,7 +68,7 @@ export const doc = reactive({
   mode: "U" as ToolMode,
   rev: 0, // 編集リビジョン (canvas 再描画のトリガー)
   focusUnit: -1,
-  operated: [] as number[],
+  selectedUnits: [] as number[],
   scrollX: 0, // フィールド左端のクロック
   scrollYUnit: 0, // ユニットトレイの行オフセット
   scrollYKey: 0, // ピアノロールの行オフセット (0 = 最上段 = コード108)
@@ -203,7 +203,7 @@ function syncMeta(): void {
 function cleanupSelection(): void {
   const s = service;
   if (doc.focusUnit >= s.unitNum) doc.focusUnit = -1;
-  doc.operated = doc.operated.filter((u) => u >= 0 && u < s.unitNum);
+  doc.selectedUnits = doc.selectedUnits.filter((u) => u >= 0 && u < s.unitNum);
   doc.muted = doc.muted.filter((u) => u >= 0 && u < s.unitNum);
   doc.soloBackup = doc.soloBackup.filter((u) => u >= 0 && u < s.unitNum);
   if (doc.soloUnit >= s.unitNum) {
@@ -273,7 +273,7 @@ export function mutate<T>(fn: () => T): T | undefined {
 // 新規/読込時に編集用の UI 状態をリセットする (ファイルの内容には影響しない)
 function resetEditingState(): void {
   doc.focusUnit = -1;
-  doc.operated = [];
+  doc.selectedUnits = [];
   doc.muted = [];
   doc.soloUnit = -1;
   doc.soloBackup = [];
@@ -377,7 +377,7 @@ export function addUnitWithWoice(name: string | undefined, woiceIdx: number): bo
 export function removeUnit(idx: number): void {
   // 削除されるユニット番号を UI 状態 (選択/ミュート/ソロ/表示/ピン) に反映してから削除
   const shift = (n: number): number => (n === idx ? -1 : n > idx ? n - 1 : n);
-  doc.operated = doc.operated.map(shift).filter((n) => n >= 0);
+  doc.selectedUnits = doc.selectedUnits.map(shift).filter((n) => n >= 0);
   doc.muted = doc.muted.map(shift).filter((n) => n >= 0);
   doc.soloBackup = doc.soloBackup.map(shift).filter((n) => n >= 0);
   doc.unitVisible = shiftArr(doc.unitVisible, idx);
@@ -418,7 +418,7 @@ export function replaceUnitRaw(oldPlace: number, newPlace: number): void {
     out.splice(Math.min(newPlace, out.length), 0, v!);
     return out;
   };
-  doc.operated = move(doc.operated);
+  doc.selectedUnits = move(doc.selectedUnits);
   doc.muted = move(doc.muted);
   doc.soloBackup = move(doc.soloBackup);
   doc.unitVisible = move(doc.unitVisible);
@@ -444,21 +444,21 @@ export function setFocusUnit(idx: number): void {
   doc.focusUnit = idx;
 }
 
-export function toggleOperated(idx: number): void {
-  const i = doc.operated.indexOf(idx);
-  if (i >= 0) doc.operated.splice(i, 1);
-  else doc.operated.push(idx);
+export function toggleSelected(idx: number): void {
+  const i = doc.selectedUnits.indexOf(idx);
+  if (i >= 0) doc.selectedUnits.splice(i, 1);
+  else doc.selectedUnits.push(idx);
 }
 
-export function setOperatedRange(idx: number): void {
+export function selectRange(idx: number): void {
   const a = Math.min(doc.focusUnit, idx);
   const b = Math.max(doc.focusUnit, idx);
-  doc.operated = [];
-  for (let u = a; u <= b; u++) doc.operated.push(u);
+  doc.selectedUnits = [];
+  for (let u = a; u <= b; u++) doc.selectedUnits.push(u);
 }
 
-export function clearOperated(): void {
-  doc.operated = [];
+export function clearSelection(): void {
+  doc.selectedUnits = [];
 }
 
 // 配列に idx があれば削除、なければ追加
@@ -550,9 +550,9 @@ export function pinnedUnits(): number[] {
   return out;
 }
 
-// 編集対象ユニット (フォーカス + operated)
-export function focusedOrOperated(): number[] {
-  const set = new Set<number>(doc.operated);
+// 編集対象ユニット (フォーカス + 選択)
+export function focusedOrSelected(): number[] {
+  const set = new Set<number>(doc.selectedUnits);
   if (doc.focusUnit >= 0) set.add(doc.focusUnit);
   return [...set].sort((a, b) => a - b);
 }
@@ -702,7 +702,7 @@ export function setEventValue(clock1: number, clock2: number, unitNo: number, ki
 // 対象はフォーカス+選択中のユニット。加算は recordValueChange が
 // 種別ごとの上限 (0..128 等) にクランプする
 export function changeEventValue(clock1: number, clock2: number, kind: number, value: number): void {
-  const targets = focusedOrOperated();
+  const targets = focusedOrSelected();
   if (targets.length === 0) return;
   mutate(() => {
     for (const u of targets) {
@@ -717,7 +717,7 @@ export function changeEventValue(clock1: number, clock2: number, kind: number, v
 // ON イベントの長さはコピー範囲内にクランプする
 export function copyMeas(c1: number, c2: number, to: number, times: number, kinds: number[]): void {
   if (c2 <= c1 || times < 1) return;
-  const targets = focusedOrOperated();
+  const targets = focusedOrSelected();
   if (targets.length === 0) return;
   const width = c2 - c1;
   mutate(() => {

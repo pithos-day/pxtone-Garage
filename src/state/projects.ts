@@ -14,7 +14,7 @@ export interface ProjectState {
   fileName: string;
   dirty: boolean;
   focusUnit: number;
-  operated: number[];
+  selectedUnits: number[];
   scrollX: number;
   scrollYUnit: number;
   scrollYKey: number;
@@ -61,7 +61,7 @@ function defaultState(): ProjectState {
     fileName: "",
     dirty: false,
     focusUnit: -1,
-    operated: [],
+    selectedUnits: [],
     scrollX: 0,
     scrollYUnit: 0,
     scrollYKey: 0,
@@ -101,7 +101,7 @@ function saveCurrent(): void {
     fileName: doc.fileName,
     dirty: doc.dirty,
     focusUnit: doc.focusUnit,
-    operated: [...doc.operated],
+    selectedUnits: [...doc.selectedUnits],
     scrollX: doc.scrollX,
     scrollYUnit: doc.scrollYUnit,
     scrollYKey: doc.scrollYKey,
@@ -131,7 +131,7 @@ function restore(p: Project): void {
   doc.fileName = st.fileName;
   doc.dirty = st.dirty;
   doc.focusUnit = st.focusUnit;
-  doc.operated = [...st.operated];
+  doc.selectedUnits = [...st.selectedUnits];
   doc.scrollX = st.scrollX;
   doc.scrollYUnit = st.scrollYUnit;
   doc.scrollYKey = st.scrollYKey;
