@@ -35,40 +35,50 @@ interface MenuItem {
   sub?: MenuItem[];
 }
 
-const openMenu = ref<null | "file" | "edit" | "view">(null);
-const openSub = ref<number>(-1);
+type MenuName = "file" | "edit" | "view";
 
-function toggleMenu(name: "file" | "edit" | "view"): void {
+// トップメニューの表示ラベル (順序もここで定義)
+const MENU_LABELS: Record<MenuName, string> = {
+  file: "File",
+  edit: "Edit",
+  view: "View",
+};
+const MENU_NAMES: readonly MenuName[] = ["file", "edit", "view"];
+
+const openMenu = ref<null | MenuName>(null);
+const openSubIndex = ref(-1);
+
+function toggleMenu(name: MenuName): void {
   openMenu.value = openMenu.value === name ? null : name;
-  openSub.value = -1;
+  openSubIndex.value = -1;
 }
 
-function hoverMenu(name: "file" | "edit" | "view"): void {
+function hoverMenu(name: MenuName): void {
   if (openMenu.value) {
     openMenu.value = name;
-    openSub.value = -1;
+    openSubIndex.value = -1;
   }
 }
 
-function run(item: MenuItem): void {
+function runMenuItem(item: MenuItem): void {
   if (item.disabled) return;
   if (item.sub) return;
   openMenu.value = null;
-  openSub.value = -1;
+  openSubIndex.value = -1;
   item.action?.();
 }
 
 function onGlobalClick(e: MouseEvent): void {
   if (!(e.target as HTMLElement).closest(".menu-bar")) {
     openMenu.value = null;
-    openSub.value = -1;
+    openSubIndex.value = -1;
   }
 }
 
 function onKeydown(e: KeyboardEvent): void {
   if (e.key === "Escape" && openMenu.value) {
     openMenu.value = null;
-    openSub.value = -1;
+    openSubIndex.value = -1;
   }
 }
 
@@ -84,9 +94,8 @@ onBeforeUnmount(() => {
 // ---- アクション ----
 
 function onNew(): void {
-  if (!doc.dirty || window.confirm(t("confirm.new"))) {
-    newProjectInTab();
-  }
+  if (doc.dirty && !window.confirm(t("confirm.new"))) return;
+  newProjectInTab();
 }
 
 function onOpen(): void {
@@ -179,14 +188,14 @@ const tabs = [
     </div>
     <div class="menu-right">
       <button
-        v-for="m in (['file', 'edit', 'view'] as const)"
+        v-for="m in MENU_NAMES"
         :key="m"
         class="menu-label"
         :class="{ open: openMenu === m }"
         @click="toggleMenu(m)"
         @mouseenter="hoverMenu(m)"
       >
-        {{ { file: "File", edit: "Edit", view: "View" }[m] }}
+        {{ MENU_LABELS[m] }}
       </button>
       <div v-if="openMenu" class="menu-pop">
         <template v-for="(item, i) in openItems" :key="i">
@@ -195,16 +204,16 @@ const tabs = [
             v-else
             class="menu-item"
             :class="{ disabled: item.disabled, 'has-sub': item.sub }"
-            @click="run(item)"
-            @mouseenter="openSub = item.sub ? i : -1"
+            @click="runMenuItem(item)"
+            @mouseenter="openSubIndex = item.sub ? i : -1"
           >
             <span class="menu-check">{{ item.checked ? "✓" : "" }}</span>
             <span class="menu-text">{{ item.label }}</span>
             <span v-if="item.sub" class="menu-arrow">▸</span>
-            <div v-if="item.sub && openSub === i" class="menu-sub">
+            <div v-if="item.sub && openSubIndex === i" class="menu-sub">
               <template v-for="(sub, j) in item.sub" :key="j">
                 <div v-if="sub.sep" class="menu-sep" />
-                <div v-else class="menu-item" :class="{ disabled: sub.disabled }" @click="run(sub)">
+                <div v-else class="menu-item" :class="{ disabled: sub.disabled }" @click="runMenuItem(sub)">
                   <span class="menu-check">{{ sub.checked ? "✓" : "" }}</span>
                   <span class="menu-text">{{ sub.label }}</span>
                 </div>
