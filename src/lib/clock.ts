@@ -30,6 +30,18 @@ export function codeToRow(code: number): number {
   return KEY_CODE_TOP - code;
 }
 
+// ---- KEY イベント値 (0x8700 ベース) ↔ 行 ----
+// 本家 ptCollage の生成式: value = 0x6C00 + 0x6000 - row*0x100 - EVENTDEFAULT_BASICKEY(0x4500)
+//   = 0x8700 - row*0x100 (if_Cursor_KeyField.cpp)。KEY_CODE_TOP (108) ベースの
+//   codeToRow/rowToCode (ピッチ番号用・マーカー/スクロール) とは別座標系なので注意。
+export function rowToKeyValue(row: number): number {
+  return 0x8700 - row * 0x100;
+}
+
+export function keyValueToRow(value: number): number {
+  return (0x8700 - value) / 0x100;
+}
+
 export interface ClockView {
   beatClock: number;
   beatNum: number;

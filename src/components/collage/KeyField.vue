@@ -14,6 +14,8 @@ import {
   KEYNUM,
   isWhiteRow,
   codeToRow,
+  rowToKeyValue,
+  keyValueToRow,
 } from "../../lib/clock";
 import { EventKind } from "pxtone-ts";
 import {
@@ -40,16 +42,6 @@ const BAND = 0; // ルーラー帯は PlayField (トラック直上) が担当�
 // 本家 144px から半分以下に縮小
 const STRIP_W = 64;
 const canvasRef = ref<HTMLCanvasElement | null>(null);
-
-// 行 → KEY イベント値 (本家の生成式: value = 0x8700 - row*0x100)
-function valueAtRow(row: number): number {
-  return 0x8700 - row * 0x100;
-}
-
-// KEY 値 → 行
-function rowOfValue(value: number): number {
-  return (0x8700 - value) / 0x100;
-}
 
 // フォーカスユニットの音域を画面中央に (本家の ResetScroll/JustScroll 相当)
 function centerScroll(): void {
@@ -199,7 +191,7 @@ function drawNotes(
   if (!isFocus) ctx.globalAlpha = 0.45;
 
   const drawAt = (clock: number, key: number, len: number, depth: "off" | "on"): void => {
-    const row = rowOfValue(key);
+    const row = keyValueToRow(key);
     const y = fieldTop + row * KEY_HEIGHT - scrollY + KEY_HEIGHT / 2;
     const x1 = clockToX(view, Math.max(startClock, clock)) - scrollX;
     const x2 = clockToX(view, Math.min(endClock, clock + len)) - scrollX;
@@ -226,7 +218,7 @@ function drawNotes(
     } else if (e.kind === EventKind.KEY) {
       // KEY: 縦線 + 点
       if (e.clock > prevClock) drawAt(prevClock, curKey, e.clock - prevClock, "off");
-      const row = rowOfValue(e.value);
+      const row = keyValueToRow(e.value);
       const y = fieldTop + row * KEY_HEIGHT - scrollY + KEY_HEIGHT / 2;
       const x = clockToX(view, e.clock) - scrollX;
       fillRect(ctx, x - 1, y - 4, 2, 8, COLORS.noteHead);
@@ -261,7 +253,7 @@ function previewAt(y: number): void {
   const focus = doc.focusUnit;
   if (focus < 0) return;
   const row = Math.max(0, Math.min(KEYNUM - 1, rowAt(y)));
-  const value = valueAtRow(row);
+  const value = rowToKeyValue(row);
   previewUnitHold(focus, value, EVENTDEFAULT_VELOCITY);
 }
 
@@ -320,7 +312,7 @@ function applyDrag(): void {
     return;
   }
   setScope(c1, c2);
-  const value = valueAtRow(d.row);
+  const value = rowToKeyValue(d.row);
   const keyOnly = doc.tool === "hand";
   if (d.button === 0) {
     if (keyOnly) {
