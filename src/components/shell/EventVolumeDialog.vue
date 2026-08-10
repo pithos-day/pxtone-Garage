@@ -80,7 +80,7 @@ function onSubmit(): void {
       <label>{{ t("copymeas.clock") }}</label><input v-model.number="form.toClock" type="number" min="0" :max="beatClock() - 1" />
     </div>
     <div class="row">
-      <label>{{ t("eventvol.value") }}</label>
+      <label>{{ t("eventvolume.value") }}</label>
       <input v-model.number="form.value" type="number" min="-96" max="96" />
       <span class="hint">-96..96</span>
     </div>

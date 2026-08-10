@@ -11,7 +11,6 @@ const ja = {
   "common.newProject": "新規プロジェクト",
   "common.ok": "OK",
   "common.volumeToggle": "ボリュームエディタの表示",
-
   // メニュー: File
   "menu.file.new": "新規作成",
   "menu.file.open": "開く...",
@@ -42,7 +41,7 @@ const ja = {
   "copymeas.beat": "拍",
   "copymeas.clock": "クロック",
   "copymeas.kinds": "コピーするイベント",
-  "eventvol.value": "加算値",
+  "eventvolume.value": "加算値",
 
   // メニュー: View
   "menu.view.showAllUnits": "全ユニット表示",
@@ -150,15 +149,14 @@ const ja = {
   "playfield.clearStart": "Start をクリア",
   "playfield.clearEnd": "End をクリア",
 
-  // 確認ダイアログ
+  // 確認 / 入力ダイアログ
   "confirm.new": "未保存の変更は破棄されます。新規作成しますか?",
   "confirm.close": "未保存の変更は破棄されます。閉じますか?",
   "prompt.fileName": "ファイル名を入力してください",
 
   // エラーメッセージ
   "error.engineInit": "エンジン初期化に失敗しました",
-  "error.engineInitIo": "エンジン初期化失敗",
-  "error.loadFailed": "読み込み失敗",
+  "error.loadFailed": "読み込みに失敗しました",
   "error.tonesReady": "音色変換失敗",
   "error.quality": "品質設定失敗",
   "error.prepare": "再生準備失敗",
@@ -167,7 +165,6 @@ const ja = {
   "error.ogg": "OGG音色は未対応です",
   "error.beatClock": "beat clock が 480 ではない曲は開けません",
   "error.tooManyEvents": "イベント数が多すぎます",
-  "error.loadWithErr": "読み込みに失敗しました",
 } as const;
 
 export default ja;

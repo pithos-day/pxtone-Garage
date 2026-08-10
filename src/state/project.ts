@@ -336,7 +336,7 @@ export function pxtnErrorMessage(res: PxtnErr): string {
     case PxtnErr.TOO_MUCH_EVENT:
       return t("error.tooManyEvents");
     default:
-      return `${t("error.loadWithErr")} (err=${res})`;
+      return `${t("error.loadFailed")} (err=${res})`;
   }
 }
 

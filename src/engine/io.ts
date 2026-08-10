@@ -75,7 +75,7 @@ export function exportPttune(bytes: Uint8Array, fileName: string): boolean {
 // WAV 書き出し (オフライン全曲レンダリング)
 export function exportWav(bytes: Uint8Array, fileName: string, sps = 44100): string | null {
   const s = new Service();
-  if (s.init() !== PxtnErr.OK) return t("error.engineInitIo");
+  if (s.init() !== PxtnErr.OK) return t("error.engineInit");
   if (s.read(new MemoryIo(bytes)) !== PxtnErr.OK) return t("error.loadFailed");
   if (s.tonesReady() !== PxtnErr.OK) return t("error.tonesReady");
   if (!s.setDestinationQuality(2, sps)) return t("error.quality");
