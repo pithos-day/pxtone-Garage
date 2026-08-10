@@ -17,6 +17,7 @@ import { undo, redo, canUndo, canRedo } from "../../state/undo";
 import { ZOOM_TABLE, DIVI_TABLE } from "../../lib/clock";
 import { t } from "../../i18n";
 import type { EventVolumeMode } from "./EventVolumeDialog.vue";
+import MenuItemRow, { type MenuItem } from "./MenuItemRow.vue";
 
 const mode = defineModel<"collage" | "voice" | "noise">({ required: true });
 const emit = defineEmits<{
@@ -25,15 +26,6 @@ const emit = defineEmits<{
   (e: "copyMeas"): void;
   (e: "eventVolume", kind: EventVolumeMode): void;
 }>();
-
-interface MenuItem {
-  label?: string;
-  action?: () => void;
-  disabled?: boolean;
-  checked?: boolean;
-  sep?: boolean;
-  sub?: MenuItem[];
-}
 
 type MenuName = "file" | "edit" | "view";
 
@@ -198,29 +190,14 @@ const tabs = [
         {{ MENU_LABELS[m] }}
       </button>
       <div v-if="openMenu" class="menu-pop">
-        <template v-for="(item, i) in openItems" :key="i">
-          <div v-if="item.sep" class="menu-sep" />
-          <div
-            v-else
-            class="menu-item"
-            :class="{ disabled: item.disabled, 'has-sub': item.sub }"
-            @click="runMenuItem(item)"
-            @mouseenter="openSubIndex = item.sub ? i : -1"
-          >
-            <span class="menu-check">{{ item.checked ? "✓" : "" }}</span>
-            <span class="menu-text">{{ item.label }}</span>
-            <span v-if="item.sub" class="menu-arrow">▸</span>
-            <div v-if="item.sub && openSubIndex === i" class="menu-sub">
-              <template v-for="(sub, j) in item.sub" :key="j">
-                <div v-if="sub.sep" class="menu-sep" />
-                <div v-else class="menu-item" :class="{ disabled: sub.disabled }" @click="runMenuItem(sub)">
-                  <span class="menu-check">{{ sub.checked ? "✓" : "" }}</span>
-                  <span class="menu-text">{{ sub.label }}</span>
-                </div>
-              </template>
-            </div>
-          </div>
-        </template>
+        <MenuItemRow
+          v-for="(item, i) in openItems"
+          :key="i"
+          :item="item"
+          :sub-open="openSubIndex === i"
+          @hover="openSubIndex = item.sub ? i : -1"
+          @select="runMenuItem"
+        />
       </div>
     </div>
   </div>
@@ -295,64 +272,5 @@ const tabs = [
   box-shadow: 2px 2px 10px rgb(0 0 0 / 0.35);
   padding: 3px 0;
   z-index: 100;
-}
-
-.menu-item {
-  display: flex;
-  align-items: center;
-  padding: 5px 12px;
-  font-size: 12px;
-  color: var(--card-foreground);
-  cursor: pointer;
-  position: relative;
-  white-space: nowrap;
-}
-
-.menu-item:hover {
-  background: var(--primary);
-  color: var(--primary-foreground);
-}
-
-.menu-item.disabled {
-  color: var(--background);
-  cursor: default;
-}
-
-.menu-item.disabled:hover {
-  background: transparent;
-}
-
-.menu-check {
-  width: 16px;
-  color: var(--primary);
-  font-size: 11px;
-  flex: none;
-}
-
-.menu-text {
-  flex: 1;
-}
-
-.menu-arrow {
-  margin-left: 10px;
-  color: var(--muted-foreground);
-  font-size: 10px;
-}
-
-.menu-sep {
-  height: 1px;
-  margin: 3px 6px;
-  background: var(--border);
-}
-
-.menu-sub {
-  position: absolute;
-  left: 100%;
-  top: -4px;
-  min-width: 150px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  box-shadow: 2px 2px 10px rgb(0 0 0 / 0.35);
-  padding: 3px 0;
 }
 </style>
