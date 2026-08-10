@@ -59,7 +59,7 @@ const emit = defineEmits<{
 }
 
 .menu-item.disabled {
-  color: var(--background);
+  color: color-mix(in srgb, var(--card-foreground) 50%, transparent);
   cursor: default;
 }
 
