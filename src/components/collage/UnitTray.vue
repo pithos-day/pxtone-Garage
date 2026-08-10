@@ -32,7 +32,6 @@ const editing = ref<number | null>(null);
 const editText = ref("");
 const menu = ref<{ x: number; y: number; unit: number } | null>(null);
 const trayRef = ref<HTMLElement | null>(null);
-const rowH = ref(16); // 行の実測高さ (ドラッグ並べ替え用)
 
 useCtxMenuClose(menu);
 
@@ -80,7 +79,6 @@ function onPointerDown(e: PointerEvent, idx: number): void {
 function startDragReorder(tray: HTMLElement, idx: number): void {
   const first = tray.querySelector<HTMLElement>(".unit-row");
   const h = first?.offsetHeight ?? 24;
-  rowH.value = h;
   let lastTarget = idx;
   let undoPushed = false;
   const onMove = (ev: PointerEvent): void => {

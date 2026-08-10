@@ -61,7 +61,7 @@ onMounted(initFromScope);
 
 function enabledKinds(): number[] {
   const out: number[] = [];
-  if (kinds.on) out.push(EventKind.ON, EventKind.VELOCITY);
+  if (kinds.onKind) out.push(EventKind.ON, EventKind.VELOCITY);
   if (kinds.key) out.push(EventKind.KEY);
   if (kinds.panTime) out.push(EventKind.PAN_TIME);
   if (kinds.panVolume) out.push(EventKind.PAN_VOLUME);
@@ -114,7 +114,7 @@ function onSubmit(): void {
     <div class="section">
       <div class="section-title">{{ t("copymeas.kinds") }}</div>
       <div class="kinds">
-        <label><input type="checkbox" v-model="kinds.on" /> ON</label>
+        <label><input type="checkbox" v-model="kinds.onKind" /> ON</label>
         <label><input type="checkbox" v-model="kinds.key" /> KEY</label>
         <label><input type="checkbox" v-model="kinds.panTime" /> PAN_TIME</label>
         <label><input type="checkbox" v-model="kinds.panVolume" /> PAN_VOLUME</label>
