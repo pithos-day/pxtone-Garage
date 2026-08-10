@@ -62,23 +62,33 @@ export function setDark(dark: boolean): void {
 }
 
 export function setThemeName(name: string): void {
-  if (!themeExists(name)) name = DEFAULT_THEME;
-  theme.name = name;
+  theme.name = themeExists(name) ? name : DEFAULT_THEME;
   apply();
 }
 
 function apply(): void {
+  applyThemeToDom();
+  persistSelection();
+  syncThemeColors();
+  // テーマは canvas の描画色にも反映されるため、再描画を促す
+  doc.rev++;
+}
+
+// 選択中のテーマを <html> に反映する
+function applyThemeToDom(): void {
   const el = document.documentElement;
   el.dataset.theme = theme.name;
   el.classList.toggle("dark", theme.dark);
+}
+
+// 選択を localStorage に永続化する
+function persistSelection(): void {
   try {
     localStorage.setItem(STORAGE_THEME, theme.name);
     localStorage.setItem(STORAGE_DARK, theme.dark ? "1" : "0");
   } catch {
     // localStorage 不可 (プライベートモード等) は無視
   }
-  syncThemeColors();
-  doc.rev++; // canvas の再描画を促す
 }
 
 // ---- テーマ注入 ----
