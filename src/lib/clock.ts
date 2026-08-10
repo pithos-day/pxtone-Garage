@@ -75,6 +75,11 @@ export function clockToMeasBeatClock(view: ClockView, clock: number): [number, n
   return [m, b, c];
 }
 
+// 小節:拍:クロック (meas/beat は 1-based UI 値) → クロック。範囲外は 1/1/0 にクランプ
+export function measBeatClockToClock(view: ClockView, meas: number, beat: number, clock: number): number {
+  return (Math.max(1, meas) - 1) * view.beatNum * view.beatClock + (Math.max(1, beat) - 1) * view.beatClock + Math.max(0, clock);
+}
+
 export function formatClock(view: ClockView, clock: number): string {
   const [m, b, c] = clockToMeasBeatClock(view, clock);
   return `${m + 1}:${b + 1}:${c}`;

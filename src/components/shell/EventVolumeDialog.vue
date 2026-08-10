@@ -3,7 +3,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive } from "vue";
 import { doc, getService, clockView as projectClockView, changeEventValue } from "../../state/project";
-import { clockToMeasBeatClock } from "../../lib/clock";
+import { clockToMeasBeatClock, measBeatClockToClock } from "../../lib/clock";
 import { EventKind } from "pxtone-ts";
 import { t } from "../../i18n";
 
@@ -38,28 +38,26 @@ const title = computed(() => t(TITLES[props.mode]!));
 
 const beatClock = (): number => getService()?.master.beatClock ?? 480;
 const beatNum = (): number => getService()?.master.beatNum ?? 4;
+const view = (): ReturnType<typeof projectClockView> => projectClockView();
 
-function toClock(meas: number, beat: number, clock: number): number {
-  return (Math.max(1, meas) - 1) * beatNum() * beatClock() + (Math.max(1, beat) - 1) * beatClock() + Math.max(0, clock);
+// 選択範囲 (半開区間 [scope1, scope2)) を from/to フォームに初期化
+function initFromScope(): void {
+  if (doc.scope2 <= doc.scope1) return;
+  const [m1, b1, c1] = clockToMeasBeatClock(view(), doc.scope1);
+  const [m2, b2, c2] = clockToMeasBeatClock(view(), doc.scope2 - 1);
+  form.fromMeas = m1 + 1;
+  form.fromBeat = b1 + 1;
+  form.fromClock = c1;
+  form.toMeas = m2 + 1;
+  form.toBeat = b2 + 1;
+  form.toClock = c2;
 }
 
-onMounted(() => {
-  const view = projectClockView();
-  if (doc.scope2 > doc.scope1) {
-    const [m1, b1, c1] = clockToMeasBeatClock(view, doc.scope1);
-    const [m2, b2, c2] = clockToMeasBeatClock(view, doc.scope2 - 1);
-    form.fromMeas = m1 + 1;
-    form.fromBeat = b1 + 1;
-    form.fromClock = c1;
-    form.toMeas = m2 + 1;
-    form.toBeat = b2 + 1;
-    form.toClock = c2;
-  }
-});
+onMounted(initFromScope);
 
 function onOk(): void {
-  const c1 = toClock(form.fromMeas, form.fromBeat, form.fromClock);
-  const c2 = toClock(form.toMeas, form.toBeat, form.toClock);
+  const c1 = measBeatClockToClock(view(), form.fromMeas, form.fromBeat, form.fromClock);
+  const c2 = measBeatClockToClock(view(), form.toMeas, form.toBeat, form.toClock);
   changeEventValue(c1, c2, KINDS[props.mode]!, form.value);
   emit("close");
 }

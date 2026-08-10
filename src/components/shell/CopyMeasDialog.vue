@@ -3,7 +3,7 @@
 <script setup lang="ts">
 import { onMounted, reactive } from "vue";
 import { doc, getService, clockView as projectClockView, copyMeas } from "../../state/project";
-import { clockToMeasBeatClock } from "../../lib/clock";
+import { clockToMeasBeatClock, measBeatClockToClock } from "../../lib/clock";
 import { EventKind } from "pxtone-ts";
 import { t } from "../../i18n";
 
@@ -37,28 +37,26 @@ const kinds = reactive({
 
 const beatClock = (): number => getService()?.master.beatClock ?? 480;
 const beatNum = (): number => getService()?.master.beatNum ?? 4;
+const view = (): ReturnType<typeof projectClockView> => projectClockView();
 
-// 小節:拍:クロック → クロック
-function toClock(meas: number, beat: number, clock: number): number {
-  return (Math.max(1, meas) - 1) * beatNum() * beatClock() + (Math.max(1, beat) - 1) * beatClock() + Math.max(0, clock);
+// 選択範囲 (半開区間 [scope1, scope2)) を from/to/dest フォームに初期化
+// コピー先 dest は選択範囲の終端に初期化 (本家同様、末尾への追記を想定)
+function initFromScope(): void {
+  if (doc.scope2 <= doc.scope1) return;
+  const [m1, b1, c1] = clockToMeasBeatClock(view(), doc.scope1);
+  const [m2, b2, c2] = clockToMeasBeatClock(view(), doc.scope2 - 1);
+  form.fromMeas = m1 + 1;
+  form.fromBeat = b1 + 1;
+  form.fromClock = c1;
+  form.toMeas = m2 + 1;
+  form.toBeat = b2 + 1;
+  form.toClock = c2;
+  form.destMeas = m2 + 1;
+  form.destBeat = b2 + 1;
+  form.destClock = c2;
 }
 
-onMounted(() => {
-  const view = projectClockView();
-  if (doc.scope2 > doc.scope1) {
-    const [m1, b1, c1] = clockToMeasBeatClock(view, doc.scope1);
-    const [m2, b2, c2] = clockToMeasBeatClock(view, doc.scope2 - 1);
-    form.fromMeas = m1 + 1;
-    form.fromBeat = b1 + 1;
-    form.fromClock = c1;
-    form.toMeas = m2 + 1;
-    form.toBeat = b2 + 1;
-    form.toClock = c2;
-    form.destMeas = m2 + 1;
-    form.destBeat = b2 + 1;
-    form.destClock = c2;
-  }
-});
+onMounted(initFromScope);
 
 function enabledKinds(): number[] {
   const out: number[] = [];
@@ -75,9 +73,9 @@ function enabledKinds(): number[] {
 }
 
 function onOk(): void {
-  const c1 = toClock(form.fromMeas, form.fromBeat, form.fromClock);
-  const c2 = toClock(form.toMeas, form.toBeat, form.toClock);
-  const dest = toClock(form.destMeas, form.destBeat, form.destClock);
+  const c1 = measBeatClockToClock(view(), form.fromMeas, form.fromBeat, form.fromClock);
+  const c2 = measBeatClockToClock(view(), form.toMeas, form.toBeat, form.toClock);
+  const dest = measBeatClockToClock(view(), form.destMeas, form.destBeat, form.destClock);
   const times = Math.max(1, form.times);
   copyMeas(c1, c2, dest, times, enabledKinds());
   emit("close");
