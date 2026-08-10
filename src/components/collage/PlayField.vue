@@ -42,11 +42,12 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   drawGrid(ctx, { w, h, scrollX: doc.scrollX, view, top: 0, bottom: h, showNumber: false });
 
   const band = h / 2; // 上段 = Repeat/Last、下段 = Start/End
-  const repeatX = clockToX(view, s.master.repeatMeas * view.beatClock * view.beatNum) - doc.scrollX;
   const lastX = clockToX(view, s.master.lastMeas * view.beatClock * view.beatNum) - doc.scrollX;
 
   // 上段: Repeat / Last
-  if (s.master.repeatMeas > 0) {
+  if (doc.repeatMeas > 0) {
+    // Repeat は 1-based (エンジン/ファイルは 0-based) なので (repeatMeas - 1) 小節目の開始位置に描画
+    const repeatX = clockToX(view, (doc.repeatMeas - 1) * view.beatClock * view.beatNum) - doc.scrollX;
     fillRect(ctx, repeatX, 2, 2, band - 4, COLORS.repeatMark);
     fillText(ctx, "R", repeatX + 3, band - 4, COLORS.repeatMark, 9);
   }
@@ -139,7 +140,8 @@ function onMenuAction(action: "setRepeat" | "setLast" | "cutRepeat" | "cutLast" 
   if (!m) return;
   switch (action) {
     case "setRepeat":
-      setRepeatMeas(m.meas);
+      // Repeat は 1-based で保持 (エンジン/ファイルは 0-based)
+      setRepeatMeas(m.meas + 1);
       break;
     case "setLast":
       // 本家準拠: last は「最後の小節番号」(終端境界 = (meas+1) 小節目の開始)

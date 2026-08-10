@@ -84,6 +84,7 @@ export const doc = reactive({
   soloBackup: [] as number[], // ソロ開始時のミュート状態 (解除時に復元)
   playStart: -1, // 編集用再生範囲の開始小節 (0-based, -1 = 未設定)
   playEnd: -1, // 編集用再生範囲の終了小節 (0-based, -1 = 未設定)
+  repeatMeas: 0, // Repeat 位置 (1-based 小節番号, 0 = なし)
 });
 
 export const units = ref<UnitInfo[]>([]);
@@ -246,6 +247,7 @@ export function newProject(): boolean {
   doc.soloBackup = [];
   doc.playStart = -1;
   doc.playEnd = -1;
+  doc.repeatMeas = 0;
   doc.scope1 = 0;
   doc.scope2 = 0;
   doc.scrollX = 0;
@@ -271,6 +273,8 @@ export function openProject(bytes: Uint8Array): string | null {
   doc.soloBackup = [];
   doc.playStart = -1;
   doc.playEnd = -1;
+  // ファイル上の Repeat (0-based) を 1-based 表示へ変換 (0 は「なし」)
+  doc.repeatMeas = service.master.repeatMeas > 0 ? service.master.repeatMeas + 1 : 0;
   doc.scope1 = 0;
   doc.scope2 = 0;
   doc.scrollX = 0;
@@ -605,8 +609,11 @@ export function setProjectSettings(o: {
 }
 
 export function setRepeatMeas(meas: number): void {
+  // Repeat は 1-based 小節番号 (0 = なし)。エンジン/ファイルは 0-based で
+  // 「1小節目 = 曲頭から再生」を表すため、保存側では -1 して書き込む。
+  doc.repeatMeas = meas > 0 ? meas : 0;
   mutate(() => {
-    service.master.setRepeatMeas(meas);
+    service.master.setRepeatMeas(doc.repeatMeas > 0 ? doc.repeatMeas - 1 : 0);
   });
 }
 

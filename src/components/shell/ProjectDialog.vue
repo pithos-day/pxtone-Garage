@@ -1,7 +1,7 @@
 // File > Project... のモーダルダイアログ。曲名/コメント/BPM/拍子/小節数を編集。
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
-import { getService, setProjectSettings } from "../../state/project";
+import { getService, doc, setProjectSettings } from "../../state/project";
 import { t } from "../../i18n";
 
 const emit = defineEmits<{ (e: "close"): void }>();
@@ -83,7 +83,7 @@ function onOverlayClick(e: MouseEvent): void {
         </div>
         <div class="row dim">
           <label>{{ t("project.repeat") }}</label>
-          <span>{{ getService()?.master.repeatMeas }} {{ t("project.measUnit") }}</span>
+          <span>{{ doc.repeatMeas }} {{ t("project.measUnit") }}</span>
         </div>
         <div class="row dim">
           <label>{{ t("project.last") }}</label>

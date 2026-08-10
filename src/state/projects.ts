@@ -3,7 +3,7 @@
 // タブ切替で「現在の doc/service/undo」を差し替える。
 import { ref } from "vue";
 import { Service, PxtnErr, MemoryIo, PXTN_MAX_EVENT_NUM } from "pxtone-ts";
-import { setService } from "./service";
+import { setService, service } from "./service";
 import { setUndoStacks, undoStack, redoStack } from "./undo";
 import { doc, sync, title, comment, ensureInit, pxtnErrorMessage } from "./project";
 import { resetLoaded } from "./player";
@@ -32,6 +32,7 @@ export interface ProjectState {
   soloBackup: number[];
   playStart: number;
   playEnd: number;
+  repeatMeas: number;
 }
 
 export interface Project {
@@ -78,6 +79,7 @@ function defaultState(): ProjectState {
     soloBackup: [],
     playStart: -1,
     playEnd: -1,
+    repeatMeas: 0,
   };
 }
 
@@ -117,6 +119,7 @@ function saveCurrent(): void {
     soloBackup: [...doc.soloBackup],
     playStart: doc.playStart,
     playEnd: doc.playEnd,
+    repeatMeas: doc.repeatMeas,
   };
 }
 
@@ -146,6 +149,7 @@ function restore(p: Project): void {
   doc.soloBackup = [...st.soloBackup];
   doc.playStart = st.playStart;
   doc.playEnd = st.playEnd;
+  doc.repeatMeas = st.repeatMeas;
   title.value = p.title;
   comment.value = p.comment;
   sync();
@@ -187,6 +191,8 @@ export function newProjectInTab(): Project {
 // 現在のプロジェクトの内容を UI に再同期する (読み込み後の反映などに使う)
 export function refreshCurrent(): void {
   if (!currentProject()) return;
+  // ファイル上の Repeat (0-based) を 1-based 表示へ変換 (0 は「なし」)
+  doc.repeatMeas = service.master.repeatMeas > 0 ? service.master.repeatMeas + 1 : 0;
   sync();
   doc.rev++;
   resetLoaded();
