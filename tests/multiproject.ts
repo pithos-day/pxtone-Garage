@@ -367,61 +367,6 @@ check("ソロ対象削除: muted は空", doc.muted.length === 0);
     check("注入CSS: ダークスコープ", css.includes('.dark[data-theme="test-x"]') && css.includes("--background: oklch(0.148 0 0);"));
   }
 
-  // ---- 15. themeParse (ジェネレーターCSS → トークンマップ) ----
-  {
-    // Tailwind ディレクティブ付きの shadcn ジェネレーター出力
-    const gen = `@import "tailwindcss";
-@custom-variant dark (&:is(.dark *));
-:root {
-  --background: oklch(1 0 0);
-  --primary: oklch(0.514 0.222 16.935);
-  --radius: 0.625rem;
-  --font-sans: "Inter", sans-serif;
-  --shadow-sm: 0px 1px 2px hsl(0 0% 0% / 0.1);
-}
-.dark {
-  --background: oklch(0.148 0 0);
-  --primary: oklch(0.702 0.2 45);
-  --radius: 0.5rem;
-  --font-sans: "Inter", sans-serif;
-}
-@theme inline {
-  --color-background: var(--background);
-}
-@layer base {
-  * { @apply border-border; }
-}`;
-    const t = parseThemeCss(gen);
-    check("ジェネレーターCSSをパース", t !== null);
-    check("light トークン抽出", t?.light["--background"] === "oklch(1 0 0)" && t?.light["--primary"] === "oklch(0.514 0.222 16.935)");
-    check("dark トークン抽出", t?.dark["--background"] === "oklch(0.148 0 0)");
-    check("--font-* は除外", !("--font-sans" in (t?.light ?? {})) && !("--font-sans" in (t?.dark ?? {})));
-    check("@theme/@layer の変数は除外", !("--color-background" in (t?.light ?? {})));
-    check("--shadow* は拒否 (ベースから継承)", !("--shadow-sm" in (t?.light ?? {})) && !("--shadow" in (t?.light ?? {})));
-
-    // 素の :root/.dark (rose 形式)
-    const plain = parseThemeCss(":root { --background: oklch(1 0 0); }\n.dark { --background: oklch(0.5 0 0); }");
-    check("素の :root/.dark をパース", plain?.light["--background"] === "oklch(1 0 0)" && plain?.dark["--background"] === "oklch(0.5 0 0)");
-
-    // サニタイズ: インジェクション拒否
-    const evil = parseThemeCss(`:root { --background: oklch(1 0 0); --x: url("https://evil/"); --y: red; --z: }bad; }`);
-    check("url() を拒否", evil !== null && !("--x" in evil.light));
-    check("不正構造を拒否", !("--z" in (evil?.light ?? {})));
-
-    // マージ (未定義トークンはベースから継承)
-    const base = parseThemeCss(":root { --background: oklch(0 0 0); --btn-bg: red; }\n.dark { --background: oklch(1 0 0); }")!;
-    const merged = mergeTokens(base, t!);
-    check("マージ: テーマ側が優先", merged.light["--background"] === "oklch(1 0 0)");
-    check("マージ: 未定義はベースから継承", merged.light["--btn-bg"] === "red");
-    check("マージ: dark も適用", merged.dark["--background"] === "oklch(0.148 0 0)");
-    check("マージ: dark の未定義は空", merged.dark["--btn-bg"] === undefined);
-
-    // スコープ付き CSS 生成
-    const css = buildThemeCss("test-x", merged);
-    check("注入CSS: ライトスコープ", css.includes(':root[data-theme="test-x"]') && css.includes("--background: oklch(1 0 0);"));
-    check("注入CSS: ダークスコープ", css.includes('.dark[data-theme="test-x"]') && css.includes("--background: oklch(0.148 0 0);"));
-  }
-
   // ---- 16. 小節コピー / イベント音量 / ユニット追加 ----
   {
     const s = serviceMod.service;
