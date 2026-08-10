@@ -265,10 +265,8 @@ export function mutate(fn: () => void): void {
 
 // ---- プロジェクト全体 ----
 
-export function newProject(): boolean {
-  if (!ensureInit()) return false;
-  service.clear();
-  doc.fileName = "";
+// 新規/読込時に編集用の UI 状態をリセットする (ファイルの内容には影響しない)
+function resetEditingState(): void {
   doc.focusUnit = -1;
   doc.operated = [];
   doc.muted = [];
@@ -276,13 +274,20 @@ export function newProject(): boolean {
   doc.soloBackup = [];
   doc.playStart = -1;
   doc.playEnd = -1;
-  doc.repeatMeas = 0;
   doc.scope1 = 0;
   doc.scope2 = 0;
   doc.scrollX = 0;
   doc.scrollYUnit = 0;
   doc.scrollYKey = 0;
   doc.dirty = false;
+}
+
+export function newProject(): boolean {
+  if (!ensureInit()) return false;
+  service.clear();
+  doc.fileName = "";
+  resetEditingState();
+  doc.repeatMeas = 0;
   clearUndo();
   sync();
   doc.rev++;
@@ -295,21 +300,9 @@ export function openProject(bytes: Uint8Array): string | null {
   const io = new MemoryIo(bytes);
   const res = service.read(io);
   if (res !== PxtnErr.OK) return pxtnErrorMessage(res);
-  doc.focusUnit = -1;
-  doc.operated = [];
-  doc.muted = [];
-  doc.soloUnit = -1;
-  doc.soloBackup = [];
-  doc.playStart = -1;
-  doc.playEnd = -1;
+  resetEditingState();
   // ファイル上の Repeat (0-based) を 1-based 表示へ変換 (0 は「なし」)
   doc.repeatMeas = service.master.repeatMeas > 0 ? service.master.repeatMeas + 1 : 0;
-  doc.scope1 = 0;
-  doc.scope2 = 0;
-  doc.scrollX = 0;
-  doc.scrollYUnit = 0;
-  doc.scrollYKey = 0;
-  doc.dirty = false;
   clearUndo();
   sync();
   doc.rev++;
