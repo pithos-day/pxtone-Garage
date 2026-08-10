@@ -7,7 +7,26 @@ import {
   closeProject,
   openProjectInTab,
 } from "../src/state/projects";
-import { doc, units, addUnit, setTempo, exportBytes, ensureInit, toggleUnitSolo, toggleUnitMute, removeUnit, addWoice, WoiceType, copyMeas, changeEventValue, addUnitWithWoice, getAllEvents, sync, setPlayStart, setPlayEnd } from "../src/state/project";
+import {
+  doc,
+  units,
+  addUnit,
+  setTempo,
+  exportBytes,
+  ensureInit,
+  toggleUnitSolo,
+  toggleUnitMute,
+  removeUnit,
+  addWoice,
+  WoiceType,
+  copyMeas,
+  changeEventValue,
+  addUnitWithWoice,
+  getAllEvents,
+  sync,
+  setPlayStart,
+  setPlayEnd,
+} from "../src/state/project";
 import * as serviceMod from "../src/state/service";
 import { undo, redo, canUndo, canRedo } from "../src/state/undo";
 import { player, isPlaying, masterVolume, loop } from "../src/state/player";
@@ -15,157 +34,179 @@ import { parseThemeCss, mergeTokens, buildThemeCss } from "../src/lib/themeParse
 import { EventKind } from "pxtone-ts";
 
 let failed = 0;
+function fail(name: string, detail = ""): void {
+  failed++;
+  console.log(`FAIL ${name}${detail ? ` ${detail}` : ""}`);
+}
+
+// 条件チェック (失敗時は detail を表示)
 function check(name: string, cond: boolean, detail = ""): void {
-  if (cond) {
-    console.log(`ok   ${name}`);
-  } else {
-    failed++;
-    console.log(`FAIL ${name} ${detail}`);
-  }
+  if (cond) console.log(`ok   ${name}`);
+  else fail(name, detail);
+}
+
+// 値の等価チェック (失敗時に期待値と実測値を必ず表示する)
+function checkEq<T>(actual: T, expected: T, name: string): void {
+  if (actual === expected) console.log(`ok   ${name}`);
+  else fail(name, `expected=${JSON.stringify(expected)} actual=${JSON.stringify(actual)}`);
 }
 
 // ---- 1. 初期プロジェクト ----
 newProjectInTab();
-check("初期プロジェクトが1つ", projects.value.length === 1);
-check("currentProjectId が最初のタブ", currentProjectId.value === projects.value[0]!.id);
-check("doc.ready", doc.ready === true);
+checkEq(projects.value.length, 1, "初期プロジェクトが1つ");
+checkEq(currentProjectId.value, projects.value[0]!.id, "currentProjectId が最初のタブ");
+checkEq(doc.ready, true, "doc.ready");
 
 // ---- 2. 編集 + タブ間の独立 ----
 addUnit("A");
-check("ユニット追加で units=1", units.value.length === 1, `len=${units.value.length}`);
+checkEq(units.value.length, 1, "ユニット追加で units=1");
 setTempo(180);
 check("テンポ変更", exportBytes() !== null);
 const p1Id = currentProjectId.value;
 const savedScroll = 12345;
 doc.scrollX = savedScroll;
-check("undo が積まれる", canUndo.value === true);
+checkEq(canUndo.value, true, "undo が積まれる");
 
 const p2 = newProjectInTab();
-check("2タブ目が開く", projects.value.length === 2);
-check("2タブ目はユニット0個", units.value.length === 0, `len=${units.value.length}`);
-check("2タブ目は undo 空", canUndo.value === false && canRedo.value === false);
-check("2タブ目 scrollX リセット", doc.scrollX === 0);
+checkEq(projects.value.length, 2, "2タブ目が開く");
+checkEq(units.value.length, 0, "2タブ目はユニット0個");
+checkEq(canUndo.value, false, "2タブ目は undo 空");
+checkEq(canRedo.value, false, "2タブ目は redo 空");
+checkEq(doc.scrollX, 0, "2タブ目 scrollX リセット");
 
 // ---- 3. タブ切替で状態が復元される ----
 switchProject(p1Id);
-check("1タブ目へ切替: units=1", units.value.length === 1);
-check("1タブ目 scrollX 復元", doc.scrollX === savedScroll, `scrollX=${doc.scrollX}`);
-check("1タブ目 undo 復元", canUndo.value === true);
+checkEq(units.value.length, 1, "1タブ目へ切替: units=1");
+checkEq(doc.scrollX, savedScroll, "1タブ目 scrollX 復元");
+checkEq(canUndo.value, true, "1タブ目 undo 復元");
 
 // ---- 4. タブごとの undo 独立 ----
 undo(); // setTempo を戻す → 1 unit
-check("1タブ目 undo#1 → units=1", units.value.length === 1, `len=${units.value.length}`);
+checkEq(units.value.length, 1, "1タブ目 undo#1 → units=1");
 undo(); // addUnit を戻す → 0 unit
-check("1タブ目 undo#2 → units=0", units.value.length === 0, `len=${units.value.length}`);
-check("1タブ目 redo が積まれる", canRedo.value === true);
+checkEq(units.value.length, 0, "1タブ目 undo#2 → units=0");
+checkEq(canRedo.value, true, "1タブ目 redo が積まれる");
 redo();
-check("1タブ目 redo → units=1", units.value.length === 1);
+checkEq(units.value.length, 1, "1タブ目 redo → units=1");
 switchProject(p2.id);
-check("2タブ目 undo は空のまま", canUndo.value === false, `canUndo=${canUndo.value}`);
+checkEq(canUndo.value, false, "2タブ目 undo は空のまま");
 switchProject(p1Id);
-check("1タブ目 undo/redo 復元", canUndo.value === true && canRedo.value === true);
+checkEq(canUndo.value, true, "1タブ目 undo 復元");
+checkEq(canRedo.value, true, "1タブ目 redo 復元");
 
 // ---- 5. タブ1に追加 → タブ2はそのまま ----
 addUnit("B");
-check("1タブ目 units=2 (A,B)", units.value.length === 2, `len=${units.value.length}`);
+checkEq(units.value.length, 2, "1タブ目 units=2 (A,B)");
 const bytes = exportBytes();
 check("bytes 取得", bytes !== null);
 switchProject(p2.id);
-check("2タブ目 units=0 のまま", units.value.length === 0);
+checkEq(units.value.length, 0, "2タブ目 units=0 のまま");
 
 // ---- 6. openProjectInTab ----
 const p3err = openProjectInTab(bytes!, "my-song");
-check("open で新タブ (エラーなし)", p3err === null, `err=${p3err}`);
+checkEq(p3err, null, "open で新タブ (エラーなし)");
 const p3Id = currentProjectId.value;
-check("3タブ目に2ユニット復元", units.value.length === 2, `len=${units.value.length}`);
-check("タブ名がファイル名になる", doc.fileName === "my-song", `fileName=${doc.fileName}`);
-check(
+checkEq(units.value.length, 2, "3タブ目に2ユニット復元");
+checkEq(doc.fileName, "my-song", "タブ名がファイル名になる");
+checkEq(
+  projects.value.find((p) => p.id === p3Id)?.fileName,
+  "my-song",
   "タブ表示用の名前も設定される",
-  projects.value.find((p) => p.id === p3Id)?.fileName === "my-song",
 );
-check("テンポ復元 (120)", serviceMod.service.master.beatTempo === 120, `tempo=${serviceMod.service.master.beatTempo}`);
-check("タブ数 3", projects.value.length === 3);
+checkEq(serviceMod.service.master.beatTempo, 120, "テンポ復元 (120)");
+checkEq(projects.value.length, 3, "タブ数 3");
 
 // ---- 7. タブごとの undo 独立 (追加分) ----
 switchProject(p1Id);
-check("1タブ目 units=2 に戻る", units.value.length === 2, `len=${units.value.length}`);
+checkEq(units.value.length, 2, "1タブ目 units=2 に戻る");
 addUnit("C");
-check("1タブ目 units=3 (A,B,C)", units.value.length === 3, `len=${units.value.length}`);
+checkEq(units.value.length, 3, "1タブ目 units=3 (A,B,C)");
 undo();
-check("1タブ目 undo → units=2", units.value.length === 2);
+checkEq(units.value.length, 2, "1タブ目 undo → units=2");
 switchProject(p2.id);
-check("2タブ目 undo は空のまま", canUndo.value === false);
+checkEq(canUndo.value, false, "2タブ目 undo は空のまま");
 switchProject(p1Id);
-check("1タブ目 undo 復元 (true)", canUndo.value === true);
+checkEq(canUndo.value, true, "1タブ目 undo 復元 (true)");
 
 // ---- 8. closeProject ----
 closeProject(p3Id);
-check("閉じると 2タブ", projects.value.length === 2);
-check("非アクティブを閉じても現在タブは p1", currentProjectId.value === p1Id);
+checkEq(projects.value.length, 2, "閉じると 2タブ");
+checkEq(currentProjectId.value, p1Id, "非アクティブを閉じても現在タブは p1");
 check("最後の1つは閉じられない", (() => {
   for (let i = 0; i < 10; i++) closeProject(projects.value[0]!.id);
   return projects.value.length === 1;
 })());
-check("残ったタブは 1つ (p2)", currentProjectId.value === p2.id);
-check("p2 は units=0", units.value.length === 0);
+checkEq(currentProjectId.value, p2.id, "残ったタブは 1つ (p2)");
+checkEq(units.value.length, 0, "p2 は units=0");
 
 // ---- 9. ソロ ----
 addUnit("A");
 addUnit("B");
 addUnit("C");
-check("ソロ前 units=3", units.value.length === 3, `len=${units.value.length}`);
+checkEq(units.value.length, 3, "ソロ前 units=3");
 toggleUnitSolo(1);
-check("ソロON: soloUnit=1", doc.soloUnit === 1);
-check("ソロON: 他2ユニットがミュート", doc.muted.length === 2 && !doc.muted.includes(1));
-check("ソロON: 対象ユニットはミュート外", units.value[1]?.soloed === true);
+checkEq(doc.soloUnit, 1, "ソロON: soloUnit=1");
+checkEq(doc.muted.length, 2, "ソロON: 他2ユニットがミュート");
+check("ソロON: 対象ユニットはミュート外", !doc.muted.includes(1), `muted=${doc.muted}`);
+checkEq(units.value[1]?.soloed, true, "ソロON: ソロ対象のフラグ");
 toggleUnitSolo(1);
-check("ソロOFF: soloUnit=-1", doc.soloUnit === -1);
-check("ソロOFF: ミュート全解除", doc.muted.length === 0);
+checkEq(doc.soloUnit, -1, "ソロOFF: soloUnit=-1");
+checkEq(doc.muted.length, 0, "ソロOFF: ミュート全解除");
 toggleUnitSolo(0);
-check("別ユニットへソロ切替", doc.soloUnit === 0 && doc.muted.includes(1) && doc.muted.includes(2));
+checkEq(doc.soloUnit, 0, "別ユニットへソロ切替");
+check("別ユニットへソロ切替: unit1 がミュート", doc.muted.includes(1), `muted=${doc.muted}`);
+check("別ユニットへソロ切替: unit2 がミュート", doc.muted.includes(2), `muted=${doc.muted}`);
 // タブ切替でソロも独立
 const soloP2 = doc.soloUnit;
 newProjectInTab();
-check("新タブはソロなし", doc.soloUnit === -1);
+checkEq(doc.soloUnit, -1, "新タブはソロなし");
 switchProject(p2.id);
-check("元のタブのソロが復元", doc.soloUnit === soloP2);
+checkEq(doc.soloUnit, soloP2, "元のタブのソロが復元");
 
 // ---- 10. ソロ解除で元のミュート状態を復元 ----
 // ユニット0をミュート → ユニット1をソロ → 解除 → ユニット0だけミュートのまま
 toggleUnitMute(0);
-check("手動ミュート: unit0のみ", doc.muted.length === 1 && doc.muted[0] === 0);
+checkEq(doc.muted.length, 1, "手動ミュート: unit0のみ");
+checkEq(doc.muted[0], 0, "手動ミュート: 対象は unit0");
 toggleUnitSolo(1);
-check("ソロ中: muted は solo 由来", doc.muted.length === 2 && !doc.muted.includes(1));
+checkEq(doc.muted.length, 2, "ソロ中: muted は solo 由来");
+check("ソロ中: 対象ユニットはミュート外", !doc.muted.includes(1), `muted=${doc.muted}`);
 toggleUnitSolo(1);
-check("ソロ解除: unit0 のミュートが復元", doc.muted.length === 1 && doc.muted[0] === 0, `muted=${doc.muted}`);
-check("ソロ解除: soloBackup は空", doc.soloBackup.length === 0);
+checkEq(doc.muted.length, 1, "ソロ解除: unit0 のミュートが復元");
+checkEq(doc.muted[0], 0, "ソロ解除: 残るのは unit0");
+checkEq(doc.soloBackup.length, 0, "ソロ解除: soloBackup は空");
 // ソロ中に手動ミュート変更 → ソロ解除 + 変更が反映
 toggleUnitSolo(2);
-check("再ソロ: soloBackup に unit0 が保存", doc.soloBackup.length === 1 && doc.soloBackup[0] === 0);
+checkEq(doc.soloBackup.length, 1, "再ソロ: soloBackup に unit0 が保存");
+checkEq(doc.soloBackup[0], 0, "再ソロ: バックアップ対象は unit0");
 toggleUnitMute(0); // ソロ中に unit0 を再生に → ソロ解除、unit0 のみミュート解除
-check("ソロ中のミュート変更: ソロ解除", doc.soloUnit === -1);
-check("ソロ中のミュート変更: unit0 ミュート解除が反映", !doc.muted.includes(0) && doc.muted.length === 0, `muted=${doc.muted}`);
+checkEq(doc.soloUnit, -1, "ソロ中のミュート変更: ソロ解除");
+checkEq(doc.muted.length, 0, "ソロ中のミュート変更: unit0 ミュート解除が反映");
 
 // ---- 10b. ソロの直接切替では元のバックアップを保持 ----
 toggleUnitMute(0);
-check("切替前: unit0 のみミュート", doc.muted.length === 1 && doc.muted[0] === 0);
+checkEq(doc.muted.length, 1, "切替前: unit0 のみミュート");
+checkEq(doc.muted[0], 0, "切替前: 対象は unit0");
 toggleUnitSolo(1);
 toggleUnitSolo(2); // ソロ中に直接切替
-check("切替中: soloUnit=2", doc.soloUnit === 2);
-check("切替中: backup は元のまま", doc.soloBackup.length === 1 && doc.soloBackup[0] === 0);
+checkEq(doc.soloUnit, 2, "切替中: soloUnit=2");
+checkEq(doc.soloBackup.length, 1, "切替中: backup は元のまま");
+checkEq(doc.soloBackup[0], 0, "切替中: backup 対象は unit0");
 toggleUnitSolo(2); // 解除
-check("切替後解除: unit0 のミュートが復元", doc.muted.length === 1 && doc.muted[0] === 0, `muted=${doc.muted}`);
+checkEq(doc.muted.length, 1, "切替後解除: unit0 のミュートが復元");
+checkEq(doc.muted[0], 0, "切替後解除: 残るのは unit0");
 
 // ---- 11. ユニット削除・並べ替えでソロ/ミュートが追従 ----
 toggleUnitSolo(1);
-check("削除前: soloUnit=1", doc.soloUnit === 1);
+checkEq(doc.soloUnit, 1, "削除前: soloUnit=1");
 removeUnit(0); // 削除で index がずれる
-check("他ユニット削除: soloUnit が 0 に追従", doc.soloUnit === 0, `soloUnit=${doc.soloUnit}`);
-check("他ユニット削除: muted は残りの1ユニットのみ", doc.muted.length === 1 && doc.muted[0] === 1);
+checkEq(doc.soloUnit, 0, "他ユニット削除: soloUnit が 0 に追従");
+checkEq(doc.muted.length, 1, "他ユニット削除: muted は残りの1ユニットのみ");
+checkEq(doc.muted[0], 1, "他ユニット削除: 残るのは unit1");
 toggleUnitSolo(0);
 removeUnit(0); // ソロ対象の削除 → ソロ解除 + backup 復元 (空)
-check("ソロ対象削除: soloUnit=-1", doc.soloUnit === -1);
-check("ソロ対象削除: muted は空", doc.muted.length === 0);
+checkEq(doc.soloUnit, -1, "ソロ対象削除: soloUnit=-1");
+checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
 // ---- 12. 再生中のミュート/ソロ変更が worklet に反映される ----
 (async () => {
@@ -262,7 +303,7 @@ check("ソロ対象削除: muted は空", doc.muted.length === 0);
     }
 
     const addWoiceRes = addWoice(pcm, WoiceType.PCM);
-    check("プレビュー用のPCM音色を追加", addWoiceRes === null, `err=${addWoiceRes}`);
+    checkEq(addWoiceRes, null, "プレビュー用のPCM音色を追加");
     const p = await import("../src/engine/preview");
     globalThis.AudioContext = MockAudioContext as unknown as typeof AudioContext;
     // モジュール内の previewCtx キャッシュは初回呼び出しで作られる
@@ -270,22 +311,17 @@ check("ソロ対象削除: muted は空", doc.muted.length === 0);
     p.previewUnitHold(0, 0x6000, 104);
     const mock = MockAudioContext.instances.at(-1)!;
     check("プレビュー開始で hold ソース作成", mock.lastSource !== null, `instances=${MockAudioContext.instances.length}`);
-    check("プレビューの音量にマスター音量が適用", mock.lastGain?.gain.value === 0.5, `value=${mock.lastGain?.gain.value}`);
+    checkEq(mock.lastGain?.gain.value, 0.5, "プレビューの音量にマスター音量が適用");
     masterVolume.value = 0.8;
     await new Promise((r) => setTimeout(r, 10));
-    check("音量変更がサステイン中のプレビューに反映", mock.lastGain?.gain.value === 0.8, `value=${mock.lastGain?.gain.value}`);
+    checkEq(mock.lastGain?.gain.value, 0.8, "音量変更がサステイン中のプレビューに反映");
     masterVolume.value = 1.0;
     p.stopPreview();
-    check(
-      "停止時: gain を 0 へランプ (リリースフェード)",
-      mock.ramp !== null && mock.ramp.v === 0,
-      `ramp=${JSON.stringify(mock.ramp)}`,
-    );
+    check("停止時: gain を 0 へランプ (リリースフェード)", mock.ramp !== null && mock.ramp.v === 0, `ramp=${JSON.stringify(mock.ramp)}`);
+    check("停止時: stop が予約される", mock.lastSource?.stopTime !== undefined, `stopTime=${mock.lastSource?.stopTime}`);
     check(
       "停止時: ランプ完了後に stop が予約される",
-      mock.lastSource?.stopTime !== undefined &&
-        mock.ramp !== null &&
-        mock.lastSource.stopTime >= mock.ramp.t,
+      mock.ramp !== null && mock.lastSource?.stopTime !== undefined && mock.lastSource.stopTime >= mock.ramp.t,
       `stopTime=${mock.lastSource?.stopTime} rampT=${mock.ramp?.t}`,
     );
   }
@@ -301,14 +337,15 @@ check("ソロ対象削除: muted は空", doc.muted.length === 0);
     check("置き換えテスト用の bytes 取得", bytes !== null);
     const before = projects.value.length;
     const err = openProjectInTab(bytes!, "replaced");
-    check("初期プロジェクトのみなら置き換え (タブ数1のまま)", err === null && projects.value.length === before, `len=${projects.value.length} err=${err}`);
-    check("置き換え後: ファイル名が付く", doc.fileName === "replaced", `fileName=${doc.fileName}`);
+    checkEq(err, null, "初期プロジェクトのみなら置き換え (エラーなし)");
+    checkEq(projects.value.length, before, "初期プロジェクトのみなら置き換え (タブ数1のまま)");
+    checkEq(doc.fileName, "replaced", "置き換え後: ファイル名が付く");
     // 編集済みなら置き換えずタブを追加する
     projects.value[0]!.initial = true;
     addUnit("X"); // dirty にする
     const n = projects.value.length;
     openProjectInTab(bytes!, "second");
-    check("編集済みなら置き換えない (タブ追加)", projects.value.length === n + 1, `len=${projects.value.length}`);
+    checkEq(projects.value.length, n + 1, "編集済みなら置き換えない (タブ追加)");
     closeProject(currentProjectId.value);
   }
 
@@ -338,15 +375,18 @@ check("ソロ対象削除: muted は空", doc.muted.length === 0);
 }`;
     const t = parseThemeCss(gen);
     check("ジェネレーターCSSをパース", t !== null);
-    check("light トークン抽出", t?.light["--background"] === "oklch(1 0 0)" && t?.light["--primary"] === "oklch(0.514 0.222 16.935)");
-    check("dark トークン抽出", t?.dark["--background"] === "oklch(0.148 0 0)");
-    check("--font-* は除外", !("--font-sans" in (t?.light ?? {})) && !("--font-sans" in (t?.dark ?? {})));
+    checkEq(t?.light["--background"], "oklch(1 0 0)", "light トークン抽出: --background");
+    checkEq(t?.light["--primary"], "oklch(0.514 0.222 16.935)", "light トークン抽出: --primary");
+    checkEq(t?.dark["--background"], "oklch(0.148 0 0)", "dark トークン抽出");
+    check("--font-* は除外 (light)", !("--font-sans" in (t?.light ?? {})));
+    check("--font-* は除外 (dark)", !("--font-sans" in (t?.dark ?? {})));
     check("@theme/@layer の変数は除外", !("--color-background" in (t?.light ?? {})));
     check("--shadow* は拒否 (ベースから継承)", !("--shadow-sm" in (t?.light ?? {})) && !("--shadow" in (t?.light ?? {})));
 
     // 素の :root/.dark (rose 形式)
     const plain = parseThemeCss(":root { --background: oklch(1 0 0); }\n.dark { --background: oklch(0.5 0 0); }");
-    check("素の :root/.dark をパース", plain?.light["--background"] === "oklch(1 0 0)" && plain?.dark["--background"] === "oklch(0.5 0 0)");
+    checkEq(plain?.light["--background"], "oklch(1 0 0)", "素の :root/.dark をパース (light)");
+    checkEq(plain?.dark["--background"], "oklch(0.5 0 0)", "素の :root/.dark をパース (dark)");
 
     // サニタイズ: インジェクション拒否
     const evil = parseThemeCss(`:root { --background: oklch(1 0 0); --x: url("https://evil/"); --y: red; --z: }bad; }`);
@@ -356,10 +396,10 @@ check("ソロ対象削除: muted は空", doc.muted.length === 0);
     // マージ (未定義トークンはベースから継承)
     const base = parseThemeCss(":root { --background: oklch(0 0 0); --btn-bg: red; }\n.dark { --background: oklch(1 0 0); }")!;
     const merged = mergeTokens(base, t!);
-    check("マージ: テーマ側が優先", merged.light["--background"] === "oklch(1 0 0)");
-    check("マージ: 未定義はベースから継承", merged.light["--btn-bg"] === "red");
-    check("マージ: dark も適用", merged.dark["--background"] === "oklch(0.148 0 0)");
-    check("マージ: dark の未定義は空", merged.dark["--btn-bg"] === undefined);
+    checkEq(merged.light["--background"], "oklch(1 0 0)", "マージ: テーマ側が優先");
+    checkEq(merged.light["--btn-bg"], "red", "マージ: 未定義はベースから継承");
+    checkEq(merged.dark["--background"], "oklch(0.148 0 0)", "マージ: dark も適用");
+    checkEq(merged.dark["--btn-bg"], undefined, "マージ: dark の未定義は空");
 
     // スコープ付き CSS 生成
     const css = buildThemeCss("test-x", merged);
@@ -387,21 +427,22 @@ check("ソロ対象削除: muted は空", doc.muted.length === 0);
       events.some((e) => e.clock === clock && e.unitNo === unitNo && e.kind === kind);
     check("コピー: 対象ユニットのイベントがコピーされる", at(960, 0, EventKind.VELOCITY));
     check("コピー: 種類フィルタ (KEY はコピーされない)", !at(960, 0, EventKind.KEY));
-    check("コピー: 2回分ペースト", at(960, 0, EventKind.ON) && at(1440, 0, EventKind.ON));
+    check("コピー: 1回分ペースト (clock 960)", at(960, 0, EventKind.ON));
+    check("コピー: 2回分ペースト (clock 1440)", at(1440, 0, EventKind.ON));
     check("コピー: 対象外ユニットはコピーされない", !at(960, 1, EventKind.VELOCITY));
 
     // イベント音量 (加算 + クランプ)
     changeEventValue(0, 960, EventKind.VELOCITY, 100);
     const vel = getAllEvents().find((e) => e.clock === 0 && e.kind === EventKind.VELOCITY);
-    check("音量加算: 64+100 が 128 にクランプ", vel?.value === 128, `vel=${vel?.value}`);
+    checkEq(vel?.value, 128, "音量加算: 64+100 が 128 にクランプ");
 
     // ユニット追加 (名前 + 音色)
     const wIdx = serviceMod.service.woiceNum - 1;
     const added = addUnitWithWoice("u-テスト", wIdx);
-    check("addUnitWithWoice: 追加される", added);
+    checkEq(added, true, "addUnitWithWoice: 追加される");
     const last = serviceMod.service.unitGet(serviceMod.service.unitNum - 1);
-    check("addUnitWithWoice: 名前が付く", last?.name === "u-テスト");
-    check("addUnitWithWoice: 音色が割り当てられる", last?.woice === serviceMod.service.woiceGet(wIdx));
+    checkEq(last?.name, "u-テスト", "addUnitWithWoice: 名前が付く");
+    checkEq(last?.woice, serviceMod.service.woiceGet(wIdx), "addUnitWithWoice: 音色が割り当てられる");
   }
 
   // ---- 17. VOICENO イベントからの音色解決 / Start-End 状態 ----
@@ -412,33 +453,36 @@ check("ソロ対象削除: muted は空", doc.muted.length === 0);
     const ui = serviceMod.service.unitNum - 1;
     serviceMod.service.evels.recordAddI(0, ui, EventKind.VOICENO, wIdx);
     sync();
-    check("VOICENO から音色が解決される", units.value.at(-1)?.woiceIndex === wIdx, `wIdx=${units.value.at(-1)?.woiceIndex}`);
+    checkEq(units.value.at(-1)?.woiceIndex, wIdx, "VOICENO から音色が解決される");
     // 範囲外の VOICENO は -1 になる
     serviceMod.service.evels.recordAddI(0, ui, EventKind.VOICENO, 999);
     sync();
-    check("範囲外 VOICENO は -1", units.value.at(-1)?.woiceIndex === -1, `wIdx=${units.value.at(-1)?.woiceIndex}`);
+    checkEq(units.value.at(-1)?.woiceIndex, -1, "範囲外 VOICENO は -1");
 
     // Start/End 状態
-    check("playStart 初期値 -1", doc.playStart === -1 && doc.playEnd === -1);
+    checkEq(doc.playStart, -1, "playStart 初期値 -1");
+    checkEq(doc.playEnd, -1, "playEnd 初期値 -1");
     serviceMod.service.master.setMeasNum(16); // クランプ検証のため小節数を拡大
     setPlayStart(2);
     setPlayEnd(5);
-    check("setPlayStart/setPlayEnd", doc.playStart === 2 && doc.playEnd === 5);
+    checkEq(doc.playStart, 2, "setPlayStart");
+    checkEq(doc.playEnd, 5, "setPlayEnd");
     setPlayStart(2); // 同値で解除
-    check("setPlayStart 同値で解除", doc.playStart === -1);
+    checkEq(doc.playStart, -1, "setPlayStart 同値で解除");
     setPlayEnd(3);
     setPlayStart(4); // end(3) が start(4) 以下 → end を start+1 (5) に調整
-    check("setPlayStart: end が start 以下なら調整", doc.playEnd === 5);
+    checkEq(doc.playEnd, 5, "setPlayStart: end が start 以下なら調整");
     setPlayEnd(2); // start(4) より下 → start+1 にクランプ
-    check("setPlayEnd: start 以下はクランプ", doc.playEnd === 5);
+    checkEq(doc.playEnd, 5, "setPlayEnd: start 以下はクランプ");
     setPlayStart(-1); // カット
     setPlayEnd(-1);
-    check("setPlayStart/End のカット (-1)", doc.playStart === -1 && doc.playEnd === -1);
+    checkEq(doc.playStart, -1, "setPlayStart カット");
+    checkEq(doc.playEnd, -1, "setPlayEnd カット");
     setPlayStart(4);
     setPlayEnd(8);
     setPlayStart(4); // 同値で解除
-    check("setPlayStart 同値で解除 (2回目)", doc.playStart === -1);
-    check("REPEAT がデフォルトで ON", loop.value === true, `loop=${loop.value}`);
+    checkEq(doc.playStart, -1, "setPlayStart 同値で解除 (2回目)");
+    checkEq(loop.value, true, "REPEAT がデフォルトで ON");
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);
