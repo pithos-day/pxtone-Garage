@@ -27,12 +27,21 @@ watch(
   },
 );
 
+// クロック ↔ 秒の換算に必要なマスター設定
+export interface MasterClock {
+  master: {
+    beatTempo: number;
+    beatClock: number;
+    playMeas: number;
+    beatNum: number;
+  };
+}
+
 // 現在の再生位置 (クロック)
 export const currentClock = computed(() => {
   const s = getService();
   if (!s) return 0;
-  const rate = (60 * player.sampleRate) / (s.master.beatTempo * s.master.beatClock);
-  return Math.trunc(positionSample.value / rate);
+  return secToClock(s, positionSample.value / player.sampleRate);
 });
 
 // worklet にロード済みのバイト列が対応するリビジョン
@@ -43,6 +52,26 @@ export function resetLoaded(): void {
   loadedRev = -1;
   if (isPlaying.value) stop();
   positionSample.value = 0;
+}
+
+// リビジョンが変わっていればバイト列をロードし直し、再生位置を引き継ぐ
+async function ensureLoaded(bytes: Uint8Array): Promise<void> {
+  if (loadedRev === doc.rev) return;
+  const pos = positionSample.value;
+  const ok = await player.load(bytes, doc.playStart, doc.playEnd);
+  if (ok) loadedRev = doc.rev;
+  if (pos > 0) player.seek(pos / player.sampleRate);
+}
+
+// 編集用再生範囲の開始位置より前なら Start まで移動する
+function clampToPlayStart(s: NonNullable<ReturnType<typeof getService>>): void {
+  if (doc.playStart < 0) return;
+  const startClock = doc.playStart * s.master.beatNum * s.master.beatClock;
+  const startSample = Math.trunc(clockToSec(s, startClock) * player.sampleRate);
+  if (positionSample.value < startSample) {
+    positionSample.value = startSample;
+    player.seek(startSample / player.sampleRate);
+  }
 }
 
 let rafId = 0;
@@ -58,23 +87,8 @@ export async function play(): Promise<void> {
   if (!s) return;
   const bytes = exportBytes();
   if (!bytes) return;
-  if (loadedRev !== doc.rev) {
-    const pos = positionSample.value;
-    const ok = await player.load(bytes, doc.playStart, doc.playEnd);
-    if (ok) loadedRev = doc.rev;
-    if (pos > 0) player.seek(pos / player.sampleRate);
-  }
-  // 編集用再生範囲の開始位置より前なら Start まで移動する
-  if (doc.playStart >= 0) {
-    const startSample = Math.trunc(
-      (doc.playStart * s.master.beatNum * s.master.beatClock * player.sampleRate * 60) /
-        (s.master.beatTempo * s.master.beatClock),
-    );
-    if (positionSample.value < startSample) {
-      positionSample.value = startSample;
-      player.seek(startSample / player.sampleRate);
-    }
-  }
+  await ensureLoaded(bytes);
+  clampToPlayStart(s);
   player.setLoop(loop.value);
   player.setMasterVolume(masterVolume.value);
   // Vue の reactive proxy は postMessage で複製できないため、プレーン配列へ
@@ -98,17 +112,17 @@ export function togglePlay(): void {
 
 // クロック → 秒。rate = 60*sps/(tempo*beatClock) は samples/clock なので
 // sec = clock × rate / sps = clock × 60/(tempo×beatClock)
-export function clockToSec(s: { master: { beatTempo: number; beatClock: number } }, clock: number): number {
-  return (clock * 60) / (s.master.beatTempo * s.master.beatClock);
+export function clockToSec(master: MasterClock, clock: number): number {
+  return (clock * 60) / (master.master.beatTempo * master.master.beatClock);
 }
 
-export function secToClock(s: { master: { beatTempo: number; beatClock: number } }, sec: number): number {
-  return Math.trunc((sec * s.master.beatTempo * s.master.beatClock) / 60);
+export function secToClock(master: MasterClock, sec: number): number {
+  return Math.trunc((sec * master.master.beatTempo * master.master.beatClock) / 60);
 }
 
 // 曲の長さ (クロック) = 再生終端小節 × 拍数 × 分解能
-export function songLengthClock(s: { master: { playMeas: number; beatNum: number; beatClock: number } }): number {
-  return s.master.playMeas * s.master.beatNum * s.master.beatClock;
+export function songLengthClock(master: MasterClock): number {
+  return master.master.playMeas * master.master.beatNum * master.master.beatClock;
 }
 
 export function seekToClock(clock: number): void {
