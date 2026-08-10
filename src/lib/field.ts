@@ -18,7 +18,7 @@ export function clockAtX(view: ClockView, divi: number, scrollX: number, x: numb
 export function zoomByWheel(e: WheelEvent, current: number): number | null {
   if (!e.ctrlKey) return null;
   e.preventDefault();
-  const idx = ZOOM_TABLE.indexOf(current);
+  const idx = ZOOM_TABLE.indexOf(current as (typeof ZOOM_TABLE)[number]);
   const base = idx < 0 ? 0 : idx;
   const next = e.deltaY < 0 ? Math.min(ZOOM_TABLE.length - 1, base + 1) : Math.max(0, base - 1);
   return ZOOM_TABLE[next]!;
