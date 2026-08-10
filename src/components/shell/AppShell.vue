@@ -60,8 +60,8 @@ window.addEventListener(
       @copy-meas="copyMeasOpen = true"
       @event-volume="(kind) => (eventVolumeKind = kind)"
     />
-    <FileTabs />
-    <TransportBar />
+    <FileTabs :mode="activeTab" />
+    <TransportBar v-if="activeTab === 'collage'" />
     <main class="app-main">
       <CollageTab v-show="activeTab === 'collage'" />
       <VoiceTab v-show="activeTab === 'voice'" />

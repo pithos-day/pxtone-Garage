@@ -151,6 +151,48 @@ const ja = {
   "playfield.clearStart": "Start をクリア",
   "playfield.clearEnd": "End をクリア",
 
+  // 音声エディタ (ptVoice)
+  "voice.title": "ptVoice (PTV 音源エディタ)",
+  "voice.empty": "音声ファイルが開かれていません。\nFile > 新規作成 または File > 開く... で開始",
+  "voice.waveType": "波形タイプ",
+  "voice.coordinate": "座標指定",
+  "voice.overtone": "倍音指定",
+  "voice.side": "編集面",
+  "voice.sideA": "A面",
+  "voice.sideB": "B面",
+  "voice.volume": "ボリューム",
+  "voice.pan": "パン",
+  "voice.tuning": "チューニング",
+  "voice.basicKey": "基本キー",
+  "voice.waveMonitor": "波形モニター (左クリック=点を配置・ドラッグ=移動、右クリック=削除)",
+  "voice.overtoneHint": "倍音スライダー (ドラッグで調整、右クリック=0)",
+  "voice.envelope": "エンベロープ",
+  "voice.envelopeHint": "点をドラッグ、空白クリック=ヘッド追加、右クリック=点を削除",
+  "voice.preview": "鍵盤をクリックで試聴 (押している間鳴り続けます)",
+
+  // ノイズエディタ (ptNoise)
+  "noise.title": "ptNoise (PTN ノイズエディタ)",
+  "noise.empty": "ノイズファイルが開かれていません。\nFile > 新規作成 または File > 開く... で開始",
+  "noise.build": "ビルド",
+  "noise.buildHint": "テーブルから波形を生成します (History に記録)",
+  "noise.saveWav": "WAV 保存",
+  "noise.enable": "有効",
+  "noise.pan": "パン",
+  "noise.osc": "オシレータ",
+  "noise.main": "main",
+  "noise.freq": "freq",
+  "noise.volu": "volu",
+  "noise.type": "種類",
+  "noise.freqValue": "周波数",
+  "noise.oscVolume": "音量",
+  "noise.offset": "オフセット",
+  "noise.reverse": "反転",
+  "noise.envelope": "エンベロープ",
+  "noise.envePoint": "点",
+  "noise.wavePreview": "波形プレビュー (クリックで再生/停止)",
+  "noise.history": "History",
+  "noise.historyHint": "1クリック=再生 / ダブルクリック=エディタに反映",
+
   // 確認 / 入力ダイアログ
   "confirm.new": "未保存の変更は破棄されます。新規作成しますか?",
   "confirm.close": "未保存の変更は破棄されます。閉じますか?",
@@ -167,6 +209,7 @@ const ja = {
   "error.ogg": "OGG音色は未対応です",
   "error.beatClock": "beat clock が 480 ではない曲は開けません",
   "error.tooManyEvents": "イベント数が多すぎます",
+  "error.noiseBuild": "ノイズのビルドに失敗しました",
 } as const;
 
 export default ja;

@@ -2,7 +2,8 @@
 // worklet の preview メッセージは未実装のため、メインスレッドで
 // 一時 Service にプロジェクト全体を読み込み、対象ユニットのみの
 // ノートをオフライン短レンダリング → AudioBuffer 再生で実現する。
-import { Service, PxtnErr, MemoryIo, EventKind, PXTN_MAX_EVENT_NUM, EVENTDEFAULT_VELOCITY } from "pxtone-ts";
+import { Service, PxtnErr, MemoryIo, EventKind, PXTN_MAX_EVENT_NUM, EVENTDEFAULT_VELOCITY, WoiceType, NoiseBuilder } from "pxtone-ts";
+import type { Woice, Noise } from "pxtone-ts";
 import { exportBytes } from "../state/project";
 import { getService } from "../state/project";
 import { watch } from "vue";
@@ -217,6 +218,72 @@ function startHold(work: Float32Array, ctx: AudioContext): void {
 watch(masterVolume, (v) => {
   if (holdGain && holdCtx) holdGain.gain.setTargetAtTime(v, holdCtx.currentTime, 0.005);
 });
+
+// 単体 Woice をオフライン短レンダリングして Float32Array (ステレオインターリーブ) を得る。
+// renderPreview と同一の手法で、音色スロット 0 に ptvWrite バイト列を注入してから
+// VOICENO/KEY/VELOCITY/ON イベントを置いてレンダリングする
+export function renderWoice(
+  woice: Woice,
+  key: number,
+  velocity: number,
+  durSec: number,
+  sps: number,
+): Float32Array | null {
+  const s = new Service();
+  if (s.initCollage(PXTN_MAX_EVENT_NUM) !== PxtnErr.OK) return null;
+  const io = new MemoryIo();
+  if (woice.ptvWrite(io) < 0) return null;
+  if (s.woiceRead(0, io, WoiceType.PTV) !== PxtnErr.OK) return null;
+  if (!s.unitAddNew()) return null;
+  s.master.set(4, 120, 480);
+  s.master.setMeasNum(2);
+  s.evels.clear();
+  // clockRate (samples/clock) = sps/960 (tempo=120, beatClock=480)
+  const durClocks = Math.max(1, Math.round(durSec * 960));
+  s.evels.recordAddI(0, 0, EventKind.VOICENO, 0);
+  s.evels.recordAddI(0, 0, EventKind.KEY, key);
+  s.evels.recordAddI(0, 0, EventKind.VELOCITY, velocity);
+  s.evels.recordAddI(0, 0, EventKind.ON, durClocks);
+  if (s.tonesReady() !== PxtnErr.OK) return null;
+  if (!s.setDestinationQuality(2, sps)) return null;
+  if (!s.mooPreparation(null)) return null;
+  const n = Math.min(Math.trunc(durSec * sps), s.mooGetSamplingEnd());
+  const out = new Int16Array(n * 2);
+  s.Moo(out, n);
+  const f = new Float32Array(n * 2);
+  for (let i = 0; i < out.length; i++) f[i] = out[i]! / 32768;
+  return f;
+}
+
+// ノイズを NoiseBuilder で波形化して Float32Array (ステレオインターリーブ) を得る
+export function renderNoise(noise: Noise, sps: number): Float32Array | null {
+  const bldr = new NoiseBuilder();
+  if (!bldr.init()) return null;
+  const pcm = bldr.buildNoise(noise, 2, sps, 16);
+  if (!pcm) return null;
+  const buf = pcm.devolveSamplingBuffer();
+  if (!buf) return null;
+  const s16 = new Int16Array(buf.buffer, buf.byteOffset, buf.byteLength >> 1);
+  const f = new Float32Array(s16.length);
+  for (let i = 0; i < s16.length; i++) f[i] = s16[i]! / 32768;
+  return f;
+}
+
+// 音声単体 (コラージュ外の Woice オブジェクト) を押下中サステインで試聴開始する
+export function previewWoiceObjectHold(woice: Woice, key: number, velocity: number = EVENTDEFAULT_VELOCITY, durSec = PREVIEW_SEC): void {
+  const ctx = getCtx();
+  if (!ctx) return;
+  const work = renderWoice(woice, key, velocity, durSec, ctx.sampleRate);
+  if (!work) return;
+  startHold(work, ctx);
+}
+
+// レンダリング済み PCM をループ再生で開始する (ノイズのクリック再生用)
+export function playPcmLoop(pcm: Float32Array): void {
+  const ctx = getCtx();
+  if (!ctx) return;
+  startHold(pcm, ctx);
+}
 
 // 押下中サステインを停止する (短いフェードをかけてから停止し、ポップを防ぐ)
 export function stopPreview(): void {

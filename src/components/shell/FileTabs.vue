@@ -1,6 +1,7 @@
-// ファイルタブバー (Blockbench の #tab_bar 相当)。
-// 複数プロジェクトのタブ + 新規タブボタン。
+// ファイルタブバー。モード (collage/voice/noise) に応じて対応するコレクションを表示する。
+// collage = ptcop プロジェクト、voice = .ptvoice、noise = .ptnoise。
 <script setup lang="ts">
+import { computed } from "vue";
 import {
   projects,
   currentProjectId,
@@ -8,38 +9,92 @@ import {
   newProjectInTab,
   closeProject,
 } from "../../state/projects";
+import {
+  voices,
+  currentVoiceId,
+  switchVoice,
+  newVoice,
+  closeVoice,
+} from "../../state/voice";
+import {
+  noises,
+  currentNoiseId,
+  switchNoise,
+  newNoise,
+  closeNoise,
+} from "../../state/noise";
 import { t } from "../../i18n";
 
-function tabTitle(p: { fileName: string }): string {
-  return p.fileName || t("common.untitled");
+const props = defineProps<{ mode: "collage" | "voice" | "noise" }>();
+
+// モード別のタブ一覧 (id / title / dirty / active / select / close)
+const tabs = computed(() => {
+  if (props.mode === "voice") {
+    return voices.value.map((v) => ({
+      id: v.id,
+      title: v.fileName || t("common.untitled"),
+      dirty: v.dirty,
+      active: v.id === currentVoiceId.value,
+      select: () => switchVoice(v.id),
+      close: () => closeVoice(v.id),
+    }));
+  }
+  if (props.mode === "noise") {
+    return noises.value.map((n) => ({
+      id: n.id,
+      title: n.fileName || t("common.untitled"),
+      dirty: n.dirty,
+      active: n.id === currentNoiseId.value,
+      select: () => switchNoise(n.id),
+      close: () => closeNoise(n.id),
+    }));
+  }
+  return projects.value.map((p) => ({
+    id: p.id,
+    title: p.fileName || t("common.untitled"),
+    dirty: p.dirty,
+    active: p.id === currentProjectId.value,
+    select: () => switchProject(p.id),
+    close: () => closeProject(p.id),
+  }));
+});
+
+// モード別の新規作成
+function onNew(): void {
+  if (props.mode === "voice") newVoice();
+  else if (props.mode === "noise") newNoise();
+  else newProjectInTab();
 }
 
+// 閉じる前の未保存確認は各 close 側 (projects/voice/noise の closeProject 等) では
+// 行わないため、ここで dirty 確認してから呼ぶ
 function onClose(id: number): void {
-  const p = projects.value.find((x) => x.id === id);
-  if (p?.dirty && !window.confirm(t("confirm.close"))) return;
-  closeProject(id);
+  const entry = tabs.value.find((x) => x.id === id);
+  if (!entry) return;
+  if (entry.dirty && !window.confirm(t("confirm.close"))) return;
+  entry.close();
 }
 </script>
 
 <template>
   <div class="file-tabs">
     <button
-      v-for="p in projects"
+      v-for="p in tabs"
       :key="p.id"
       class="file-tab"
-      :class="{ active: p.id === currentProjectId }"
-      :title="tabTitle(p)"
-      @click="switchProject(p.id)"
+      :class="{ active: p.active }"
+      :title="p.title"
+      @click="p.select"
     >
       <span v-if="p.dirty" class="dirty-dot" />
-      <span class="tab-name">{{ tabTitle(p) }}</span>
+      <span class="tab-name">{{ p.title }}</span>
       <span
-        v-if="projects.length > 1"
+        v-if="tabs.length > 1"
         class="tab-close"
         @click.stop="onClose(p.id)"
       >×</span>
     </button>
-    <button class="tab-new" :title="t('common.newProject')" @click="newProjectInTab()">＋</button>
+    <button class="tab-new" :title="t('common.newProject')" @click="onNew">＋</button>
   </div>
 </template>
 

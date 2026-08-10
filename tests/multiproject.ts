@@ -32,7 +32,34 @@ import * as serviceMod from "../src/state/service";
 import { undo, redo, canUndo, canRedo } from "../src/state/undo";
 import { player, isPlaying, masterVolume, loop } from "../src/state/player";
 import { parseThemeCss, mergeTokens, buildThemeCss } from "../src/lib/themeParse";
-import { EventKind } from "pxtone-ts";
+import {
+  voices,
+  currentVoiceId,
+  newVoice,
+  openVoice,
+  closeVoice,
+  switchVoice,
+  currentVoice,
+  editVoice,
+  undoVoice,
+  redoVoice,
+  createDefaultWoice,
+} from "../src/state/voice";
+import {
+  noises,
+  currentNoiseId,
+  newNoise,
+  openNoise,
+  closeNoise,
+  switchNoise,
+  currentNoise,
+  editNoise,
+  undoNoise,
+  redoNoise,
+  createDefaultNoise,
+} from "../src/state/noise";
+import { renderWoice, renderNoise } from "../src/engine/preview";
+import { MemoryIo, VoiceType, WaveType, EventKind } from "pxtone-ts";
 
 let failed = 0;
 function fail(name: string, detail = ""): void {
@@ -516,6 +543,112 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     setPlayStart(4); // 同値で解除
     checkEq(doc.playStart, -1, "setPlayStart 同値で解除 (2回目)");
     checkEq(loop.value, true, "REPEAT がデフォルトで ON");
+  }
+
+  // ---- 18. 音声 (ptVoice) ドキュメント管理 ----
+  {
+    const pCount = projects.value.length;
+    newVoice();
+    checkEq(voices.value.length, 1, "voice: 新規タブが1つ");
+    check(voices.value[0]!.id === currentVoiceId.value, "voice: currentVoiceId が新規タブ");
+    const w = currentVoice()!.woice;
+    checkEq(w.voiceNum, 2, "voice: A/B の2面");
+    checkEq(w.getVoice(0)!.volume, 64, "voice: A面ボリューム 64");
+    checkEq(w.getVoice(1)!.volume, 0, "voice: B面ボリューム 0");
+    checkEq(w.getVoice(0)!.type, VoiceType.Coodinate, "voice: 初期波形は座標指定");
+    checkEq(w.getVoice(0)!.wave.reso, 256, "voice: 座標分解能 256");
+    checkEq(w.getVoice(0)!.envelope.fps, 1000, "voice: エンベロープ fps 1000");
+    checkEq(projects.value.length, pCount, "voice: コラージュのタブ数は変わらない");
+
+    editVoice(() => {
+      w.getVoice(0)!.volume = 100;
+    });
+    const doc1 = currentVoice()!;
+    checkEq(doc1.dirty, true, "voice: 編集で dirty");
+    checkEq(doc1.undoStack.length, 1, "voice: undo スタックに1エントリ");
+    checkEq(w.getVoice(0)!.volume, 100, "voice: 編集が反映される");
+
+    checkEq(undoVoice(), true, "voice: undo 成功");
+    checkEq(w.getVoice(0)!.volume, 64, "voice: undo で巻き戻る");
+    checkEq(redoVoice(), true, "voice: redo 成功");
+    checkEq(w.getVoice(0)!.volume, 100, "voice: redo で復元");
+
+    // .ptvoice ラウンドトリップ
+    const io = new MemoryIo();
+    check(w.ptvWrite(io) > 0, "voice: ptvWrite 成功");
+    const err = openVoice(io.toUint8Array(), "test");
+    checkEq(err, null, "voice: openVoice 成功 (エラーなし)");
+    checkEq(voices.value.length, 2, "voice: 2タブ目が開く");
+    checkEq(currentVoice()!.fileName, "test", "voice: ファイル名が付く");
+    checkEq(currentVoice()!.dirty, false, "voice: 開いた直後はクリーン");
+    checkEq(currentVoice()!.woice.getVoice(0)!.volume, 100, "voice: ラウンドトリップで値が保持");
+
+    // タブ切替で各タブの状態が独立していること
+    editVoice(() => {
+      currentVoice()!.woice.getVoice(0)!.volume = 55;
+    });
+    switchVoice(voices.value[0]!.id);
+    checkEq(currentVoice()!.woice.getVoice(0)!.volume, 100, "voice: タブ切替で独立 (doc0 は 100)");
+    switchVoice(voices.value[1]!.id);
+    checkEq(currentVoice()!.woice.getVoice(0)!.volume, 55, "voice: タブ切替で独立 (doc1 は 55)");
+    closeVoice(currentVoiceId.value);
+    checkEq(voices.value.length, 1, "voice: タブを閉じる");
+
+    // レンダリング (オフライン) がパイプラインで通ること
+    const pcm = renderWoice(createDefaultWoice(), 0x6000, 100, 0.5, 44100);
+    check(pcm !== null && pcm.length > 0, "voice: renderWoice が PCM を返す", `len=${pcm?.length}`);
+  }
+
+  // ---- 19. ノイズ (ptNoise) ドキュメント管理 ----
+  {
+    newNoise();
+    checkEq(noises.value.length, 1, "noise: 新規タブが1つ");
+    const n = currentNoise()!.noise;
+    checkEq(n.unitNum, 4, "noise: 4ユニット");
+    checkEq(n.smpNum44k, 44100, "noise: 1秒 (44100サンプル)");
+    checkEq(n.getUnit(0)!.bEnable, true, "noise: 1番目ユニットのみ有効");
+    checkEq(n.getUnit(1)!.bEnable, false, "noise: 2番目ユニットは無効");
+    checkEq(n.getUnit(0)!.main.type, WaveType.Sine, "noise: main は Sine");
+    checkEq(n.getUnit(0)!.main.freq, 440, "noise: main 周波数 440");
+    checkEq(n.getUnit(0)!.volu.type, WaveType.None, "noise: volu は None");
+    checkEq(n.getUnit(0)!.enveNum, 2, "noise: エンベロープ点 2");
+
+    editNoise(() => {
+      n.getUnit(0)!.main.freq = 880;
+    });
+    const nd = currentNoise()!;
+    checkEq(nd.dirty, true, "noise: 編集で dirty");
+    checkEq(nd.undoStack.length, 1, "noise: undo スタックに1エントリ");
+
+    checkEq(undoNoise(), true, "noise: undo 成功");
+    checkEq(n.getUnit(0)!.main.freq, 440, "noise: undo で巻き戻る");
+    checkEq(redoNoise(), true, "noise: redo 成功");
+    checkEq(n.getUnit(0)!.main.freq, 880, "noise: redo で復元");
+
+    // .ptnoise ラウンドトリップ
+    const io = new MemoryIo();
+    check(n.write(io), "noise: write 成功");
+    const err = openNoise(io.toUint8Array(), "n1");
+    checkEq(err, null, "noise: openNoise 成功 (エラーなし)");
+    checkEq(noises.value.length, 2, "noise: 2タブ目が開く");
+    checkEq(currentNoise()!.noise.getUnit(0)!.main.freq, 880, "noise: ラウンドトリップで値が保持");
+    // 無効ユニットはファイルに書かれない (read 後のユニット数)
+    checkEq(currentNoise()!.noise.unitNum, 1, "noise: 無効ユニットは保存されない");
+
+    // タブ切替で各タブの状態が独立していること
+    editNoise(() => {
+      currentNoise()!.noise.getUnit(0)!.main.freq = 330;
+    });
+    switchNoise(noises.value[0]!.id);
+    checkEq(currentNoise()!.noise.getUnit(0)!.main.freq, 880, "noise: タブ切替で独立 (doc0 は 880)");
+    switchNoise(noises.value[1]!.id);
+    checkEq(currentNoise()!.noise.getUnit(0)!.main.freq, 330, "noise: タブ切替で独立 (doc1 は 330)");
+    closeNoise(currentNoiseId.value);
+    checkEq(noises.value.length, 1, "noise: タブを閉じる");
+
+    // ビルド (波形生成) が通ること
+    const pcm = renderNoise(currentNoise()!.noise, 44100);
+    check(pcm !== null && pcm.length === 44100 * 2, "noise: renderNoise が1秒ステレオ PCM を返す", `len=${pcm?.length}`);
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);
