@@ -1,7 +1,7 @@
 // File > 環境設定... のモーダルダイアログ。
 // テーマ (リストボックス + インポート)・ライト/ダーク・言語・フォントを設定する。
 <script setup lang="ts">
-import { ref } from "vue";
+import { reactive, ref } from "vue";
 import {
   BUILTIN_THEMES,
   theme,
@@ -20,41 +20,44 @@ import ModalDialog from "./ModalDialog.vue";
 const emit = defineEmits<{ (e: "close"): void }>();
 
 // ---- テーマインポート ----
-const importing = ref(false);
-const importName = ref("");
-const importCss = ref("");
-const importError = ref("");
+const importState = reactive({
+  open: false,
+  name: "",
+  css: "",
+  error: "",
+});
+
+function resetImport(): void {
+  importState.name = "";
+  importState.css = "";
+  importState.error = "";
+}
 
 function toggleImport(): void {
-  importing.value = !importing.value;
-  if (importing.value) {
-    importError.value = "";
-    importName.value = "";
-    importCss.value = "";
-  }
+  importState.open = !importState.open;
+  if (importState.open) resetImport();
 }
 
 function onImportFile(e: Event): void {
   const f = (e.target as HTMLInputElement).files?.[0];
   if (!f) return;
   void f.text().then((text) => {
-    importCss.value = text;
-    if (!importName.value) {
-      importName.value = f.name.replace(/\.css$/i, "").trim();
+    importState.css = text;
+    if (!importState.name) {
+      importState.name = f.name.replace(/\.css$/i, "").trim();
     }
   });
 }
 
-function doImport(): void {
-  const th = addUserTheme(importCss.value, importName.value);
+function onImport(): void {
+  const th = addUserTheme(importState.css, importState.name);
   if (!th) {
-    importError.value = t("settings.importFailed");
+    importState.error = t("settings.importFailed");
     return;
   }
   setThemeName(th.id);
-  importing.value = false;
-  importCss.value = "";
-  importName.value = "";
+  importState.open = false;
+  resetImport();
 }
 
 function onDeleteTheme(): void {
@@ -95,24 +98,24 @@ async function onLoadLocalFonts(): Promise<void> {
       <button v-if="isUserTheme(theme.name)" class="btn btn-sm" :title="t('settings.deleteTheme')" @click="onDeleteTheme">✕</button>
     </div>
     <button class="disclosure" @click="toggleImport">
-      <span class="disclosure-arrow">{{ importing ? "▾" : "▸" }}</span>
+      <span class="disclosure-arrow">{{ importState.open ? "▾" : "▸" }}</span>
       {{ t("settings.importTheme") }}
     </button>
-    <div v-if="importing" class="import-box">
+    <div v-if="importState.open" class="import-box">
       <div class="row">
         <label>{{ t("settings.importThemeName") }}</label>
-        <input v-model="importName" type="text" class="grow" maxlength="40" />
+        <input v-model="importState.name" type="text" class="grow" maxlength="40" />
       </div>
-      <textarea v-model="importCss" class="import-css" :placeholder="t('settings.importThemeCss')" spellcheck="false" />
+      <textarea v-model="importState.css" class="import-css" :placeholder="t('settings.importThemeCss')" spellcheck="false" />
       <div class="row">
         <label class="file-label btn btn-sm">
           {{ t("settings.loadFile") }}
           <input type="file" accept=".css,text/css" @change="onImportFile" />
         </label>
-        <span v-if="importError" class="import-err">{{ importError }}</span>
+        <span v-if="importState.error" class="import-err">{{ importState.error }}</span>
         <span class="spacer" />
-        <button class="btn btn-accent btn-sm" @click="doImport">{{ t("settings.import") }}</button>
-        <button class="btn btn-sm" @click="importing = false">{{ t("common.cancel") }}</button>
+        <button class="btn btn-accent btn-sm" @click="onImport">{{ t("settings.import") }}</button>
+        <button class="btn btn-sm" @click="importState.open = false">{{ t("common.cancel") }}</button>
       </div>
     </div>
     <div class="row">
