@@ -78,27 +78,31 @@ async function refreshWhilePlaying(): Promise<void> {
   if (typeof AudioContext === "undefined") return; // テスト環境 (node) では再生がないため何もしない
   refreshing = true;
   try {
-    for (;;) {
-      const s = getService();
-      if (!s) return;
-      const rev0 = doc.rev;
+    // ロード中にさらに編集されたら、最新の rev がロードできるまで繰り返す
+    let revAtStart = -1;
+    while (revAtStart !== doc.rev) {
+      if (!getService()) return;
+      revAtStart = doc.rev;
       const bytes = exportBytes();
       if (!bytes) return;
-      const ok = await player.load(bytes, doc.playStart, doc.playEnd);
-      if (!ok) return;
-      if (doc.rev !== rev0) continue; // ロード中にさらに編集された → 最新状態で再ロード
-      loadedRev = rev0;
-      const pos = player.getCurrentSample();
-      if (pos > 0) player.seek(pos / player.sampleRate);
-      player.setLoop(loop.value);
-      player.setMasterVolume(masterVolume.value);
-      player.setMutedUnits([...doc.muted]);
-      player.play();
-      return;
+      if (!(await player.load(bytes, doc.playStart, doc.playEnd))) return;
     }
+    loadedRev = doc.rev;
+    const pos = player.getCurrentSample();
+    if (pos > 0) player.seek(pos / player.sampleRate);
+    applyPlaybackState();
   } finally {
     refreshing = false;
   }
+}
+
+// ループ・音量・ミュートを適用して再生を開始する
+// (Vue の reactive proxy は postMessage で複製できないため、プレーン配列へ)
+function applyPlaybackState(): void {
+  player.setLoop(loop.value);
+  player.setMasterVolume(masterVolume.value);
+  player.setMutedUnits([...doc.muted]);
+  player.play();
 }
 
 // 編集用再生範囲の開始位置より前なら Start まで移動する
@@ -127,11 +131,7 @@ export async function play(): Promise<void> {
   if (!bytes) return;
   await ensureLoaded(bytes);
   clampToPlayStart(s);
-  player.setLoop(loop.value);
-  player.setMasterVolume(masterVolume.value);
-  // Vue の reactive proxy は postMessage で複製できないため、プレーン配列へ
-  player.setMutedUnits([...doc.muted]);
-  player.play();
+  applyPlaybackState();
   isPlaying.value = true;
   cancelAnimationFrame(rafId);
   rafId = requestAnimationFrame(tick);
