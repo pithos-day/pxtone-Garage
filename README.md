@@ -46,15 +46,15 @@ src/
 
 ## 検証
 
-ヘッドレス Chromium (CDP) によるスモークテスト:
+コアロジックのスモークテスト (node で直接実行):
 
-- サンプル ptcop の読み込み → 編集 → undo/redo → 再生
-- マウスドラッグでの音符生成・削除 (U/K モード)
+- 複数プロジェクト (タブ) 管理・タブごとの状態/undo 独立性
+- ソロ/ミュート・ユニット削除/並べ替えの状態追従
+- 単音プレビューのリリースフェード (AudioContext モック)
+- テーマ CSS パース / 小節コピー / イベント音量 / 再生範囲 (Start/End)
 
 ```
-# dev サーバ起動中に:
-node /tmp/opencode/smoke-test.mjs   # エンジン統合テスト
-node /tmp/opencode/e2e-drag.mjs     # マウス操作テスト
+pnpm test   # tests/multiproject.ts を esbuild でバンドルして実行
 ```
 
 ## ライセンス
