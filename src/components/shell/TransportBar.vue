@@ -7,19 +7,24 @@ import { panels } from "../../state/panels";
 import { formatClock } from "../../lib/clock";
 import { t } from "../../i18n";
 
+// 秒 → mm:ss
+function formatTime(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const ss = Math.floor(sec % 60);
+  return `${m}:${String(ss).padStart(2, "0")}`;
+}
+
 function timeLabel(): string {
   const s = getService();
   if (!s) return "0:00 / 0:00";
   const totalSec = player.totalSample / player.sampleRate;
   const curSec = positionSample.value / player.sampleRate;
-  return `${fmt(curSec)} / ${fmt(totalSec)}`;
+  return `${formatTime(curSec)} / ${formatTime(totalSec)}`;
 }
 
-function fmt(sec: number): string {
-  const m = Math.floor(sec / 60);
-  const ss = Math.floor(sec % 60);
-  return `${m}:${String(ss).padStart(2, "0")}`;
-}
+// パネルトグルボタンの表示ラベル
+const PANEL_LABELS = { effector: "Effector", copier: "Copier" } as const;
+const PANEL_IDS = ["effector", "copier"] as const;
 </script>
 
 <template>
@@ -46,13 +51,13 @@ function fmt(sec: number): string {
     <span class="transport-spacer" />
     <span class="panel-label">{{ t("transport.panels") }}</span>
     <button
-      v-for="p in (['effector', 'copier'] as const)"
+      v-for="p in PANEL_IDS"
       :key="p"
       class="btn btn-sm"
       :class="{ on: panels[p].open }"
       @click="panels[p].open = !panels[p].open"
     >
-      {{ { effector: "Effector", copier: "Copier" }[p] }}
+      {{ PANEL_LABELS[p] }}
     </button>
   </div>
 </template>
