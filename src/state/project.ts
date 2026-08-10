@@ -307,7 +307,7 @@ export function openProject(bytes: Uint8Array): string | null {
   if (res !== PxtnErr.OK) return pxtnErrorMessage(res);
   resetEditingState();
   // ファイル上の Repeat (0-based) を 1-based 表示へ変換 (0 は「なし」)
-  doc.repeatMeas = service.master.repeatMeas > 0 ? service.master.repeatMeas + 1 : 0;
+  doc.repeatMeas = fileRepeatToUi(service.master.repeatMeas);
   clearUndo();
   sync();
   doc.rev++;
@@ -632,10 +632,10 @@ export function setProjectSettings(settings: {
 
 export function setRepeatMeas(meas: number): void {
   // Repeat は 1-based 小節番号 (0 = なし)。エンジン/ファイルは 0-based で
-  // 「1小節目 = 曲頭から再生」を表すため、保存側では -1 して書き込む。
+  // 「1小節目 = 曲頭から再生」を表すため、保存側では変換して書き込む。
   doc.repeatMeas = meas > 0 ? meas : 0;
   mutate(() => {
-    service.master.setRepeatMeas(doc.repeatMeas > 0 ? doc.repeatMeas - 1 : 0);
+    service.master.setRepeatMeas(uiRepeatToFile(doc.repeatMeas));
   });
 }
 
@@ -643,6 +643,15 @@ export function setLastMeas(meas: number): void {
   mutate(() => {
     service.master.setLastMeas(meas);
   });
+}
+
+// Repeat の 1-based 表示値 ↔ 0-based ファイル値 (1小節目=曲頭再生) 変換
+export function fileRepeatToUi(fileValue: number): number {
+  return fileValue > 0 ? fileValue + 1 : 0;
+}
+
+export function uiRepeatToFile(uiValue: number): number {
+  return uiValue > 0 ? uiValue - 1 : 0;
 }
 
 export function setTextName(name: string): void {

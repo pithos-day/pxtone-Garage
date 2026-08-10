@@ -5,7 +5,7 @@ import { ref } from "vue";
 import { Service, PxtnErr, MemoryIo, PXTN_MAX_EVENT_NUM } from "pxtone-ts";
 import { setService, service } from "./service";
 import { setUndoStacks, undoStack, redoStack } from "./undo";
-import { doc, sync, title, comment, ensureInit, pxtnErrorMessage } from "./project";
+import { doc, sync, title, comment, ensureInit, pxtnErrorMessage, fileRepeatToUi } from "./project";
 import { resetLoaded } from "./player";
 import { saveProject as downloadProject } from "../engine/io";
 import { t } from "../i18n";
@@ -192,7 +192,7 @@ export function newProjectInTab(): Project {
 export function refreshCurrent(): void {
   if (!currentProject()) return;
   // ファイル上の Repeat (0-based) を 1-based 表示へ変換 (0 は「なし」)
-  doc.repeatMeas = service.master.repeatMeas > 0 ? service.master.repeatMeas + 1 : 0;
+  doc.repeatMeas = fileRepeatToUi(service.master.repeatMeas);
   sync();
   doc.rev++;
   resetLoaded();
