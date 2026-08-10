@@ -23,7 +23,7 @@ export interface UserTheme {
 
 // 組み込みテーマの定義 (ソースは main.ts から ?raw import で渡す)
 export const BUILTIN_THEMES: { id: string; name: string }[] = [
-  { id: "pxtone", name: "pxtone" },
+  { id: "pxtone", name: "Pxtone" },
   { id: "indigo", name: "Indigo" },
   { id: "caffeine", name: "Caffeine" },
   { id: "zen", name: "Zen" },
