@@ -25,7 +25,7 @@ const form = reactive({
 
 // 種類チェック (ON は VELOCITY と連結)
 const kinds = reactive({
-  on: true,
+  onKind: true,
   key: true,
   panTime: false,
   panVolume: true,
