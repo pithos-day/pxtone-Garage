@@ -14,9 +14,9 @@ export let redoStack: Uint8Array[] = [];
 export const canUndo = ref(false);
 export const canRedo = ref(false);
 
-export function setUndoStacks(u: Uint8Array[], r: Uint8Array[]): void {
-  undoStack = u;
-  redoStack = r;
+export function setUndoStacks(newUndo: Uint8Array[], newRedo: Uint8Array[]): void {
+  undoStack = newUndo;
+  redoStack = newRedo;
   updateFlags();
 }
 
@@ -48,28 +48,25 @@ export function clearUndo(): void {
   updateFlags();
 }
 
-export function undo(): boolean {
-  const b = undoStack.pop();
+// stack から pop したスナップショットへ戻し、現在状態を pushTo へ積む (undo/redo 共通)
+function restoreFrom(stack: Uint8Array[], pushTo: Uint8Array[]): boolean {
+  const b = stack.pop();
   updateFlags();
   if (!b) return false;
   const cur = snapshotProject();
   if (cur) {
-    redoStack.push(cur);
+    pushTo.push(cur);
     updateFlags();
   }
   return restoreBytes(b);
 }
 
+export function undo(): boolean {
+  return restoreFrom(undoStack, redoStack);
+}
+
 export function redo(): boolean {
-  const b = redoStack.pop();
-  updateFlags();
-  if (!b) return false;
-  const cur = snapshotProject();
-  if (cur) {
-    undoStack.push(cur);
-    updateFlags();
-  }
-  return restoreBytes(b);
+  return restoreFrom(redoStack, undoStack);
 }
 
 function restoreBytes(bytes: Uint8Array): boolean {
