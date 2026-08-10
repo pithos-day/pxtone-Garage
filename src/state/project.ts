@@ -256,11 +256,12 @@ export function commitEdit(): void {
   markDirty();
 }
 
-// 単発操作
-export function mutate(fn: () => void): void {
+// 単発操作。fn の戻り値をそのまま返す (失敗判定をクロージャ経由で持ち出さない)
+export function mutate<T>(fn: () => T): T | undefined {
   pushUndo();
-  fn();
+  const ret = fn();
   commitEdit();
+  return ret;
 }
 
 // ---- プロジェクト全体 ----
@@ -340,30 +341,29 @@ export function pxtnErrorMessage(res: PxtnErr): string {
 // ---- ユニット ----
 
 export function addUnit(name?: string): boolean {
-  let ok = false;
-  mutate(() => {
-    ok = service.unitAddNew();
+  return mutate(() => {
+    const ok = service.unitAddNew();
     if (ok && name) {
       const u = service.unitGet(service.unitNum - 1);
       u?.setNameBuf(name);
     }
+    return ok;
   });
-  return ok;
 }
 
 // 名前と音色を指定してユニットを追加 (1つの undo エントリ)。
 // woiceIdx が -1 の場合は音色なし
 export function addUnitWithWoice(name: string | undefined, woiceIdx: number): boolean {
-  let ok = false;
-  mutate(() => {
-    ok = service.unitAddNew();
-    if (!ok) return;
-    const u = service.unitGet(service.unitNum - 1);
-    if (name) u?.setNameBuf(name);
-    const w = woiceIdx >= 0 ? service.woiceGet(woiceIdx) : null;
-    if (u && w) u.setWoice(w);
+  return mutate(() => {
+    const ok = service.unitAddNew();
+    if (ok) {
+      const u = service.unitGet(service.unitNum - 1);
+      if (name) u?.setNameBuf(name);
+      const w = woiceIdx >= 0 ? service.woiceGet(woiceIdx) : null;
+      if (u && w) u.setWoice(w);
+    }
+    return ok;
   });
-  return ok;
 }
 
 export function removeUnit(idx: number): void {
@@ -557,19 +557,15 @@ export function focusedOrOperated(): number[] {
 
 // ---- 音色 ----
 
-// PTV/PTN/PCM ファイルバイト列を音色として追加
+// PTV/PTN/PCM ファイルバイト列を音色として追加。エラーメッセージを返す (成功時 null)
 export function addWoice(bytes: Uint8Array, type: WoiceType): string | null {
   if (!doc.ready) return t("error.notReady");
-  let err: string | null = null;
-  mutate(() => {
+  return mutate(() => {
     const io = new MemoryIo(bytes);
     const res = service.woiceRead(service.woiceNum, io, type);
-    if (res !== PxtnErr.OK) {
-      err = pxtnErrorMessage(res);
-      return;
-    }
+    if (res !== PxtnErr.OK) return pxtnErrorMessage(res);
+    return null;
   });
-  return err;
 }
 
 export function removeWoice(idx: number): void {
