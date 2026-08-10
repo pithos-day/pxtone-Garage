@@ -107,9 +107,9 @@ function detectLocalCandidates(): FontOption[] {
 /**
  * ローカルフォントを読み込む。Chromium では queryLocalFonts (初回は権限
  * プロンプト)。それ以外・拒否時は候補リストからの検出にフォールバックする。
- * @returns granted = queryLocalFonts が成功したか (プロンプトが出たか)
+ * @returns queryLocalFonts が成功したか (プロンプトが出たか)
  */
-export async function loadLocalFonts(): Promise<{ granted: boolean }> {
+export async function loadLocalFonts(): Promise<boolean> {
   const q = window.queryLocalFonts;
   if (typeof q === "function") {
     try {
@@ -123,11 +123,11 @@ export async function loadLocalFonts(): Promise<{ granted: boolean }> {
         opts.push({ family, label: family, source: "local" });
       }
       localFonts.value = opts;
-      return { granted: true };
+      return true;
     } catch {
       // 権限拒否など → フォールバック検出へ
     }
   }
   localFonts.value = detectLocalCandidates();
-  return { granted: false };
+  return false;
 }
