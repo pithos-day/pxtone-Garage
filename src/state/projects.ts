@@ -47,6 +47,35 @@ export interface Project {
   initial: boolean; // 起動時に自動生成された初期プロジェクトか
 }
 
+// doc ↔ ProjectState で保存/復元するフィールド一覧
+// (saveCurrent/restore の両方がこのリストを使うため、フィールド追加はここ1箇所で済む)
+const STATE_FIELDS = [
+  "fileName",
+  "dirty",
+  "focusUnit",
+  "selectedUnits",
+  "scrollX",
+  "scrollYUnit",
+  "scrollYKey",
+  "zoom",
+  "divi",
+  "scope1",
+  "scope2",
+  "volumeVisible",
+  "volumeMode",
+  "tool",
+  "muted",
+  "unitVisible",
+  "unitPinned",
+  "soloUnit",
+  "soloBackup",
+  "playStart",
+  "playEnd",
+  "repeatMeas",
+] as const;
+
+type StateField = (typeof STATE_FIELDS)[number];
+
 // Service は ref に入れると UnwrapRef が private メンバーを落として型が壊れるため、
 // リアクティブ外の Map で管理する (現在の service は state/service.ts の setService で差し替え)
 const services = new Map<number, Service>();
@@ -87,6 +116,25 @@ export function currentProject(): Project | null {
   return projects.value.find((p) => p.id === currentProjectId.value) ?? null;
 }
 
+// doc の編集状態を ProjectState へスナップショット (配列はコピー)
+function snapshotState(): ProjectState {
+  const st = defaultState();
+  const rec = st as Record<StateField, unknown>;
+  for (const f of STATE_FIELDS) {
+    const v = doc[f];
+    rec[f] = Array.isArray(v) ? [...v] : v;
+  }
+  return st;
+}
+
+// ProjectState を doc へ復元 (配列はコピー)
+function applyState(st: ProjectState): void {
+  for (const f of STATE_FIELDS) {
+    const v = st[f];
+    (doc as Record<StateField, unknown>)[f] = Array.isArray(v) ? [...v] : v;
+  }
+}
+
 // 現在の doc/service/undo をプロジェクトに保存する
 function saveCurrent(): void {
   const p = currentProject();
@@ -97,59 +145,14 @@ function saveCurrent(): void {
   p.comment = comment.value;
   p.undoStack = undoStack;
   p.redoStack = redoStack;
-  p.state = {
-    fileName: doc.fileName,
-    dirty: doc.dirty,
-    focusUnit: doc.focusUnit,
-    selectedUnits: [...doc.selectedUnits],
-    scrollX: doc.scrollX,
-    scrollYUnit: doc.scrollYUnit,
-    scrollYKey: doc.scrollYKey,
-    zoom: doc.zoom,
-    divi: doc.divi,
-    scope1: doc.scope1,
-    scope2: doc.scope2,
-    volumeVisible: doc.volumeVisible,
-    volumeMode: doc.volumeMode,
-    tool: doc.tool,
-    muted: [...doc.muted],
-    unitVisible: [...doc.unitVisible],
-    unitPinned: [...doc.unitPinned],
-    soloUnit: doc.soloUnit,
-    soloBackup: [...doc.soloBackup],
-    playStart: doc.playStart,
-    playEnd: doc.playEnd,
-    repeatMeas: doc.repeatMeas,
-  };
+  p.state = snapshotState();
 }
 
 // プロジェクトの状態を doc/service/undo に復元する
 function restore(p: Project): void {
   setService(services.get(p.id)!);
   setUndoStacks(p.undoStack, p.redoStack);
-  const st = p.state;
-  doc.fileName = st.fileName;
-  doc.dirty = st.dirty;
-  doc.focusUnit = st.focusUnit;
-  doc.selectedUnits = [...st.selectedUnits];
-  doc.scrollX = st.scrollX;
-  doc.scrollYUnit = st.scrollYUnit;
-  doc.scrollYKey = st.scrollYKey;
-  doc.zoom = st.zoom;
-  doc.divi = st.divi;
-  doc.scope1 = st.scope1;
-  doc.scope2 = st.scope2;
-  doc.volumeVisible = st.volumeVisible;
-  doc.volumeMode = st.volumeMode;
-  doc.tool = st.tool;
-  doc.muted = [...st.muted];
-  doc.unitVisible = [...st.unitVisible];
-  doc.unitPinned = [...st.unitPinned];
-  doc.soloUnit = st.soloUnit;
-  doc.soloBackup = [...st.soloBackup];
-  doc.playStart = st.playStart;
-  doc.playEnd = st.playEnd;
-  doc.repeatMeas = st.repeatMeas;
+  applyState(p.state);
   title.value = p.title;
   comment.value = p.comment;
   sync();
