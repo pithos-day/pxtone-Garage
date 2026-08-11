@@ -259,7 +259,8 @@ export function renderWoice(
   if (s.woiceRead(0, io, WoiceType.PTV) !== PxtnErr.OK) return null;
   if (!s.unitAddNew()) return null;
   // read() を経由しないと _mooBValidData が立たず mooPreparation が失敗するため、
-  // 一時プロジェクトを ptcop にシリアライズして読み直す (renderPreview と同じ経路)
+  // 一時プロジェクトを ptcop にシリアライズして読み直す (renderPreview と同じ経路。
+  // bTune=false は ptcop 形式 — pttune 書き出しの io.ts exportPttune とは別経路)
   const out = new MemoryIo();
   if (s.write(out, false, EXE_VER) !== PxtnErr.OK) return null;
   const s2 = new Service();
