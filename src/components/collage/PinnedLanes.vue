@@ -6,6 +6,7 @@ import { useCanvas } from "../../composables/useCanvas";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText, noteFill, noteShadow,
   drawPlayhead,
+  drawScopeBand,
 } from "../../lib/draw";
 import { fieldOffset, clockAtX, zoomByWheel } from "../../lib/field";
 import { clockToX, xToClock } from "../../lib/clock";
@@ -139,7 +140,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   if (doc.scope2 > doc.scope1) {
     const x1 = clockToX(view, doc.scope1) - scrollX;
     const x2 = clockToX(view, doc.scope2) - scrollX;
-    fillRect(ctx, x1, fieldTop, Math.max(0, x2 - x1), fieldH, COLORS.scopeFaint);
+    drawScopeBand(ctx, x1, x2, fieldTop, fieldH, COLORS.scopeFaint);
   }
 
   // プレイヘッド

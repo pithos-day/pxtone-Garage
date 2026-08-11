@@ -3,7 +3,7 @@
 import { ref } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { COLORS } from "../../lib/theme";
-import { drawGrid, fillRect, drawPlayhead } from "../../lib/draw";
+import { drawGrid, fillRect, drawPlayhead, drawScopeBand } from "../../lib/draw";
 import { clockToX } from "../../lib/clock";
 import { doc, clockContext } from "../../state/project";
 import { currentClock, isPlaying as isPlayingNow } from "../../state/player";
@@ -23,7 +23,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   if (doc.scope2 > doc.scope1) {
     const x1 = clockToX(view, doc.scope1) - doc.scrollX;
     const x2 = clockToX(view, doc.scope2) - doc.scrollX;
-    fillRect(ctx, x1, 1, Math.max(0, x2 - x1), h - 2, COLORS.scope);
+    drawScopeBand(ctx, x1, x2, 1, h - 2, COLORS.scope);
     fillRect(ctx, x1, 0, 1, h, COLORS.scopeBorder);
     fillRect(ctx, x2, 0, 1, h, COLORS.scopeBorder);
   }
