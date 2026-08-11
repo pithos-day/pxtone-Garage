@@ -199,6 +199,13 @@ function syncMeta(): void {
   comment.value = service.text.getCommentString();
 }
 
+// ソロを解除し、開始前のミュート状態 (soloBackup) を復元する
+function exitSolo(): void {
+  doc.soloUnit = -1;
+  doc.muted = [...doc.soloBackup];
+  doc.soloBackup = [];
+}
+
 // 削除・読み込み後に選択/ミュート/ソロ状態をユニット数へ整合化する
 function cleanupSelection(): void {
   const s = service;
@@ -208,9 +215,7 @@ function cleanupSelection(): void {
   doc.soloBackup = doc.soloBackup.filter((u) => u >= 0 && u < s.unitNum);
   if (doc.soloUnit >= s.unitNum) {
     // ソロ対象が消えた: ソロを解除して元のミュート状態を復元
-    doc.soloUnit = -1;
-    doc.muted = [...doc.soloBackup];
-    doc.soloBackup = [];
+    exitSolo();
   }
   // ソロ中の不変条件: ソロユニット以外を全ミュート
   if (doc.soloUnit >= 0) {
@@ -384,9 +389,7 @@ export function removeUnit(idx: number): void {
   doc.unitPinned = shiftArr(doc.unitPinned, idx);
   if (doc.soloUnit === idx) {
     // ソロ対象の削除: ソロ解除して元のミュート状態を復元
-    doc.soloUnit = -1;
-    doc.muted = [...doc.soloBackup];
-    doc.soloBackup = [];
+    exitSolo();
   } else if (doc.soloUnit > idx) {
     doc.soloUnit--;
   }
@@ -476,16 +479,13 @@ export function toggleUnitMute(idx: number): void {
   if (doc.soloUnit >= 0) {
     // ソロ中の手動変更: ソロを解除し、元のミュート状態に今回の変更を反映
     const wasMuted = doc.muted.includes(idx);
-    const restored = [...doc.soloBackup];
-    doc.soloUnit = -1;
-    doc.soloBackup = [];
-    const i = restored.indexOf(idx);
+    exitSolo();
+    const i = doc.muted.indexOf(idx);
     if (wasMuted) {
-      if (i >= 0) restored.splice(i, 1);
+      if (i >= 0) doc.muted.splice(i, 1);
     } else if (i < 0) {
-      restored.push(idx);
+      doc.muted.push(idx);
     }
-    doc.muted = restored;
   } else {
     doc.muted = toggleInArray(doc.muted, idx);
   }
@@ -499,9 +499,7 @@ export function toggleUnitMute(idx: number): void {
 // (ソロ由来のミュートで上書きしない)
 export function toggleUnitSolo(idx: number): void {
   if (doc.soloUnit === idx) {
-    doc.soloUnit = -1;
-    doc.muted = [...doc.soloBackup];
-    doc.soloBackup = [];
+    exitSolo();
   } else {
     if (doc.soloUnit === -1) doc.soloBackup = [...doc.muted];
     doc.soloUnit = idx;
