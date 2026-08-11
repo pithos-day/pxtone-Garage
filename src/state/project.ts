@@ -273,6 +273,11 @@ export function mutate<T>(fn: () => T): T | undefined {
   return ret;
 }
 
+// boolean を返す単発操作 (mutate が undefined を返しても false に丸める)
+export function mutateBoolean(fn: () => boolean): boolean {
+  return mutate(fn) ?? false;
+}
+
 // ---- プロジェクト全体 ----
 
 // 新規/読込時に編集用の UI 状態をリセットする (ファイルの内容には影響しない)
@@ -348,35 +353,31 @@ export function pxtnErrorMessage(res: PxtnErr): string {
 // ---- ユニット ----
 
 export function addUnit(name?: string): boolean {
-  return (
-    mutate(() => {
-      const ok = service.unitAddNew();
-      if (ok && name) {
-        const u = service.unitGet(service.unitNum - 1);
-        u?.setNameBuf(name);
-      }
-      return ok;
-    }) ?? false
-  );
+  return mutateBoolean(() => {
+    const ok = service.unitAddNew();
+    if (ok && name) {
+      const u = service.unitGet(service.unitNum - 1);
+      u?.setNameBuf(name);
+    }
+    return ok;
+  });
 }
 
 // 名前と音色を指定してユニットを追加 (1つの undo エントリ)。
 // woiceIdx が -1 の場合は音色なし。
 export function addUnitWithWoice(name: string | undefined, woiceIdx: number): boolean {
-  return (
-    mutate(() => {
-      if (!service.unitAddNew()) return false;
-      const ui = service.unitNum - 1;
-      const u = service.unitGet(ui);
-      if (name) u?.setNameBuf(name);
-      const w = woiceIdx >= 0 ? service.woiceGet(woiceIdx) : null;
-      if (u && w) {
-        u.setWoice(w);
-        writeUnitWoice(ui, woiceIdx);
-      }
-      return true;
-    }) ?? false
-  );
+  return mutateBoolean(() => {
+    if (!service.unitAddNew()) return false;
+    const ui = service.unitNum - 1;
+    const u = service.unitGet(ui);
+    if (name) u?.setNameBuf(name);
+    const w = woiceIdx >= 0 ? service.woiceGet(woiceIdx) : null;
+    if (u && w) {
+      u.setWoice(w);
+      writeUnitWoice(ui, woiceIdx);
+    }
+    return true;
+  });
 }
 
 export function removeUnit(idx: number): void {
