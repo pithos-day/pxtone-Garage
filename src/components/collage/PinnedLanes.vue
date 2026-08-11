@@ -19,6 +19,7 @@ import {
   deleteEvents,
   setScope,
   pinnedUnits,
+  EVENTDEFAULT_VOLUME,
   EVENTDEFAULT_VELOCITY,
   EVENTDEFAULT_KEY,
 } from "../../state/project";
@@ -90,7 +91,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     if (!doc.unitPinned[e.unitNo]) continue;
     switch (e.kind) {
       case EventKind.ON:
-        notes.push({ unit: e.unitNo, clock: e.clock, length: e.value, vel: currentVel, vol: 104 });
+        notes.push({ unit: e.unitNo, clock: e.clock, length: e.value, vel: currentVel, vol: EVENTDEFAULT_VOLUME });
         break;
       case EventKind.VELOCITY:
         currentVel = e.value;

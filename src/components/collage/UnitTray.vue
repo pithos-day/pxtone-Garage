@@ -23,11 +23,16 @@ import {
   commitEdit,
   sync,
   EVENTDEFAULT_KEY,
+  EVENTDEFAULT_VOLUME,
 } from "../../state/project";
 import { previewUnitHold, stopPreview } from "../../engine/preview";
 import { useCtxMenuClose } from "../../composables/useCtxMenu";
 import { t } from "../../i18n";
 import ChangeUnitDialog from "./ChangeUnitDialog.vue";
+
+// チェックボックス列 (再生/表示/ピン/ソロ) の幅。CSS の --checks-w と同期
+const CHECKS_W = 76;
+const ROW_PAD_L = 4; // .unit-row の左パディング (チェックボックス列の開始位置)
 
 const editing = ref<number | null>(null);
 const editText = ref("");
@@ -44,7 +49,7 @@ function onPointerDown(e: PointerEvent, idx: number): void {
   const x = e.clientX - (tray?.getBoundingClientRect().left ?? 0);
 
   // チェックボックス列 (再生/表示/ピン/ソロの横並び領域) は @pointerdown.stop で処理済み
-  if (x < 80) return;
+  if (x < CHECKS_W + ROW_PAD_L) return;
 
   if (e.button === 2) {
     setFocusUnit(idx);
@@ -67,7 +72,7 @@ function onPointerDown(e: PointerEvent, idx: number): void {
   // 押下中サステインで試聴
   const u = s.unitGet(idx);
   if (u?.woice) {
-    previewUnitHold(idx, EVENTDEFAULT_KEY, 104);
+    previewUnitHold(idx, EVENTDEFAULT_KEY, EVENTDEFAULT_VOLUME);
   }
 
   // ドラッグ並べ替え (ctrl/shift 選択中は無効)
@@ -149,7 +154,7 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
 </script>
 
 <template>
-  <div class="tray">
+  <div class="tray" :style="{ '--checks-w': CHECKS_W + 'px' }">
     <div class="tray-title">
       {{ t("unit.title") }} ({{ units.length }})
       <span class="tray-tools">
@@ -254,7 +259,7 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
   align-items: center;
   justify-content: space-between;
   gap: 4px;
-  width: 76px;
+  width: var(--checks-w);
   flex: none;
 }
 
@@ -321,7 +326,7 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
   align-items: center;
   justify-content: space-between;
   gap: 4px;
-  width: 76px;
+  width: var(--checks-w);
   flex: none;
 }
 
