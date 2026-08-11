@@ -99,15 +99,8 @@ let styleEl: HTMLStyleElement | null = null;
 // (ベース = pxtone テーマ。未定義トークンは pxtone の値を継承)
 function injectThemes(): void {
   if (typeof document === "undefined") return;
-  const baseSrc = registry.get(DEFAULT_THEME)?.source;
-  if (!baseSrc) return;
-  let base = parsed.get(DEFAULT_THEME);
-  if (!base) {
-    const parsedBase = parseThemeCss(baseSrc);
-    if (!parsedBase) return;
-    parsed.set(DEFAULT_THEME, parsedBase);
-    base = parsedBase;
-  }
+  const base = ensureParsed(DEFAULT_THEME);
+  if (!base) return;
   if (!styleEl) {
     styleEl = document.createElement("style");
     styleEl.id = "pxtone-theme-styles";
@@ -115,16 +108,23 @@ function injectThemes(): void {
   }
   const parts: string[] = [];
   for (const t of registry.values()) {
-    let tokens = parsed.get(t.id);
-    if (!tokens) {
-      const parsedTokens = parseThemeCss(t.source);
-      if (!parsedTokens) continue;
-      parsed.set(t.id, parsedTokens);
-      tokens = parsedTokens;
-    }
+    const tokens = ensureParsed(t.id);
+    if (!tokens) continue;
     parts.push(buildThemeCss(t.id, mergeTokens(base, tokens)));
   }
   styleEl.textContent = parts.join("\n");
+}
+
+// テーマをパースしてキャッシュする (未パースなら解析。失敗時は null)
+function ensureParsed(id: string): ThemeTokens | null {
+  const cached = parsed.get(id);
+  if (cached) return cached;
+  const def = registry.get(id);
+  if (!def) return null;
+  const tokens = parseThemeCss(def.source);
+  if (!tokens) return null;
+  parsed.set(id, tokens);
+  return tokens;
 }
 
 // ---- ユーザーテーマ ----
