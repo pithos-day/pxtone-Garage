@@ -85,7 +85,7 @@ export function createDefaultWoice(): Woice {
     vc.voiceFlags = PTV_VOICEFLAG_SMOOTH | PTV_VOICEFLAG_WAVELOOP;
     vc.dataFlags = PTV_DATAFLAG_WAVE | PTV_DATAFLAG_ENVELOPE;
     vc.wave.reso = WAVE_RESO;
-    if (i) {
+    if (i === 1) {
       vc.wave.num = 1;
       vc.wave.points = [{ x: 0, y: 0 }];
     } else {
