@@ -6,6 +6,7 @@
 // History リスト、WAV 書き出しを提供する。
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
+import { useUndoRedoRedraw } from "../../composables/useUndoRedoRedraw";
 import { COLORS } from "../../lib/theme";
 import { fillRect, fillText } from "../../lib/draw";
 import { MemoryIo } from "pxtone-ts";
@@ -107,13 +108,10 @@ function setEnvePct(u: number, i: number, raw: string): void {
 }
 
 // undo/redo (メニュー) 後もリアルタイム反映する
-watch(
-  () => [noise.value?.undoStack.length, noise.value?.redoStack.length],
-  () => {
-    touch();
-    scheduleRebuild();
-  },
-);
+useUndoRedoRedraw(() => noise.value, () => {
+  touch();
+  scheduleRebuild();
+});
 
 // ---- リアルタイムビルド (250ms デバウンス) ----
 const BUILT_SPS = 44100;

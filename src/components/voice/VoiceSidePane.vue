@@ -6,6 +6,7 @@
 // エンベロープは本家 ptuiEnvelope 準拠の「区間長 x + 累積描画」。
 import { computed, ref, watch } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
+import { useUndoRedoRedraw } from "../../composables/useUndoRedoRedraw";
 import { COLORS } from "../../lib/theme";
 import { fillRect, fillText } from "../../lib/draw";
 import { Oscillator, VoiceType } from "pxtone-ts";
@@ -54,10 +55,7 @@ watch(
 );
 
 // undo/redo (メニュー) 後の再描画
-watch(
-  () => [voice.value?.undoStack.length, voice.value?.redoStack.length],
-  () => touch(),
-);
+useUndoRedoRedraw(() => voice.value, () => touch());
 
 let dragUndoPushed = false;
 function beginDragUndo(): void {
