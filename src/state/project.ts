@@ -98,6 +98,9 @@ export const overdrives = ref<OverdriveInfo[]>([]);
 export const title = ref("");
 export const comment = ref("");
 
+// Delay の単位表示名 (EffectorPanel と共用)
+export const DELAY_UNITS = ["BEAT", "MEAS", "SECOND"];
+
 export function getService(): typeof service | null {
   return doc.ready ? service : null;
 }

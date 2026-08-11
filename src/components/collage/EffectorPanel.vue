@@ -13,7 +13,7 @@ import {
   removeOverdrive,
   updateOverdrive,
 } from "../../state/project";
-import { getService } from "../../state/project";
+import { getService, DELAY_UNITS } from "../../state/project";
 
 // 編集中のフォーム。delay と overdrive でフィールドが異なるため判別 union で持つ
 // (無関係なフィールドにダミー値 0/1 を入れる旧 form を置き換え)
@@ -24,7 +24,6 @@ type EditForm =
 const editing = ref<EditForm | null>(null);
 const editingIdx = ref(-1);
 
-const DELAY_UNITS = ["BEAT", "MEAS", "SECOND"];
 
 // 上限 (本家: Delay 4 / OverDrive 2)
 const delayMax = computed(() => getService()?.delayMax ?? 4);

@@ -3,7 +3,7 @@
 <script setup lang="ts">
 import { isPlaying, togglePlay, stop, loop, setLoop, masterVolume, setMasterVolume, positionSample, player, currentClock } from "../../state/player";
 import { getService, clockContext } from "../../state/project";
-import { panels } from "../../state/panels";
+import { panels, PANEL_DEFS as PANELS } from "../../state/panels";
 import { formatClock, formatTime } from "../../lib/clock";
 import { t } from "../../i18n";
 
@@ -15,11 +15,6 @@ function timeLabel(): string {
   return `${formatTime(curSec)} / ${formatTime(totalSec)}`;
 }
 
-// パネルトグルボタンの定義 (id + 表示ラベル)
-const PANELS = [
-  { id: "effector", label: "Effector" },
-  { id: "copier", label: "Copier" },
-] as const;
 </script>
 
 <template>
