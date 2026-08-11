@@ -1,7 +1,7 @@
 // 音声 (.ptvoice) ドキュメント管理。
-// コラージュの projects.ts と同様、タブごとに独立した Woice / undo スタックを持つ。
-// undo は ptvWrite によるバイト列スナップショット方式。
-import { ref, markRaw } from "vue";
+// タブ管理・undo スタックは doc-tabs.ts の共通実装を使い、
+// ここでは実体 (Woice) の読み書きと編集ルールだけを提供する。
+import { markRaw } from "vue";
 import {
   Woice,
   WoiceType,
@@ -15,31 +15,26 @@ import {
 } from "pxtone-ts";
 import type { VoiceUnit } from "pxtone-ts";
 import { pxtnErrorMessage } from "./project";
-import { downloadBytes, sanitizeFileName } from "../engine/io";
-import { t } from "../i18n";
+import { createDocTabs, type TabDocBase } from "./doc-tabs";
 
-const MAX_UNDO = 100;
 const WAVE_RESO = 256; // 本家 ptvCOODINATERESOLUTION
 const MAX_ENVE_POINT = 31; // 本家 ptvMAX_ENVELOPEPOINT
 
-export interface VoiceDoc {
-  id: number;
-  fileName: string;
-  dirty: boolean;
+export interface VoiceDoc extends TabDocBase {
   woice: Woice;
-  undoStack: Uint8Array[];
-  redoStack: Uint8Array[];
 }
 
-export const voices = ref<VoiceDoc[]>([]);
-export const currentVoiceId = ref(-1);
+const tabs = createDocTabs<VoiceDoc>({
+  snapshot: snapshotVoice,
+  restore: (v, bytes) => v.woice.read(new MemoryIo(bytes), WoiceType.PTV) === PxtnErr.OK,
+});
 
-let nextId = 1;
+export const voices = tabs.docs;
+export const currentVoiceId = tabs.currentId;
 
 export function currentVoice(): VoiceDoc | null {
-  const v = voices.value.find((x) => x.id === currentVoiceId.value);
   // woice は markRaw で格納しているため実体は Woice のまま
-  return v ? (v as unknown as VoiceDoc) : null;
+  return tabs.current() as VoiceDoc | null;
 }
 
 // ---- Coordinate 波形の編集ルール (本家 ptuiWave.cpp 準拠) ----
@@ -206,22 +201,11 @@ export function snapshotVoice(v: VoiceDoc): Uint8Array | null {
   return io.toUint8Array();
 }
 
-// 編集前のスナップショットを undo スタックへ
-export function pushVoiceUndo(v: VoiceDoc): void {
-  const b = snapshotVoice(v);
-  if (!b) return;
-  v.undoStack.push(b);
-  if (v.undoStack.length > MAX_UNDO) v.undoStack.shift();
-  v.redoStack.length = 0;
-}
-
 // 1回の編集操作 (undo 1エントリ + dirty 化)
 export function editVoice(fn: () => void): void {
   const v = currentVoice();
   if (!v) return;
-  pushVoiceUndo(v);
-  fn();
-  v.dirty = true;
+  tabs.edit(v, fn);
 }
 
 // ---- 波形プリセット (本家 ptuiWavePreset.cpp 準拠) ----
@@ -377,40 +361,19 @@ export function copyVoiceSide(srcIdx: number, dstIdx: number): void {
   });
 }
 
-function restoreVoiceFrom(v: VoiceDoc, stack: Uint8Array[], pushTo: Uint8Array[]): boolean {
-  const b = stack.pop();
-  if (!b) return false;
-  const cur = snapshotVoice(v);
-  if (cur) pushTo.push(cur);
-  const io = new MemoryIo(b);
-  if (v.woice.read(io, WoiceType.PTV) !== PxtnErr.OK) return false;
-  v.dirty = true;
-  return true;
-}
-
 export function undoVoice(): boolean {
   const v = currentVoice();
-  return v ? restoreVoiceFrom(v, v.undoStack, v.redoStack) : false;
+  return v ? tabs.restoreFrom(v, v.undoStack, v.redoStack) : false;
 }
 
 export function redoVoice(): boolean {
   const v = currentVoice();
-  return v ? restoreVoiceFrom(v, v.redoStack, v.undoStack) : false;
+  return v ? tabs.restoreFrom(v, v.redoStack, v.undoStack) : false;
 }
 
 // 新規タブを追加して切り替える
 export function newVoice(): VoiceDoc {
-  const doc: VoiceDoc = {
-    id: nextId++,
-    fileName: "",
-    dirty: false,
-    woice: markRaw(createDefaultWoice()),
-    undoStack: [],
-    redoStack: [],
-  };
-  voices.value.push(doc);
-  currentVoiceId.value = doc.id;
-  return doc;
+  return tabs.add({ fileName: "", dirty: false, woice: markRaw(createDefaultWoice()), undoStack: [], redoStack: [] });
 }
 
 // .ptvoice バイト列から新規タブを開く。エラーメッセージを返す (成功時 null)
@@ -418,48 +381,21 @@ export function openVoice(bytes: Uint8Array, name: string): string | null {
   const w = new Woice();
   const res = w.read(new MemoryIo(bytes), WoiceType.PTV);
   if (res !== PxtnErr.OK) return pxtnErrorMessage(res);
-  const doc: VoiceDoc = {
-    id: nextId++,
-    fileName: name,
-    dirty: false,
-    woice: markRaw(w),
-    undoStack: [],
-    redoStack: [],
-  };
-  voices.value.push(doc);
-  currentVoiceId.value = doc.id;
+  tabs.add({ fileName: name, dirty: false, woice: markRaw(w), undoStack: [], redoStack: [] });
   return null;
 }
 
 export function closeVoice(id: number): void {
-  const idx = voices.value.findIndex((v) => v.id === id);
-  if (idx < 0) return;
-  voices.value.splice(idx, 1);
-  if (currentVoiceId.value === id) {
-    const next = voices.value[Math.min(idx, voices.value.length - 1)];
-    currentVoiceId.value = next?.id ?? -1;
-  }
+  tabs.close(id);
 }
 
 export function switchVoice(id: number): void {
-  if (currentVoiceId.value !== id) currentVoiceId.value = id;
+  tabs.switchTo(id);
 }
 
 // 現在の音声を .ptvoice として保存 (asNew でファイル名入力を促す)
 export function saveVoice(asNew: boolean): boolean {
   const v = currentVoice();
   if (!v) return false;
-  let name = v.fileName || "untitled";
-  if (asNew) {
-    const input = window.prompt(t("prompt.fileName"), name);
-    if (input === null) return false;
-    name = input.trim() || "untitled";
-  }
-  const io = new MemoryIo();
-  if (v.woice.ptvWrite(io) < 0) return false;
-  const bytes = io.toUint8Array();
-  downloadBytes(bytes, sanitizeFileName(name, ".ptvoice"));
-  v.fileName = name;
-  v.dirty = false;
-  return true;
+  return tabs.save(v, asNew, ".ptvoice");
 }
