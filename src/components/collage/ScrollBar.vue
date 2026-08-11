@@ -3,6 +3,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { doc, getService } from "../../state/project";
+import { KEYNUM, KEY_HEIGHT, KEY_BAND_H } from "../../lib/layout";
 
 const props = defineProps<{
   vertical?: boolean;
@@ -41,7 +42,7 @@ const contentSize = computed(() => {
   void doc.rev; // openProject / 編集で再計算
   void viewTick.value;
   if (props.vertical) {
-    if (props.verticalKind === "key") return 88 * 16; // ピアノロール鍵盤 (88 行)
+    if (props.verticalKind === "key") return KEY_BAND_H; // ピアノロール鍵盤全体
     return total.value * 16;
   }
   const s = getService();
@@ -87,7 +88,7 @@ function setFrac(f: number): void {
   if (!props.vertical) {
     doc.scrollX = Math.round(v);
   } else if (props.verticalKind === "key") {
-    doc.scrollYKey = Math.max(0, Math.min(87, Math.round(v / 16)));
+    doc.scrollYKey = Math.max(0, Math.min(KEYNUM - 1, Math.round(v / KEY_HEIGHT)));
   } else {
     doc.scrollYUnit = Math.round(v / 16);
   }

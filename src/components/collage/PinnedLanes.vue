@@ -7,6 +7,7 @@ import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText, noteFill, noteShadow } from "../../lib/draw";
 import { fieldOffset, clockAtX, zoomByWheel } from "../../lib/field";
 import { clockToX, xToClock } from "../../lib/clock";
+import { RULER_H, NAME_W, KEY_HEIGHT } from "../../lib/layout";
 import { EventKind } from "pxtone-ts";
 import {
   doc,
@@ -26,11 +27,8 @@ import {
 import { currentClock, seekToClock, isPlaying as isPlayingNow } from "../../state/player";
 import { previewUnitHold, stopPreview } from "../../engine/preview";
 
-const ROW_H = 16;
-const BAND = 12; // 上部ルーラー帯
 // 左のユニット名領域 = 左パネル (300px) + 鍵盤ストリップ (64px)。
-// レーンの開始位置をピアノロールフィールドと揃える
-const NAME_W = 364;
+// レーンの開始位置をピアノロールフィールドと揃える (lib/layout.ts の NAME_W)
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 
@@ -57,7 +55,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   const view = clockContext();
   const scrollX = doc.scrollX;
   const pinned = pinnedUnits();
-  const fieldTop = BAND;
+  const fieldTop = RULER_H;
   const fieldH = h - fieldTop;
   const fieldW = w - NAME_W;
 
@@ -65,7 +63,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   ctx.save();
   ctx.translate(NAME_W, 0);
 
-  drawGrid(ctx, { w: fieldW, h, scrollX, view, top: 0, bottom: BAND, showNumber: true, numberTop: 0 });
+  drawGrid(ctx, { w: fieldW, h, scrollX, view, top: 0, bottom: RULER_H, showNumber: true, numberTop: 0 });
   drawGrid(ctx, { w: fieldW, h, scrollX, view, top: fieldTop, bottom: h });
 
   // イベント描画
@@ -114,25 +112,25 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   for (const n of notes) {
     const rowIdx = pinned.indexOf(n.unit);
     if (rowIdx < 0) continue;
-    const y = fieldTop + rowIdx * ROW_H;
+    const y = fieldTop + rowIdx * KEY_HEIGHT;
     const x = clockToX(view, n.clock) - scrollX;
     const xw = Math.max(2, clockToX(view, n.length));
     const play = currentClock.value >= n.clock && currentClock.value < n.clock + n.length;
     const fill = noteFill(n.unit, play, n.vel, n.vol);
     const shadow = noteShadow(n.unit, play, n.vel, n.vol);
-    fillRect(ctx, x, y + 3, 2, ROW_H - 6, shadow);
-    fillRect(ctx, x + 1, y + 3, Math.max(1, xw - 2), ROW_H - 6, fill);
-    if (play) fillRect(ctx, x + 1, y + 2, 2, ROW_H - 4, COLORS.playhead);
+    fillRect(ctx, x, y + 3, 2, KEY_HEIGHT - 6, shadow);
+    fillRect(ctx, x + 1, y + 3, Math.max(1, xw - 2), KEY_HEIGHT - 6, fill);
+    if (play) fillRect(ctx, x + 1, y + 2, 2, KEY_HEIGHT - 4, COLORS.playhead);
   }
 
   // その他イベントマーク
   for (const m of marks) {
     const rowIdx = pinned.indexOf(m.unit);
     if (rowIdx < 0) continue;
-    const y = fieldTop + rowIdx * ROW_H;
+    const y = fieldTop + rowIdx * KEY_HEIGHT;
     const x = clockToX(view, m.clock) - scrollX;
     if (x < 0 || x > fieldW) continue;
-    fillRect(ctx, x, y + 4, 1, ROW_H - 8, COLORS.accentDark);
+    fillRect(ctx, x, y + 4, 1, KEY_HEIGHT - 8, COLORS.accentDark);
   }
 
   // スコープ帯
@@ -152,10 +150,10 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 
   // 左のユニット名 (translate 外)
   for (let i = 0; i < pinned.length; i++) {
-    const y = fieldTop + i * ROW_H;
+    const y = fieldTop + i * KEY_HEIGHT;
     const u = pinned[i]!;
     const isFocus = u === doc.focusUnit;
-    fillRect(ctx, 0, y, NAME_W, ROW_H, isFocus ? COLORS.focusRow : i % 2 ? COLORS.zebra : "transparent");
+    fillRect(ctx, 0, y, NAME_W, KEY_HEIGHT, isFocus ? COLORS.focusRow : i % 2 ? COLORS.zebra : "transparent");
     fillText(ctx, `${u}: ${units.value[u]?.name ?? ""}`, 2, y + 11, isFocus ? COLORS.focusText : COLORS.text, 10);
   }
 }
@@ -169,7 +167,7 @@ function clockAt(x: number): number {
 }
 
 function unitAt(y: number): number {
-  const i = Math.floor((y - BAND) / ROW_H);
+  const i = Math.floor((y - RULER_H) / KEY_HEIGHT);
   const pinned = pinnedUnits();
   if (i < 0 || i >= pinned.length) return -1;
   return pinned[i]!;

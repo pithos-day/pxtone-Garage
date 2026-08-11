@@ -18,6 +18,7 @@ import {
   keyValueToRow,
 } from "../../lib/clock";
 import { EventKind } from "pxtone-ts";
+import { STRIP_W } from "../../lib/layout";
 import {
   doc,
   getService,
@@ -37,10 +38,8 @@ import { currentClock, seekToClock, isPlaying as isPlayingNow } from "../../stat
 import { previewUnitHold, stopPreview } from "../../engine/preview";
 import { getUnitColor } from "../../lib/theme";
 
-const BAND = 0; // ルーラー帯は PlayField (トラック直上) が担当するため不要
 // 鍵盤ストリップの幅。ピアノ風の単音プレビュー領域で、左パネル (300px) の右に置く。
-// 本家 144px から半分以下に縮小
-const STRIP_W = 64;
+// 本家 144px から半分以下に縮小 (lib/layout.ts の STRIP_W)
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 
 // フォーカスユニットの音域を画面中央に (本家の ResetScroll/JustScroll 相当)
@@ -84,7 +83,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   const scrollX = doc.scrollX;
   const fieldW = w - STRIP_W; // フィールド幅 (鍵盤ストリップの右側)
 
-  const fieldTop = BAND;
+  const fieldTop = 0;
   const fieldH = h - fieldTop;
   const scrollY = doc.scrollYKey * KEY_HEIGHT;
   const startRow = Math.floor(scrollY / KEY_HEIGHT);

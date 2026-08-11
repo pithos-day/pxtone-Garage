@@ -4,6 +4,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted } from "vue";
 import { doc, units, ensureInit, pinnedUnits } from "../../state/project";
+import { RULER_H, KEY_HEIGHT, KEYNUM } from "../../lib/layout";
 import { panels } from "../../state/panels";
 import { togglePlay, seekToClock } from "../../state/player";
 import { undo, redo } from "../../state/undo";
@@ -82,7 +83,7 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
   <div class="collage">
     <div class="collage-body">
       <!-- ピン留めユニットのレーン (上部固定) -->
-      <div v-if="pinned.length > 0" class="collage-pinned" :style="{ height: (12 + pinned.length * 16) + 'px' }">
+      <div v-if="pinned.length > 0" class="collage-pinned" :style="{ height: (RULER_H + pinned.length * KEY_HEIGHT) + 'px' }">
         <PinnedLanes />
       </div>
       <div class="collage-main">
@@ -109,7 +110,7 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
           </div>
           <div class="collage-field-wrap">
             <KeyField />
-            <ScrollBar class="vscroll" :vertical="true" :length="88" vertical-kind="key" />
+            <ScrollBar class="vscroll" :vertical="true" :length="KEYNUM" vertical-kind="key" />
           </div>
         </div>
         <!-- フローティングパネル (Effector / Copier を編集画面上にポップアップ表示) -->
