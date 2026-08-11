@@ -20,7 +20,6 @@ const BLOCK_SIZE = 128;
 class PxtoneWorkletProcessor extends AudioWorkletProcessor {
   private service: Service | null = null;
   private scratch: Int16Array = new Int16Array(BLOCK_SIZE * 2);
-  private loaded = false;
   private playing = false;
   private sps = 44100;
   private loop = false;
@@ -98,7 +97,6 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
     this.sps = sps;
     const { svc, error } = this.loadService(bytes, sps);
     this.service = svc;
-    this.loaded = svc !== null;
     this.playing = false;
     this.lastPosNotifySample = -1;
     this.playStart = playStart;
@@ -142,7 +140,7 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
     const chNum = out.length;
     const block = out[0]!.length;
 
-    if (!this.service || !this.loaded || !this.playing) {
+    if (!this.service || !this.playing) {
       for (let ch = 0; ch < chNum; ch++) out[ch]!.fill(0);
       return true;
     }
