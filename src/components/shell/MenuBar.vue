@@ -27,6 +27,8 @@ const emit = defineEmits<{
   (e: "settings"): void;
   (e: "copyMeas"): void;
   (e: "eventVolume", kind: EventVolumeMode): void;
+  (e: "voiceCopyAB"): void;
+  (e: "voiceCopyBA"): void;
 }>();
 
 type MenuName = "file" | "edit" | "view";
@@ -226,6 +228,9 @@ const editMenu = computed<MenuItem[]>(() => {
     return [
       { label: t("menu.edit.undo"), action: () => undoVoice(), disabled: !canUndoNow.value },
       { label: t("menu.edit.redo"), action: () => redoVoice(), disabled: !canRedoNow.value },
+      { sep: true },
+      { label: t("menu.edit.copyAtoB"), action: () => emit("voiceCopyAB") },
+      { label: t("menu.edit.copyBtoA"), action: () => emit("voiceCopyBA") },
     ];
   }
   if (mode.value === "noise") {

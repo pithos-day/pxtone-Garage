@@ -18,7 +18,11 @@ import {
   enveInsertPoint,
   enveDeletePoint,
   enveSetHeadPointX,
+  applyWavePreset,
+  WAVE_PRESET_LABELS,
+  WAVE_PRESET_TITLES,
 } from "../../state/voice";
+import type { WavePreset } from "../../state/voice";
 import { t } from "../../i18n";
 
 const props = defineProps<{ side: number }>();
@@ -165,6 +169,11 @@ function setWaveType(type: "coord" | "overtone"): void {
   });
   // スライダー (points 配列) を新しい波形に更新する
   touch();
+}
+
+// ---- 波形プリセット (本家 ptuiWavePreset 相当。現在の波形タイプに応じて適用) ----
+function applyPreset(preset: WavePreset): void {
+  setVoiceUnit((c) => applyWavePreset(c, preset));
 }
 
 // ---- 波形モニター ----
@@ -500,6 +509,17 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
         <button class="btn btn-sm" :class="{ on: waveType === 'coord' }" @click="setWaveType('coord')">Coordinate</button>
         <button class="btn btn-sm" :class="{ on: waveType === 'overtone' }" @click="setWaveType('overtone')">Oscillator</button>
       </div>
+      <div class="vsp-presets">
+        <button
+          v-for="(label, i) in WAVE_PRESET_LABELS"
+          :key="i"
+          class="btn btn-sm vsp-preset"
+          :title="WAVE_PRESET_TITLES[i]"
+          @click="applyPreset(i as WavePreset)"
+        >
+          {{ label }}
+        </button>
+      </div>
     </div>
     <div class="vsp-params">
       <div class="vsp-param">
@@ -576,6 +596,7 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
   user-select: none;
   flex: none;
 }
@@ -589,6 +610,16 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
 .vsp-wavetype {
   display: flex;
   gap: 2px;
+}
+
+.vsp-presets {
+  display: flex;
+  gap: 2px;
+}
+
+.vsp-preset {
+  font-size: 10px;
+  padding: 0 5px;
 }
 
 /* 面ごとのパラメータ (Vol/Pan/補正値/Release のスライダー) */

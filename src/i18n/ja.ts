@@ -10,6 +10,8 @@ const ja = {
   "common.edit": "編集",
   "common.newProject": "新規プロジェクト",
   "common.ok": "OK",
+  "common.yes": "はい",
+  "common.no": "いいえ",
   "common.volumeToggle": "ボリュームエディタの表示",
   // メニュー: File
   "menu.file.new": "新規作成",
@@ -25,6 +27,8 @@ const ja = {
   // メニュー: Edit
   "menu.edit.undo": "元に戻す",
   "menu.edit.redo": "やり直す",
+  "menu.edit.copyAtoB": "A を B にコピー",
+  "menu.edit.copyBtoA": "B を A にコピー",
   "menu.edit.copyMeas": "小節コピー...",
   "menu.edit.velocity": "ベロシティ...",
   "menu.edit.pantime": "パン (時間差)...",
@@ -162,6 +166,9 @@ const ja = {
   "voice.release": "リリースタイム",
   "voice.envelope": "エンベロープ",
   "voice.velocity": "ベロシティ",
+  "voice.copyTitle": "A/B コピー",
+  "voice.copyABMessage": "A を B にコピーしますか?",
+  "voice.copyBAMessage": "B を A にコピーしますか?",
 
   // ノイズエディタ (ptNoise)
   "noise.title": "ptNoise (PTN ノイズエディタ)",

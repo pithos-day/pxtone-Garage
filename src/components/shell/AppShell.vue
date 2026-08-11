@@ -12,14 +12,24 @@ import EventVolumeDialog, { type EventVolumeMode } from "./EventVolumeDialog.vue
 import CollageTab from "../collage/CollageEditor.vue";
 import VoiceTab from "../voice/VoiceEditor.vue";
 import NoiseTab from "../noise/NoiseEditor.vue";
+import VoiceCopyDialog from "../voice/VoiceCopyDialog.vue";
 import { ensureInitialProject } from "../../state/projects";
 import { initLanguage } from "../../i18n";
+import { copyVoiceSide } from "../../state/voice";
 
 const activeTab = ref<"collage" | "voice" | "noise">("collage");
 const projectDialogOpen = ref(false);
 const settingsDialogOpen = ref(false);
 const copyMeasOpen = ref(false);
 const eventVolumeKind = ref<null | EventVolumeMode>(null);
+// A/B コピー確認ダイアログ (AB = A→B, BA = B→A)
+const voiceCopyDir = ref<null | "AB" | "BA">(null);
+
+function onVoiceCopyYes(): void {
+  if (voiceCopyDir.value === "AB") copyVoiceSide(0, 1);
+  else if (voiceCopyDir.value === "BA") copyVoiceSide(1, 0);
+  voiceCopyDir.value = null;
+}
 
 // マウント前に初期プロジェクトと言語設定を済ませておく
 // (テンプレートの初期描画が空の doc/service を参照しないようにするため)
@@ -59,6 +69,8 @@ window.addEventListener(
       @settings="settingsDialogOpen = true"
       @copy-meas="copyMeasOpen = true"
       @event-volume="(kind) => (eventVolumeKind = kind)"
+      @voice-copy-a-b="voiceCopyDir = 'AB'"
+      @voice-copy-b-a="voiceCopyDir = 'BA'"
     />
     <FileTabs :mode="activeTab" />
     <TransportBar v-if="activeTab === 'collage'" />
@@ -71,6 +83,12 @@ window.addEventListener(
     <SettingsDialog v-if="settingsDialogOpen" @close="settingsDialogOpen = false" />
     <CopyMeasDialog v-if="copyMeasOpen" @close="copyMeasOpen = false" />
     <EventVolumeDialog v-if="eventVolumeKind" :kind="eventVolumeKind" @close="eventVolumeKind = null" />
+    <VoiceCopyDialog
+      v-if="voiceCopyDir"
+      :direction="voiceCopyDir"
+      @yes="onVoiceCopyYes"
+      @close="voiceCopyDir = null"
+    />
   </div>
 </template>
 

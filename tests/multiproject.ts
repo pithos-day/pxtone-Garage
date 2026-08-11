@@ -50,6 +50,8 @@ import {
   enveInsertPoint,
   enveDeletePoint,
   enveSetHeadPointX,
+  applyWavePreset,
+  copyVoiceSide,
 } from "../src/state/voice";
 import {
   noises,
@@ -772,6 +774,117 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       const hz = (crossings / 2) * 2; // 0.5秒 → 1秒換算
       checkEq(Math.round(hz / 10) * 10, Math.round(441 / 10) * 10, `pitch: 中央キーが約 441 Hz (本家準拠) 実際=${Math.round(hz)}Hz`);
     }
+  }
+
+  // ---- 23. 波形プリセット (本家 ptuiWavePreset 準拠) ----
+  {
+    const w = createDefaultWoice();
+    const vc = w.getVoice(0)!;
+
+    // Overtone: Sine
+    vc.type = VoiceType.Overtone;
+    applyWavePreset(vc, 0);
+    checkEq(vc.volume, 32, "preset: Sine (倍音) volume 32");
+    checkEq(vc.wave.num, 31, "preset: Sine (倍音) 31点");
+    checkEq(vc.wave.points[0]!.y, 128, "preset: Sine (倍音) 倍音1=128");
+    checkEq(vc.wave.points[1]!.y, 0, "preset: Sine (倍音) 倍音2=0");
+    checkEq(vc.wave.points[0]!.x, 1, "preset: Sine (倍音) 倍音1の x=1");
+
+    // Overtone: Triangle (奇数倍音を交互 ±・3 で減衰)
+    applyWavePreset(vc, 1);
+    checkEq(vc.volume, 28, "preset: Triangle (倍音) volume 28");
+    checkEq(vc.wave.points[0]!.y, 128, "preset: Triangle 倍音1=128");
+    checkEq(vc.wave.points[1]!.y, 0, "preset: Triangle 倍音2=0");
+    checkEq(vc.wave.points[2]!.y, -42, "preset: Triangle 倍音3=-42 (128/3)");
+    checkEq(vc.wave.points[4]!.y, 14, "preset: Triangle 倍音5=14 (42/3)");
+
+    // Overtone: Saw / Rectangle
+    applyWavePreset(vc, 2);
+    checkEq(vc.volume, 16, "preset: Saw volume 16");
+    checkEq(vc.wave.points[5]!.y, 128, "preset: Saw 全倍音 128");
+    applyWavePreset(vc, 3);
+    checkEq(vc.volume, 24, "preset: Rectangle volume 24");
+    checkEq(vc.wave.points[0]!.y, 128, "preset: Rectangle 奇数倍音=128");
+    checkEq(vc.wave.points[1]!.y, 0, "preset: Rectangle 偶数倍音=0");
+
+    // Coodinate: Triangle
+    vc.type = VoiceType.Coodinate;
+    applyWavePreset(vc, 1);
+    checkEq(vc.volume, 64, "preset: Triangle (座標) volume 64");
+    checkEq(vc.wave.num, 3, "preset: Triangle (座標) 3点");
+    checkEq(vc.wave.points[0]!.x, 0, "preset: Triangle 点0 x=0");
+    checkEq(vc.wave.points[1]!.x, 64, "preset: Triangle 点1 x=64");
+    checkEq(vc.wave.points[1]!.y, 64, "preset: Triangle 点1 y=64");
+    checkEq(vc.wave.points[2]!.y, -64, "preset: Triangle 点2 y=-64");
+
+    // Coodinate: Sine (14点 + 点0 = 15点)
+    applyWavePreset(vc, 0);
+    checkEq(vc.wave.num, 15, "preset: Sine (座標) 15点");
+    checkEq(vc.wave.points[1]!.x, 16, "preset: Sine (座標) 点1 x=16");
+    checkEq(vc.wave.points[14]!.y, -33, "preset: Sine (座標) 点14 y=-33");
+
+    // Coodinate: Saw / Rectangle
+    applyWavePreset(vc, 2);
+    checkEq(vc.wave.num, 3, "preset: Saw (座標) 3点");
+    checkEq(vc.wave.points[2]!.x, 255, "preset: Saw (座標) 点2 x=255");
+    applyWavePreset(vc, 3);
+    checkEq(vc.wave.num, 5, "preset: Rectangle (座標) 5点");
+
+    // Reverse: y 反転
+    applyWavePreset(vc, 1); // Triangle に戻す
+    applyWavePreset(vc, 5);
+    checkEq(vc.wave.points[1]!.y, -64, "preset: Reverse で y 反転");
+    checkEq(vc.wave.points[2]!.y, 64, "preset: Reverse で y 反転 (2)");
+
+    // Random (倍音): 有効倍音 1..30・振幅 ±128
+    vc.type = VoiceType.Overtone;
+    applyWavePreset(vc, 4);
+    checkEq(vc.volume, 28, "preset: Random (倍音) volume 28");
+    checkEq(vc.wave.num, 31, "preset: Random (倍音) 31点");
+    const rnd = vc.wave.points.filter((p) => p.y !== 0);
+    check(rnd.length >= 1 && rnd.length <= 30, "preset: Random の有効倍音は 1..30", `n=${rnd.length}`);
+    check(rnd.every((p) => p.y >= -128 && p.y <= 128), "preset: Random の振幅は ±128");
+
+    // Random (座標): 点は x でソートされている
+    vc.type = VoiceType.Coodinate;
+    applyWavePreset(vc, 4);
+    checkEq(vc.volume, 64, "preset: Random (座標) volume 64");
+    check(vc.wave.num >= 1 && vc.wave.num <= 31, "preset: Random (座標) 点数 1..31", `n=${vc.wave.num}`);
+    let sorted = true;
+    for (let i = 2; i < vc.wave.num; i++) {
+      if (vc.wave.points[i]!.x < vc.wave.points[i - 1]!.x) sorted = false;
+    }
+    check(sorted, "preset: Random (座標) は x でソート");
+  }
+
+  // ---- 24. A/B 面コピー (本家 copy_ptv_voice 準拠) ----
+  {
+    newVoice();
+    editVoice(() => {
+      const v = currentVoice()!.woice;
+      v.getVoice(0)!.volume = 10;
+      v.getVoice(0)!.wave.points[1]!.y = 77;
+      v.getVoice(0)!.envelope.points[0]!.y = 50;
+    });
+    copyVoiceSide(0, 1);
+    const w = currentVoice()!.woice;
+    checkEq(w.getVoice(1)!.volume, 10, "copy: A→B volume コピー");
+    checkEq(w.getVoice(1)!.wave.points[1]!.y, 77, "copy: A→B 波形コピー");
+    checkEq(w.getVoice(1)!.envelope.points[0]!.y, 50, "copy: A→B エンベロープコピー");
+    checkEq(w.getVoice(1)!.basicKey, w.getVoice(0)!.basicKey, "copy: A→B basicKey コピー");
+    checkEq(w.getVoice(1)!.pan, w.getVoice(0)!.pan, "copy: A→B pan コピー");
+    checkEq(w.getVoice(1)!.tuning, w.getVoice(0)!.tuning, "copy: A→B tuning コピー");
+    // ディープコピー: B を編集しても A に影響しない
+    editVoice(() => {
+      w.getVoice(1)!.wave.points[1]!.y = 99;
+      w.getVoice(1)!.volume = 5;
+    });
+    checkEq(w.getVoice(0)!.wave.points[1]!.y, 77, "copy: B 編集は A に影響しない (波形)");
+    checkEq(w.getVoice(0)!.volume, 10, "copy: B 編集は A に影響しない (volume)");
+    // B→A も動作する
+    copyVoiceSide(1, 0);
+    checkEq(w.getVoice(0)!.volume, 5, "copy: B→A で volume コピー");
+    checkEq(w.getVoice(0)!.wave.points[1]!.y, 99, "copy: B→A で波形コピー");
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);

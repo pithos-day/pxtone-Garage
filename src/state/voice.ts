@@ -13,6 +13,7 @@ import {
   PTV_DATAFLAG_WAVE,
   PTV_DATAFLAG_ENVELOPE,
 } from "pxtone-ts";
+import type { VoiceUnit } from "pxtone-ts";
 import { pxtnErrorMessage } from "./project";
 import { downloadBytes, sanitizeFileName } from "../engine/io";
 import { t } from "../i18n";
@@ -229,6 +230,159 @@ export function editVoice(fn: () => void): void {
   pushVoiceUndo(v);
   fn();
   v.dirty = true;
+}
+
+// ---- 波形プリセット (本家 ptuiWavePreset.cpp 準拠) ----
+export type WavePreset = 0 | 1 | 2 | 3 | 4 | 5;
+export const WAVE_PRESET_LABELS = ["Sine", "Tri", "Saw", "Rect", "Rnd", "Rev"] as const;
+export const WAVE_PRESET_TITLES = ["正弦波", "三角波", "鋸波", "矩形波", "ランダム", "左右逆転"] as const;
+
+const WAVE_POINT_MAX = 31; // 本家 ptvFIXNUM_WAVE_POINT
+
+// 倍音プリセット (本家 ptuiWavePreset::_module_overtone)
+function presetOvertone(vc: VoiceUnit, preset: WavePreset): void {
+  const build = (): void => {
+    vc.wave.points = [];
+    for (let s = 0; s < WAVE_POINT_MAX; s++) vc.wave.points.push({ x: s + 1, y: 0 });
+    vc.wave.num = WAVE_POINT_MAX;
+  };
+  switch (preset) {
+    case 0: // Sine
+      vc.volume = 32;
+      build();
+      vc.wave.points[0]!.y = 128;
+      break;
+    case 1: // Triangle (奇数倍音を交互 ±・3 で減衰)
+      vc.volume = 28;
+      {
+        let v = 128;
+        let i = 0;
+        build();
+        for (let s = 0; s < WAVE_POINT_MAX; s++) {
+          if (s % 2) {
+            vc.wave.points[s]!.y = 0;
+          } else {
+            vc.wave.points[s]!.y = i % 2 ? -Math.trunc(v) : Math.trunc(v);
+            v = v / 3;
+            i++;
+          }
+        }
+      }
+      break;
+    case 2: // Saw
+      vc.volume = 16;
+      build();
+      for (let s = 0; s < WAVE_POINT_MAX; s++) vc.wave.points[s]!.y = 128;
+      break;
+    case 3: // Rectangle (奇数倍音のみ)
+      vc.volume = 24;
+      build();
+      for (let s = 0; s < WAVE_POINT_MAX; s++) vc.wave.points[s]!.y = s % 2 ? 0 : 128;
+      break;
+    case 4: // Random
+      vc.volume = 28;
+      {
+        const work = 1 + Math.floor(Math.random() * (WAVE_POINT_MAX - 1)); // 1..30
+        build();
+        for (let s = 0; s < work; s++) vc.wave.points[s]!.y = -128 + Math.floor(Math.random() * 257);
+        for (let s = work; s < WAVE_POINT_MAX; s++) vc.wave.points[s]!.y = 0;
+      }
+      break;
+    case 5: // Reverse
+      for (const p of vc.wave.points) p.y *= -1;
+      break;
+  }
+}
+
+// 座標プリセット (本家 ptuiWavePreset::_module_coodinate)。
+// points[0] = {0,0} 固定で points[1..] を構築する (本家準拠)
+function presetCoodinate(vc: VoiceUnit, preset: WavePreset): void {
+  const build = (pts: [number, number][]): void => {
+    vc.wave.points = [{ x: 0, y: 0 }, ...pts.map(([x, y]) => ({ x, y }))];
+    vc.wave.num = vc.wave.points.length;
+  };
+  switch (preset) {
+    case 0: // Sine (14点の正弦波サンプル)
+      vc.volume = 64;
+      build([
+        [16, 33], [32, 52], [50, 61], [64, 64], [80, 60], [96, 52], [110, 34],
+        [141, -31], [160, -52], [174, -60], [192, -64], [208, -59], [224, -52], [242, -33],
+      ]);
+      break;
+    case 1: // Triangle
+      vc.volume = 64;
+      build([
+        [64, 64],
+        [192, -64],
+      ]);
+      break;
+    case 2: // Saw
+      vc.volume = 64;
+      build([
+        [0, 32],
+        [255, -32],
+      ]);
+      break;
+    case 3: // Rectangle
+      vc.volume = 64;
+      build([
+        [0, 32],
+        [128, 32],
+        [128, -32],
+        [255, -32],
+      ]);
+      break;
+    case 4: // Random (1..30 個の点を x でソート)
+      vc.volume = 64;
+      {
+        const num = 1 + Math.floor(Math.random() * (WAVE_POINT_MAX - 1));
+        const pts: [number, number][] = [];
+        for (let s = 1; s < num; s++) {
+          pts.push([1 + Math.floor(Math.random() * 199), -100 + Math.floor(Math.random() * 201)]);
+        }
+        pts.sort((a, b) => a[0] - b[0]);
+        build(pts);
+      }
+      break;
+    case 5: // Reverse
+      for (const p of vc.wave.points) p.y *= -1;
+      break;
+  }
+}
+
+// 現在の波形タイプ (Coordinate/Oscillator) に応じてプリセットを適用する
+// (本家 ptuiWavePreset::_do_preset 相当)
+export function applyWavePreset(vc: VoiceUnit, preset: WavePreset): void {
+  if (vc.type === VoiceType.Overtone) presetOvertone(vc, preset);
+  else presetCoodinate(vc, preset);
+}
+
+// ---- A/B 面コピー (本家 WoiceUnit::copy_ptv_voice / _copy_voice 準拠) ----
+export function copyVoiceSide(srcIdx: number, dstIdx: number): void {
+  editVoice(() => {
+    const v = currentVoice();
+    if (!v) return;
+    if (srcIdx === dstIdx) return;
+    const src = v.woice.getVoice(srcIdx);
+    const dst = v.woice.getVoice(dstIdx);
+    if (!src || !dst) return;
+    dst.tuning = src.tuning;
+    dst.type = src.type;
+    dst.voiceFlags = src.voiceFlags;
+    dst.dataFlags = src.dataFlags;
+    dst.basicKey = src.basicKey;
+    dst.pan = src.pan;
+    dst.volume = src.volume;
+    dst.envelope.fps = src.envelope.fps;
+    dst.envelope.headNum = src.envelope.headNum;
+    dst.envelope.bodyNum = src.envelope.bodyNum;
+    dst.envelope.tailNum = src.envelope.tailNum;
+    dst.envelope.points = src.envelope.points.map((p) => ({ ...p }));
+    dst.wave.num = src.wave.num;
+    dst.wave.reso = src.wave.reso;
+    dst.wave.points = src.wave.points.map((p) => ({ ...p }));
+    dst.pcm.copyFrom(src.pcm);
+  });
 }
 
 function restoreVoiceFrom(v: VoiceDoc, stack: Uint8Array[], pushTo: Uint8Array[]): boolean {

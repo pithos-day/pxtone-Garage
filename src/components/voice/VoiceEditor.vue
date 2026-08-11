@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // ptVoice (PTV 音源エディタ) の全体レイアウト。
 // 左から A面 / B面 (各面にパラメータ+波形+スライダー+エンベロープ) / 縦型ピアノロール の3カラム。
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { currentVoice, newVoice } from "../../state/voice";
 import VoiceSidePane from "./VoiceSidePane.vue";
 import VoicePianoRoll from "./VoicePianoRoll.vue";
@@ -16,6 +16,13 @@ const rev = ref(0);
 function touch(): void {
   rev.value++;
 }
+
+// メニュー経由の編集 (A/B コピーや undo/redo) でもピアノロールのプレビュー
+// キャッシュが破棄されるようにする (サイドパネルと同様の watch)
+watch(
+  () => [voice.value?.undoStack.length, voice.value?.redoStack.length],
+  () => touch(),
+);
 </script>
 
 <template>
