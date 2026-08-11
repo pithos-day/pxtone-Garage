@@ -12,7 +12,7 @@ import {
   doc,
   units,
   getService,
-  clockView as projectClockView,
+  clockContext,
   beginEdit,
   commitEdit,
   addEvent,
@@ -53,7 +53,7 @@ useCanvas(
 function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   const s = getService();
   if (!s) return;
-  const view = projectClockView();
+  const view = clockContext();
   const scrollX = doc.scrollX;
   const pinned = pinnedUnits();
   const fieldTop = BAND;
@@ -164,7 +164,7 @@ const drag = ref<{ button: number; x1: number; x2: number; unit: number; undoPus
 
 // フィールド内の x → clock (ユニット名領域を除く)
 function clockAt(x: number): number {
-  return clockAtX(projectClockView(), doc.divi, doc.scrollX, x, NAME_W);
+  return clockAtX(clockContext(), doc.divi, doc.scrollX, x, NAME_W);
 }
 
 function unitAt(y: number): number {

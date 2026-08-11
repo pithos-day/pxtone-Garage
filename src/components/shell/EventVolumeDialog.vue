@@ -2,7 +2,7 @@
 // ベロシティ / パン(時間差) / パン(音量) / ボリューム の値を範囲内で加算する。
 <script setup lang="ts">
 import { computed, onMounted, reactive } from "vue";
-import { doc, clockView as projectClockView, changeEventValue } from "../../state/project";
+import { doc, clockContext, changeEventValue } from "../../state/project";
 import { clockToMeasBeatClock, measBeatClockToClock } from "../../lib/clock";
 import { EventKind } from "pxtone-ts";
 import { t } from "../../i18n";
@@ -41,7 +41,7 @@ const KINDS: Record<EventVolumeMode, EventKind> = {
 
 const title = computed(() => t(TITLES[props.kind]));
 
-const view = (): ReturnType<typeof projectClockView> => projectClockView();
+const view = (): ReturnType<typeof clockContext> => clockContext();
 
 // 選択範囲 (半開区間 [scope1, scope2)) を from/to フォームに初期化
 function initFromScope(): void {

@@ -12,7 +12,7 @@ import { clockToX, measOfClock, xToClock } from "../../lib/clock";
 import {
   doc,
   getService,
-  clockView as projectClockView,
+  clockContext,
   setRepeatMeas,
   setLastMeas,
   setPlayStart,
@@ -37,7 +37,7 @@ useCanvas(
 function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   const s = getService();
   if (!s) return;
-  const view = projectClockView();
+  const view = clockContext();
   fillRect(ctx, 0, 0, w, h, COLORS.rulerBg);
   drawGrid(ctx, { w, h, scrollX: doc.scrollX, view, top: 0, bottom: h, showNumber: false });
 
@@ -78,7 +78,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 }
 
 function clockAt(x: number): number {
-  return clockAtX(projectClockView(), doc.divi, doc.scrollX, x);
+  return clockAtX(clockContext(), doc.divi, doc.scrollX, x);
 }
 
 // ---- ポインタ操作 ----
@@ -95,7 +95,7 @@ function onPointerDown(e: PointerEvent): void {
   }
   if (e.button === 2) {
     const x = e.clientX - r.left;
-    const view = projectClockView();
+    const view = clockContext();
     const clock = xToClock(view, doc.scrollX + x);
     const meas = measOfClock(view, clock);
     // 上段 (Repeat/Last) か下段 (Start/End) か
@@ -124,7 +124,7 @@ function onPointerUp(e: PointerEvent): void {
     return;
   }
   // ドラッグ = Start/End 設定 (本家準拠: 小節の前半=Start、後半=End)
-  const view = projectClockView();
+  const view = clockContext();
   const x = d.x0 - r.left;
   const clock = xToClock(view, doc.scrollX + x);
   const measW = view.beatNum * view.beatClock;

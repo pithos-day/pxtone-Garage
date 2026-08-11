@@ -2,7 +2,7 @@
 // Effector/Copier パネルのトグル (右揃え)。
 <script setup lang="ts">
 import { isPlaying, togglePlay, stop, loop, setLoop, masterVolume, setMasterVolume, positionSample, player, currentClock } from "../../state/player";
-import { getService, clockView as projectClockView } from "../../state/project";
+import { getService, clockContext } from "../../state/project";
 import { panels } from "../../state/panels";
 import { formatClock } from "../../lib/clock";
 import { t } from "../../i18n";
@@ -47,7 +47,7 @@ const PANEL_IDS = ["effector", "copier"] as const;
     <span class="pct">{{ Math.round(masterVolume * 100) }}%</span>
     <span class="sep" />
     <span class="time">{{ timeLabel() }}</span>
-    <span class="clock">{{ formatClock(projectClockView(), currentClock) }}</span>
+    <span class="clock">{{ formatClock(clockContext(), currentClock) }}</span>
     <span class="transport-spacer" />
     <span class="panel-label">{{ t("transport.panels") }}</span>
     <button

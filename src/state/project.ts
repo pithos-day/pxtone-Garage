@@ -685,7 +685,7 @@ export function setTextComment(text: string): void {
 
 // ---- イベント (クロック単位) ----
 
-export function clockView() {
+export function clockContext(): { beatClock: number; beatNum: number; zoom: number; measNum: number } {
   return {
     beatClock: service.master.beatClock,
     beatNum: service.master.beatNum,

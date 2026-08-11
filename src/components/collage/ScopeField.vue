@@ -5,7 +5,7 @@ import { useCanvas } from "../../composables/useCanvas";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect } from "../../lib/draw";
 import { clockToX } from "../../lib/clock";
-import { doc, clockView as projectClockView } from "../../state/project";
+import { doc, clockContext } from "../../state/project";
 import { currentClock, isPlaying as isPlayingNow } from "../../state/player";
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
@@ -17,7 +17,7 @@ useCanvas(
 );
 
 function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
-  const view = projectClockView();
+  const view = clockContext();
   fillRect(ctx, 0, 0, w, h, COLORS.rulerBg);
   drawGrid(ctx, { w, h, scrollX: doc.scrollX, view, top: 0, bottom: h, showNumber: false });
   if (doc.scope2 > doc.scope1) {

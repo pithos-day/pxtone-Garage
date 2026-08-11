@@ -11,7 +11,7 @@ import { EventKind, int32ToFloat } from "pxtone-ts";
 import {
   doc,
   getService,
-  clockView as projectClockView,
+  clockContext,
   beginEdit,
   commitEdit,
   addEvent,
@@ -64,7 +64,7 @@ useCanvas(
 function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   const s = getService();
   if (!s) return;
-  const view = projectClockView();
+  const view = clockContext();
   const mode = doc.volumeMode;
   const focus = doc.focusUnit;
   const fTop = BAND;
@@ -187,7 +187,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 const drag = ref<{ button: number; x1: number; x2: number } | null>(null);
 
 function clockAt(x: number): number {
-  return clockAtX(projectClockView(), doc.divi, doc.scrollX, x);
+  return clockAtX(clockContext(), doc.divi, doc.scrollX, x);
 }
 
 function valueAt(y: number, grid = 2): number {

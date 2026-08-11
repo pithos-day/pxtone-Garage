@@ -5,14 +5,14 @@ import { ref } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect } from "../../lib/draw";
-import { doc, clockView as projectClockView } from "../../state/project";
+import { doc, clockContext } from "../../state/project";
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 
 useCanvas(
   canvasRef,
   (ctx, w, h) => {
-    const view = projectClockView();
+    const view = clockContext();
     fillRect(ctx, 0, 0, w, h, COLORS.rulerBg);
     drawGrid(ctx, { w, h, scrollX: doc.scrollX, view, top: 0, bottom: h, showNumber: true, numberTop: 0 });
   },

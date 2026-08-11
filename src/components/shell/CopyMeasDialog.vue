@@ -2,7 +2,7 @@
 // コピー元範囲・コピー先・回数・イベント種類を指定してコピーする。
 <script setup lang="ts">
 import { onMounted, reactive } from "vue";
-import { doc, clockView as projectClockView, copyMeas } from "../../state/project";
+import { doc, clockContext, copyMeas } from "../../state/project";
 import { clockToMeasBeatClock, measBeatClockToClock } from "../../lib/clock";
 import { EventKind } from "pxtone-ts";
 import { t } from "../../i18n";
@@ -37,7 +37,7 @@ const kinds = reactive({
   tuning: true,
 });
 
-const view = (): ReturnType<typeof projectClockView> => projectClockView();
+const view = (): ReturnType<typeof clockContext> => clockContext();
 
 // 選択範囲 (半開区間 [scope1, scope2)) を from/to/dest フォームに初期化
 // コピー先 dest は選択範囲の終端に初期化 (本家同様、末尾への追記を想定)

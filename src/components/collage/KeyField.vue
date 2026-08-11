@@ -21,7 +21,7 @@ import { EventKind } from "pxtone-ts";
 import {
   doc,
   getService,
-  clockView as projectClockView,
+  clockContext,
   beginEdit,
   commitEdit,
   addEvent,
@@ -80,7 +80,7 @@ useCanvas(
 function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   const s = getService();
   if (!s) return;
-  const view = projectClockView();
+  const view = clockContext();
   const scrollX = doc.scrollX;
   const fieldW = w - STRIP_W; // フィールド幅 (鍵盤ストリップの右側)
 
@@ -168,7 +168,7 @@ function drawNotes(
   w: number,
   fieldTop: number,
   fieldH: number,
-  view: ReturnType<typeof projectClockView>,
+  view: ReturnType<typeof clockContext>,
   scrollX: number,
   scrollY: number,
   isFocus: boolean,
@@ -239,7 +239,7 @@ const drag = ref<{ button: number; x1: number; x2: number; row: number; undoPush
 
 // フィールド内の x → clock。フィールドは鍵盤ストリップ (STRIP_W) の右から始まる
 function clockAt(x: number): number {
-  return clockAtX(projectClockView(), doc.divi, doc.scrollX, x, STRIP_W);
+  return clockAtX(clockContext(), doc.divi, doc.scrollX, x, STRIP_W);
 }
 
 function rowAt(y: number): number {
