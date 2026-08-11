@@ -48,7 +48,8 @@ const contentSize = computed(() => {
   const s = getService();
   if (!s) return 1;
   const meas = Math.max(s.master.measNum, s.master.playMeas + 1);
-  return meas * s.master.beatNum * s.master.beatClock * (doc.zoom / s.master.beatClock);
+  // 横: 全小節のクロック数を 1 拍のピクセル幅で換算 (beatClock は相殺される)
+  return meas * s.master.beatNum * doc.zoom;
 });
 
 const thumbSize = computed(() => {
