@@ -189,7 +189,7 @@ function onPointerDown(e: PointerEvent): void {
   const c = canvasRef.value;
   if (!c) return;
   const { x, y } = fieldOffset(c, e);
-  if (y < BAND) {
+  if (y < RULER_H) {
     // ルーラー帯クリック = シーク (ユニット名領域は対象外)
     if (e.button === 0 && x >= NAME_W) seekToClock(clockAt(x));
     return;
