@@ -3,6 +3,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
+import { useDragUndo } from "../../composables/useUndo";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText, noteFill, noteShadow,
   drawPlayhead,
@@ -18,8 +19,6 @@ import {
   units,
   getService,
   clockContext,
-  beginEdit,
-  commitEdit,
   addEvent,
   deleteEvents,
   setScope,
@@ -158,7 +157,8 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 }
 
 // ---- ポインタ操作 ----
-const drag = ref<{ button: number; x1: number; x2: number; unit: number; undoPushed: boolean } | null>(null);
+const drag = ref<{ button: number; x1: number; x2: number; unit: number } | null>(null);
+const dragUndo = useDragUndo();
 
 // フィールド内の x → clock (ユニット名領域を除く)
 function clockAt(x: number): number {
@@ -199,12 +199,12 @@ function onPointerDown(e: PointerEvent): void {
   if (u < 0) return;
   if (e.button === 0) {
     capturePointer(c, e);
-    drag.value = { button: 0, x1: clockAt(x), x2: clockAt(x), unit: u, undoPushed: false };
+    drag.value = { button: 0, x1: clockAt(x), x2: clockAt(x), unit: u };
     setScope(clockAt(x), clockAt(x) + Math.max(1, doc.divi));
     previewAt(x, y);
   } else if (e.button === 2) {
     capturePointer(c, e);
-    drag.value = { button: 2, x1: clockAt(x), x2: clockAt(x), unit: u, undoPushed: false };
+    drag.value = { button: 2, x1: clockAt(x), x2: clockAt(x), unit: u };
   }
 }
 
@@ -214,10 +214,7 @@ function onPointerMove(e: PointerEvent): void {
   const { x } = fieldOffset(canvasRef.value!, e);
   const clock = clockAt(x);
   if (clock !== d.x2) {
-    if (!d.undoPushed) {
-      beginEdit();
-      d.undoPushed = true;
-    }
+    dragUndo.onFirstMove();
     d.x2 = clock;
     applyDrag();
   }
@@ -255,9 +252,8 @@ function onPointerUp(e: PointerEvent): void {
   const d = drag.value;
   drag.value = null;
   if (!d) return;
-  if (d.undoPushed) {
-    commitEdit();
-  } else if (d.button === 0) {
+  if (dragUndo.finish()) return;
+  if (d.button === 0) {
     seekToClock(d.x1);
   }
 }

@@ -3,6 +3,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
+import { useDragUndo } from "../../composables/useUndo";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText, drawPlayhead } from "../../lib/draw";
 import { fieldOffset, clockAtX, zoomByWheel } from "../../lib/field";
@@ -167,6 +168,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 
 // ---- ポインタ ----
 const drag = ref<{ button: number; x1: number; x2: number } | null>(null);
+const dragUndo = useDragUndo();
 
 function clockAt(x: number): number {
   return clockAtX(clockContext(), doc.divi, doc.scrollX, x);
@@ -201,13 +203,13 @@ function onPointerDown(e: PointerEvent): void {
       return;
     }
     capturePointer(c, e);
-    beginEdit();
+    dragUndo.onFirstMove();
     drag.value = { button: 0, x1: clockAt(x), x2: clockAt(x) };
     setScope(clockAt(x), clockAt(x) + Math.max(1, doc.divi));
     applyDragAt(e, y);
   } else if (e.button === 2) {
     capturePointer(c, e);
-    beginEdit();
+    dragUndo.onFirstMove();
     drag.value = { button: 2, x1: clockAt(x), x2: clockAt(x) };
   }
 }
@@ -274,7 +276,7 @@ function onPointerUp(e: PointerEvent): void {
   releasePointerCapture(c, e);
   if (drag.value) {
     drag.value = null;
-    commitEdit();
+    dragUndo.finish();
   }
 }
 

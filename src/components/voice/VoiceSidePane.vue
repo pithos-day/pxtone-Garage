@@ -7,6 +7,7 @@
 import { computed, ref, watch } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { useUndoRedoRedraw } from "../../composables/useUndoRedoRedraw";
+import { useOnceUndo } from "../../composables/useUndo";
 import { COLORS } from "../../lib/theme";
 import { fillRect, fillText } from "../../lib/draw";
 import {
@@ -71,12 +72,8 @@ watch(
 // undo/redo (メニュー) 後の再描画
 useUndoRedoRedraw(() => voice.value, () => touch());
 
-let dragUndoPushed = false;
-function beginDragUndo(): void {
-  if (dragUndoPushed) return;
-  dragUndoPushed = true;
-  editVoice(() => {});
-}
+// ドラッグ/フォーカス中は最初の編集時のみ undo を積む (1 ジェスチャ = 1 エントリ)
+const dragUndo = useOnceUndo(() => editVoice(() => {}));
 
 // ---- 面ごとのパラメータ (Vol/Pan/補正値/Release) ----
 // 本家 ptuiRackFull / ptuiReleaseTime 準拠:
@@ -283,7 +280,7 @@ function onWavePointerDown(e: PointerEvent): void {
   }
   if (idx === 0) return; // 点0 は動かせない (本家 _point_set 準拠)
   waveDrag.value = { idx };
-  dragUndoPushed = false;
+  dragUndo.reset();
   canvasRefSetCapture(waveRef, e);
 }
 
@@ -294,7 +291,7 @@ function onWavePointerMove(e: PointerEvent): void {
   const unit = currentVoiceUnit();
   if (!c || !unit) return;
   const { x, y } = relPos(e, c);
-  beginDragUndo();
+  dragUndo.onBegin();
   // 前後の点を越えられないよう x をクランプ (本家 _point_set 準拠)
   const p = unit.wave.points[d.idx];
   if (!p) return;
@@ -307,7 +304,7 @@ function onWavePointerMove(e: PointerEvent): void {
 function onWavePointerUp(e: PointerEvent): void {
   if (canvasHasCapture(waveRef, e)) releaseCapture(waveRef, e);
   waveDrag.value = null;
-  dragUndoPushed = false;
+  dragUndo.reset();
 }
 
 // ---- スライダー (本家 ptuiSines 準拠、y のみ編集) ----
@@ -319,16 +316,7 @@ const sinePoints = computed(() => {
   void rev.value;
   return currentVoiceUnit()?.wave.points ?? [];
 });
-let sineUndoPushed = false;
-
-function onSineFocus(): void {
-  if (sineUndoPushed) return;
-  sineUndoPushed = true;
-  editVoice(() => {});
-}
-function onSineBlur(): void {
-  sineUndoPushed = false;
-}
+const sineUndo = useOnceUndo(() => editVoice(() => {}));
 function setSine(i: number, v: number): void {
   if (waveType.value === "coord" && i === 0) return; // 座標モードの点0 は固定
   const c = currentVoiceUnit();
@@ -421,7 +409,7 @@ function onEnvePointerDown(e: PointerEvent): void {
   if (e.button !== 0) return;
   if (hit) {
     enveDrag.value = hit;
-    dragUndoPushed = false;
+    dragUndo.reset();
     canvasRefSetCapture(enveRef, e);
     return;
   }
@@ -438,7 +426,7 @@ function onEnvePointerMove(e: PointerEvent): void {
   const unit = currentVoiceUnit();
   if (!c || !unit) return;
   const { x, y } = relPos(e, c);
-  beginDragUndo();
+  dragUndo.onBegin();
   const cx = envePxToX(c.w, x, enveMaxHeadX(unit));
   const cy = envePxToY(c.h, y);
   // ドラッグ中の移動は undo を積まず直接書き換える (undo はジェスチャ先頭の1回)。
@@ -451,7 +439,7 @@ function onEnvePointerMove(e: PointerEvent): void {
 function onEnvePointerUp(e: PointerEvent): void {
   if (canvasHasCapture(enveRef, e)) releaseCapture(enveRef, e);
   enveDrag.value = null;
-  dragUndoPushed = false;
+  dragUndo.reset();
 }
 
 // ---- canvas 共通ヘルパ ----
@@ -527,7 +515,7 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
       @pointercancel="onWavePointerUp"
       @contextmenu.prevent
     />
-    <div class="vsp-sines" @focusin="onSineFocus" @focusout="onSineBlur">
+    <div class="vsp-sines" @focusin="sineUndo.onBegin" @focusout="sineUndo.reset">
       <div v-for="(p, i) in sinePoints" :key="i" class="vsp-sine-row">
         <span class="vsp-sine-no">{{ i + 1 }}</span>
         <input

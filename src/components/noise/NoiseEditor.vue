@@ -7,6 +7,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { useUndoRedoRedraw } from "../../composables/useUndoRedoRedraw";
+import { useOnceUndo } from "../../composables/useUndo";
 import { COLORS } from "../../lib/theme";
 import { fillRect, fillText } from "../../lib/draw";
 import { MemoryIo, WaveType } from "pxtone-ts";
@@ -49,15 +50,7 @@ const unitRows = computed(() =>
 
 // テーブル編集は直接 Noise を書き、undo はフォーカス時に1エントリ積む。
 // (markRaw なので reactive にならない。rev はテンプレートの :data-rev で再描画を駆動)
-let undoPushed = false;
-function onFieldFocus(): void {
-  if (undoPushed) return;
-  undoPushed = true;
-  editNoise(() => {});
-}
-function onFieldBlur(): void {
-  undoPushed = false;
-}
+const fieldUndo = useOnceUndo(() => editNoise(() => {}));
 function onFieldChange(): void {
   const d = noise.value;
   if (d) {
@@ -266,7 +259,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
       <button class="btn btn-accent" @click="newNoise()">{{ t("menu.file.new") }}</button>
     </div>
     <div v-else class="ne-main" :data-rev="rev">
-      <div class="ne-layers" @focusin="onFieldFocus" @focusout="onFieldBlur">
+      <div class="ne-layers" @focusin="fieldUndo.onBegin" @focusout="fieldUndo.reset">
         <div v-for="row in unitRows" :key="row.index" class="ne-layer">
           <div class="ne-layer-head">
             <span class="ne-layer-name">{{ t("noise.layer") }} {{ row.index + 1 }}</span>

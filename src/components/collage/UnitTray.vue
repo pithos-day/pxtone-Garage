@@ -19,14 +19,13 @@ import {
   replaceUnitRaw,
   removeUnit,
   setUnitName,
-  beginEdit,
-  commitEdit,
   sync,
   EVENTDEFAULT_KEY,
   EVENTDEFAULT_VOLUME,
 } from "../../state/project";
 import { previewUnitHold, stopPreview } from "../../engine/preview";
 import { useCtxMenuClose } from "../../composables/useCtxMenu";
+import { useDragUndo } from "../../composables/useUndo";
 import { t } from "../../i18n";
 import ChangeUnitDialog from "./ChangeUnitDialog.vue";
 
@@ -87,15 +86,12 @@ function startDragReorder(tray: HTMLElement, idx: number): void {
   const first = tray.querySelector<HTMLElement>(".unit-row");
   const h = first?.offsetHeight ?? 24;
   let lastTarget = idx;
-  let undoPushed = false;
+  const dragUndo = useDragUndo();
   const onMove = (ev: PointerEvent): void => {
     const dy = ev.clientY - tray.getBoundingClientRect().top;
     const row = Math.floor((tray.scrollTop + dy) / h);
     if (row >= 0 && row < units.value.length && row !== lastTarget) {
-      if (!undoPushed) {
-        beginEdit();
-        undoPushed = true;
-      }
+      dragUndo.onFirstMove();
       replaceUnitRaw(lastTarget, row);
       lastTarget = row;
       sync();
@@ -105,7 +101,7 @@ function startDragReorder(tray: HTMLElement, idx: number): void {
   const onUp = (): void => {
     tray.removeEventListener("pointermove", onMove);
     window.removeEventListener("pointerup", onUp);
-    if (undoPushed) commitEdit();
+    dragUndo.finish();
   };
   tray.addEventListener("pointermove", onMove);
   window.addEventListener("pointerup", onUp);

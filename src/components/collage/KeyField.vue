@@ -4,6 +4,7 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
+import { useDragUndo } from "../../composables/useUndo";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText, drawPlayhead, drawScopeBand,
 } from "../../lib/draw";
@@ -25,8 +26,6 @@ import {
   doc,
   getService,
   clockContext,
-  beginEdit,
-  commitEdit,
   addEvent,
   deleteEvents,
   setEventValue,
@@ -236,7 +235,8 @@ function drawNotes(
 }
 
 // ---- ポインタ ----
-const drag = ref<{ button: number; x1: number; x2: number; row: number; undoPushed: boolean } | null>(null);
+const drag = ref<{ button: number; x1: number; x2: number; row: number } | null>(null);
+const dragUndo = useDragUndo();
 
 // フィールド内の x → clock。フィールドは鍵盤ストリップ (STRIP_W) の右から始まる
 function clockAt(x: number): number {
@@ -275,12 +275,12 @@ function onPointerDown(e: PointerEvent): void {
       return;
     }
     capturePointer(c, e);
-    drag.value = { button: 0, x1: clock, x2: clock, row, undoPushed: false };
+    drag.value = { button: 0, x1: clock, x2: clock, row };
     setScope(clock, clock + Math.max(1, doc.divi));
     previewAt(y);
   } else if (e.button === 2) {
     capturePointer(c, e);
-    drag.value = { button: 2, x1: clock, x2: clock, row, undoPushed: false };
+    drag.value = { button: 2, x1: clock, x2: clock, row };
   }
 }
 
@@ -291,10 +291,7 @@ function onPointerMove(e: PointerEvent): void {
   const clock = clockAt(x);
   if (clock !== d.x2) {
     // 最初の移動時に undo を積む (クリックのみなら積まない)
-    if (!d.undoPushed) {
-      beginEdit();
-      d.undoPushed = true;
-    }
+    dragUndo.onFirstMove();
     d.x2 = clock;
     applyDrag();
   }
@@ -344,9 +341,8 @@ function onPointerUp(e: PointerEvent): void {
   const d = drag.value;
   drag.value = null;
   if (!d) return;
-  if (d.undoPushed) {
-    commitEdit();
-  } else if (d.button === 0) {
+  if (dragUndo.finish()) return;
+  if (d.button === 0) {
     // ドラッグなしのクリック = シーク
     seekToClock(d.x1);
   }
