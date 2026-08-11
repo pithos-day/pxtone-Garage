@@ -274,7 +274,12 @@ function onWavePointerDown(e: PointerEvent): void {
   const idx = waveIndexAt(x, y, c.w, c.h);
   if (e.button === 2) {
     // 右クリック: 点を削除 (点0 は固定なので削除不可)
-    if (idx > 0) setVoiceUnit((cc) => (cc.wave.points.splice(idx, 1), (cc.wave.num = cc.wave.points.length)));
+    if (idx > 0) {
+      setVoiceUnit((cc) => {
+        cc.wave.points.splice(idx, 1);
+        cc.wave.num = cc.wave.points.length;
+      });
+    }
     return;
   }
   if (e.button !== 0) return;
