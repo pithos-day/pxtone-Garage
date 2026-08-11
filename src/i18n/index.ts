@@ -3,6 +3,7 @@
 // このモジュールは state に依存しない (循環 import 防止のため vue のみ使用)。
 import { ref } from "vue";
 import ja from "./ja";
+import { readStorage, writeStorage } from "../lib/storage";
 
 export type Language = "ja";
 
@@ -19,18 +20,10 @@ export function t(key: string): string {
 
 export function setLanguage(l: Language): void {
   lang.value = l;
-  try {
-    localStorage.setItem(STORAGE_LANG, l);
-  } catch {
-    // localStorage 不可は無視
-  }
+  writeStorage(STORAGE_LANG, l);
 }
 
 export function initLanguage(): void {
-  try {
-    const saved = localStorage.getItem(STORAGE_LANG);
-    if (saved === "ja") lang.value = "ja";
-  } catch {
-    // 無視
-  }
+  const saved = readStorage(STORAGE_LANG);
+  if (saved === "ja") lang.value = "ja";
 }

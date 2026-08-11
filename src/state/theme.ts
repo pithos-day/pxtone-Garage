@@ -6,6 +6,7 @@
 import { reactive, ref } from "vue";
 import { syncThemeColors } from "../lib/theme";
 import { parseThemeCss, mergeTokens, buildThemeCss, type ThemeTokens } from "../lib/themeParse";
+import { readStorage, writeStorage } from "../lib/storage";
 import { doc } from "./project";
 
 export interface ThemeDef {
@@ -83,12 +84,8 @@ function applyThemeToDom(): void {
 
 // 選択を localStorage に永続化する
 function persistSelection(): void {
-  try {
-    localStorage.setItem(STORAGE_THEME, theme.name);
-    localStorage.setItem(STORAGE_DARK, theme.dark ? "1" : "0");
-  } catch {
-    // localStorage 不可 (プライベートモード等) は無視
-  }
+  writeStorage(STORAGE_THEME, theme.name);
+  writeStorage(STORAGE_DARK, theme.dark ? "1" : "0");
 }
 
 // ---- テーマ注入 ----
@@ -130,25 +127,24 @@ function ensureParsed(id: string): ThemeTokens | null {
 // ---- ユーザーテーマ ----
 
 function persistUserThemes(): void {
-  try {
-    localStorage.setItem(STORAGE_USER_THEMES, JSON.stringify(userThemes.value));
-  } catch {
-    // 容量超過などは無視
-  }
+  writeStorage(STORAGE_USER_THEMES, JSON.stringify(userThemes.value));
 }
 
 function loadUserThemes(): void {
+  const raw = readStorage(STORAGE_USER_THEMES);
+  if (!raw) return;
+  let list: UserTheme[];
   try {
-    const raw = localStorage.getItem(STORAGE_USER_THEMES);
-    if (!raw) return;
-    const list = JSON.parse(raw) as UserTheme[];
-    if (!Array.isArray(list)) return;
-    userThemes.value = list.filter(
-      (t) => t && typeof t.id === "string" && typeof t.name === "string" && typeof t.css === "string",
-    );
+    list = JSON.parse(raw) as UserTheme[];
   } catch {
+    // 壊れた JSON は破棄
     userThemes.value = [];
+    return;
   }
+  if (!Array.isArray(list)) return;
+  userThemes.value = list.filter(
+    (t) => t && typeof t.id === "string" && typeof t.name === "string" && typeof t.css === "string",
+  );
   for (const t of userThemes.value) {
     registry.set(t.id, { id: t.id, name: t.name, source: t.css, user: true });
   }
@@ -193,15 +189,11 @@ export function initTheme(sources: Record<string, string>): void {
 
   let name = DEFAULT_THEME;
   let dark: boolean | null = null;
-  try {
-    const saved = localStorage.getItem(STORAGE_THEME);
-    if (saved && themeExists(saved)) name = saved;
-    const savedDark = localStorage.getItem(STORAGE_DARK);
-    if (savedDark === "1") dark = true;
-    else if (savedDark === "0") dark = false;
-  } catch {
-    // 無視
-  }
+  const saved = readStorage(STORAGE_THEME);
+  if (saved && themeExists(saved)) name = saved;
+  const savedDark = readStorage(STORAGE_DARK);
+  if (savedDark === "1") dark = true;
+  else if (savedDark === "0") dark = false;
   // 保存値がなければ環境の設定を初期値にする
   if (dark === null) {
     dark = window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? true;

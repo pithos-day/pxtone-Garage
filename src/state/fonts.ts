@@ -3,6 +3,7 @@
 // フォント (queryLocalFonts / フォールバック検出) から選択する。
 // 選択は --font-sans として <html> に適用し、localStorage に永続化する。
 import { ref } from "vue";
+import { readStorage, writeStorage } from "../lib/storage";
 
 export interface FontOption {
   family: string; // font-family 名 (適用時にクォートする)
@@ -30,11 +31,7 @@ export const localFonts = ref<FontOption[]>([]);
 export function setFont(family: string): void {
   fontFamily.value = family;
   document.documentElement.style.setProperty("--font-sans", `"${family}", sans-serif`);
-  try {
-    localStorage.setItem(STORAGE_FONT, family);
-  } catch {
-    // 無視
-  }
+  writeStorage(STORAGE_FONT, family);
 }
 
 // Canvas 描画用のフォントスタック (例: "DotGothic16", sans-serif)。
@@ -45,12 +42,8 @@ export function canvasFontStack(): string {
 
 export function initFonts(): void {
   let family = DEFAULT_FONT_FAMILY;
-  try {
-    const saved = localStorage.getItem(STORAGE_FONT);
-    if (saved && typeof saved === "string" && saved.length > 0 && saved.length <= 100) family = saved;
-  } catch {
-    // 無視
-  }
+  const saved = readStorage(STORAGE_FONT);
+  if (saved && typeof saved === "string" && saved.length > 0 && saved.length <= 100) family = saved;
   setFont(family);
 }
 
