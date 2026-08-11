@@ -126,24 +126,37 @@ function applyFade(ch0: Float32Array, ch1: Float32Array, fade: number, head: boo
   }
 }
 
-// バッファを再生する。連続呼び出しは前の音を中断する
-function playBuffer(work: Float32Array, sps: number): void {
-  const ctx = getCtx();
-  if (!ctx) return;
-  if (ctx.state === "suspended") void ctx.resume();
+// インターリーブされたステレオ PCM を AudioBuffer の各チャンネルへ展開し、
+// フェードを適用して再生ソースを組み立てる (gain はマスター音量連動)
+function makeBufferSource(
+  ctx: AudioContext,
+  work: Float32Array,
+  sps: number,
+  fade: number,
+  head: boolean,
+): { src: AudioBufferSourceNode; gain: GainNode } {
   const buf = ctx.createBuffer(2, work.length / 2, sps);
   const ch0 = buf.getChannelData(0);
   const ch1 = buf.getChannelData(1);
   deinterleave(work, ch0, ch1);
-  // 末尾フェードでクリックノイズ回避 (バッファ終端のサンプルを減衰)
-  const fade = Math.min(Math.trunc(ch0.length / 2), Math.trunc(sps * 0.05));
-  applyFade(ch0, ch1, fade, false);
+  applyFade(ch0, ch1, fade, head);
   const src = ctx.createBufferSource();
   src.buffer = buf;
   const g = ctx.createGain();
   g.gain.value = masterVolume.value;
   src.connect(g);
   g.connect(ctx.destination);
+  return { src, gain: g };
+}
+
+// バッファを再生する。連続呼び出しは前の音を中断する
+function playBuffer(work: Float32Array, sps: number): void {
+  const ctx = getCtx();
+  if (!ctx) return;
+  if (ctx.state === "suspended") void ctx.resume();
+  // 末尾フェードでクリックノイズ回避 (バッファ終端のサンプルを減衰)
+  const fade = Math.min(Math.trunc(work.length / 4), Math.trunc(sps * 0.05));
+  const { src } = makeBufferSource(ctx, work, sps, fade, false);
   if (lastSrc) {
     try {
       lastSrc.stop();
@@ -209,22 +222,10 @@ function startHold(work: Float32Array, ctx: AudioContext): void {
   stopPreview();
   if (ctx.state === "suspended") void ctx.resume();
 
-  const buf = ctx.createBuffer(2, work.length / 2, ctx.sampleRate);
-  const ch0 = buf.getChannelData(0);
-  const ch1 = buf.getChannelData(1);
-  deinterleave(work, ch0, ch1);
   // ループ点のクリック軽減: 先頭/末尾 10ms フェード
   const fade = Math.min(Math.trunc(ctx.sampleRate * 0.01), Math.trunc(work.length / 4));
-  applyFade(ch0, ch1, fade, true);
-
-  const src = ctx.createBufferSource();
-  src.buffer = buf;
+  const { src, gain: g } = makeBufferSource(ctx, work, ctx.sampleRate, fade, true);
   src.loop = true;
-  const g = ctx.createGain();
-  // プレイヤーの音量設定をプレビューにも適用する
-  g.gain.value = masterVolume.value;
-  src.connect(g);
-  g.connect(ctx.destination);
   holdSource = src;
   holdGain = g;
   holdCtx = ctx;
