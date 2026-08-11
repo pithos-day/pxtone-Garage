@@ -2,20 +2,9 @@
 <script setup lang="ts">
 import PanelBox from "./PanelBox.vue";
 import { doc } from "../../state/project";
-import { EventKind } from "pxtone-ts";
 import { t } from "../../i18n";
 
-const KINDS = [
-  { i: 0, label: "ON", kind: EventKind.ON },
-  { i: 1, label: "KEY", kind: EventKind.KEY },
-  { i: 2, label: "PAN_VOLUME", kind: EventKind.PAN_VOLUME },
-  { i: 3, label: "PAN_TIME", kind: EventKind.PAN_TIME },
-  { i: 4, label: "VELOCITY", kind: EventKind.VELOCITY },
-  { i: 5, label: "VOLUME", kind: EventKind.VOLUME },
-  { i: 6, label: "PORTAMENT", kind: EventKind.PORTAMENT },
-  { i: 7, label: "VOICENO", kind: EventKind.VOICENO },
-  { i: 8, label: "GROUPNO", kind: EventKind.GROUPNO },
-] as const;
+import { COPIER_KINDS as KINDS } from "../../lib/eventKinds";
 
 function toggle(i: number): void {
   doc.copier[i] = !doc.copier[i]!;
