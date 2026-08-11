@@ -10,16 +10,12 @@ export const KEY_CODE_BOTTOM = 21;
 export const KEY_HEIGHT = 16;
 
 // code%12 がこの集合なら白鍵 (本家の描画規則を忠実に再現)
+// 行番号 (row) とコード (code) は 108 差だが mod 12 では一致するため、
+// ピアノロールの行ベース判定もこの関数をそのまま使う
 const WHITE_KEYS = new Set([0, 1, 3, 5, 7, 8, 10]);
 
 export function isWhiteKey(code: number): boolean {
   return WHITE_KEYS.has(((code % 12) + 12) % 12);
-}
-
-// ピアノロールの行番号 (0=最上段) ベースの白鍵判定 (本家 if_KeyField の i%12 判定)。
-// 判定ロジック自体は isWhiteKey と同一
-export function isWhiteRow(row: number): boolean {
-  return isWhiteKey(row);
 }
 
 // ロー上のコード (0=最上段=コード108)

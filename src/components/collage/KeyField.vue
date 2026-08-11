@@ -12,7 +12,6 @@ import {
   xToClock,
   KEY_HEIGHT,
   KEYNUM,
-  isWhiteRow,
   codeToRow,
   rowToKeyValue,
   keyValueToRow,
@@ -103,7 +102,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   // フィールド側の行色 (鍵盤の白鍵/黒鍵に合わせた縞)
   for (let row = startRow; row <= endRow; row++) {
     const y = fieldTop + row * KEY_HEIGHT - scrollY;
-    const white = isWhiteRow(row);
+    const white = isWhiteKey(row);
     fillRect(ctx, 0, y, fieldW, KEY_HEIGHT, white ? COLORS.rowWhite : COLORS.rowBlack);
   }
 
@@ -134,7 +133,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   // 鍵盤行 (ストリップ側) — フィールドのグリッドを覆う
   for (let row = startRow; row <= endRow; row++) {
     const y = fieldTop + row * KEY_HEIGHT - scrollY;
-    const white = isWhiteRow(row);
+    const white = isWhiteKey(row);
     fillRect(ctx, 0, y, STRIP_W, KEY_HEIGHT, white ? COLORS.whiteKey : COLORS.blackKey);
   }
 
