@@ -10,6 +10,7 @@ import SettingsDialog from "./SettingsDialog.vue";
 import CopyMeasDialog from "./CopyMeasDialog.vue";
 import EventVolumeDialog from "./EventVolumeDialog.vue";
 import type { EventVolumeMode } from "../../lib/eventVolume";
+import type { AppMode } from "../../lib/modes";
 import CollageTab from "../collage/CollageEditor.vue";
 import VoiceTab from "../voice/VoiceEditor.vue";
 import NoiseTab from "../noise/NoiseEditor.vue";
@@ -18,7 +19,7 @@ import { ensureInitialProject } from "../../state/projects";
 import { initLanguage } from "../../i18n";
 import { copyVoiceSide } from "../../state/voice";
 
-const activeTab = ref<"collage" | "voice" | "noise">("collage");
+const activeTab = ref<AppMode>("collage");
 const projectDialogOpen = ref(false);
 const settingsDialogOpen = ref(false);
 const copyMeasOpen = ref(false);

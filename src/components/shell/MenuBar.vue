@@ -19,9 +19,10 @@ import { undo, redo, canUndo, canRedo } from "../../state/undo";
 import { ZOOM_TABLE, DIVI_TABLE } from "../../lib/clock";
 import { t } from "../../i18n";
 import type { EventVolumeMode } from "../../lib/eventVolume";
+import type { AppMode } from "../../lib/modes";
 import MenuItemRow, { type MenuItem } from "./MenuItemRow.vue";
 
-const mode = defineModel<"collage" | "voice" | "noise">({ required: true });
+const mode = defineModel<AppMode>({ required: true });
 const emit = defineEmits<{
   (e: "project"): void;
   (e: "settings"): void;
@@ -160,7 +161,7 @@ function onCloseNoise(): void {
 const allVisible = computed(() => doc.unitVisible.length > 0 && doc.unitVisible.every(Boolean));
 
 // モード別に差し替わる操作 (File メニュー・undo/redo)。3 分岐をこのテーブルに集約
-type Mode = "collage" | "voice" | "noise";
+type Mode = AppMode;
 interface ModeOps {
   new: () => void;
   open: () => void;

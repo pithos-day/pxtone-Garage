@@ -1,6 +1,7 @@
 // ファイルタブバー。モード (collage/voice/noise) に応じて対応するコレクションを表示する。
 // collage = ptcop プロジェクト、voice = .ptvoice、noise = .ptnoise。
 <script setup lang="ts">
+import type { AppMode } from "../../lib/modes";
 import { computed } from "vue";
 import {
   projects,
@@ -25,7 +26,7 @@ import {
 } from "../../state/noise";
 import { t } from "../../i18n";
 
-const props = defineProps<{ mode: "collage" | "voice" | "noise" }>();
+const props = defineProps<{ mode: AppMode }>();
 
 // モード別のタブ一覧 (id / title / dirty / active / select / close)
 const tabs = computed(() => {
