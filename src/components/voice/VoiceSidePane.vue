@@ -9,6 +9,20 @@ import { useCanvas } from "../../composables/useCanvas";
 import { useUndoRedoRedraw } from "../../composables/useUndoRedoRedraw";
 import { COLORS } from "../../lib/theme";
 import { fillRect, fillText } from "../../lib/draw";
+import {
+  WAVE_PAD,
+  SAMPLE_NUM,
+  coordX,
+  coordY,
+  coordPxToX,
+  cursorToWaveY,
+  enveX,
+  enveY,
+  envePxToX,
+  envePxToY,
+  enveMaxX,
+  nearestPoint,
+} from "../../lib/voice-geometry";
 import { Oscillator, VoiceType } from "pxtone-ts";
 import {
   currentVoice,
@@ -178,22 +192,6 @@ function applyPreset(preset: WavePreset): void {
 
 // ---- 波形モニター ----
 const waveRef = ref<HTMLCanvasElement | null>(null);
-const WAVE_PAD = 12;
-const SAMPLE_NUM = 256; // 本家 SCREEN_WAVE_MAIN 相当のサンプル数
-
-function coordX(c: NonNullable<ReturnType<typeof currentVoiceUnit>>, w: number, x: number): number {
-  return WAVE_PAD + (x / c.wave.reso) * (w - WAVE_PAD * 2);
-}
-function coordY(h: number, y: number): number {
-  // 本家 ptuiWave と同じく、サンプル値 (volume 込み) をパディング間の全幅でマッピングする
-  return h / 2 - (y / 128) * (h - WAVE_PAD * 2);
-}
-function coordPxToX(c: NonNullable<ReturnType<typeof currentVoiceUnit>>, w: number, px: number): number {
-  return Math.max(0, Math.min(c.wave.reso, Math.round(((px - WAVE_PAD) / (w - WAVE_PAD * 2)) * c.wave.reso)));
-}
-function coordPxToY(h: number, py: number): number {
-  return Math.max(-128, Math.min(127, Math.round(((h / 2 - py) / (h - WAVE_PAD * 2)) * 128)));
-}
 
 // 波形モニター: 本家 ptuiWave::_try_update と同様、生成波形 (GetOneSample) を描画する。
 // 波形も点も volume 込みで描画し、両者が一致するようにする
@@ -246,26 +244,13 @@ const waveDrag = ref<{ idx: number } | null>(null);
 function waveIndexAt(px: number, py: number, w: number, h: number): number {
   const c = currentVoiceUnit();
   if (!c) return -1;
-  let best = -1;
-  let bestD = 10;
+  const pts: { x: number; y: number }[] = [];
   for (let i = 0; i < c.wave.num; i++) {
     const p = c.wave.points[i];
     if (!p) continue;
-    const x = coordX(c, w, p.x);
-    const y = coordY(h, (p.y * c.volume) / 128);
-    const d = Math.hypot(px - x, py - y);
-    if (d < bestD) {
-      bestD = d;
-      best = i;
-    }
+    pts.push({ x: coordX(c, w, p.x), y: coordY(h, (p.y * c.volume) / 128) });
   }
-  return best;
-}
-
-// カーソル y → データ y。表示は volume スケールなので逆スケールする (volume=0 は不可)
-function cursorToWaveY(h: number, py: number, volume: number): number {
-  if (volume <= 0) return 0;
-  return Math.max(-128, Math.min(127, Math.round((coordPxToY(h, py) * 128) / volume)));
+  return nearestPoint(pts, px, py);
 }
 
 function onWavePointerDown(e: PointerEvent): void {
@@ -367,28 +352,10 @@ function enveDisplay(c: NonNullable<ReturnType<typeof currentVoiceUnit>>): {
   return { head, headCount };
 }
 
-// エンベロープの x 上限: 末尾のヘッド点の 1.2 倍 (本家の余白と同様)。
-// 最小 100 は「本家が 0..100 の区間長」の表示下限
-function enveMaxX(c: NonNullable<ReturnType<typeof currentVoiceUnit>>): number {
+// グラフ右端の累積 x (描画・ドラッグで共通)
+function enveMaxHeadX(c: NonNullable<ReturnType<typeof currentVoiceUnit>>): number {
   const { head } = enveDisplay(c);
-  let m = 0;
-  if (head.length) m = head[head.length - 1]!.x;
-  return Math.max(100, m * 1.2);
-}
-
-function enveX(c: NonNullable<ReturnType<typeof currentVoiceUnit>>, w: number, x: number): number {
-  return WAVE_PAD + (x / enveMaxX(c)) * (w - WAVE_PAD * 2);
-}
-// 本家 _pos_fix 準拠: y は 0..128
-function enveY(h: number, y: number): number {
-  return h - WAVE_PAD - (y / 128) * (h - WAVE_PAD * 2);
-}
-// px → 区間長 x (上限 2000 は本家のドラッグ範囲上限)
-function envePxToX(c: NonNullable<ReturnType<typeof currentVoiceUnit>>, w: number, px: number): number {
-  return Math.max(0, Math.min(2000, Math.round(((px - WAVE_PAD) / (w - WAVE_PAD * 2)) * enveMaxX(c))));
-}
-function envePxToY(h: number, py: number): number {
-  return Math.max(0, Math.min(128, Math.round(((h - WAVE_PAD - py) / (h - WAVE_PAD * 2)) * 128)));
+  return enveMaxX(head.length ? head[head.length - 1]!.x : 0);
 }
 
 function drawEnve(ctx: CanvasRenderingContext2D, w: number, h: number): void {
@@ -396,12 +363,13 @@ function drawEnve(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   fillRect(ctx, 0, 0, w, h, COLORS.fieldBg);
   if (!c) return;
   const { head } = enveDisplay(c);
+  const maxX = enveMaxHeadX(c);
   ctx.strokeStyle = COLORS.accent;
   ctx.lineWidth = 1.5;
   ctx.beginPath();
   for (let i = 0; i < head.length; i++) {
     const p = head[i]!;
-    const x = enveX(c, w, p.x);
+    const x = enveX(w, p.x, maxX);
     const y = enveY(h, p.y);
     if (i === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
@@ -428,16 +396,13 @@ function envePointAt(
   py: number,
 ): { index: number } | null {
   const { head } = enveDisplay(c);
-  let bestD = 10;
-  let best: { index: number } | null = null;
-  for (const p of head) {
-    const d = Math.hypot(px - enveX(c, w, p.x), py - enveY(h, p.y));
-    if (d < bestD) {
-      bestD = d;
-      best = { index: p.index };
-    }
-  }
-  return best;
+  const maxX = enveMaxHeadX(c);
+  const i = nearestPoint(
+    head.map((p) => ({ x: enveX(w, p.x, maxX), y: enveY(h, p.y) })),
+    px,
+    py,
+  );
+  return i >= 0 ? { index: head[i]!.index } : null;
 }
 
 function onEnvePointerDown(e: PointerEvent): void {
@@ -461,7 +426,7 @@ function onEnvePointerDown(e: PointerEvent): void {
     return;
   }
   // 空き領域クリック = 点を追加 (累積座標を区間長に変換して挿入)
-  const cx = envePxToX(unit, c.w, x);
+  const cx = envePxToX(c.w, x, enveMaxHeadX(unit));
   const cy = envePxToY(c.h, y);
   setVoiceUnit((cc) => enveInsertPoint(cc.envelope.points, enveHeadCount(cc), cx, cy));
 }
@@ -474,7 +439,7 @@ function onEnvePointerMove(e: PointerEvent): void {
   if (!c || !unit) return;
   const { x, y } = relPos(e, c);
   beginDragUndo();
-  const cx = envePxToX(unit, c.w, x);
+  const cx = envePxToX(c.w, x, enveMaxHeadX(unit));
   const cy = envePxToY(c.h, y);
   // ドラッグ中の移動は undo を積まず直接書き換える (undo はジェスチャ先頭の1回)。
   // 前後の点を乗り越えられないよう累積座標でクランプして区間長へ変換
