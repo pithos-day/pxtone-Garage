@@ -8,9 +8,9 @@ import {
   EVENTDEFAULT_KEY,
   EVENTDEFAULT_VELOCITY,
 } from "../../state/project";
-import { WoiceType, VoiceType } from "pxtone-ts";
 import { previewWoiceHold, stopPreview } from "../../engine/preview";
 import { woiceTypeColor } from "../../lib/theme";
+import { woiceSummary as formatWoiceSummary } from "../../lib/woice";
 import { useCtxMenuClose } from "../../composables/useCtxMenu";
 import { t } from "../../i18n";
 
@@ -43,30 +43,12 @@ function onMenuAction(action: "remove"): void {
   if (action === "remove") removeWoice(w);
 }
 
-// 音色の型別サマリ
+// 音色の型別サマリ (フォーマット本体は lib/woice.ts)
 function woiceSummary(idx: number): string {
   const s = getService();
   if (!s) return "";
   const w = s.woiceGet(idx);
-  if (!w) return "";
-  const vc = w.getVoice(0);
-  if (!vc) return "";
-  switch (w.type) {
-    case WoiceType.PCM:
-      return `${vc.pcm.sps}Hz/${vc.pcm.bps}bit/${vc.pcm.ch}ch ${(vc.pcm.sec * 1000).toFixed(0)}ms`;
-    case WoiceType.PTV:
-      if (vc.type === VoiceType.Coodinate) {
-        return t("woice.summaryCoord").replace("{n}", String(vc.wave.num));
-      }
-      if (vc.type === VoiceType.Overtone) {
-        return t("woice.summaryOvertone").replace("{n}", String(vc.wave.num));
-      }
-      return t("woice.summaryUnknown");
-    case WoiceType.PTN:
-      return t("woice.summaryPtn").replace("{n}", String(vc.ptn.unitNum)).replace("{ms}", (vc.ptn.sec * 1000).toFixed(0));
-    default:
-      return "";
-  }
+  return w ? formatWoiceSummary(w) : "";
 }
 </script>
 
