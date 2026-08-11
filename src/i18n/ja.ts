@@ -131,6 +131,10 @@ const ja = {
   "effector.addOverdrive": "＋OverDrive",
   "effector.unit": "単位",
   "effector.length": "長さ",
+  "effector.feedback": "FB%",
+  "effector.cut": "Cut%",
+  "effector.amp": "Amp",
+  "effector.group": "Group",
   "copier.title": "Copier (コピー種別)",
 
   // Project ダイアログ

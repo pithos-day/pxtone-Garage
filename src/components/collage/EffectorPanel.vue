@@ -123,22 +123,22 @@ function onRemoveOverdrive(idx: number): void {
           <input type="number" v-model.number="editing.freq" step="0.01" min="0" />
         </div>
         <div class="row">
-          <label>FB%</label>
+          <label>{{ t("effector.feedback") }}</label>
           <input type="number" v-model.number="editing.rate" min="0" max="100" />
         </div>
       </template>
       <template v-else>
         <div class="row">
-          <label>Cut%</label>
+          <label>{{ t("effector.cut") }}</label>
           <input type="number" v-model.number="editing.cut" min="0" max="99" />
         </div>
         <div class="row">
-          <label>Amp</label>
+          <label>{{ t("effector.amp") }}</label>
           <input type="number" v-model.number="editing.amp" step="0.01" min="0" />
         </div>
       </template>
       <div class="row">
-        <label>Group</label>
+        <label>{{ t("effector.group") }}</label>
         <input type="number" v-model.number="editing.group" min="0" max="6" />
       </div>
       <div class="row">
