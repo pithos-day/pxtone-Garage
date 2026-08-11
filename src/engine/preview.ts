@@ -2,10 +2,11 @@
 // worklet の preview メッセージは未実装のため、メインスレッドで
 // 一時 Service にプロジェクト全体を読み込み、対象ユニットのみの
 // ノートをオフライン短レンダリング → AudioBuffer 再生で実現する。
-import { Service, PxtnErr, MemoryIo, EventKind, PXTN_MAX_EVENT_NUM, EVENTDEFAULT_VELOCITY, WoiceType, NoiseBuilder } from "pxtone-ts";
+import { Service, PxtnErr, MemoryIo, SEEK_SET, EventKind, PXTN_MAX_EVENT_NUM, EVENTDEFAULT_VELOCITY, WoiceType, NoiseBuilder } from "pxtone-ts";
 import type { Woice, Noise } from "pxtone-ts";
 import { exportBytes } from "../state/project";
 import { getService } from "../state/project";
+import { EXE_VER } from "../state/service";
 import { watch } from "vue";
 import { masterVolume } from "../state/player";
 
@@ -186,6 +187,7 @@ const RELEASE_SEC = 0.03;
 
 // レンダリング済みバッファをループ再生で開始する
 function startHold(work: Float32Array, ctx: AudioContext): void {
+  if (work.length < 2) return;
   stopPreview();
   if (ctx.state === "suspended") void ctx.resume();
 
@@ -233,6 +235,8 @@ export function renderWoice(
   if (s.initCollage(PXTN_MAX_EVENT_NUM) !== PxtnErr.OK) return null;
   const io = new MemoryIo();
   if (woice.ptvWrite(io) < 0) return null;
+  // ptvWrite は位置を末尾へ進めるため、読み込み前に先頭へ戻す
+  if (!io.seek(SEEK_SET, 0)) return null;
   if (s.woiceRead(0, io, WoiceType.PTV) !== PxtnErr.OK) return null;
   if (!s.unitAddNew()) return null;
   s.master.set(4, 120, 480);
@@ -244,14 +248,21 @@ export function renderWoice(
   s.evels.recordAddI(0, 0, EventKind.KEY, key);
   s.evels.recordAddI(0, 0, EventKind.VELOCITY, velocity);
   s.evels.recordAddI(0, 0, EventKind.ON, durClocks);
-  if (s.tonesReady() !== PxtnErr.OK) return null;
-  if (!s.setDestinationQuality(2, sps)) return null;
-  if (!s.mooPreparation(null)) return null;
-  const n = Math.min(Math.trunc(durSec * sps), s.mooGetSamplingEnd());
-  const out = new Int16Array(n * 2);
-  s.Moo(out, n);
+  // read() を経由しないと _mooBValidData が立たず mooPreparation が失敗するため、
+  // 一時プロジェクトを ptcop にシリアライズして読み直す (renderPreview と同じ経路)
+  const out = new MemoryIo();
+  if (s.write(out, false, EXE_VER) !== PxtnErr.OK) return null;
+  const s2 = new Service();
+  if (s2.initCollage(PXTN_MAX_EVENT_NUM) !== PxtnErr.OK) return null;
+  if (s2.read(new MemoryIo(out.toUint8Array())) !== PxtnErr.OK) return null;
+  if (s2.tonesReady() !== PxtnErr.OK) return null;
+  if (!s2.setDestinationQuality(2, sps)) return null;
+  if (!s2.mooPreparation(null)) return null;
+  const n = Math.min(Math.trunc(durSec * sps), s2.mooGetSamplingEnd());
+  const work = new Int16Array(n * 2);
+  s2.Moo(work, n);
   const f = new Float32Array(n * 2);
-  for (let i = 0; i < out.length; i++) f[i] = out[i]! / 32768;
+  for (let i = 0; i < work.length; i++) f[i] = work[i]! / 32768;
   return f;
 }
 
@@ -286,9 +297,18 @@ export function previewWoiceObjectHold(woice: Woice, key: number, velocity: numb
   const k = `${key}-${velocity}-${durSec}`;
   if (voicePreviewKey !== k) {
     voicePreviewKey = k;
-    voicePreviewWork = renderWoice(woice, key, velocity, durSec, ctx.sampleRate);
+    try {
+      voicePreviewWork = renderWoice(woice, key, velocity, durSec, ctx.sampleRate);
+    } catch {
+      voicePreviewWork = null;
+    }
   }
-  if (!voicePreviewWork) return;
+  if (!voicePreviewWork || voicePreviewWork.length < 2) {
+    // レンダリング失敗時はキャッシュを破棄して次回再試行する
+    voicePreviewKey = "";
+    voicePreviewWork = null;
+    return;
+  }
   startHold(voicePreviewWork, ctx);
 }
 

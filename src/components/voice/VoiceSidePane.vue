@@ -1,7 +1,8 @@
 <script setup lang="ts">
 // Voice エディタの1面分 (A面/B面)。
-// 波形の上に Coordinate/Oscillator 切替ボタン、波形モニター (本家 ptuiWave 準拠の
-// 生成波形表示)、Oscillator 時は倍音スライダー (本家 ptuiSines 準拠)、下にエンベロープ。
+// 波形の上に Coordinate/Oscillator 切替ボタンと音量/パン/チューニング/基本キー、
+// 波形モニター (本家 ptuiWave 準拠の生成波形表示)、倍音スライダー (本家 ptuiSines
+// 準拠。Coordinate では n 番目の点の y 座標表示として常時表示)、下にエンベロープ。
 import { computed, ref, watch } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { COLORS } from "../../lib/theme";
@@ -12,12 +13,13 @@ import { currentVoice, editVoice, clampWavePointX, insertWavePoint } from "../..
 import { t } from "../../i18n";
 
 const props = defineProps<{ side: number }>();
-const emit = defineEmits<{ (e: "activate"): void }>();
+const emit = defineEmits<{ (e: "edit"): void }>();
 
 const voice = computed(() => currentVoice());
 const rev = ref(0);
 function touch(): void {
   rev.value++;
+  emit("edit"); // プレビューキャッシュ破棄用に親へ通知
 }
 
 const waveType = ref<"coord" | "overtone">("coord");
@@ -50,6 +52,45 @@ function beginDragUndo(): void {
   dragUndoPushed = true;
   editVoice(() => {});
 }
+
+// ---- 面ごとのパラメータ (ボリューム/パン/チューニング/基本キー) ----
+// getter は rev を参照して undo/redo 後の再描画でも最新値を返す
+function setVoiceUnit(fn: (c: NonNullable<ReturnType<typeof vc>>) => void): void {
+  editVoice(() => {
+    const c = vc();
+    if (c) fn(c);
+  });
+  touch();
+}
+
+const volumeModel = computed({
+  get: () => {
+    void rev.value;
+    return vc()?.volume ?? 64;
+  },
+  set: (v: number) => setVoiceUnit((c) => (c.volume = Math.max(0, Math.min(128, Math.round(v))))),
+});
+const panModel = computed({
+  get: () => {
+    void rev.value;
+    return vc()?.pan ?? 64;
+  },
+  set: (v: number) => setVoiceUnit((c) => (c.pan = Math.max(0, Math.min(128, Math.round(v))))),
+});
+const tuningModel = computed({
+  get: () => {
+    void rev.value;
+    return vc()?.tuning ?? 1;
+  },
+  set: (v: number) => setVoiceUnit((c) => (c.tuning = Math.max(0.1, Math.min(4, v)))),
+});
+const basicKeyModel = computed({
+  get: () => {
+    void rev.value;
+    return (vc()?.basicKey ?? 0x4500) / 256;
+  },
+  set: (v: number) => setVoiceUnit((c) => (c.basicKey = Math.max(0, Math.min(127, Math.round(v))) * 256)),
+});
 
 // ---- 波形タイプ切替 (本家同様、切替時に波形をリセットする) ----
 function setWaveType(type: "coord" | "overtone"): void {
@@ -97,7 +138,7 @@ function coordPxToY(h: number, py: number): number {
 }
 
 // 波形モニター: 本家 ptuiWave::_try_update と同様、生成波形 (GetOneSample) を描画する。
-// Coordinate はループ点で折り返すため、右端から左端へ波形が自然に繋がる
+// サンプル位置は点の座標系 (WAVE_PAD..w-WAVE_PAD) と一致させる
 function drawWave(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   const c = vc();
   fillRect(ctx, 0, 0, w, h, COLORS.fieldBg);
@@ -115,12 +156,11 @@ function drawWave(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   ctx.strokeStyle = COLORS.accent;
   ctx.lineWidth = 1.5;
   ctx.beginPath();
-  for (let px = 0; px < w; px++) {
-    const idx = Math.round((px / (w - WAVE_PAD * 2)) * (SAMPLE_NUM - 1));
-    const v = bOvertone ? osci.getOneSampleOvertone(idx) : osci.getOneSampleCoodinate(idx);
+  for (let s = 0; s < SAMPLE_NUM; s++) {
+    const x = WAVE_PAD + (s / (SAMPLE_NUM - 1)) * (w - WAVE_PAD * 2);
+    const v = bOvertone ? osci.getOneSampleOvertone(s) : osci.getOneSampleCoodinate(s);
     const y = h / 2 - v * (h / 2 - WAVE_PAD);
-    const x = WAVE_PAD + px;
-    if (px === 0) ctx.moveTo(x, y);
+    if (s === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
   }
   ctx.stroke();
@@ -216,7 +256,10 @@ function onWavePointerUp(e: PointerEvent): void {
   dragUndoPushed = false;
 }
 
-// ---- 倍音スライダー (本家 ptuiSines 準拠、y のみ編集) ----
+// ---- スライダー (本家 ptuiSines 準拠、y のみ編集) ----
+// Coordinate では n 番目の点の y 座標、Oscillator では n 倍音の音量を表す。
+// 常時表示し、point[i].y を直接編集する。編集後は :data-rev でテンプレートを
+// 再描画してスライダー位置・数値を更新する
 const sinePoints = computed(() => vc()?.wave.points ?? []);
 let sineUndoPushed = false;
 
@@ -400,15 +443,6 @@ function onEnvePointerUp(e: PointerEvent): void {
   dragUndoPushed = false;
 }
 
-// 単発編集 (undo 1エントリ + dirty 化)
-function setVoiceUnit(fn: (c: NonNullable<ReturnType<typeof vc>>) => void): void {
-  editVoice(() => {
-    const c = vc();
-    if (c) fn(c);
-  });
-  touch();
-}
-
 // ---- canvas 共通ヘルパ ----
 function canvasRect(ref: { value: HTMLCanvasElement | null }): { el: HTMLCanvasElement; w: number; h: number; left: number; top: number } | null {
   const el = ref.value;
@@ -431,13 +465,27 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
 </script>
 
 <template>
-  <div class="vsp">
-    <div class="vsp-header" @pointerdown="emit('activate')">
+  <div class="vsp" :data-rev="rev">
+    <div class="vsp-header">
       <span class="vsp-side">{{ side === 0 ? t("voice.sideA") : t("voice.sideB") }}</span>
       <div class="vsp-wavetype">
         <button class="btn btn-sm" :class="{ on: waveType === 'coord' }" @click="setWaveType('coord')">Coordinate</button>
         <button class="btn btn-sm" :class="{ on: waveType === 'overtone' }" @click="setWaveType('overtone')">Oscillator</button>
       </div>
+    </div>
+    <div class="vsp-params">
+      <label class="vsp-param" :title="t('voice.volume')">V
+        <input v-model.number="volumeModel" type="number" min="0" max="128" class="num" />
+      </label>
+      <label class="vsp-param" :title="t('voice.pan')">P
+        <input v-model.number="panModel" type="number" min="0" max="128" class="num" />
+      </label>
+      <label class="vsp-param" :title="t('voice.tuning')">T
+        <input v-model.number="tuningModel" type="number" min="0.1" max="4" step="0.01" class="num" />
+      </label>
+      <label class="vsp-param" :title="t('voice.basicKey')">K
+        <input v-model.number="basicKeyModel" type="number" min="0" max="127" class="num" />
+      </label>
     </div>
     <canvas
       ref="waveRef"
@@ -448,7 +496,7 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
       @pointercancel="onWavePointerUp"
       @contextmenu.prevent
     />
-    <div v-if="waveType === 'overtone'" class="vsp-sines" @focusin="onSineFocus" @focusout="onSineBlur">
+    <div class="vsp-sines" @focusin="onSineFocus" @focusout="onSineBlur">
       <div v-for="(p, i) in sinePoints" :key="i" class="vsp-sine-row">
         <span class="vsp-sine-no">{{ i + 1 }}</span>
         <input
@@ -492,7 +540,7 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
   align-items: center;
   gap: 8px;
   user-select: none;
-  cursor: pointer;
+  flex: none;
 }
 
 .vsp-side {
@@ -506,30 +554,57 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
   gap: 2px;
 }
 
-.vsp-wave {
-  flex: 1;
-  min-height: 60px;
+/* 面ごとのパラメータ (コンパクトな1行) */
+.vsp-params {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  flex: none;
+  font-size: 10px;
+  color: var(--muted-foreground);
 }
 
-.vsp-sines {
+.vsp-param {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.vsp-param input {
+  font-size: 11px;
+  width: 46px;
+  background: var(--background);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  padding: 0 2px;
+}
+
+.vsp-wave {
   flex: 1;
-  min-height: 60px;
+  min-height: 50px;
+}
+
+/* スライダーは常時表示。高さが足りなければ内部スクロール */
+.vsp-sines {
+  flex: none;
+  max-height: 150px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   border-top: 1px dashed var(--border);
+  border-bottom: 1px dashed var(--border);
 }
 
 .vsp-sine-row {
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 20px;
+  height: 18px;
   flex: none;
 }
 
 .vsp-sine-no {
-  width: 22px;
+  width: 20px;
   text-align: right;
   font-size: 10px;
   color: var(--muted-foreground);
@@ -543,7 +618,7 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
 }
 
 .vsp-sine-val {
-  width: 34px;
+  width: 30px;
   text-align: right;
   font-size: 10px;
   color: var(--muted-foreground);
@@ -551,7 +626,7 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
 }
 
 .vsp-enve {
-  height: 96px;
-  flex: none;
+  flex: 1;
+  min-height: 50px;
 }
 </style>

@@ -71,8 +71,9 @@ function onPointerDown(e: PointerEvent): void {
   const c = canvasRef.value;
   const sc = scrollRef.value;
   if (!c || !sc) return;
+  // r.top はスクロールオフセット込みのビュー座標なので、scrollTop を足してはいけない
   const r = c.getBoundingClientRect();
-  const y = e.clientY - r.top + sc.scrollTop;
+  const y = e.clientY - r.top;
   const code = codeAtY(y);
   if (code < KEY_CODE_BOTTOM || code > KEY_CODE_TOP) return;
   pressed.value = code;
@@ -87,7 +88,7 @@ function onPointerMove(e: PointerEvent): void {
   const sc = scrollRef.value;
   if (!c || !sc) return;
   const r = c.getBoundingClientRect();
-  const y = e.clientY - r.top + sc.scrollTop;
+  const y = e.clientY - r.top;
   const code = codeAtY(y);
   if (code < KEY_CODE_BOTTOM || code > KEY_CODE_TOP) return;
   if (code !== pressed.value) {

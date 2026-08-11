@@ -1,8 +1,8 @@
 <script setup lang="ts">
 // ptNoise (PTN ノイズエディタ)。
-// レイヤー1..4 をタブで切替 (本家 dlg_Noise_Design 準拠)。各レイヤーに
-// オシレータ (main/freq/volu 縦3行 + 列ヘッダ)・エンベロープ (秒/%)・Enable/パン。
-// ビルド→波形プレビュー (クリックで単発再生 = ループしない。本家 PcmTable_BuildAndPlay 準拠)。
+// レイヤー1..4 を全て縦に表示 (1画面に収まるようコンパクト化)。
+// ビルドボタンは廃止し、編集が 250ms デバウンスでリアルタイムに波形へ反映される。
+// 波形クリック / Space で単発再生 (ループしない。本家 PcmTable_BuildAndPlay 準拠)。
 // History リスト、WAV 書き出しを提供する。
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
@@ -30,19 +30,18 @@ const WAVE_TYPE_NAMES = [
 ] as const;
 const OSC_IDS = ["main", "freq", "volu"] as const;
 
-// レイヤータブ (read 直後は有効ユニット数ぶん)
-const layerCount = computed(() => Math.min(NOISE_UNIT_NUM, noise.value?.noise.unitNum ?? 0));
-const activeLayer = ref(0);
-watch(layerCount, (n) => {
-  if (activeLayer.value >= n) activeLayer.value = Math.max(0, n - 1);
+// 全レイヤーを縦に並べる (read 直後は有効ユニット数ぶん)
+const unitList = computed(() => {
+  const n = noise.value?.noise;
+  if (!n) return [] as number[];
+  const out: number[] = [];
+  for (let u = 0; u < n.unitNum && u < NOISE_UNIT_NUM; u++) out.push(u);
+  return out;
 });
 
 // テンプレート用の非 null アクセサ (v-else 内でのみ呼ばれる)
 function unitAt(u: number) {
   return noise.value?.noise.getUnit(u) ?? null;
-}
-function unit() {
-  return unitAt(activeLayer.value);
 }
 
 // テーブル編集は直接 Noise を書き、undo はフォーカス時に1エントリ積む。
@@ -63,61 +62,64 @@ function onFieldChange(): void {
     d.noise.fix();
   }
   touch();
+  scheduleRebuild();
 }
 
 // オシレータの値を直接書き換え (undo はフォーカス時に1エントリ)
-function setOsc(osc: (typeof OSC_IDS)[number], field: "type" | "bRev" | "freq" | "volume" | "offset", v: number | boolean): void {
-  const o = oscAt(osc);
+function setOsc(u: number, osc: (typeof OSC_IDS)[number], field: "type" | "bRev" | "freq" | "volume" | "offset", v: number | boolean): void {
+  const o = unitAt(u)?.[osc];
   if (!o) return;
   (o as unknown as Record<string, unknown>)[field] = v;
   onFieldChange();
 }
-function oscAt(osc: (typeof OSC_IDS)[number]) {
-  return unit()?.[osc] ?? null;
-}
 
 // エンベロープ点数 (0..3) の変更 (undo 1エントリ + 配列長を合わせる)
-function onEnveNumChange(v: number): void {
-  const u = unit();
-  if (!u) return;
+function onEnveNumChange(u: number, v: number): void {
+  const unit = unitAt(u);
+  if (!unit) return;
   editNoise(() => {
     const target = Math.max(0, Math.min(3, Math.round(v)));
-    u.enveNum = target;
-    while (u.enves.length < target) u.enves.push({ x: 0, y: 0 });
-    u.enves.length = target;
+    unit.enveNum = target;
+    while (unit.enves.length < target) unit.enves.push({ x: 0, y: 0 });
+    unit.enves.length = target;
   });
   touch();
+  scheduleRebuild();
 }
 
 // エンベロープ: 秒 (x/1000) と % (y)。本家 dlg_Noise_Design の
 // IDC_ENVELOPE_SEC_* / IDC_ENVELOPE_VOL_* と同じ表示単位
-function setEnveSec(i: number, raw: string): void {
-  const u = unit();
-  if (!u || !u.enves[i]) return;
+function setEnveSec(u: number, i: number, raw: string): void {
+  const unit = unitAt(u);
+  if (!unit || !unit.enves[i]) return;
   const v = parseFloat(raw);
   if (!Number.isFinite(v)) return;
-  u.enves[i]!.x = Math.max(0, Math.min(10000, Math.round(v * 1000)));
+  unit.enves[i]!.x = Math.max(0, Math.min(10000, Math.round(v * 1000)));
   onFieldChange();
 }
-function setEnvePct(i: number, raw: string): void {
-  const u = unit();
-  if (!u || !u.enves[i]) return;
+function setEnvePct(u: number, i: number, raw: string): void {
+  const unit = unitAt(u);
+  if (!unit || !unit.enves[i]) return;
   const v = parseFloat(raw);
   if (!Number.isFinite(v)) return;
-  u.enves[i]!.y = Math.max(0, Math.min(100, Math.round(v)));
+  unit.enves[i]!.y = Math.max(0, Math.min(100, Math.round(v)));
   onFieldChange();
 }
 
-// undo/redo (メニュー) 後の再描画
+// undo/redo (メニュー) 後もリアルタイム反映する
 watch(
   () => [noise.value?.undoStack.length, noise.value?.redoStack.length],
-  () => touch(),
+  () => {
+    touch();
+    scheduleRebuild();
+  },
 );
 
-// ---- ビルド / プレビュー ----
+// ---- リアルタイムビルド (250ms デバウンス) ----
 const BUILT_SPS = 44100;
 const builtPcm = ref<Float32Array | null>(null);
 const buildError = ref("");
+let rebuildTimer: number | null = null;
 
 interface HistoryEntry {
   label: string;
@@ -125,8 +127,18 @@ interface HistoryEntry {
   pcm: Float32Array;
 }
 const history = ref<HistoryEntry[]>([]);
+let lastHistoryAt = 0;
 
-function onBuild(): void {
+// 編集をデバウンスして波形へ反映する
+function scheduleRebuild(): void {
+  if (rebuildTimer !== null) clearTimeout(rebuildTimer);
+  rebuildTimer = window.setTimeout(() => {
+    rebuildTimer = null;
+    rebuild();
+  }, 250);
+}
+
+function rebuild(): void {
   const d = noise.value;
   if (!d) return;
   const pcm = renderNoise(d.noise, BUILT_SPS);
@@ -136,12 +148,26 @@ function onBuild(): void {
   }
   buildError.value = "";
   builtPcm.value = pcm;
+  pushHistory();
+  touch();
+}
+
+// History 記録。連続編集 (2秒以内の再ビルド) は直前のエントリを置き換える
+function pushHistory(): void {
+  const d = noise.value;
+  if (!d || !builtPcm.value) return;
   const io = new MemoryIo();
   d.noise.write(io);
   const label = new Date().toLocaleTimeString("ja-JP", { hour12: false });
-  history.value.unshift({ label, bytes: io.toUint8Array(), pcm });
-  if (history.value.length > 30) history.value.length = 30;
-  touch();
+  const entry: HistoryEntry = { label, bytes: io.toUint8Array(), pcm: builtPcm.value };
+  const now = Date.now();
+  if (history.value.length > 0 && now - lastHistoryAt < 2000) {
+    history.value[0] = entry;
+  } else {
+    history.value.unshift(entry);
+    if (history.value.length > 30) history.value.length = 30;
+  }
+  lastHistoryAt = now;
 }
 
 // 波形クリック = 単発再生 (ループしない。本家準拠)
@@ -154,7 +180,7 @@ function playHistory(i: number): void {
   if (e) playPcmOnce(e.pcm);
 }
 
-// ダブルクリックでエディタに反映 (undo 1エントリ)
+// ダブルクリックでエディタに反映 (undo 1エントリ + 再ビルド)
 function applyHistory(i: number): void {
   const d = noise.value;
   const e = history.value[i];
@@ -163,6 +189,7 @@ function applyHistory(i: number): void {
     d.noise.read(new MemoryIo(e.bytes));
   });
   touch();
+  scheduleRebuild();
 }
 
 function onSaveWav(): void {
@@ -172,7 +199,7 @@ function onSaveWav(): void {
   if (err) buildError.value = err;
 }
 
-// ---- Space: ビルド済み波形の再生 (未ビルドならビルドして再生) ----
+// ---- Space: ビルド済み波形の再生 (未反映なら即ビルドして再生) ----
 function onKeydown(e: KeyboardEvent): void {
   if (!props.active) return;
   const tag = (e.target as HTMLElement)?.tagName;
@@ -180,12 +207,19 @@ function onKeydown(e: KeyboardEvent): void {
   if (e.code !== "Space") return;
   e.preventDefault();
   if (e.repeat) return;
-  if (!builtPcm.value) onBuild();
+  if (!builtPcm.value) rebuild();
   if (builtPcm.value) playPcmOnce(builtPcm.value);
 }
 
-onMounted(() => window.addEventListener("keydown", onKeydown));
-onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
+onMounted(() => {
+  window.addEventListener("keydown", onKeydown);
+  // 開いた直後にも波形を表示する
+  scheduleRebuild();
+});
+onBeforeUnmount(() => {
+  window.removeEventListener("keydown", onKeydown);
+  if (rebuildTimer !== null) clearTimeout(rebuildTimer);
+});
 
 // ---- 波形プレビュー描画 ----
 const waveRef = ref<HTMLCanvasElement | null>(null);
@@ -230,36 +264,15 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
       <button class="btn btn-accent" @click="newNoise()">{{ t("menu.file.new") }}</button>
     </div>
     <div v-else class="ne-main" :data-rev="rev">
-      <div class="ne-left">
-        <div class="ne-tabs">
-          <button
-            v-for="l in layerCount"
-            :key="l"
-            class="ne-tab"
-            :class="{ on: activeLayer === l - 1 }"
-            @click="activeLayer = l - 1"
-          >
-            {{ t("noise.layer") }} {{ l }}
-          </button>
-        </div>
-        <div class="ne-layer" @focusin="onFieldFocus" @focusout="onFieldBlur">
+      <div class="ne-layers" @focusin="onFieldFocus" @focusout="onFieldBlur">
+        <div v-for="u in unitList" :key="u" class="ne-layer">
           <div class="ne-layer-head">
+            <span class="ne-layer-name">{{ t("noise.layer") }} {{ u + 1 }}</span>
             <label class="chk">{{ t("noise.enable") }}
-              <input
-                v-model="unitAt(activeLayer)!.bEnable"
-                type="checkbox"
-                @change="onFieldChange"
-              />
+              <input v-model="unitAt(u)!.bEnable" type="checkbox" @change="onFieldChange" />
             </label>
             <label>{{ t("noise.pan") }}
-              <input
-                v-model.number="unitAt(activeLayer)!.pan"
-                type="number"
-                min="-100"
-                max="100"
-                class="num"
-                @change="onFieldChange"
-              />
+              <input v-model.number="unitAt(u)!.pan" type="number" min="-100" max="100" class="num" @change="onFieldChange" />
             </label>
           </div>
           <div class="ne-grid">
@@ -273,83 +286,75 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
             </div>
             <div v-for="osc in OSC_IDS" :key="osc" class="ne-row">
               <span class="ne-osc-name">{{ t(`noise.${osc}`) }}</span>
-              <select :value="oscAt(osc)!.type" @change="setOsc(osc, 'type', Number(($event.target as HTMLSelectElement).value))">
+              <select :value="unitAt(u)![osc].type" @change="setOsc(u, osc, 'type', Number(($event.target as HTMLSelectElement).value))">
                 <option v-for="(name, wi) in WAVE_TYPE_NAMES" :key="wi" :value="wi">{{ name }}</option>
               </select>
               <input
                 type="checkbox"
-                :checked="oscAt(osc)!.bRev"
-                @change="setOsc(osc, 'bRev', ($event.target as HTMLInputElement).checked)"
+                :checked="unitAt(u)![osc].bRev"
+                @change="setOsc(u, osc, 'bRev', ($event.target as HTMLInputElement).checked)"
               />
               <input
                 type="number"
-                :value="oscAt(osc)!.freq"
+                :value="unitAt(u)![osc].freq"
                 min="0"
                 max="44100"
                 class="num"
-                @change="setOsc(osc, 'freq', Number(($event.target as HTMLInputElement).value))"
+                @change="setOsc(u, osc, 'freq', Number(($event.target as HTMLInputElement).value))"
               />
               <input
                 type="number"
-                :value="oscAt(osc)!.volume"
+                :value="unitAt(u)![osc].volume"
                 min="0"
                 max="200"
                 class="num"
-                @change="setOsc(osc, 'volume', Number(($event.target as HTMLInputElement).value))"
+                @change="setOsc(u, osc, 'volume', Number(($event.target as HTMLInputElement).value))"
               />
               <input
                 type="number"
-                :value="oscAt(osc)!.offset"
+                :value="unitAt(u)![osc].offset"
                 min="0"
                 max="100"
                 class="num"
-                @change="setOsc(osc, 'offset', Number(($event.target as HTMLInputElement).value))"
+                @change="setOsc(u, osc, 'offset', Number(($event.target as HTMLInputElement).value))"
               />
             </div>
           </div>
           <div class="ne-enve">
-            <div class="ne-enve-title">
-              <span>{{ t("noise.envelope") }}</span>
-              <select :value="unitAt(activeLayer)!.enveNum" @change="onEnveNumChange(Number(($event.target as HTMLSelectElement).value))">
-                <option :value="0">0</option>
-                <option :value="1">1</option>
-                <option :value="2">2</option>
-                <option :value="3">3</option>
-              </select>
-            </div>
-            <div class="ne-enve-grid">
-              <div class="ne-row ne-head">
-                <span class="ne-enve-no" />
-                <span>%</span>
-                <span>{{ t("noise.secUnit") }}</span>
-              </div>
-              <div v-for="(p, i) in unitAt(activeLayer)!.enves" :key="i" class="ne-row">
-                <span class="ne-enve-no">{{ t("noise.envePoint") }}{{ i + 1 }}</span>
-                <input
-                  type="number"
-                  :value="p.y"
-                  min="0"
-                  max="100"
-                  class="num"
-                  @change="setEnvePct(i, ($event.target as HTMLInputElement).value)"
-                />
-                <input
-                  type="number"
-                  :value="p.x / 1000"
-                  min="0"
-                  max="10"
-                  step="0.001"
-                  class="num"
-                  @change="setEnveSec(i, ($event.target as HTMLInputElement).value)"
-                />
-              </div>
-            </div>
+            <span class="ne-enve-title">{{ t("noise.envelope") }}</span>
+            <select :value="unitAt(u)!.enveNum" @change="onEnveNumChange(u, Number(($event.target as HTMLSelectElement).value))">
+              <option :value="0">0</option>
+              <option :value="1">1</option>
+              <option :value="2">2</option>
+              <option :value="3">3</option>
+            </select>
+            <template v-for="(p, i) in unitAt(u)!.enves" :key="i">
+              <span class="ne-enve-no">{{ t("noise.envePoint") }}{{ i + 1 }}</span>
+              <input
+                type="number"
+                class="num ne-enve-pct"
+                :value="p.y"
+                min="0"
+                max="100"
+                title="%"
+                @change="setEnvePct(u, i, ($event.target as HTMLInputElement).value)"
+              />
+              <input
+                type="number"
+                class="num ne-enve-sec"
+                :value="p.x / 1000"
+                min="0"
+                max="10"
+                step="0.001"
+                title="秒"
+                @change="setEnveSec(u, i, ($event.target as HTMLInputElement).value)"
+              />
+            </template>
           </div>
         </div>
       </div>
       <div class="ne-preview">
         <div class="ne-build-row">
-          <button class="btn btn-accent" @click="onBuild">{{ t("noise.build") }}</button>
           <button class="btn" @click="onSaveWav">{{ t("noise.saveWav") }}</button>
           <span v-if="buildError" class="ne-error">{{ buildError }}</span>
         </div>
@@ -410,50 +415,37 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
   gap: 8px;
 }
 
-.ne-left {
-  width: 460px;
+/* 全レイヤーを縦に並べる。収まらない場合はこの列だけスクロール */
+.ne-layers {
+  width: 520px;
   flex: none;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 4px;
-}
-
-.ne-tabs {
-  display: flex;
-  gap: 2px;
-}
-
-.ne-tab {
-  flex: 1;
-  border: 1px solid var(--border);
-  background: var(--card);
+  font-size: 11px;
   color: var(--muted-foreground);
-  font-size: 12px;
-  padding: 2px 0;
-  cursor: pointer;
-}
-
-.ne-tab.on {
-  background: var(--accent);
-  color: var(--accent-foreground);
 }
 
 .ne-layer {
   border: 1px solid var(--border);
   background: var(--card);
-  padding: 6px;
+  padding: 3px 5px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  overflow-y: auto;
-  font-size: 12px;
-  color: var(--muted-foreground);
+  gap: 3px;
+  flex: none;
 }
 
 .ne-layer-head {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+}
+
+.ne-layer-name {
+  font-weight: bold;
+  color: var(--foreground);
 }
 
 .chk {
@@ -472,21 +464,21 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
 .ne-grid {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .ne-row {
   display: grid;
-  grid-template-columns: 46px 72px 22px 64px 64px 64px;
+  grid-template-columns: 46px 72px 22px 60px 60px 60px;
   align-items: center;
   gap: 4px;
 }
 
 .ne-head {
-  font-size: 10px;
+  font-size: 9px;
   color: var(--muted-foreground);
   border-bottom: 1px dashed var(--border);
-  padding-bottom: 2px;
+  padding-bottom: 1px;
 }
 
 .ne-osc-name {
@@ -494,55 +486,56 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
   flex: none;
   font-weight: bold;
   color: var(--foreground);
+  font-size: 10px;
 }
 
 .ne-layer select,
 .ne-layer input {
-  font-size: 12px;
+  font-size: 11px;
   background: var(--background);
   color: var(--foreground);
   border: 1px solid var(--border);
-  padding: 1px 3px;
+  padding: 0 2px;
   width: 100%;
+  height: 17px;
 }
 
 .ne-row input[type="checkbox"] {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
   justify-self: center;
 }
 
-.ne-layer .num {
-  width: 100%;
-}
-
 .ne-enve {
-  border-top: 1px dashed var(--border);
-  padding-top: 4px;
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 4px;
+  flex-wrap: wrap;
+  border-top: 1px dashed var(--border);
+  padding-top: 2px;
 }
 
 .ne-enve-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  font-weight: bold;
+  color: var(--foreground);
+  font-size: 10px;
 }
 
-.ne-enve-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.ne-enve-grid .ne-row {
-  grid-template-columns: 70px 64px 64px;
+.ne-enve select {
+  width: 30px;
 }
 
 .ne-enve-no {
-  width: 70px;
-  flex: none;
+  color: var(--muted-foreground);
+  font-size: 10px;
+}
+
+.ne-enve .ne-enve-pct {
+  width: 34px;
+}
+
+.ne-enve .ne-enve-sec {
+  width: 44px;
 }
 
 .ne-preview {
@@ -564,14 +557,16 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
   font-size: 11px;
 }
 
+/* 1画面に収めるため波形は小さめに固定 */
 .ne-wave {
-  flex: 1;
-  min-height: 0;
+  flex: none;
+  height: 140px;
   cursor: pointer;
 }
 
 .ne-history {
-  height: 120px;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   border: 1px solid var(--border);
   background: var(--card);

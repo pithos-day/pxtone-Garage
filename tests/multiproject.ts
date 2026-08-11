@@ -552,7 +552,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     const pCount = projects.value.length;
     newVoice();
     checkEq(voices.value.length, 1, "voice: 新規タブが1つ");
-    check(voices.value[0]!.id === currentVoiceId.value, "voice: currentVoiceId が新規タブ");
+    check("voice: currentVoiceId が新規タブ", voices.value[0]!.id === currentVoiceId.value);
     const w = currentVoice()!.woice;
     checkEq(w.voiceNum, 2, "voice: A/B の2面");
     checkEq(w.getVoice(0)!.volume, 64, "voice: A面ボリューム 64");
@@ -577,7 +577,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
     // .ptvoice ラウンドトリップ
     const io = new MemoryIo();
-    check(w.ptvWrite(io) > 0, "voice: ptvWrite 成功");
+    check("voice: ptvWrite 成功", w.ptvWrite(io) > 0);
     const err = openVoice(io.toUint8Array(), "test");
     checkEq(err, null, "voice: openVoice 成功 (エラーなし)");
     checkEq(voices.value.length, 2, "voice: 2タブ目が開く");
@@ -598,7 +598,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
     // レンダリング (オフライン) がパイプラインで通ること
     const pcm = renderWoice(createDefaultWoice(), 0x6000, 100, 0.5, 44100);
-    check(pcm !== null && pcm.length > 0, "voice: renderWoice が PCM を返す", `len=${pcm?.length}`);
+    check("voice: renderWoice が PCM を返す", pcm !== null && pcm.length > 0, `len=${pcm?.length}`);
   }
 
   // ---- 19. ノイズ (ptNoise) ドキュメント管理 ----
@@ -629,7 +629,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
     // .ptnoise ラウンドトリップ
     const io = new MemoryIo();
-    check(n.write(io), "noise: write 成功");
+    check("noise: write 成功", n.write(io));
     const err = openNoise(io.toUint8Array(), "n1");
     checkEq(err, null, "noise: openNoise 成功 (エラーなし)");
     checkEq(noises.value.length, 2, "noise: 2タブ目が開く");
@@ -650,7 +650,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
     // ビルド (波形生成) が通ること
     const pcm = renderNoise(currentNoise()!.noise, 44100);
-    check(pcm !== null && pcm.length === 44100 * 2, "noise: renderNoise が1秒ステレオ PCM を返す", `len=${pcm?.length}`);
+    check("noise: renderNoise が1秒ステレオ PCM を返す", pcm !== null && pcm.length === 44100 * 2, `len=${pcm?.length}`);
   }
 
   // ---- 20. Coordinate 波形の編集ルール (本家 ptuiWave 準拠) ----
