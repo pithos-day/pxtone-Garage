@@ -4,10 +4,11 @@
 // ビルドボタンは廃止し、編集が 250ms デバウンスでリアルタイムに波形へ反映される。
 // 波形クリック / Space で単発再生 (ループしない。本家 PcmTable_BuildAndPlay 準拠)。
 // History リスト、WAV 書き出しを提供する。
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { useUndoRedoRedraw } from "../../composables/useUndoRedoRedraw";
 import { useGlobalKeys } from "../../composables/useGlobalKeys";
+import { useDebounced } from "../../composables/useDebounced";
 import { useOnceUndo } from "../../composables/useUndo";
 import { COLORS } from "../../lib/theme";
 import { fillRect, fillText } from "../../lib/draw";
@@ -115,7 +116,6 @@ useUndoRedoRedraw(() => noise.value, () => {
 // ---- リアルタイムビルド (250ms デバウンス) ----
 const builtPcm = ref<Float32Array | null>(null);
 const buildError = ref("");
-let rebuildTimer: number | null = null;
 
 interface HistoryEntry {
   label: string;
@@ -126,13 +126,7 @@ const history = ref<HistoryEntry[]>([]);
 let lastHistoryAt = 0;
 
 // 編集をデバウンスして波形へ反映する
-function scheduleRebuild(): void {
-  if (rebuildTimer !== null) clearTimeout(rebuildTimer);
-  rebuildTimer = window.setTimeout(() => {
-    rebuildTimer = null;
-    rebuild();
-  }, 250);
-}
+const scheduleRebuild = useDebounced(() => rebuild()).run;
 
 function rebuild(): void {
   const d = noise.value;
@@ -208,9 +202,6 @@ useGlobalKeys(() => props.active, { keydown: onKeydown });
 onMounted(() => {
   // 開いた直後にも波形を表示する
   scheduleRebuild();
-});
-onBeforeUnmount(() => {
-  if (rebuildTimer !== null) clearTimeout(rebuildTimer);
 });
 
 // ---- 波形プレビュー描画 ----
