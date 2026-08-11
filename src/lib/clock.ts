@@ -85,12 +85,3 @@ export function formatClock(view: ClockView, clock: number): string {
   const [m, b, c] = clockToMeasBeatClock(view, clock);
   return `${m + 1}:${b + 1}:${c}`;
 }
-
-// 拍数を mm:ss 形式に (再生時間表示用)
-export function beatsToTime(beat: number, beatTempo: number): string {
-  const sec = (beat / beatTempo) * 60;
-  const m = Math.floor(sec / 60);
-  const s = Math.floor(sec % 60);
-  const ds = Math.floor((sec % 1) * 10); // 1/10 秒
-  return `${m}:${String(s).padStart(2, "0")}.${ds}`;
-}
