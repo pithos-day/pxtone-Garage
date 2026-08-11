@@ -473,6 +473,12 @@ function toggleInArray(arr: number[], idx: number): number[] {
   return out;
 }
 
+// UI 状態のみの変更 (undo 不要): エンジンと同期して再描画リビジョンを進める
+function afterUiEdit(): void {
+  sync();
+  doc.rev++;
+}
+
 export function toggleUnitMute(idx: number): void {
   if (doc.soloUnit >= 0) {
     // ソロ中の手動変更: ソロを解除し、元のミュート状態に今回の変更を反映
@@ -487,8 +493,7 @@ export function toggleUnitMute(idx: number): void {
   } else {
     doc.muted = toggleInArray(doc.muted, idx);
   }
-  sync();
-  doc.rev++;
+  afterUiEdit();
 }
 
 // ソロ切替。ON: 他ユニットを全ミュート、OFF (同ユニット再クリック):
@@ -503,29 +508,25 @@ export function toggleUnitSolo(idx: number): void {
     doc.soloUnit = idx;
     doc.muted = units.value.map((u) => u.index).filter((u) => u !== idx);
   }
-  sync();
-  doc.rev++;
+  afterUiEdit();
 }
 
 // ピアノロールにノートを表示するか (表示チェック)
 export function toggleUnitVisible(idx: number): void {
   doc.unitVisible[idx] = !(doc.unitVisible[idx] ?? true);
-  sync();
-  doc.rev++;
+  afterUiEdit();
 }
 
 // 全ユニットの表示を一括設定 (View メニュー「全ユニット表示」)
 export function setAllUnitsVisible(visible: boolean): void {
-  for (let u = 0; u < doc.unitVisible.length; u++) doc.unitVisible[u] = visible;
-  sync();
-  doc.rev++;
+  doc.unitVisible.fill(visible);
+  afterUiEdit();
 }
 
 // ピン留め (上部レーン固定)
 export function toggleUnitPinned(idx: number): void {
   doc.unitPinned[idx] = !(doc.unitPinned[idx] ?? false);
-  sync();
-  doc.rev++;
+  afterUiEdit();
 }
 
 // ピアノロールにノートを表示するユニット一覧 (フォーカス + 表示 + ピン留め)
