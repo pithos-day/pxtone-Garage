@@ -99,7 +99,7 @@ const correctModel = computed({
   set: (v: number) => setVoiceUnit((c) => (c.tuning = 1 + Math.max(-128, Math.min(128, Math.round(v))) / 10000)),
 });
 
-// リリース区間長 (本家 ptuiReleaseTime: points[headNum+bodyNum].x を 1..1000)
+// リリース区間長 (本家 ptuiReleaseTime: points[headNum+bodyNum].x を 1..100)
 function enveHeadCount(c: NonNullable<ReturnType<typeof vc>>): number {
   return c.envelope.headNum + c.envelope.bodyNum;
 }
@@ -115,7 +115,7 @@ const releaseModel = computed({
     setVoiceUnit((c) => {
       const hc = c.envelope.headNum + c.envelope.bodyNum;
       if (c.envelope.tailNum > 0 && c.envelope.points[hc]) {
-        c.envelope.points[hc]!.x = Math.max(1, Math.min(1000, Math.round(v)));
+        c.envelope.points[hc]!.x = Math.max(1, Math.min(100, Math.round(v)));
       }
     }),
 });
@@ -337,31 +337,24 @@ function setSine(i: number, v: number): void {
 }
 
 // ---- エンベロープ (本家 ptuiEnvelope 準拠: x は区間長、表示は累積座標) ----
+// 本家と同様、グラフにはヘッド点のみを表示する (リリースは Release スライダーで
+// 独立に操作し、エンベロープとは影響し合わない)
 const enveRef = ref<HTMLCanvasElement | null>(null);
 
-// ヘッド表示点 (累積) とリリース点 (累積位置 = ヘッド合計 + 区間長) を返す
+// ヘッド表示点 (累積座標) を返す
 function enveDisplay(c: NonNullable<ReturnType<typeof vc>>): {
   head: ReturnType<typeof enveDisplayPoints>;
-  release: { x: number; y: number } | null;
   headCount: number;
-  headTotal: number;
 } {
   const headCount = enveHeadCount(c);
   const head = enveDisplayPoints(c.envelope.points, headCount);
-  const headTotal = head.length ? head[head.length - 1]!.x : 0;
-  const rel = c.envelope.tailNum > 0 ? c.envelope.points[headCount] : null;
-  return {
-    head,
-    release: rel ? { x: headTotal + rel.x, y: rel.y } : null,
-    headCount,
-    headTotal,
-  };
+  return { head, headCount };
 }
 
 function enveMaxX(c: NonNullable<ReturnType<typeof vc>>): number {
-  const { head, release } = enveDisplay(c);
-  let m = release?.x ?? 0;
-  if (head.length) m = Math.max(m, head[head.length - 1]!.x);
+  const { head } = enveDisplay(c);
+  let m = 0;
+  if (head.length) m = head[head.length - 1]!.x;
   return Math.max(100, m * 1.2);
 }
 
@@ -383,8 +376,7 @@ function drawEnve(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   const c = vc();
   fillRect(ctx, 0, 0, w, h, COLORS.fieldBg);
   if (!c) return;
-  const { head, release } = enveDisplay(c);
-  const lastY = head.length ? head[head.length - 1]!.y : 0;
+  const { head } = enveDisplay(c);
   ctx.strokeStyle = COLORS.accent;
   ctx.lineWidth = 1.5;
   ctx.beginPath();
@@ -396,14 +388,10 @@ function drawEnve(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     else ctx.lineTo(x, y);
     ctx.arc(x, y, 3, 0, Math.PI * 2);
   }
-  // サステイン → リリース (終着点はヘッド累積 + リリース区間長の位置)
-  if (release) {
-    const rx = enveX(c, w, release.x);
-    const ly = enveY(h, lastY);
-    const ry = enveY(h, release.y);
-    ctx.lineTo(rx, ly);
-    ctx.lineTo(rx, ry);
-    ctx.arc(rx, ry, 3, 0, Math.PI * 2);
+  // サステイン (本家 _try_update と同様、最後のヘッド点の y をグラフ右端まで水平に引く)
+  if (head.length) {
+    const last = head[head.length - 1]!;
+    ctx.lineTo(w - WAVE_PAD, enveY(h, last.y));
   }
   ctx.stroke();
   fillText(ctx, t("voice.envelope"), WAVE_PAD + 2, WAVE_PAD + 8, COLORS.textDim, 9);
@@ -411,7 +399,7 @@ function drawEnve(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 
 useCanvas(enveRef, drawEnve, [() => rev.value, () => voice.value]);
 
-const enveDrag = ref<{ kind: "head" | "release"; index: number } | null>(null);
+const enveDrag = ref<{ index: number } | null>(null);
 
 function envePointAt(
   c: NonNullable<ReturnType<typeof vc>>,
@@ -419,20 +407,16 @@ function envePointAt(
   h: number,
   px: number,
   py: number,
-): { kind: "head" | "release"; index: number } | null {
-  const { head, release } = enveDisplay(c);
+): { index: number } | null {
+  const { head } = enveDisplay(c);
   let bestD = 10;
-  let best: { kind: "head" | "release"; index: number } | null = null;
+  let best: { index: number } | null = null;
   for (const p of head) {
     const d = Math.hypot(px - enveX(c, w, p.x), py - enveY(h, p.y));
     if (d < bestD) {
       bestD = d;
-      best = { kind: "head", index: p.index };
+      best = { index: p.index };
     }
-  }
-  if (release) {
-    const d = Math.hypot(px - enveX(c, w, release.x), py - enveY(h, release.y));
-    if (d < bestD) best = { kind: "release", index: -1 };
   }
   return best;
 }
@@ -445,7 +429,7 @@ function onEnvePointerDown(e: PointerEvent): void {
   const hit = envePointAt(c2, c.w, c.h, x, y);
   if (e.button === 2) {
     // 右クリック: ヘッド点を削除 (本家 _point_delete。有効点が1つのみなら不可)
-    if (hit?.kind === "head") {
+    if (hit) {
       setVoiceUnit((cc) => enveDeletePoint(cc.envelope.points, enveHeadCount(cc), hit.index));
     }
     return;
@@ -473,18 +457,10 @@ function onEnvePointerMove(e: PointerEvent): void {
   beginDragUndo();
   const cx = envePxToX(c2, c.w, x);
   const cy = envePxToY(c.h, y);
-  // ドラッグ中の移動は undo を積まず直接書き換える (undo はジェスチャ先頭の1回)
-  if (d.kind === "release") {
-    const p = c2.envelope.points[enveHeadCount(c2)];
-    if (p) {
-      p.x = Math.max(1, Math.min(1000, cx - enveDisplay(c2).headTotal));
-      p.y = cy;
-    }
-  } else {
-    // 前後の点を乗り越えられないよう累積座標でクランプして区間長へ変換
-    enveSetHeadPointX(c2.envelope.points, enveHeadCount(c2), d.index, cx);
-    c2.envelope.points[d.index]!.y = cy;
-  }
+  // ドラッグ中の移動は undo を積まず直接書き換える (undo はジェスチャ先頭の1回)。
+  // 前後の点を乗り越えられないよう累積座標でクランプして区間長へ変換
+  enveSetHeadPointX(c2.envelope.points, enveHeadCount(c2), d.index, cx);
+  c2.envelope.points[d.index]!.y = cy;
   touch();
 }
 
@@ -542,7 +518,7 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
       </div>
       <div class="vsp-param">
         <span class="vsp-plabel" :title="t('voice.release')">R</span>
-        <input type="range" class="vsp-prange" min="1" max="1000" step="1" v-model.number="releaseModel" @contextmenu.prevent="resetRelease" />
+        <input type="range" class="vsp-prange" min="1" max="100" step="1" v-model.number="releaseModel" @contextmenu.prevent="resetRelease" />
         <span class="vsp-pval">{{ releaseModel }}</span>
       </div>
     </div>
