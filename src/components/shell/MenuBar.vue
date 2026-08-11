@@ -12,8 +12,8 @@ import {
   saveProjectAs,
   currentProjectId,
 } from "../../state/projects";
-import { newVoice, openVoice, saveVoice, closeVoice, undoVoice, redoVoice, voices, currentVoiceId } from "../../state/voice";
-import { newNoise, openNoise, saveNoise, closeNoise, undoNoise, redoNoise, noises, currentNoiseId } from "../../state/noise";
+import { newVoice, openVoice, saveVoice, closeVoice, undoVoice, redoVoice, currentVoice, currentVoiceId } from "../../state/voice";
+import { newNoise, openNoise, saveNoise, closeNoise, undoNoise, redoNoise, currentNoise, currentNoiseId } from "../../state/noise";
 import { exportPttune, exportWav, openFileDialog } from "../../engine/io";
 import { undo, redo, canUndo, canRedo } from "../../state/undo";
 import { ZOOM_TABLE, DIVI_TABLE } from "../../lib/clock";
@@ -161,94 +161,102 @@ function onCloseNoise(): void {
 
 const allVisible = computed(() => doc.unitVisible.length > 0 && doc.unitVisible.every(Boolean));
 
+// モード別に差し替わる操作 (File メニュー・undo/redo)。3 分岐をこのテーブルに集約
+type Mode = "collage" | "voice" | "noise";
+interface ModeOps {
+  new: () => void;
+  open: () => void;
+  save: () => void;
+  saveAs: () => void;
+  close: () => void;
+  undo: () => void;
+  redo: () => void;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
+}
+
+const modeOps: Record<Mode, ModeOps> = {
+  collage: {
+    new: onNew,
+    open: onOpen,
+    save: () => saveProject(),
+    saveAs: () => saveProjectAs(),
+    close: onClose,
+    undo,
+    redo,
+    canUndo: () => canUndo.value,
+    canRedo: () => canRedo.value,
+  },
+  voice: {
+    new: () => newVoice(),
+    open: onOpenVoice,
+    save: () => saveVoice(false),
+    saveAs: () => saveVoice(true),
+    close: onCloseVoice,
+    undo: undoVoice,
+    redo: redoVoice,
+    canUndo: () => currentVoice()?.undoStack.length ? currentVoice()!.undoStack.length > 0 : false,
+    canRedo: () => currentVoice()?.redoStack.length ? currentVoice()!.redoStack.length > 0 : false,
+  },
+  noise: {
+    new: () => newNoise(),
+    open: onOpenNoise,
+    save: () => saveNoise(false),
+    saveAs: () => saveNoise(true),
+    close: onCloseNoise,
+    undo: undoNoise,
+    redo: redoNoise,
+    canUndo: () => currentNoise()?.undoStack.length ? currentNoise()!.undoStack.length > 0 : false,
+    canRedo: () => currentNoise()?.redoStack.length ? currentNoise()!.redoStack.length > 0 : false,
+  },
+};
+
 const fileMenu = computed<MenuItem[]>(() => {
-  if (mode.value === "voice") {
-    return [
-      { label: t("menu.file.new"), action: () => newVoice() },
-      { label: t("menu.file.open"), action: onOpenVoice },
-      { label: t("menu.file.save"), action: () => saveVoice(false) },
-      { label: t("menu.file.saveAs"), action: () => saveVoice(true) },
-      { sep: true },
-      { label: t("menu.file.close"), action: onCloseVoice },
-    ];
-  }
-  if (mode.value === "noise") {
-    return [
-      { label: t("menu.file.new"), action: () => newNoise() },
-      { label: t("menu.file.open"), action: onOpenNoise },
-      { label: t("menu.file.save"), action: () => saveNoise(false) },
-      { label: t("menu.file.saveAs"), action: () => saveNoise(true) },
-      { sep: true },
-      { label: t("menu.file.close"), action: onCloseNoise },
-    ];
-  }
-  return [
-    { label: t("menu.file.new"), action: onNew },
-    { label: t("menu.file.open"), action: onOpen },
-    { label: t("menu.file.save"), action: () => saveProject() },
-    { label: t("menu.file.saveAs"), action: () => saveProjectAs() },
+  const ops = modeOps[mode.value];
+  const items: MenuItem[] = [
+    { label: t("menu.file.new"), action: ops.new },
+    { label: t("menu.file.open"), action: ops.open },
+    { label: t("menu.file.save"), action: ops.save },
+    { label: t("menu.file.saveAs"), action: ops.saveAs },
     { sep: true },
-    { label: t("menu.file.exportPttune"), action: onExportPttune },
-    { label: t("menu.file.exportWav"), action: onExportWav },
-    { sep: true },
-    { label: t("menu.file.project"), action: () => emit("project") },
-    { label: t("menu.file.settings"), action: () => emit("settings") },
-    { sep: true },
-    { label: t("menu.file.close"), action: onClose },
   ];
-});
-
-// 現在モードの undo/redo 可否 (各モードのスナップショットスタックに連動)
-const canUndoNow = computed(() => {
-  if (mode.value === "voice") {
-    const v = voices.value.find((x) => x.id === currentVoiceId.value);
-    return v ? v.undoStack.length > 0 : false;
+  if (mode.value === "collage") {
+    items.push(
+      { label: t("menu.file.exportPttune"), action: onExportPttune },
+      { label: t("menu.file.exportWav"), action: onExportWav },
+      { sep: true },
+      { label: t("menu.file.project"), action: () => emit("project") },
+      { label: t("menu.file.settings"), action: () => emit("settings") },
+      { sep: true },
+    );
   }
-  if (mode.value === "noise") {
-    const n = noises.value.find((x) => x.id === currentNoiseId.value);
-    return n ? n.undoStack.length > 0 : false;
-  }
-  return canUndo.value;
-});
-
-const canRedoNow = computed(() => {
-  if (mode.value === "voice") {
-    const v = voices.value.find((x) => x.id === currentVoiceId.value);
-    return v ? v.redoStack.length > 0 : false;
-  }
-  if (mode.value === "noise") {
-    const n = noises.value.find((x) => x.id === currentNoiseId.value);
-    return n ? n.redoStack.length > 0 : false;
-  }
-  return canRedo.value;
+  items.push({ label: t("menu.file.close"), action: ops.close });
+  return items;
 });
 
 const editMenu = computed<MenuItem[]>(() => {
+  const ops = modeOps[mode.value];
+  const items: MenuItem[] = [
+    { label: t("menu.edit.undo"), action: ops.undo, disabled: !ops.canUndo() },
+    { label: t("menu.edit.redo"), action: ops.redo, disabled: !ops.canRedo() },
+  ];
   if (mode.value === "voice") {
-    return [
-      { label: t("menu.edit.undo"), action: () => undoVoice(), disabled: !canUndoNow.value },
-      { label: t("menu.edit.redo"), action: () => redoVoice(), disabled: !canRedoNow.value },
+    items.push(
       { sep: true },
       { label: t("menu.edit.copyAtoB"), action: () => emit("voiceCopyAB") },
       { label: t("menu.edit.copyBtoA"), action: () => emit("voiceCopyBA") },
-    ];
+    );
+  } else if (mode.value === "collage") {
+    items.push(
+      { sep: true },
+      { label: t("menu.edit.copyMeas"), action: () => emit("copyMeas") },
+      { label: t("menu.edit.velocity"), action: () => emit("eventVolume", "velocity") },
+      { label: t("menu.edit.pantime"), action: () => emit("eventVolume", "pantime") },
+      { label: t("menu.edit.panvolume"), action: () => emit("eventVolume", "panvolume") },
+      { label: t("menu.edit.volume"), action: () => emit("eventVolume", "volume") },
+    );
   }
-  if (mode.value === "noise") {
-    return [
-      { label: t("menu.edit.undo"), action: () => undoNoise(), disabled: !canUndoNow.value },
-      { label: t("menu.edit.redo"), action: () => redoNoise(), disabled: !canRedoNow.value },
-    ];
-  }
-  return [
-    { label: t("menu.edit.undo"), action: () => undo(), disabled: !canUndo.value },
-    { label: t("menu.edit.redo"), action: () => redo(), disabled: !canRedo.value },
-    { sep: true },
-    { label: t("menu.edit.copyMeas"), action: () => emit("copyMeas") },
-    { label: t("menu.edit.velocity"), action: () => emit("eventVolume", "velocity") },
-    { label: t("menu.edit.pantime"), action: () => emit("eventVolume", "pantime") },
-    { label: t("menu.edit.panvolume"), action: () => emit("eventVolume", "panvolume") },
-    { label: t("menu.edit.volume"), action: () => emit("eventVolume", "volume") },
-  ];
+  return items;
 });
 
 const viewMenu = computed<MenuItem[]>(() => [
