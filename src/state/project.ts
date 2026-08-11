@@ -699,19 +699,6 @@ function isMeaningfulEvent(e: EveRecord): boolean {
   return e.kind !== EventKind.NULL;
 }
 
-// 範囲内のイベント一覧 (unitNo, kind でフィルタ可)
-export function eventsInRange(clock1: number, clock2: number, unitNo?: number): EveRecord[] {
-  const records = service.evels.records;
-  const out: EveRecord[] = [];
-  for (const e of records) {
-    if (!isMeaningfulEvent(e)) continue;
-    if (e.clock < clock1 || e.clock > clock2) continue;
-    if (unitNo !== undefined && e.unitNo !== unitNo) continue;
-    out.push(e);
-  }
-  return out;
-}
-
 export function getAllEvents(): EveRecord[] {
   return service.evels.records.filter(isMeaningfulEvent);
 }
