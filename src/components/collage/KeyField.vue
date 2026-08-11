@@ -108,7 +108,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   }
 
   // グリッド線を行色の上に再描画 (行色に覆われないように)
-  drawGrid(ctx, { w: fieldW, h, scrollX, view, top: fieldTop, bottom: h, showNumber: false, bg: false });
+  drawGrid(ctx, { w: fieldW, h, scrollX, view, top: fieldTop, bottom: h, showNumber: false, fillBackground: false });
 
   // イベント (フォーカス + 表示 + ピン留めユニットを色分け表示)
   const rollUnits = pianoRollUnits();

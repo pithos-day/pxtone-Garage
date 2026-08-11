@@ -29,13 +29,10 @@ export function drawGrid(
     bottom?: number;
     showNumber?: boolean;
     numberTop?: number;
-    bg?: boolean; // 背景を塗るか (false なら線のみ。行色の上に再描画する場合)
+    fillBackground?: boolean; // false なら線のみ (行色の上に再描画する場合)
   },
 ): void {
-  const { w, h, scrollX, view } = opts;
-  const top = opts.top ?? 0;
-  const bottom = opts.bottom ?? h;
-  const fillBg = opts.bg ?? true;
+  const { w, h, scrollX, view, top = 0, bottom = h, showNumber, numberTop, fillBackground = true } = opts;
   // 1小節の幅 (px) = 拍数 × 1拍の幅
   const measW = view.beatNum * view.zoom;
   const measNum = view.measNum ?? Number.POSITIVE_INFINITY;
@@ -46,7 +43,7 @@ export function drawGrid(
   ctx.clip();
 
   // 背景
-  if (fillBg) fillRect(ctx, 0, top, w, bottom - top, COLORS.fieldBg);
+  if (fillBackground) fillRect(ctx, 0, top, w, bottom - top, COLORS.fieldBg);
 
   // 小節線・拍線 (scrollX は px。曲の小節数まで描画)
   const startMeas = Math.max(0, Math.floor(scrollX / measW) - 1);
@@ -60,8 +57,8 @@ export function drawGrid(
     ctx.moveTo(x0 + 0.5, top);
     ctx.lineTo(x0 + 0.5, bottom);
     ctx.stroke();
-    if (opts.showNumber) {
-      const ny = opts.numberTop ?? top;
+    if (showNumber) {
+      const ny = numberTop ?? top;
       fillRect(ctx, x0, ny, 26, 10, COLORS.measureBox);
       ctx.fillStyle = COLORS.measureText;
       ctx.font = `8px ${canvasFontStack()}`;
