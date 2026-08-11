@@ -825,7 +825,9 @@ export function setPlayEnd(meas: number): void {
     doc.playEnd = -1;
   } else {
     const max = service.master.measNum;
-    doc.playEnd = Math.max(doc.playStart >= 0 ? doc.playStart + 1 : 0, Math.min(meas, max));
+    // Start より前には置けない (Start 未設定なら 0)
+    const minEnd = doc.playStart >= 0 ? doc.playStart + 1 : 0;
+    doc.playEnd = Math.max(minEnd, Math.min(meas, max));
   }
   doc.rev++;
 }
