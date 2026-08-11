@@ -24,18 +24,22 @@ const form = reactive({
   times: 1,
 });
 
-// 種類チェック (ON は VELOCITY と連結)
-const kinds = reactive({
-  onKind: true,
-  key: true,
-  panTime: false,
-  panVolume: true,
-  volume: true,
-  portament: true,
-  voiceNo: true,
-  groupNo: true,
-  tuning: true,
-});
+// 種類チェックの定義 (ON は VELOCITY と連結)。
+// チェックボックス表示と copyMeas への渡し分けを1つのテーブルで管理する
+const KIND_CHECKS = [
+  { key: "onKind", label: "ON", defaultOn: true, eventKinds: [EventKind.ON, EventKind.VELOCITY] },
+  { key: "key", label: "KEY", defaultOn: true, eventKinds: [EventKind.KEY] },
+  { key: "panTime", label: "PAN_TIME", defaultOn: false, eventKinds: [EventKind.PAN_TIME] },
+  { key: "panVolume", label: "PAN_VOLUME", defaultOn: true, eventKinds: [EventKind.PAN_VOLUME] },
+  { key: "volume", label: "VOLUME", defaultOn: true, eventKinds: [EventKind.VOLUME] },
+  { key: "portament", label: "PORTAMENT", defaultOn: true, eventKinds: [EventKind.PORTAMENT] },
+  { key: "voiceNo", label: "VOICENO", defaultOn: true, eventKinds: [EventKind.VOICENO] },
+  { key: "groupNo", label: "GROUPNO", defaultOn: true, eventKinds: [EventKind.GROUPNO] },
+  { key: "tuning", label: "TUNING", defaultOn: true, eventKinds: [EventKind.TUNING] },
+] as const;
+
+const kinds = reactive<Record<string, boolean>>({});
+for (const k of KIND_CHECKS) kinds[k.key] = k.defaultOn;
 
 const view = (): ReturnType<typeof clockContext> => clockContext();
 
@@ -59,17 +63,7 @@ function initFromScope(): void {
 onMounted(initFromScope);
 
 function enabledKinds(): number[] {
-  const out: number[] = [];
-  if (kinds.onKind) out.push(EventKind.ON, EventKind.VELOCITY);
-  if (kinds.key) out.push(EventKind.KEY);
-  if (kinds.panTime) out.push(EventKind.PAN_TIME);
-  if (kinds.panVolume) out.push(EventKind.PAN_VOLUME);
-  if (kinds.volume) out.push(EventKind.VOLUME);
-  if (kinds.portament) out.push(EventKind.PORTAMENT);
-  if (kinds.voiceNo) out.push(EventKind.VOICENO);
-  if (kinds.groupNo) out.push(EventKind.GROUPNO);
-  if (kinds.tuning) out.push(EventKind.TUNING);
-  return out;
+  return KIND_CHECKS.flatMap((k) => (kinds[k.key] ? [...k.eventKinds] : []));
 }
 
 function onSubmit(): void {
@@ -119,15 +113,9 @@ function onSubmit(): void {
     <div class="section">
       <div class="section-title">{{ t("copymeas.kinds") }}</div>
       <div class="kinds">
-        <label><input type="checkbox" v-model="kinds.onKind" /> ON</label>
-        <label><input type="checkbox" v-model="kinds.key" /> KEY</label>
-        <label><input type="checkbox" v-model="kinds.panTime" /> PAN_TIME</label>
-        <label><input type="checkbox" v-model="kinds.panVolume" /> PAN_VOLUME</label>
-        <label><input type="checkbox" v-model="kinds.volume" /> VOLUME</label>
-        <label><input type="checkbox" v-model="kinds.portament" /> PORTAMENT</label>
-        <label><input type="checkbox" v-model="kinds.voiceNo" /> VOICENO</label>
-        <label><input type="checkbox" v-model="kinds.groupNo" /> GROUPNO</label>
-        <label><input type="checkbox" v-model="kinds.tuning" /> TUNING</label>
+        <label v-for="k in KIND_CHECKS" :key="k.key">
+          <input type="checkbox" v-model="kinds[k.key]" /> {{ k.label }}
+        </label>
       </div>
     </div>
     <template #buttons>
