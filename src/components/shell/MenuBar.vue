@@ -280,8 +280,8 @@ const tabs = [
 <template>
   <div class="menu-bar">
     <div class="mode-tabs">
-      <button v-for="t in tabs" :key="t.id" class="mode-tab" :class="{ active: mode === t.id }" @click="mode = t.id">
-        {{ t.label }}
+      <button v-for="tab in tabs" :key="tab.id" class="mode-tab" :class="{ active: mode === tab.id }" @click="mode = tab.id">
+        {{ tab.label }}
       </button>
     </div>
     <div class="menu-right">
