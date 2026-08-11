@@ -9,6 +9,7 @@ import { fieldOffset, clockAtX, zoomByWheel } from "../../lib/field";
 import { capturePointer, releasePointerCapture } from "../../lib/field";
 import { clockToX, xToClock } from "../../lib/clock";
 import { RULER_H } from "../../lib/layout";
+import { VOLUME_EDIT_KIND, scaleToWoice, scaleToGroup } from "../../lib/volume";
 import { EventKind, int32ToFloat } from "pxtone-ts";
 import {
   doc,
@@ -240,29 +241,27 @@ function applyDragAt(e: PointerEvent, y: number): void {
   const value = valueAt(y, grid);
   if (d.button === 0) {
     const kind = VOLUME_MODES[mode]!.kind;
-    switch (mode) {
-      case 0: // Velocity: 値の書換のみ
-        setEventValue(c1, c2, u, kind, value);
-        break;
-      case 1: // Pan_Volume
-      case 2: // Pan_Time
-      case 3: // Volume
-        deleteEvents(c1, c2, u, kind);
-        addEvent(c1, u, kind, value);
-        setEventValue(c1, c2, u, kind, value);
-        break;
-      case 4: // Portament: 長さを書き込み
-        deleteEvents(c1, c2, u, kind);
-        addEvent(c1, u, kind, c2 - c1);
-        break;
-      case 5: // VoiceNo: 値 (0..128) を音色番号へ換算
-        deleteEvents(c1, c2, u, kind);
-        addEvent(c1, u, kind, Math.round((value / 128) * Math.max(0, s.woiceNum - 1)));
-        break;
-      case 6: // GroupNo: 値 (0..128) を 0..7 へ換算
-        deleteEvents(c1, c2, u, kind);
-        addEvent(c1, u, kind, Math.min(7, Math.round((value / 128) * 7)));
-        break;
+    const edit = VOLUME_EDIT_KIND[mode]!;
+    if (edit === "setValue") {
+      // Velocity: 値の書換のみ
+      setEventValue(c1, c2, u, kind, value);
+    } else if (edit === "replace") {
+      // Pan_Volume / Pan_Time / Volume
+      deleteEvents(c1, c2, u, kind);
+      addEvent(c1, u, kind, value);
+      setEventValue(c1, c2, u, kind, value);
+    } else if (edit === "length") {
+      // Portament: 長さを書き込み
+      deleteEvents(c1, c2, u, kind);
+      addEvent(c1, u, kind, c2 - c1);
+    } else if (edit === "scaleWoice") {
+      // VoiceNo: 値 (0..128) を音色番号へ換算
+      deleteEvents(c1, c2, u, kind);
+      addEvent(c1, u, kind, scaleToWoice(value, s.woiceNum));
+    } else {
+      // GroupNo: 値 (0..128) を 0..7 へ換算
+      deleteEvents(c1, c2, u, kind);
+      addEvent(c1, u, kind, scaleToGroup(value));
     }
   } else {
     deleteEvents(c1, c2, u, VOLUME_MODES[mode]!.kind);
