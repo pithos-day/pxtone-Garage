@@ -367,6 +367,8 @@ function enveDisplay(c: NonNullable<ReturnType<typeof currentVoiceUnit>>): {
   return { head, headCount };
 }
 
+// エンベロープの x 上限: 末尾のヘッド点の 1.2 倍 (本家の余白と同様)。
+// 最小 100 は「本家が 0..100 の区間長」の表示下限
 function enveMaxX(c: NonNullable<ReturnType<typeof currentVoiceUnit>>): number {
   const { head } = enveDisplay(c);
   let m = 0;
@@ -381,6 +383,7 @@ function enveX(c: NonNullable<ReturnType<typeof currentVoiceUnit>>, w: number, x
 function enveY(h: number, y: number): number {
   return h - WAVE_PAD - (y / 128) * (h - WAVE_PAD * 2);
 }
+// px → 区間長 x (上限 2000 は本家のドラッグ範囲上限)
 function envePxToX(c: NonNullable<ReturnType<typeof currentVoiceUnit>>, w: number, px: number): number {
   return Math.max(0, Math.min(2000, Math.round(((px - WAVE_PAD) / (w - WAVE_PAD * 2)) * enveMaxX(c))));
 }
@@ -508,6 +511,7 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
 </script>
 
 <template>
+  <!-- data-rev: markRaw の実体を直接書き換えるため rev 変化で再レンダリングを駆動する -->
   <div class="vsp" :data-rev="rev">
     <div class="vsp-header">
       <span class="vsp-side">{{ side === 0 ? t("voice.sideA") : t("voice.sideB") }}</span>
