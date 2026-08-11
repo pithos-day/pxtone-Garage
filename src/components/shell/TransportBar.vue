@@ -22,9 +22,11 @@ function timeLabel(): string {
   return `${formatTime(curSec)} / ${formatTime(totalSec)}`;
 }
 
-// パネルトグルボタンの表示ラベル
-const PANEL_LABELS = { effector: "Effector", copier: "Copier" } as const;
-const PANEL_IDS = ["effector", "copier"] as const;
+// パネルトグルボタンの定義 (id + 表示ラベル)
+const PANELS = [
+  { id: "effector", label: "Effector" },
+  { id: "copier", label: "Copier" },
+] as const;
 </script>
 
 <template>
@@ -51,13 +53,13 @@ const PANEL_IDS = ["effector", "copier"] as const;
     <span class="transport-spacer" />
     <span class="panel-label">{{ t("transport.panels") }}</span>
     <button
-      v-for="p in PANEL_IDS"
-      :key="p"
+      v-for="p in PANELS"
+      :key="p.id"
       class="btn btn-sm"
-      :class="{ on: panels[p].open }"
-      @click="panels[p].open = !panels[p].open"
+      :class="{ on: panels[p.id].open }"
+      @click="panels[p.id].open = !panels[p.id].open"
     >
-      {{ PANEL_LABELS[p] }}
+      {{ p.label }}
     </button>
   </div>
 </template>
