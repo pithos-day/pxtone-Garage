@@ -1,15 +1,11 @@
 // Canvas フィールドの共通セットアップ (DPR対応・リサイズ・再描画スケジューリング)
 import { onBeforeUnmount, watch, type Ref } from "vue";
 
-export interface CanvasHost {
-  schedule(): void;
-}
-
 export function useCanvas(
   canvasRef: Ref<HTMLCanvasElement | null>,
   draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void,
   deps: (() => unknown)[] = [],
-): CanvasHost {
+): void {
   let pendingRaf: number | null = null;
   let observer: ResizeObserver | null = null;
 
@@ -41,8 +37,8 @@ export function useCanvas(
     });
   }
 
-  watch(canvasRef, (c, old) => {
-    if (c === old) return;
+  // watch は値が変化したときだけ発火する (変更前後で同じ値にはならない)
+  watch(canvasRef, (c) => {
     observer?.disconnect();
     observer = null;
     if (c) {
@@ -61,6 +57,4 @@ export function useCanvas(
     observer = null;
     if (pendingRaf !== null) cancelAnimationFrame(pendingRaf);
   });
-
-  return { schedule };
 }
