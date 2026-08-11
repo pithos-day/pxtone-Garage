@@ -8,7 +8,6 @@ import {
   VoiceType,
   MemoryIo,
   PxtnErr,
-  EVENTDEFAULT_BASICKEY,
   PTV_VOICEFLAG_SMOOTH,
   PTV_VOICEFLAG_WAVELOOP,
   PTV_DATAFLAG_WAVE,
@@ -72,14 +71,18 @@ export function insertWavePoint(points: { x: number; y: number }[], x: number, y
   return true;
 }
 
-// 本家 WoiceUnit::data_reset / default_coodinate / _envelope_default 相当のデフォルト音声
+// 本家 WoiceUnit::data_reset / default_coodinate / _envelope_default 相当のデフォルト音声。
+// basic_key は本家と同じ 0x4500 - 0x0c00*2 = 0x2d00 (再生音程が本家 ptVoice と一致する)
 export function createDefaultWoice(): Woice {
   const w = new Woice();
   w.voiceAllocate(2);
   for (let i = 0; i < 2; i++) {
     const vc = w.getVoice(i)!;
-    vc.basicKey = EVENTDEFAULT_BASICKEY;
-    vc.volume = i ? 0 : 64;
+    // 本家 data_reset: 0x4500 - 0x0c00 * 2
+    vc.basicKey = 0x2d00;
+    // B面のデフォルトは本家データ上 0 だが、編集 UI の都合で 64 にする
+    // (波形はゼロなので実音は出ない)
+    vc.volume = 64;
     vc.pan = 64;
     vc.tuning = 1;
     vc.type = VoiceType.Coodinate;
@@ -107,6 +110,92 @@ export function createDefaultWoice(): Woice {
     vc.envelope.points[MAX_ENVE_POINT] = { x: 1, y: 0 };
   }
   return w;
+}
+
+// ---- エンベロープの編集ルール (本家 ptuiEnvelope.cpp 準拠) ----
+// エンベロープ点の x は「前の点からの区間長」で、表示・編集は累積座標を使う。
+
+export interface EnveDisplayPoint {
+  index: number; // points 配列のインデックス
+  x: number; // 累積 x (表示座標)
+  y: number;
+  interval: number; // 区間長 (points[i].x)
+}
+
+// ヘッド部 (points[0..count-1]) の表示点列。ゼロ点 (x=0,y=0, i>0) は未使用スロットとして
+// スキップし、x は累積座標に変換する (本家 _put の累積描画と同じ)
+export function enveDisplayPoints(points: { x: number; y: number }[], count: number): EnveDisplayPoint[] {
+  const out: EnveDisplayPoint[] = [];
+  let acc = 0;
+  for (let i = 0; i < count; i++) {
+    const p = points[i];
+    if (!p) continue;
+    if (i === 0 || p.x || p.y) {
+      acc += p.x;
+      out.push({ index: i, x: acc, y: p.y, interval: p.x });
+    }
+  }
+  return out;
+}
+
+// 点追加: 累積座標 cx の位置に挿入 (本家 _point_add)。
+// 同一累積 x は既存点の y を更新、空きスロットは末尾追加として埋める。成功時 true
+export function enveInsertPoint(points: { x: number; y: number }[], maxHead: number, cx: number, y: number): boolean {
+  if (cx < 0) return false;
+  let cur = cx;
+  for (let idx = 0; idx < maxHead; idx++) {
+    const p = points[idx]!;
+    if (idx > 0 && !p.x && !p.y) {
+      // 最初の空きスロット = 末尾追加 (本家の add last)
+      points[idx] = { x: cur, y };
+      return true;
+    }
+    if (p.x > cur) {
+      // 挿入: 後続の区間長を短縮してシフト (本家の insert)
+      for (let j = maxHead - 1; j > idx; j--) points[j] = points[j - 1]!;
+      points[idx + 1]!.x -= cur;
+      points[idx] = { x: cur, y };
+      return true;
+    }
+    if (p.x === cur) {
+      // 同一位置 → y 更新
+      points[idx]!.y = y;
+      return true;
+    }
+    cur -= p.x;
+  }
+  // 末尾を超えるクリックは追加しない (本家準拠)
+  return true;
+}
+
+// 点削除: 後続の区間長を延長してシフト (本家 _point_delete)。
+// 有効点が1つのみ (points[1] が空) なら削除不可
+export function enveDeletePoint(points: { x: number; y: number }[], maxHead: number, idx: number): boolean {
+  if (idx <= 0 || idx >= maxHead) return false;
+  if (!points[1]!.x) return false;
+  if (idx < maxHead - 1 && (points[idx + 1]!.x || points[idx + 1]!.y)) {
+    points[idx + 1]!.x += points[idx]!.x;
+  }
+  for (let i = idx; i < maxHead - 1; i++) points[i] = points[i + 1]!;
+  points[maxHead - 1] = { x: 0, y: 0 };
+  return true;
+}
+
+// ヘッド点ドラッグ: 累積座標 cx を前後の累積座標の間にクランプして区間長として保存する。
+// (前後の点を乗り越えられないようにする。本家には無いが座標波形と同じルール)
+export function enveSetHeadPointX(points: { x: number; y: number }[], maxHead: number, idx: number, cx: number): void {
+  if (idx <= 0 || idx >= maxHead) return;
+  const accs: number[] = [];
+  let acc = 0;
+  for (let i = 0; i < maxHead; i++) {
+    acc += points[i]!.x;
+    accs.push(acc);
+  }
+  const prev = accs[idx - 1]!;
+  const next = idx < maxHead - 1 ? accs[idx + 1]! : prev + 1000;
+  const minX = prev + 1;
+  const maxX = next > minX ? next - 1 : minX;
+  points[idx]!.x = Math.max(minX, Math.min(maxX, cx)) - prev;
 }
 
 // 音声スナップショット (undo 用)

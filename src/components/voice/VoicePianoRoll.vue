@@ -15,10 +15,10 @@ import { t } from "../../i18n";
 const props = defineProps<{ editRev: number; active: boolean }>();
 
 const voice = computed(() => currentVoice());
-// ベロシティの初期値は本家 ptuiVelocity (ptvVelocity_Set(104)) に合わせる
+// ベロシティの初期値は本家 ptuiVelocity (ptvVelocity_Set(104)) に合わせる。範囲は本家の 0..128
 const velocity = ref(104);
-// 最後に触れたキー (Space 用)。初期値はコード 60 相当 (本家の初期 _tone_last_key 基準)
-const lastKey = ref(rowToKeyValue(codeToRow(60)));
+// 最後に触れたキー (Space 用)。初期値は本家の初期 _tone_last_key=48 相当 (コード 69)
+const lastKey = ref(rowToKeyValue(codeToRow(69)));
 
 const ROW_NUM = KEY_CODE_TOP - KEY_CODE_BOTTOM + 1; // 88
 
@@ -35,9 +35,10 @@ function draw(ctx: CanvasRenderingContext2D, w: number, _h: number): void {
     const y = row * KEY_HEIGHT;
     const white = isWhiteKey(code);
     fillRect(ctx, 0, y, w, KEY_HEIGHT, white ? COLORS.whiteKey : COLORS.blackKey);
-    // C (ド) のオクターブ番号
+    // C (ド) のオクターブ番号。本家 ptuiOrganKey は最上段 C8=7 の表記 (C4=3) なので
+    // MIDI オクターブ (C4=4) から 1 引いて合わせる
     if (code % 12 === 0) {
-      fillText(ctx, String(Math.floor(code / 12) - 1), 2, y + KEY_HEIGHT - 3, COLORS.octaveText, 9);
+      fillText(ctx, String(Math.floor(code / 12) - 2), 2, y + KEY_HEIGHT - 3, COLORS.octaveText, 9);
     }
   }
   // 鍵盤の区切り線
@@ -173,7 +174,7 @@ onBeforeUnmount(() => {
     </div>
     <div class="vpr-vel">
       <span class="vpr-vel-label">{{ t("voice.velocity") }}</span>
-      <input type="range" class="vpr-vel-range" min="1" max="127" step="1" v-model.number="velocity" />
+      <input type="range" class="vpr-vel-range" min="0" max="128" step="1" v-model.number="velocity" />
       <span class="vpr-vel-val">{{ velocity }}</span>
     </div>
   </div>

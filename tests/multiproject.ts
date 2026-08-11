@@ -46,6 +46,10 @@ import {
   createDefaultWoice,
   clampWavePointX,
   insertWavePoint,
+  enveDisplayPoints,
+  enveInsertPoint,
+  enveDeletePoint,
+  enveSetHeadPointX,
 } from "../src/state/voice";
 import {
   noises,
@@ -556,7 +560,8 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     const w = currentVoice()!.woice;
     checkEq(w.voiceNum, 2, "voice: A/B の2面");
     checkEq(w.getVoice(0)!.volume, 64, "voice: A面ボリューム 64");
-    checkEq(w.getVoice(1)!.volume, 0, "voice: B面ボリューム 0");
+    checkEq(w.getVoice(1)!.volume, 64, "voice: B面ボリューム 64 (本家データは 0 だが UI 都合で 64)");
+    checkEq(w.getVoice(0)!.basicKey, 0x2d00, "voice: 基本キーは本家 data_reset 準拠の 0x2d00");
     checkEq(w.getVoice(0)!.type, VoiceType.Coodinate, "voice: 初期波形は座標指定");
     checkEq(w.getVoice(0)!.wave.reso, 256, "voice: 座標分解能 256");
     checkEq(w.getVoice(0)!.envelope.fps, 1000, "voice: エンベロープ fps 1000");
@@ -683,6 +688,82 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     const pts3 = [{ x: 0, y: 0 }];
     for (let i = 1; i <= 30; i++) pts3.push({ x: i * 10, y: 0 });
     checkEq(insertWavePoint(pts3, 305, 0, 31), false, "coord: 31点を超えて追加不可");
+  }
+
+  // ---- 21. エンベロープ (本家 ptuiEnvelope 準拠: 区間長 x + 累積描画) ----
+  {
+    // デフォルト: points[0]={0,96}, points[31]={1,0} (リリース)
+    const pts = Array.from({ length: 32 }, () => ({ x: 0, y: 0 }));
+    pts[0] = { x: 0, y: 96 };
+    pts[31] = { x: 1, y: 0 };
+
+    // 累積表示点 (ゼロ点スキップ)
+    let disp = enveDisplayPoints(pts, 31);
+    checkEq(disp.length, 1, "enve: ヘッド表示点は points[0] のみ");
+    checkEq(disp[0]!.x, 0, "enve: 累積 x = 0");
+    checkEq(disp[0]!.y, 96, "enve: y = 96");
+
+    // 追加: 累積 x=50 に挿入 → 空きスロット points[1] に区間長 50
+    checkEq(enveInsertPoint(pts, 31, 50, 80), true, "enve: 追加成功");
+    checkEq(pts[1]!.x, 50, "enve: points[1].x = 50 (区間長)");
+    checkEq(pts[1]!.y, 80, "enve: points[1].y = 80");
+    disp = enveDisplayPoints(pts, 31);
+    checkEq(disp.length, 2, "enve: 表示点が2つに");
+    checkEq(disp[1]!.x, 50, "enve: 累積 x = 50");
+
+    // 追加: 累積 x=30 → points[1] (x=50) の前に挿入、後続区間を短縮
+    checkEq(enveInsertPoint(pts, 31, 30, 70), true, "enve: 途中挿入成功");
+    checkEq(pts[1]!.x, 30, "enve: 挿入点の区間長 30");
+    checkEq(pts[2]!.x, 20, "enve: 後続区間が 50→20 に短縮");
+    disp = enveDisplayPoints(pts, 31);
+    checkEq(disp[1]!.x, 30, "enve: 挿入後の累積 30");
+    checkEq(disp[2]!.x, 50, "enve: 元の点の累積は 50 のまま");
+
+    // 同一累積 x → y 更新
+    checkEq(enveInsertPoint(pts, 31, 30, 66), true, "enve: 同一 x は y 更新");
+    checkEq(pts[1]!.y, 66, "enve: y が 66 に更新");
+
+    // ドラッグ: 前後の累積 (0, 50) を越えられない
+    enveSetHeadPointX(pts, 31, 1, 100); // 後ろ (累積50) より右へは行けない
+    checkEq(pts[1]!.x, 49, "enve: 点1 は後ろの点 (累積50) を越えられない");
+    enveSetHeadPointX(pts, 31, 1, 0); // 前 (累積0) より左へは行けない
+    checkEq(pts[1]!.x, 1, "enve: 点1 は前の点 (累積0) を越えられない");
+
+    // 削除: 後続の区間を延長してシフト
+    checkEq(enveDeletePoint(pts, 31, 1), true, "enve: 削除成功");
+    checkEq(pts[1]!.x, 21, "enve: 削除で後続区間が 20+1=21 に延長");
+    disp = enveDisplayPoints(pts, 31);
+    checkEq(disp.length, 2, "enve: 削除後の表示点 2つ");
+    checkEq(disp[1]!.x, 21, "enve: 削除後の累積 21");
+
+    // 有効点が1つのみなら削除不可
+    const pts2 = Array.from({ length: 32 }, () => ({ x: 0, y: 0 }));
+    pts2[0] = { x: 0, y: 96 };
+    checkEq(enveDeletePoint(pts2, 31, 1), false, "enve: 有効点1つなら削除不可");
+  }
+
+  // ---- 22. プレビューの音程 (本家 ptVoice 準拠: 中央キー 441 Hz) ----
+  {
+    const w = createDefaultWoice();
+    // 倍音1のみの正弦波に置き換えて基本周波数をゼロ交差で計測する
+    const vc = w.getVoice(0)!;
+    vc.type = VoiceType.Overtone;
+    vc.wave.num = 1;
+    vc.wave.points = [{ x: 1, y: 128 }];
+    const pcm = renderWoice(w, 0x6000, 104, 0.5, 44100); // コード69 = 中央キー
+    check("pitch: renderWoice が PCM を返す", pcm !== null && pcm.length > 0, `len=${pcm?.length}`);
+    if (pcm) {
+      // ゼロ交差 (正→負/負→正) の回数 ÷ 2 = サイクル数。0.5秒なので ×2 で Hz
+      let crossings = 0;
+      let prev = pcm[0]!;
+      for (let i = 1; i < pcm.length; i++) {
+        const v = pcm[i]!;
+        if ((prev < 0 && v >= 0) || (prev >= 0 && v < 0)) crossings++;
+        prev = v;
+      }
+      const hz = (crossings / 2) * 2; // 0.5秒 → 1秒換算
+      checkEq(Math.round(hz / 10) * 10, Math.round(441 / 10) * 10, `pitch: 中央キーが約 441 Hz (本家準拠) 実際=${Math.round(hz)}Hz`);
+    }
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);

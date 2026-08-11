@@ -158,8 +158,8 @@ const ja = {
   "voice.sideB": "B面",
   "voice.volume": "ボリューム",
   "voice.pan": "パン",
-  "voice.tuning": "チューニング",
-  "voice.basicKey": "基本キー",
+  "voice.correct": "補正値 (Correct)",
+  "voice.release": "リリースタイム",
   "voice.envelope": "エンベロープ",
   "voice.velocity": "ベロシティ",
 

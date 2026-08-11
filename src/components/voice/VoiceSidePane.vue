@@ -1,15 +1,24 @@
 <script setup lang="ts">
 // Voice エディタの1面分 (A面/B面)。
-// 波形の上に Coordinate/Oscillator 切替ボタンと音量/パン/チューニング/基本キー、
-// 波形モニター (本家 ptuiWave 準拠の生成波形表示)、倍音スライダー (本家 ptuiSines
-// 準拠。Coordinate では n 番目の点の y 座標表示として常時表示)、下にエンベロープ。
+// 波形の上に Coordinate/Oscillator 切替ボタンと Vol/Pan/補正値/Release のスライダー、
+// 波形モニター (本家 ptuiWave 準拠の生成波形表示)、スライダー (本家 ptuiSines 準拠。
+// Coordinate では n 番目の点の y 座標表示として常時表示)、下にエンベロープ。
+// エンベロープは本家 ptuiEnvelope 準拠の「区間長 x + 累積描画」。
 import { computed, ref, watch } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { COLORS } from "../../lib/theme";
 import { fillRect, fillText } from "../../lib/draw";
 import { Oscillator, VoiceType } from "pxtone-ts";
-import type { PulsePoint } from "pxtone-ts";
-import { currentVoice, editVoice, clampWavePointX, insertWavePoint } from "../../state/voice";
+import {
+  currentVoice,
+  editVoice,
+  clampWavePointX,
+  insertWavePoint,
+  enveDisplayPoints,
+  enveInsertPoint,
+  enveDeletePoint,
+  enveSetHeadPointX,
+} from "../../state/voice";
 import { t } from "../../i18n";
 
 const props = defineProps<{ side: number }>();
@@ -53,7 +62,12 @@ function beginDragUndo(): void {
   editVoice(() => {});
 }
 
-// ---- 面ごとのパラメータ (ボリューム/パン/チューニング/基本キー) ----
+// ---- 面ごとのパラメータ (Vol/Pan/補正値/Release) ----
+// 本家 ptuiRackFull / ptuiReleaseTime 準拠:
+//   Vol     = 0..64 (右クリックで 座標=64 / 倍音=32)
+//   Pan     = 0..128 (右クリックで 64)
+//   補正値  = (tuning-1)*10000 ∈ ±128 (右クリックで 0 = 1.0)
+//   Release = リリース区間長 1..1000 (右クリックで 1)
 // getter は rev を参照して undo/redo 後の再描画でも最新値を返す
 function setVoiceUnit(fn: (c: NonNullable<ReturnType<typeof vc>>) => void): void {
   editVoice(() => {
@@ -68,7 +82,7 @@ const volumeModel = computed({
     void rev.value;
     return vc()?.volume ?? 64;
   },
-  set: (v: number) => setVoiceUnit((c) => (c.volume = Math.max(0, Math.min(128, Math.round(v))))),
+  set: (v: number) => setVoiceUnit((c) => (c.volume = Math.max(0, Math.min(64, Math.round(v))))),
 });
 const panModel = computed({
   get: () => {
@@ -77,20 +91,51 @@ const panModel = computed({
   },
   set: (v: number) => setVoiceUnit((c) => (c.pan = Math.max(0, Math.min(128, Math.round(v))))),
 });
-const tuningModel = computed({
+const correctModel = computed({
   get: () => {
     void rev.value;
-    return vc()?.tuning ?? 1;
+    return Math.round(((vc()?.tuning ?? 1) - 1) * 10000);
   },
-  set: (v: number) => setVoiceUnit((c) => (c.tuning = Math.max(0.1, Math.min(4, v)))),
+  set: (v: number) => setVoiceUnit((c) => (c.tuning = 1 + Math.max(-128, Math.min(128, Math.round(v))) / 10000)),
 });
-const basicKeyModel = computed({
+
+// リリース区間長 (本家 ptuiReleaseTime: points[headNum+bodyNum].x を 1..1000)
+function enveHeadCount(c: NonNullable<ReturnType<typeof vc>>): number {
+  return c.envelope.headNum + c.envelope.bodyNum;
+}
+const releaseModel = computed({
   get: () => {
     void rev.value;
-    return (vc()?.basicKey ?? 0x4500) / 256;
+    const c = vc();
+    if (!c) return 1;
+    const hc = enveHeadCount(c);
+    return c.envelope.tailNum > 0 ? (c.envelope.points[hc]?.x ?? 1) : 1;
   },
-  set: (v: number) => setVoiceUnit((c) => (c.basicKey = Math.max(0, Math.min(127, Math.round(v))) * 256)),
+  set: (v: number) =>
+    setVoiceUnit((c) => {
+      const hc = c.envelope.headNum + c.envelope.bodyNum;
+      if (c.envelope.tailNum > 0 && c.envelope.points[hc]) {
+        c.envelope.points[hc]!.x = Math.max(1, Math.min(1000, Math.round(v)));
+      }
+    }),
 });
+
+// 右クリックで本家のデフォルト値に戻す (本家 _volume_default)
+function resetVolume(): void {
+  setVoiceUnit((c) => (c.volume = c.type === VoiceType.Coodinate ? 64 : 32));
+}
+function resetPan(): void {
+  setVoiceUnit((c) => (c.pan = 64));
+}
+function resetCorrect(): void {
+  setVoiceUnit((c) => (c.tuning = 1));
+}
+function resetRelease(): void {
+  setVoiceUnit((c) => {
+    const hc = c.envelope.headNum + c.envelope.bodyNum;
+    if (c.envelope.tailNum > 0 && c.envelope.points[hc]) c.envelope.points[hc]!.x = 1;
+  });
+}
 
 // ---- 波形タイプ切替 (本家同様、切替時に波形をリセットする) ----
 function setWaveType(type: "coord" | "overtone"): void {
@@ -117,6 +162,8 @@ function setWaveType(type: "coord" | "overtone"): void {
       ];
     }
   });
+  // スライダー (points 配列) を新しい波形に更新する
+  touch();
 }
 
 // ---- 波形モニター ----
@@ -138,7 +185,7 @@ function coordPxToY(h: number, py: number): number {
 }
 
 // 波形モニター: 本家 ptuiWave::_try_update と同様、生成波形 (GetOneSample) を描画する。
-// サンプル位置は点の座標系 (WAVE_PAD..w-WAVE_PAD) と一致させる
+// 波形も点も volume 込みで描画し、両者が一致するようにする
 function drawWave(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   const c = vc();
   fillRect(ctx, 0, 0, w, h, COLORS.fieldBg);
@@ -166,13 +213,13 @@ function drawWave(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   ctx.stroke();
 
   if (c.type === VoiceType.Coodinate) {
-    // 点 (ドラッグ編集対象。点0 は x=0 固定)
+    // 点 (ドラッグ編集対象。点0 は x=0 固定)。波形と同じ volume スケールで描画する
     ctx.fillStyle = COLORS.textBright;
     for (let i = 0; i < c.wave.num; i++) {
       const p = c.wave.points[i];
       if (!p) continue;
       const x = coordX(c, w, p.x);
-      const y = coordY(h, p.y);
+      const y = coordY(h, (p.y * c.volume) / 128);
       ctx.beginPath();
       ctx.arc(x, y, i === 0 ? 2.5 : 3, 0, Math.PI * 2);
       ctx.fill();
@@ -194,7 +241,7 @@ function waveIndexAt(px: number, py: number, w: number, h: number): number {
     const p = c.wave.points[i];
     if (!p) continue;
     const x = coordX(c, w, p.x);
-    const y = coordY(h, p.y);
+    const y = coordY(h, (p.y * c.volume) / 128);
     const d = Math.hypot(px - x, py - y);
     if (d < bestD) {
       bestD = d;
@@ -202,6 +249,12 @@ function waveIndexAt(px: number, py: number, w: number, h: number): number {
     }
   }
   return best;
+}
+
+// カーソル y → データ y。表示は volume スケールなので逆スケールする (volume=0 は不可)
+function cursorToWaveY(h: number, py: number, volume: number): number {
+  if (volume <= 0) return 0;
+  return Math.max(-128, Math.min(127, Math.round((coordPxToY(h, py) * 128) / volume)));
 }
 
 function onWavePointerDown(e: PointerEvent): void {
@@ -219,7 +272,7 @@ function onWavePointerDown(e: PointerEvent): void {
   if (idx < 0) {
     // 空き領域クリック = 点を追加 (x でソートされた位置に挿入。最大31点 = 本家 ptvFIXNUM_WAVE_POINT)
     const px = coordPxToX(c2, c.w, x);
-    const py = coordPxToY(c.h, y);
+    const py = cursorToWaveY(c.h, y, c2.volume);
     if (px <= 0) return; // x=0 は点0 が占有 (本家 _point_add 準拠)
     setVoiceUnit((cc) => {
       if (!insertWavePoint(cc.wave.points, px, py, 31)) return;
@@ -244,7 +297,7 @@ function onWavePointerMove(e: PointerEvent): void {
   // 前後の点を越えられないよう x をクランプ (本家 _point_set 準拠)
   const p = c2.wave.points[d.idx];
   if (!p) return;
-  p.y = coordPxToY(c.h, y);
+  p.y = cursorToWaveY(c.h, y, c2.volume);
   const nx = coordPxToX(c2, c.w, x);
   p.x = clampWavePointX(c2.wave.points, d.idx, nx, c2.wave.reso);
   touch();
@@ -258,8 +311,7 @@ function onWavePointerUp(e: PointerEvent): void {
 
 // ---- スライダー (本家 ptuiSines 準拠、y のみ編集) ----
 // Coordinate では n 番目の点の y 座標、Oscillator では n 倍音の音量を表す。
-// 常時表示し、point[i].y を直接編集する。編集後は :data-rev でテンプレートを
-// 再描画してスライダー位置・数値を更新する
+// 常時表示し、point[i].y を直接編集する。点0 (i=0) は本家 _point_set 同様固定
 const sinePoints = computed(() => vc()?.wave.points ?? []);
 let sineUndoPushed = false;
 
@@ -272,67 +324,74 @@ function onSineBlur(): void {
   sineUndoPushed = false;
 }
 function setSine(i: number, v: number): void {
+  if (i === 0) return; // 点0 は固定
   const c = vc();
   if (!c || !c.wave.points[i]) return;
   c.wave.points[i]!.y = Math.max(-128, Math.min(128, Math.round(v)));
   touch();
 }
 
-// ---- エンベロープ ----
+// ---- エンベロープ (本家 ptuiEnvelope 準拠: x は区間長、表示は累積座標) ----
 const enveRef = ref<HTMLCanvasElement | null>(null);
 
-// 有効なヘッド点 (x/y が非ゼロ、または最初の点) とリリース点を返す
-function enveParts(c: NonNullable<ReturnType<typeof vc>>): { head: PulsePoint[]; release: PulsePoint | null } {
-  const e = c.envelope;
-  const headCount = e.headNum + e.bodyNum;
-  const head: PulsePoint[] = [];
-  for (let i = 0; i < headCount; i++) {
-    const p = e.points[i];
-    if (!p) continue;
-    if (i === 0 || p.x || p.y) head.push(p);
-  }
-  const rel = e.tailNum > 0 ? e.points[headCount] ?? null : null;
-  return { head, release: rel };
+// ヘッド表示点 (累積) とリリース点 (累積位置 = ヘッド合計 + 区間長) を返す
+function enveDisplay(c: NonNullable<ReturnType<typeof vc>>): {
+  head: ReturnType<typeof enveDisplayPoints>;
+  release: { x: number; y: number } | null;
+  headCount: number;
+  headTotal: number;
+} {
+  const headCount = enveHeadCount(c);
+  const head = enveDisplayPoints(c.envelope.points, headCount);
+  const headTotal = head.length ? head[head.length - 1]!.x : 0;
+  const rel = c.envelope.tailNum > 0 ? c.envelope.points[headCount] : null;
+  return {
+    head,
+    release: rel ? { x: headTotal + rel.x, y: rel.y } : null,
+    headCount,
+    headTotal,
+  };
 }
 
 function enveMaxX(c: NonNullable<ReturnType<typeof vc>>): number {
-  const { head, release } = enveParts(c);
+  const { head, release } = enveDisplay(c);
   let m = release?.x ?? 0;
-  for (const p of head) m = Math.max(m, p.x);
+  if (head.length) m = Math.max(m, head[head.length - 1]!.x);
   return Math.max(100, m * 1.2);
 }
 
 function enveX(c: NonNullable<ReturnType<typeof vc>>, w: number, x: number): number {
   return WAVE_PAD + (x / enveMaxX(c)) * (w - WAVE_PAD * 2);
 }
+// 本家 _pos_fix 準拠: y は 0..128
 function enveY(h: number, y: number): number {
-  return h - WAVE_PAD - (y / 100) * (h - WAVE_PAD * 2);
+  return h - WAVE_PAD - (y / 128) * (h - WAVE_PAD * 2);
 }
 function envePxToX(c: NonNullable<ReturnType<typeof vc>>, w: number, px: number): number {
   return Math.max(0, Math.min(2000, Math.round(((px - WAVE_PAD) / (w - WAVE_PAD * 2)) * enveMaxX(c))));
 }
 function envePxToY(h: number, py: number): number {
-  return Math.max(0, Math.min(100, Math.round(((h - WAVE_PAD - py) / (h - WAVE_PAD * 2)) * 100)));
+  return Math.max(0, Math.min(128, Math.round(((h - WAVE_PAD - py) / (h - WAVE_PAD * 2)) * 128)));
 }
 
 function drawEnve(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   const c = vc();
   fillRect(ctx, 0, 0, w, h, COLORS.fieldBg);
   if (!c) return;
-  const { head, release } = enveParts(c);
+  const { head, release } = enveDisplay(c);
   const lastY = head.length ? head[head.length - 1]!.y : 0;
   ctx.strokeStyle = COLORS.accent;
   ctx.lineWidth = 1.5;
   ctx.beginPath();
-  const headSorted = [...head].sort((a, b) => a.x - b.x);
-  for (let i = 0; i < headSorted.length; i++) {
-    const p = headSorted[i]!;
+  for (let i = 0; i < head.length; i++) {
+    const p = head[i]!;
     const x = enveX(c, w, p.x);
     const y = enveY(h, p.y);
     if (i === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
     ctx.arc(x, y, 3, 0, Math.PI * 2);
   }
+  // サステイン → リリース (終着点はヘッド累積 + リリース区間長の位置)
   if (release) {
     const rx = enveX(c, w, release.x);
     const ly = enveY(h, lastY);
@@ -347,22 +406,28 @@ function drawEnve(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 
 useCanvas(enveRef, drawEnve, [() => rev.value, () => voice.value]);
 
-const enveDrag = ref<{ kind: "head" | "release"; idx: number } | null>(null);
+const enveDrag = ref<{ kind: "head" | "release"; index: number } | null>(null);
 
-function envePointAt(c: NonNullable<ReturnType<typeof vc>>, w: number, h: number, px: number, py: number): { kind: "head" | "release"; idx: number } | null {
-  const { head, release } = enveParts(c);
+function envePointAt(
+  c: NonNullable<ReturnType<typeof vc>>,
+  w: number,
+  h: number,
+  px: number,
+  py: number,
+): { kind: "head" | "release"; index: number } | null {
+  const { head, release } = enveDisplay(c);
   let bestD = 10;
-  let best: { kind: "head" | "release"; idx: number } | null = null;
-  head.forEach((p, i) => {
+  let best: { kind: "head" | "release"; index: number } | null = null;
+  for (const p of head) {
     const d = Math.hypot(px - enveX(c, w, p.x), py - enveY(h, p.y));
     if (d < bestD) {
       bestD = d;
-      best = { kind: "head", idx: i };
+      best = { kind: "head", index: p.index };
     }
-  });
+  }
   if (release) {
     const d = Math.hypot(px - enveX(c, w, release.x), py - enveY(h, release.y));
-    if (d < bestD) best = { kind: "release", idx: 0 };
+    if (d < bestD) best = { kind: "release", index: -1 };
   }
   return best;
 }
@@ -372,15 +437,11 @@ function onEnvePointerDown(e: PointerEvent): void {
   const c2 = vc();
   if (!c || !c2) return;
   const { x, y } = relPos(e, c);
-  const { head } = enveParts(c2);
   const hit = envePointAt(c2, c.w, c.h, x, y);
   if (e.button === 2) {
-    // 右クリック: ヘッド点をゼロに戻す (有効点が1つのみなら何もしない)
-    if (hit?.kind === "head" && head.length > 1) {
-      const e2 = c2.envelope;
-      const src = head[hit.idx]!;
-      const slot = e2.points.findIndex((p) => p.x === src.x && p.y === src.y);
-      if (slot >= 0) setVoiceUnit((cc) => ((cc.envelope.points[slot]!.x = 0), (cc.envelope.points[slot]!.y = 0)));
+    // 右クリック: ヘッド点を削除 (本家 _point_delete。有効点が1つのみなら不可)
+    if (hit?.kind === "head") {
+      setVoiceUnit((cc) => enveDeletePoint(cc.envelope.points, enveHeadCount(cc), hit.index));
     }
     return;
   }
@@ -391,18 +452,10 @@ function onEnvePointerDown(e: PointerEvent): void {
     canvasRefSetCapture(enveRef, e);
     return;
   }
-  // 空き領域クリック: 未使用のヘッドスロットを有効化して点を置く
-  const e2 = c2.envelope;
-  const headCount = e2.headNum + e2.bodyNum;
-  const slot = e2.points.findIndex((p, i) => i < headCount && !p.x && !p.y);
-  if (slot >= 0) {
-    const nx = envePxToX(c2, c.w, x);
-    const ny = envePxToY(c.h, y);
-    setVoiceUnit((cc) => {
-      cc.envelope.points[slot]!.x = nx;
-      cc.envelope.points[slot]!.y = ny;
-    });
-  }
+  // 空き領域クリック = 点を追加 (累積座標を区間長に変換して挿入)
+  const cx = envePxToX(c2, c.w, x);
+  const cy = envePxToY(c.h, y);
+  setVoiceUnit((cc) => enveInsertPoint(cc.envelope.points, enveHeadCount(cc), cx, cy));
 }
 
 function onEnvePointerMove(e: PointerEvent): void {
@@ -413,26 +466,19 @@ function onEnvePointerMove(e: PointerEvent): void {
   if (!c || !c2) return;
   const { x, y } = relPos(e, c);
   beginDragUndo();
-  const nx = envePxToX(c2, c.w, x);
-  const ny = envePxToY(c.h, y);
+  const cx = envePxToX(c2, c.w, x);
+  const cy = envePxToY(c.h, y);
   // ドラッグ中の移動は undo を積まず直接書き換える (undo はジェスチャ先頭の1回)
-  const e2 = c2.envelope;
   if (d.kind === "release") {
-    const p = e2.points[e2.headNum + e2.bodyNum];
+    const p = c2.envelope.points[enveHeadCount(c2)];
     if (p) {
-      p.x = Math.max(1, nx);
-      p.y = ny;
+      p.x = Math.max(1, Math.min(1000, cx - enveDisplay(c2).headTotal));
+      p.y = cy;
     }
   } else {
-    const { head: cur } = enveParts(c2);
-    const slot = e2.points.findIndex((p) => p.x === cur[d.idx]?.x && p.y === cur[d.idx]?.y);
-    if (slot >= 0) {
-      const before = cur[d.idx - 1]?.x ?? 0;
-      const after = cur[d.idx + 1]?.x ?? enveMaxX(c2);
-      const minX = d.idx > 0 ? Math.max(1, before + 1) : 0;
-      e2.points[slot]!.x = Math.max(minX, Math.min(after - 1, nx));
-      e2.points[slot]!.y = ny;
-    }
+    // 前後の点を乗り越えられないよう累積座標でクランプして区間長へ変換
+    enveSetHeadPointX(c2.envelope.points, enveHeadCount(c2), d.index, cx);
+    c2.envelope.points[d.index]!.y = cy;
   }
   touch();
 }
@@ -474,18 +520,26 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
       </div>
     </div>
     <div class="vsp-params">
-      <label class="vsp-param" :title="t('voice.volume')">V
-        <input v-model.number="volumeModel" type="number" min="0" max="128" class="num" />
-      </label>
-      <label class="vsp-param" :title="t('voice.pan')">P
-        <input v-model.number="panModel" type="number" min="0" max="128" class="num" />
-      </label>
-      <label class="vsp-param" :title="t('voice.tuning')">T
-        <input v-model.number="tuningModel" type="number" min="0.1" max="4" step="0.01" class="num" />
-      </label>
-      <label class="vsp-param" :title="t('voice.basicKey')">K
-        <input v-model.number="basicKeyModel" type="number" min="0" max="127" class="num" />
-      </label>
+      <div class="vsp-param">
+        <span class="vsp-plabel" :title="t('voice.volume')">V</span>
+        <input type="range" class="vsp-prange" min="0" max="64" step="1" v-model.number="volumeModel" @contextmenu.prevent="resetVolume" />
+        <span class="vsp-pval">{{ volumeModel }}</span>
+      </div>
+      <div class="vsp-param">
+        <span class="vsp-plabel" :title="t('voice.pan')">P</span>
+        <input type="range" class="vsp-prange" min="0" max="128" step="1" v-model.number="panModel" @contextmenu.prevent="resetPan" />
+        <span class="vsp-pval">{{ panModel }}</span>
+      </div>
+      <div class="vsp-param">
+        <span class="vsp-plabel" :title="t('voice.correct')">C</span>
+        <input type="range" class="vsp-prange" min="-128" max="128" step="1" v-model.number="correctModel" @contextmenu.prevent="resetCorrect" />
+        <span class="vsp-pval">{{ correctModel }}</span>
+      </div>
+      <div class="vsp-param">
+        <span class="vsp-plabel" :title="t('voice.release')">R</span>
+        <input type="range" class="vsp-prange" min="1" max="1000" step="1" v-model.number="releaseModel" @contextmenu.prevent="resetRelease" />
+        <span class="vsp-pval">{{ releaseModel }}</span>
+      </div>
     </div>
     <canvas
       ref="waveRef"
@@ -506,6 +560,7 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
           max="128"
           step="1"
           :value="p.y"
+          :disabled="i === 0"
           @input="setSine(i, Number(($event.target as HTMLInputElement).value))"
         />
         <span class="vsp-sine-val">{{ p.y }}</span>
@@ -554,11 +609,11 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
   gap: 2px;
 }
 
-/* 面ごとのパラメータ (コンパクトな1行) */
+/* 面ごとのパラメータ (Vol/Pan/補正値/Release のスライダー) */
 .vsp-params {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px 8px;
+  flex-direction: column;
+  gap: 2px;
   flex: none;
   font-size: 10px;
   color: var(--muted-foreground);
@@ -567,16 +622,27 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
 .vsp-param {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
 }
 
-.vsp-param input {
-  font-size: 11px;
-  width: 46px;
-  background: var(--background);
+.vsp-plabel {
+  width: 12px;
+  flex: none;
+  font-weight: bold;
   color: var(--foreground);
-  border: 1px solid var(--border);
-  padding: 0 2px;
+}
+
+.vsp-prange {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--primary);
+}
+
+.vsp-pval {
+  width: 34px;
+  flex: none;
+  text-align: right;
+  font-size: 10px;
 }
 
 .vsp-wave {
@@ -615,6 +681,10 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
   flex: 1;
   min-width: 0;
   accent-color: var(--primary);
+}
+
+.vsp-sine-range:disabled {
+  opacity: 0.4;
 }
 
 .vsp-sine-val {
