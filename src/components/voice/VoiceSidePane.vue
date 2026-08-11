@@ -311,8 +311,13 @@ function onWavePointerUp(e: PointerEvent): void {
 
 // ---- スライダー (本家 ptuiSines 準拠、y のみ編集) ----
 // Coordinate では n 番目の点の y 座標、Oscillator では n 倍音の音量を表す。
-// 常時表示し、point[i].y を直接編集する。点0 (i=0) は本家 _point_set 同様固定
-const sinePoints = computed(() => vc()?.wave.points ?? []);
+// 常時表示し、point[i].y を直接編集する。座標モードの点0 (i=0) は本家 _point_set 同様固定。
+// rev に依存させ、波形タイプ切替や undo/redo で points 配列が置き換わっても
+// 常に最新の配列を返す (markRaw のため参照の置き換えは reactive 追跡されない)
+const sinePoints = computed(() => {
+  void rev.value;
+  return vc()?.wave.points ?? [];
+});
 let sineUndoPushed = false;
 
 function onSineFocus(): void {
@@ -324,7 +329,7 @@ function onSineBlur(): void {
   sineUndoPushed = false;
 }
 function setSine(i: number, v: number): void {
-  if (i === 0) return; // 点0 は固定
+  if (waveType.value === "coord" && i === 0) return; // 座標モードの点0 は固定
   const c = vc();
   if (!c || !c.wave.points[i]) return;
   c.wave.points[i]!.y = Math.max(-128, Math.min(128, Math.round(v)));
@@ -560,7 +565,7 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
           max="128"
           step="1"
           :value="p.y"
-          :disabled="i === 0"
+          :disabled="waveType === 'coord' && i === 0"
           @input="setSine(i, Number(($event.target as HTMLInputElement).value))"
         />
         <span class="vsp-sine-val">{{ p.y }}</span>
