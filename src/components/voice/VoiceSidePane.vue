@@ -185,13 +185,14 @@ function coordX(c: NonNullable<ReturnType<typeof vc>>, w: number, x: number): nu
   return WAVE_PAD + (x / c.wave.reso) * (w - WAVE_PAD * 2);
 }
 function coordY(h: number, y: number): number {
-  return h / 2 - (y / 128) * (h / 2 - WAVE_PAD);
+  // 本家 ptuiWave と同じく、サンプル値 (volume 込み) をパディング間の全幅でマッピングする
+  return h / 2 - (y / 128) * (h - WAVE_PAD * 2);
 }
 function coordPxToX(c: NonNullable<ReturnType<typeof vc>>, w: number, px: number): number {
   return Math.max(0, Math.min(c.wave.reso, Math.round(((px - WAVE_PAD) / (w - WAVE_PAD * 2)) * c.wave.reso)));
 }
 function coordPxToY(h: number, py: number): number {
-  return Math.max(-128, Math.min(127, Math.round(((h / 2 - py) / (h / 2 - WAVE_PAD)) * 128)));
+  return Math.max(-128, Math.min(127, Math.round(((h / 2 - py) / (h - WAVE_PAD * 2)) * 128)));
 }
 
 // 波形モニター: 本家 ptuiWave::_try_update と同様、生成波形 (GetOneSample) を描画する。
@@ -216,7 +217,7 @@ function drawWave(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   for (let s = 0; s < SAMPLE_NUM; s++) {
     const x = WAVE_PAD + (s / (SAMPLE_NUM - 1)) * (w - WAVE_PAD * 2);
     const v = bOvertone ? osci.getOneSampleOvertone(s) : osci.getOneSampleCoodinate(s);
-    const y = h / 2 - v * (h / 2 - WAVE_PAD);
+    const y = h / 2 - v * (h - WAVE_PAD * 2);
     if (s === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
   }
