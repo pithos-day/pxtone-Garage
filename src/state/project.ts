@@ -118,6 +118,9 @@ export function sync(): void {
   syncEffects();
   syncMeta();
   cleanupSelection();
+  // Repeat はエンジン/ファイルが 0-based、UI が 1-based (0 = なし)。
+  // undo/redo や読み込みでエンジン値が変わっても表示へ必ず変換する
+  doc.repeatMeas = fileRepeatToUi(service.master.repeatMeas);
 }
 
 // 表示/ピン留め配列をユニット数に合わせる (新規ユニットは表示オン)
@@ -316,8 +319,6 @@ export function openProject(bytes: Uint8Array): string | null {
   const res = service.read(io);
   if (res !== PxtnErr.OK) return pxtnErrorMessage(res);
   resetEditingState();
-  // ファイル上の Repeat (0-based) を 1-based 表示へ変換 (0 は「なし」)
-  doc.repeatMeas = fileRepeatToUi(service.master.repeatMeas);
   clearUndo();
   sync();
   doc.rev++;
@@ -327,7 +328,7 @@ export function openProject(bytes: Uint8Array): string | null {
 // 現在のプロジェクトを ptcop バイト列へ
 export function exportBytes(): Uint8Array | null {
   if (!doc.ready) return null;
-  return snapshotProject();
+  return snapshotProject()?.bytes ?? null;
 }
 
 // 保存した状態をクリーンに

@@ -27,6 +27,7 @@ import {
   sync,
   setPlayStart,
   setPlayEnd,
+  setRepeatMeas,
 } from "../src/state/project";
 import * as serviceMod from "../src/state/service";
 import { undo, redo, canUndo, canRedo } from "../src/state/undo";
@@ -885,6 +886,27 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     copyVoiceSide(1, 0);
     checkEq(w.getVoice(0)!.volume, 5, "copy: B→A で volume コピー");
     checkEq(w.getVoice(0)!.wave.points[1]!.y, 99, "copy: B→A で波形コピー");
+  }
+
+  // ---- 25. Repeat の undo で表示値 (1-based) がエンジンと一致する ----
+  {
+    // sync() がエンジン値から 1-based 表示へ変換する (undo/redo 後の不整合の回帰テスト)
+    const m = serviceMod.service.master;
+    setRepeatMeas(3);
+    checkEq(doc.repeatMeas, 3, "repeat: setRepeatMeas(3) で表示は 1-based 3");
+    checkEq(m.repeatMeas, 2, "repeat: エンジンは 0-based 2");
+    undo();
+    checkEq(m.repeatMeas, 0, "repeat: undo でエンジンが 0 に戻る");
+    checkEq(doc.repeatMeas, 0, "repeat: undo で表示値も 0 に戻る (変換欠落の回帰)");
+    setRepeatMeas(5);
+    undo();
+    checkEq(doc.repeatMeas, 0, "repeat: undo#2 でも表示値が戻る");
+    redo();
+    checkEq(m.repeatMeas, 4, "repeat: redo でエンジンが 4 に戻る");
+    checkEq(doc.repeatMeas, 5, "repeat: redo で表示値も 5 に戻る");
+    setRepeatMeas(0); // 後続テストのためにクリア
+    undo();
+    checkEq(doc.repeatMeas, 5, "repeat: クリアの undo で表示値が 5 に戻る");
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);

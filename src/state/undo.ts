@@ -4,17 +4,26 @@
 import { ref } from "vue";
 import { MemoryIo, PxtnErr } from "pxtone-ts";
 import { service, EXE_VER } from "./service";
-import { doc, sync } from "./project";
+import { doc, sync, uiRepeatToFile, fileRepeatToUi } from "./project";
 
 const MAX_UNDO = 100;
 
-export let undoStack: Uint8Array[] = [];
-export let redoStack: Uint8Array[] = [];
+// ptcop の write/read は measNum・repeatMeas を保持しない (read 時に
+// adjustMeasNum で縮小・リセットされる) ため、UI 表示値 (repeatMeas は 1-based) を
+// スナップショットに併せて持つ (undo/redo で小節数・Repeat が失われるのを防ぐ)
+export interface UndoEntry {
+  bytes: Uint8Array;
+  measNum: number;
+  repeatMeas: number;
+}
+
+export let undoStack: UndoEntry[] = [];
+export let redoStack: UndoEntry[] = [];
 
 export const canUndo = ref(false);
 export const canRedo = ref(false);
 
-export function setUndoStacks(newUndo: Uint8Array[], newRedo: Uint8Array[]): void {
+export function setUndoStacks(newUndo: UndoEntry[], newRedo: UndoEntry[]): void {
   undoStack = newUndo;
   redoStack = newRedo;
   updateFlags();
@@ -25,11 +34,17 @@ function updateFlags(): void {
   canRedo.value = redoStack.length > 0;
 }
 
-export function snapshotProject(): Uint8Array | null {
+export function snapshotProject(): UndoEntry | null {
   if (!service.isInit) return null;
   const io = new MemoryIo();
   if (service.write(io, false, EXE_VER) !== PxtnErr.OK) return null;
-  return io.toUint8Array();
+  // repeatMeas は doc が書き換わった後でもエンジンはまだ編集前の値を持つ
+  // (setRepeatMeas は doc 代入 → pushUndo → エンジン反映 の順) ため、エンジンから取る
+  return {
+    bytes: io.toUint8Array(),
+    measNum: service.master.measNum,
+    repeatMeas: fileRepeatToUi(service.master.repeatMeas),
+  };
 }
 
 // 編集開始 (ドラッグ操作の開始時) に呼ぶ。1回の編集で1エントリ
@@ -49,7 +64,7 @@ export function clearUndo(): void {
 }
 
 // stack から pop したスナップショットへ戻し、現在状態を pushTo へ積む (undo/redo 共通)
-function restoreFrom(stack: Uint8Array[], pushTo: Uint8Array[]): boolean {
+function restoreFrom(stack: UndoEntry[], pushTo: UndoEntry[]): boolean {
   const b = stack.pop();
   updateFlags();
   if (!b) return false;
@@ -69,9 +84,12 @@ export function redo(): boolean {
   return restoreFrom(redoStack, undoStack);
 }
 
-function restoreBytes(bytes: Uint8Array): boolean {
-  const io = new MemoryIo(bytes);
+function restoreBytes(entry: UndoEntry): boolean {
+  const io = new MemoryIo(entry.bytes);
   if (service.read(io) !== PxtnErr.OK) return false;
+  // measNum / repeatMeas はファイルに保存されず read 時に縮小・リセットされるため明示的に復元する
+  service.master.setMeasNum(entry.measNum);
+  service.master.setRepeatMeas(uiRepeatToFile(entry.repeatMeas));
   sync();
   doc.rev++;
   return true;

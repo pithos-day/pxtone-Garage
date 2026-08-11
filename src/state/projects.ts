@@ -3,9 +3,9 @@
 // タブ切替で「現在の doc/service/undo」を差し替える。
 import { ref } from "vue";
 import { Service, PxtnErr, MemoryIo, PXTN_MAX_EVENT_NUM } from "pxtone-ts";
-import { setService, service } from "./service";
-import { setUndoStacks, undoStack, redoStack } from "./undo";
-import { doc, sync, title, comment, ensureInit, pxtnErrorMessage, fileRepeatToUi } from "./project";
+import { setService } from "./service";
+import { setUndoStacks, undoStack, redoStack, type UndoEntry } from "./undo";
+import { doc, sync, title, comment, ensureInit, pxtnErrorMessage } from "./project";
 import { resetLoaded } from "./player";
 import { downloadProjectFile } from "../engine/io";
 import { t } from "../i18n";
@@ -40,8 +40,8 @@ export interface Project {
   fileName: string;
   dirty: boolean;
   state: ProjectState;
-  undoStack: Uint8Array[];
-  redoStack: Uint8Array[];
+  undoStack: UndoEntry[];
+  redoStack: UndoEntry[];
   title: string;
   comment: string;
   initial: boolean; // 起動時に自動生成された初期プロジェクトか
@@ -197,8 +197,6 @@ export function newProjectInTab(): Project {
 // 現在のプロジェクトの内容を UI に再同期する (読み込み後の反映などに使う)
 export function refreshCurrent(): void {
   if (!currentProject()) return;
-  // ファイル上の Repeat (0-based) を 1-based 表示へ変換 (0 は「なし」)
-  doc.repeatMeas = fileRepeatToUi(service.master.repeatMeas);
   sync();
   doc.rev++;
   resetLoaded();
