@@ -14,12 +14,10 @@ import {
 import { BUNDLED_FONTS, localFonts, fontFamily, setFont, loadLocalFonts } from "../../state/fonts";
 import { lang, setLanguage, type Language } from "../../i18n";
 import { t } from "../../i18n";
-import { useThemeImport } from "../../composables/useThemeImport";
 import ModalDialog from "./ModalDialog.vue";
+import ThemeImportSection from "./ThemeImportSection.vue";
 
 const emit = defineEmits<{ (e: "close"): void }>();
-
-const { importState, toggleImport, onImportFile, onImport } = useThemeImport();
 
 function onDeleteTheme(): void {
   if (isUserTheme(theme.name)) removeUserTheme(theme.name);
@@ -58,27 +56,7 @@ async function onLoadLocalFonts(): Promise<void> {
       </select>
       <button v-if="isUserTheme(theme.name)" class="btn btn-sm" :title="t('settings.deleteTheme')" @click="onDeleteTheme">✕</button>
     </div>
-    <button class="disclosure" @click="toggleImport">
-      <span class="disclosure-arrow">{{ importState.open ? "▾" : "▸" }}</span>
-      {{ t("settings.importTheme") }}
-    </button>
-    <div v-if="importState.open" class="import-box">
-      <div class="row">
-        <label>{{ t("settings.importThemeName") }}</label>
-        <input v-model="importState.name" type="text" class="grow" maxlength="40" />
-      </div>
-      <textarea v-model="importState.css" class="import-css" :placeholder="t('settings.importThemeCss')" spellcheck="false" />
-      <div class="row">
-        <label class="file-label btn btn-sm">
-          {{ t("settings.loadFile") }}
-          <input type="file" accept=".css,text/css" @change="onImportFile" />
-        </label>
-        <span v-if="importState.error" class="import-err">{{ importState.error }}</span>
-        <span class="spacer" />
-        <button class="btn btn-accent btn-sm" @click="onImport">{{ t("settings.import") }}</button>
-        <button class="btn btn-sm" @click="importState.open = false">{{ t("common.cancel") }}</button>
-      </div>
-    </div>
+    <ThemeImportSection />
     <div class="row">
       <label>{{ t("settings.mode") }}</label>
       <div class="radios">
@@ -156,21 +134,6 @@ select {
   accent-color: var(--primary);
 }
 
-/* テーマインポート (展開/折りたたみ) */
-.disclosure {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  width: 100%;
-  border: 1px solid var(--border);
-  background: var(--background);
-  color: var(--foreground);
-  font-size: 12px;
-  padding: 5px 8px;
-  cursor: pointer;
-  border-radius: var(--radius);
-}
-
 .disclosure:hover {
   background: var(--accent);
   color: var(--accent-foreground);
@@ -182,36 +145,6 @@ select {
 }
 
 /* テーマインポート */
-.import-box {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px;
-  border: 1px solid var(--border);
-  background: var(--background);
-}
-
-.import-css {
-  width: 100%;
-  height: 120px;
-  resize: vertical;
-  font-family: monospace;
-  font-size: 11px;
-}
-
-.file-label {
-  cursor: pointer;
-}
-
-.file-label input {
-  display: none;
-}
-
-.import-err {
-  color: var(--destructive);
-  font-size: 11px;
-}
-
 .import-msg {
   color: var(--muted-foreground);
   font-size: 11px;
