@@ -45,6 +45,12 @@ function unitAt(u: number) {
   return noise.value?.noise.getUnit(u) ?? null;
 }
 
+// レイヤー行モデル。テンプレートでの unitAt(u)! を script 側の非 null 保証に
+// 追い出し、v-for の対象を unitList (index のみ) から行オブジェクトに変える
+const unitRows = computed(() =>
+  unitList.value.map((u) => ({ index: u, unit: noise.value!.noise.getUnit(u)! })),
+);
+
 // テーブル編集は直接 Noise を書き、undo はフォーカス時に1エントリ積む。
 // (markRaw なので reactive にならない。rev はテンプレートの :data-rev で再描画を駆動)
 let undoPushed = false;
@@ -263,14 +269,14 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
     </div>
     <div v-else class="ne-main" :data-rev="rev">
       <div class="ne-layers" @focusin="onFieldFocus" @focusout="onFieldBlur">
-        <div v-for="u in unitList" :key="u" class="ne-layer">
+        <div v-for="row in unitRows" :key="row.index" class="ne-layer">
           <div class="ne-layer-head">
-            <span class="ne-layer-name">{{ t("noise.layer") }} {{ u + 1 }}</span>
+            <span class="ne-layer-name">{{ t("noise.layer") }} {{ row.index + 1 }}</span>
             <label class="chk">{{ t("noise.enable") }}
-              <input v-model="unitAt(u)!.bEnable" type="checkbox" @change="onFieldChange" />
+              <input v-model="row.unit.bEnable" type="checkbox" @change="onFieldChange" />
             </label>
             <label>{{ t("noise.pan") }}
-              <input v-model.number="unitAt(u)!.pan" type="number" min="-100" max="100" class="num" @change="onFieldChange" />
+              <input v-model.number="row.unit.pan" type="number" min="-100" max="100" class="num" @change="onFieldChange" />
             </label>
           </div>
           <div class="ne-grid">
@@ -284,49 +290,49 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
             </div>
             <div v-for="osc in OSC_IDS" :key="osc" class="ne-row">
               <span class="ne-osc-name">{{ t(`noise.${osc}`) }}</span>
-              <select :value="unitAt(u)![osc].type" @change="setOsc(u, osc, 'type', Number(($event.target as HTMLSelectElement).value))">
+              <select :value="row.unit[osc].type" @change="setOsc(row.index, osc, 'type', Number(($event.target as HTMLSelectElement).value))">
                 <option v-for="(name, wi) in WAVE_TYPE_NAMES" :key="wi" :value="wi">{{ name }}</option>
               </select>
               <input
                 type="checkbox"
-                :checked="unitAt(u)![osc].bRev"
-                @change="setOsc(u, osc, 'bRev', ($event.target as HTMLInputElement).checked)"
+                :checked="row.unit[osc].bRev"
+                @change="setOsc(row.index, osc, 'bRev', ($event.target as HTMLInputElement).checked)"
               />
               <input
                 type="number"
-                :value="unitAt(u)![osc].freq"
+                :value="row.unit[osc].freq"
                 min="0"
                 max="44100"
                 class="num"
-                @change="setOsc(u, osc, 'freq', Number(($event.target as HTMLInputElement).value))"
+                @change="setOsc(row.index, osc, 'freq', Number(($event.target as HTMLInputElement).value))"
               />
               <input
                 type="number"
-                :value="unitAt(u)![osc].volume"
+                :value="row.unit[osc].volume"
                 min="0"
                 max="200"
                 class="num"
-                @change="setOsc(u, osc, 'volume', Number(($event.target as HTMLInputElement).value))"
+                @change="setOsc(row.index, osc, 'volume', Number(($event.target as HTMLInputElement).value))"
               />
               <input
                 type="number"
-                :value="unitAt(u)![osc].offset"
+                :value="row.unit[osc].offset"
                 min="0"
                 max="100"
                 class="num"
-                @change="setOsc(u, osc, 'offset', Number(($event.target as HTMLInputElement).value))"
+                @change="setOsc(row.index, osc, 'offset', Number(($event.target as HTMLInputElement).value))"
               />
             </div>
           </div>
           <div class="ne-enve">
             <span class="ne-enve-title">{{ t("noise.envelope") }}</span>
-            <select :value="unitAt(u)!.enveNum" @change="onEnveNumChange(u, Number(($event.target as HTMLSelectElement).value))">
+            <select :value="row.unit.enveNum" @change="onEnveNumChange(row.index, Number(($event.target as HTMLSelectElement).value))">
               <option :value="0">0</option>
               <option :value="1">1</option>
               <option :value="2">2</option>
               <option :value="3">3</option>
             </select>
-            <template v-for="(p, i) in unitAt(u)!.enves" :key="i">
+            <template v-for="(p, i) in row.unit.enves" :key="i">
               <span class="ne-enve-no">{{ t("noise.envePoint") }}{{ i + 1 }}</span>
               <input
                 type="number"
@@ -335,7 +341,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
                 min="0"
                 max="100"
                 title="%"
-                @change="setEnvePct(u, i, ($event.target as HTMLInputElement).value)"
+                @change="setEnvePct(row.index, i, ($event.target as HTMLInputElement).value)"
               />
               <input
                 type="number"
@@ -345,7 +351,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
                 max="10"
                 step="0.001"
                 title="秒"
-                @change="setEnveSec(u, i, ($event.target as HTMLInputElement).value)"
+                @change="setEnveSec(row.index, i, ($event.target as HTMLInputElement).value)"
               />
             </template>
           </div>
