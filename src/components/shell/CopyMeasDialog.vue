@@ -1,11 +1,12 @@
 // 小節コピーダイアログ (本家の dlg_CopyMeas 相当)。
 // コピー元範囲・コピー先・回数・イベント種類を指定してコピーする。
 <script setup lang="ts">
-import { onMounted, reactive } from "vue";
-import { doc, clockContext, copyMeas } from "../../state/project";
-import { clockToMeasBeatClock, measBeatClockToClock } from "../../lib/clock";
+import { reactive } from "vue";
+import { copyMeas, clockContext } from "../../state/project";
+import { measBeatClockToClock } from "../../lib/clock";
 import { EventKind } from "pxtone-ts";
 import { t } from "../../i18n";
+import { useScopeRangeForm } from "../../composables/useScopeRangeForm";
 import ModalDialog from "./ModalDialog.vue";
 import MeasBeatClockRange from "./MeasBeatClockRange.vue";
 
@@ -41,35 +42,22 @@ const KIND_CHECKS = [
 const kinds = reactive<Record<string, boolean>>({});
 for (const k of KIND_CHECKS) kinds[k.key] = k.defaultOn;
 
-const view = (): ReturnType<typeof clockContext> => clockContext();
-
-// 選択範囲 (半開区間 [scope1, scope2)) を from/to/dest フォームに初期化
-// コピー先 dest は選択範囲の終端に初期化 (本家同様、末尾への追記を想定)
-function initFromScope(): void {
-  if (doc.scope2 <= doc.scope1) return;
-  const [m1, b1, c1] = clockToMeasBeatClock(view(), doc.scope1);
-  const [m2, b2, c2] = clockToMeasBeatClock(view(), doc.scope2 - 1);
-  form.fromMeas = m1 + 1;
-  form.fromBeat = b1 + 1;
-  form.fromClock = c1;
-  form.toMeas = m2 + 1;
-  form.toBeat = b2 + 1;
-  form.toClock = c2;
-  form.destMeas = m2 + 1;
-  form.destBeat = b2 + 1;
-  form.destClock = c2;
-}
-
-onMounted(initFromScope);
+// 選択範囲から from/to を初期化。コピー先 dest は選択範囲の終端に初期化
+// (本家同様、末尾への追記を想定)
+useScopeRangeForm(form, (m, b, c) => {
+  form.destMeas = m;
+  form.destBeat = b;
+  form.destClock = c;
+});
 
 function enabledKinds(): number[] {
   return KIND_CHECKS.flatMap((k) => (kinds[k.key] ? [...k.eventKinds] : []));
 }
 
 function onSubmit(): void {
-  const c1 = measBeatClockToClock(view(), form.fromMeas, form.fromBeat, form.fromClock);
-  const c2 = measBeatClockToClock(view(), form.toMeas, form.toBeat, form.toClock);
-  const dest = measBeatClockToClock(view(), form.destMeas, form.destBeat, form.destClock);
+  const c1 = measBeatClockToClock(clockContext(), form.fromMeas, form.fromBeat, form.fromClock);
+  const c2 = measBeatClockToClock(clockContext(), form.toMeas, form.toBeat, form.toClock);
+  const dest = measBeatClockToClock(clockContext(), form.destMeas, form.destBeat, form.destClock);
   const times = Math.max(1, form.times);
   copyMeas(c1, c2, dest, times, enabledKinds());
   emit("close");

@@ -1,10 +1,11 @@
 // イベント音量ダイアログ (本家の dlg_EventVolume 相当)。
 // ベロシティ / パン(時間差) / パン(音量) / ボリューム の値を範囲内で加算する。
 <script setup lang="ts">
-import { computed, onMounted, reactive } from "vue";
-import { doc, clockContext, changeEventValue } from "../../state/project";
-import { clockToMeasBeatClock, measBeatClockToClock } from "../../lib/clock";
+import { computed, reactive } from "vue";
+import { changeEventValue, clockContext } from "../../state/project";
+import { measBeatClockToClock } from "../../lib/clock";
 import { EVENT_VOLUME_KINDS, EVENT_VOLUME_TITLES, type EventVolumeMode } from "../../lib/eventVolume";
+import { useScopeRangeForm } from "../../composables/useScopeRangeForm";
 import { t } from "../../i18n";
 import ModalDialog from "./ModalDialog.vue";
 import MeasBeatClockRange from "./MeasBeatClockRange.vue";
@@ -24,26 +25,11 @@ const form = reactive({
 
 const title = computed(() => t(EVENT_VOLUME_TITLES[props.kind]));
 
-const view = (): ReturnType<typeof clockContext> => clockContext();
-
-// 選択範囲 (半開区間 [scope1, scope2)) を from/to フォームに初期化
-function initFromScope(): void {
-  if (doc.scope2 <= doc.scope1) return;
-  const [m1, b1, c1] = clockToMeasBeatClock(view(), doc.scope1);
-  const [m2, b2, c2] = clockToMeasBeatClock(view(), doc.scope2 - 1);
-  form.fromMeas = m1 + 1;
-  form.fromBeat = b1 + 1;
-  form.fromClock = c1;
-  form.toMeas = m2 + 1;
-  form.toBeat = b2 + 1;
-  form.toClock = c2;
-}
-
-onMounted(initFromScope);
+useScopeRangeForm(form);
 
 function onSubmit(): void {
-  const c1 = measBeatClockToClock(view(), form.fromMeas, form.fromBeat, form.fromClock);
-  const c2 = measBeatClockToClock(view(), form.toMeas, form.toBeat, form.toClock);
+  const c1 = measBeatClockToClock(clockContext(), form.fromMeas, form.fromBeat, form.fromClock);
+  const c2 = measBeatClockToClock(clockContext(), form.toMeas, form.toBeat, form.toClock);
   changeEventValue(c1, c2, EVENT_VOLUME_KINDS[props.kind], form.value);
   emit("close");
 }
