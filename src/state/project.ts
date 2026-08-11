@@ -182,6 +182,11 @@ function syncWoiceList(): void {
 }
 
 function syncEffects(): void {
+  syncDelays();
+  syncOverdrives();
+}
+
+function syncDelays(): void {
   const s = service;
   const ds: DelayInfo[] = [];
   for (let i = 0; i < s.delayNum; i++) {
@@ -190,6 +195,10 @@ function syncEffects(): void {
     ds.push({ index: i, unit: d.unit, freq: d.freq, rate: d.rate, group: d.group });
   }
   delays.value = ds;
+}
+
+function syncOverdrives(): void {
+  const s = service;
   const os: OverdriveInfo[] = [];
   for (let i = 0; i < s.overdriveNum; i++) {
     const o = s.overdriveGet(i);
