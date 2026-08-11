@@ -42,17 +42,9 @@ function onSubmit(): void {
   emit("close");
 }
 
+// キャンセル: フォーム値は onSubmit まで適用されないため、何も書き戻さず閉じる
+// (書き戻すと新たな undo エントリが積まれてしまう)
 function onCancel(): void {
-  const tempoNum = parseFloat(tempo.value);
-  const changed =
-    name.value !== original.name ||
-    comment.value !== original.comment ||
-    (Number.isFinite(tempoNum) && tempoNum !== original.tempo) ||
-    beatNum.value !== original.beatNum ||
-    measNum.value !== original.measNum;
-  if (changed) {
-    setProjectSettings({ ...original });
-  }
   emit("close");
 }
 </script>
