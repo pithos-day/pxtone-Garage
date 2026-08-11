@@ -22,6 +22,7 @@ import type { AppMode } from "../../lib/modes";
 import MenuItemRow from "./MenuItemRow.vue";
 import { buildFileMenu, buildEditMenu, buildViewMenu, type MenuItem, type ModeMenuOps } from "../../lib/menuItems";
 import { useDropdownMenu } from "../../composables/useDropdownMenu";
+import ModeTabs from "./ModeTabs.vue";
 
 const mode = defineModel<AppMode>({ required: true });
 const emit = defineEmits<{
@@ -217,20 +218,11 @@ const openItems = computed<MenuItem[]>(() => {
   if (openMenu.value === "view") return viewMenu.value;
   return [];
 });
-const tabs = [
-  { id: "collage", label: "Collage" },
-  { id: "voice", label: "Voice" },
-  { id: "noise", label: "Noise" },
-] as const;
 </script>
 
 <template>
   <div class="menu-bar">
-    <div class="mode-tabs">
-      <button v-for="tab in tabs" :key="tab.id" class="mode-tab" :class="{ active: mode === tab.id }" @click="mode = tab.id">
-        {{ tab.label }}
-      </button>
-    </div>
+    <ModeTabs :mode="mode" @change="mode = $event" />
     <div class="menu-right">
       <button
         v-for="m in menuNames"
@@ -265,11 +257,6 @@ const tabs = [
   border-bottom: 1px solid var(--border);
   user-select: none;
   z-index: 30;
-}
-
-/* モードタブ (Collage / Voice / Noise) */
-.mode-tabs {
-  display: flex;
 }
 
 .mode-tab {
