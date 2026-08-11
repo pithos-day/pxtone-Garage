@@ -112,8 +112,9 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 
   // イベント (フォーカス + 表示 + ピン留めユニットを色分け表示)
   const rollUnits = pianoRollUnits();
+  const field = { w: fieldW, top: fieldTop, h: fieldH, view, scrollX, scrollY };
   for (const u of rollUnits) {
-    drawNotes(ctx, s, u, fieldW, fieldTop, fieldH, view, scrollX, scrollY, u === focus);
+    drawNotes(ctx, s, u, field, u === focus);
   }
 
   // スコープ帯
@@ -160,18 +161,24 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   }
 }
 
+// フィールド描画コンテキスト (draw で共通。w は鍵盤ストリップを除いた幅)
+interface FieldCtx {
+  w: number;
+  top: number;
+  h: number;
+  view: ReturnType<typeof clockContext>;
+  scrollX: number; // 横スクロール (px)
+  scrollY: number; // 縦スクロール (px)
+}
+
 function drawNotes(
   ctx: CanvasRenderingContext2D,
   s: NonNullable<ReturnType<typeof getService>>,
   unitNo: number,
-  w: number,
-  fieldTop: number,
-  fieldH: number,
-  view: ReturnType<typeof clockContext>,
-  scrollX: number,
-  scrollY: number,
+  field: FieldCtx,
   isFocus: boolean,
 ): void {
+  const { w, top: fieldTop, h: fieldH, view, scrollX, scrollY } = field;
   const records = s.evels.records;
   // 表示範囲 (clock)。scrollX は px なので xToClock で変換する
   const endClock = xToClock(view, scrollX + w);
