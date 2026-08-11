@@ -15,8 +15,14 @@ import {
 } from "../../state/project";
 import { getService } from "../../state/project";
 
-const editing = ref<{ kind: "delay" | "overdrive"; idx: number } | null>(null);
-const form = ref({ unit: 0, freq: 0.25, rate: 50, group: 0, cut: 0, amp: 1 });
+// 編集中のフォーム。delay と overdrive でフィールドが異なるため判別 union で持つ
+// (無関係なフィールドにダミー値 0/1 を入れる旧 form を置き換え)
+type EditForm =
+  | { kind: "delay"; unit: number; freq: number; rate: number; group: number }
+  | { kind: "overdrive"; cut: number; amp: number; group: number };
+
+const editing = ref<EditForm | null>(null);
+const editingIdx = ref(-1);
 
 const DELAY_UNITS = ["BEAT", "MEAS", "SECOND"];
 
@@ -27,23 +33,25 @@ const overdriveMax = computed(() => getService()?.overdriveMax ?? 2);
 function onEditDelay(idx: number): void {
   const d = delays.value[idx];
   if (!d) return;
-  form.value = { unit: d.unit, freq: d.freq, rate: d.rate, group: d.group, cut: 0, amp: 1 };
-  editing.value = { kind: "delay", idx };
+  editing.value = { kind: "delay", unit: d.unit, freq: d.freq, rate: d.rate, group: d.group };
+  editingIdx.value = idx;
 }
 
 function onEditOverdrive(idx: number): void {
   const o = overdrives.value[idx];
   if (!o) return;
-  form.value = { unit: 0, freq: 0, rate: 0, group: o.group, cut: o.cut, amp: o.amp };
-  editing.value = { kind: "overdrive", idx };
+  editing.value = { kind: "overdrive", cut: o.cut, amp: o.amp, group: o.group };
+  editingIdx.value = idx;
 }
 
 function commitEdit(): void {
-  const ed = editing.value;
+  const f = editing.value;
+  const idx = editingIdx.value;
   editing.value = null;
-  if (!ed) return;
-  if (ed.kind === "delay") updateDelay(ed.idx, form.value.unit, form.value.freq, form.value.rate, form.value.group);
-  else updateOverdrive(ed.idx, form.value.cut, form.value.amp, form.value.group);
+  editingIdx.value = -1;
+  if (!f || idx < 0) return;
+  if (f.kind === "delay") updateDelay(idx, f.unit, f.freq, f.rate, f.group);
+  else updateOverdrive(idx, f.cut, f.amp, f.group);
 }
 
 function onAddDelay(): void {
@@ -58,12 +66,12 @@ function onAddOverdrive(): void {
 
 // 編集中のエフェクトが削除されたら編集画面も閉じる
 function onRemoveDelay(idx: number): void {
-  if (editing.value?.kind === "delay" && editing.value.idx === idx) editing.value = null;
+  if (editing.value?.kind === "delay" && editingIdx.value === idx) editing.value = null;
   removeDelay(idx);
 }
 
 function onRemoveOverdrive(idx: number): void {
-  if (editing.value?.kind === "overdrive" && editing.value.idx === idx) editing.value = null;
+  if (editing.value?.kind === "overdrive" && editingIdx.value === idx) editing.value = null;
   removeOverdrive(idx);
 }
 </script>
@@ -106,32 +114,32 @@ function onRemoveOverdrive(idx: number): void {
       <template v-if="editing.kind === 'delay'">
         <div class="row">
           <label>{{ t("effector.unit") }}</label>
-          <select v-model.number="form.unit">
+          <select v-model.number="editing.unit">
             <option v-for="(u, i) in DELAY_UNITS" :key="u" :value="i">{{ u }}</option>
           </select>
         </div>
         <div class="row">
           <label>{{ t("effector.length") }}</label>
-          <input type="number" v-model.number="form.freq" step="0.01" min="0" />
+          <input type="number" v-model.number="editing.freq" step="0.01" min="0" />
         </div>
         <div class="row">
           <label>FB%</label>
-          <input type="number" v-model.number="form.rate" min="0" max="100" />
+          <input type="number" v-model.number="editing.rate" min="0" max="100" />
         </div>
       </template>
       <template v-else>
         <div class="row">
           <label>Cut%</label>
-          <input type="number" v-model.number="form.cut" min="0" max="99" />
+          <input type="number" v-model.number="editing.cut" min="0" max="99" />
         </div>
         <div class="row">
           <label>Amp</label>
-          <input type="number" v-model.number="form.amp" step="0.01" min="0" />
+          <input type="number" v-model.number="editing.amp" step="0.01" min="0" />
         </div>
       </template>
       <div class="row">
         <label>Group</label>
-        <input type="number" v-model.number="form.group" min="0" max="6" />
+        <input type="number" v-model.number="editing.group" min="0" max="6" />
       </div>
       <div class="row">
         <button class="btn btn-accent" @click="commitEdit">OK</button>
