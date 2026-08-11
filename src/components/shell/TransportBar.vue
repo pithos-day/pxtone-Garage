@@ -4,15 +4,8 @@
 import { isPlaying, togglePlay, stop, loop, setLoop, masterVolume, setMasterVolume, positionSample, player, currentClock } from "../../state/player";
 import { getService, clockContext } from "../../state/project";
 import { panels } from "../../state/panels";
-import { formatClock } from "../../lib/clock";
+import { formatClock, formatTime } from "../../lib/clock";
 import { t } from "../../i18n";
-
-// 秒 → mm:ss
-function formatTime(sec: number): string {
-  const m = Math.floor(sec / 60);
-  const ss = Math.floor(sec % 60);
-  return `${m}:${String(ss).padStart(2, "0")}`;
-}
 
 function timeLabel(): string {
   const s = getService();

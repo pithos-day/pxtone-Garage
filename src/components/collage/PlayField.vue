@@ -8,7 +8,7 @@ import { useCanvas } from "../../composables/useCanvas";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText, drawPlayhead } from "../../lib/draw";
 import { clockAtX, capturePointer, releasePointerCapture } from "../../lib/field";
-import { clockToX, measOfClock, xToClock } from "../../lib/clock";
+import { clockToX, measOfClock, xToClock, measStartClock } from "../../lib/clock";
 import {
   doc,
   getService,
@@ -42,12 +42,12 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   drawGrid(ctx, { w, h, scrollX: doc.scrollX, view, top: 0, bottom: h, showNumber: false });
 
   const band = h / 2; // 上段 = Repeat/Last、下段 = Start/End
-  const lastX = clockToX(view, s.master.lastMeas * view.beatClock * view.beatNum) - doc.scrollX;
+  const lastX = clockToX(view, measStartClock(view, s.master.lastMeas)) - doc.scrollX;
 
   // 上段: Repeat / Last
   if (doc.repeatMeas > 0) {
     // Repeat は 1-based (エンジン/ファイルは 0-based) なので (repeatMeas - 1) 小節目の開始位置に描画
-    const repeatX = clockToX(view, (doc.repeatMeas - 1) * view.beatClock * view.beatNum) - doc.scrollX;
+    const repeatX = clockToX(view, measStartClock(view, doc.repeatMeas - 1)) - doc.scrollX;
     fillRect(ctx, repeatX, 2, 2, band - 4, COLORS.repeatMark);
     fillText(ctx, "R", repeatX + 3, band - 4, COLORS.repeatMark, 9);
   }
@@ -58,12 +58,12 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 
   // 下段: Start / End (編集用再生範囲)
   if (doc.playStart >= 0) {
-    const sx = clockToX(view, doc.playStart * view.beatClock * view.beatNum) - doc.scrollX;
+    const sx = clockToX(view, measStartClock(view, doc.playStart)) - doc.scrollX;
     fillRect(ctx, sx, band + 2, 2, h - band - 4, COLORS.playhead);
     fillText(ctx, "S", sx + 3, h - 6, COLORS.playhead, 9);
   }
   if (doc.playEnd > 0) {
-    const ex = clockToX(view, doc.playEnd * view.beatClock * view.beatNum) - doc.scrollX;
+    const ex = clockToX(view, measStartClock(view, doc.playEnd)) - doc.scrollX;
     fillRect(ctx, ex, band + 2, 2, h - band - 4, COLORS.playhead);
     fillText(ctx, "E", ex - 3, h - 6, COLORS.playhead, 9, "right");
   }

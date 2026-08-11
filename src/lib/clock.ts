@@ -81,3 +81,15 @@ export function formatClock(view: ClockView, clock: number): string {
   const [m, b, c] = clockToMeasBeatClock(view, clock);
   return `${m + 1}:${b + 1}:${c}`;
 }
+
+// 小節番号 (0-based) → その小節の開始クロック
+export function measStartClock(view: ClockView, meas: number): number {
+  return meas * view.beatNum * view.beatClock;
+}
+
+// 秒 → mm:ss (再生時間表示用)
+export function formatTime(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const ss = Math.floor(sec % 60);
+  return `${m}:${String(ss).padStart(2, "0")}`;
+}
