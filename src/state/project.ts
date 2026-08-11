@@ -375,7 +375,7 @@ export function addUnitWithWoice(name: string | undefined, woiceIdx: number): bo
     const w = woiceIdx >= 0 ? service.woiceGet(woiceIdx) : null;
     if (u && w) {
       u.setWoice(w);
-      writeUnitWoice(ui, woiceIdx);
+      applyWoiceToUnitEvents(ui, woiceIdx);
     }
     return true;
   });
@@ -588,7 +588,7 @@ export function replaceWoice(oldPlace: number, newPlace: number): void {
 
 // 再生・プレビューは VOICENO イベントから音色を決定するため、
 // ユニットの全 VOICENO イベントを新しい音色に書き換える (無ければ clock 0 に追加)。
-function writeUnitWoice(unitIdx: number, woiceIdx: number): void {
+function applyWoiceToUnitEvents(unitIdx: number, woiceIdx: number): void {
   const end = service.evels.records.reduce((m, e) => Math.max(m, e.clock + 1), 0);
   const changed = service.evels.recordValueSet(0, end, unitIdx, EventKind.VOICENO, woiceIdx);
   if (changed === 0) service.evels.recordAddI(0, unitIdx, EventKind.VOICENO, woiceIdx);
@@ -605,7 +605,7 @@ export function setUnitNameAndWoice(unitIdx: number, name: string, woiceIdx: num
     const w = service.woiceGet(woiceIdx);
     if (!w) return;
     u.setWoice(w);
-    writeUnitWoice(unitIdx, woiceIdx);
+    applyWoiceToUnitEvents(unitIdx, woiceIdx);
   });
 }
 
