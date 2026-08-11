@@ -48,7 +48,10 @@ export interface Project {
 }
 
 // doc ↔ ProjectState で保存/復元するフィールド一覧
-// (saveCurrent/restore の両方がこのリストを使うため、フィールド追加はここ1箇所で済む)
+// (saveCurrent/restore の両方がこのリストを使う)
+// 注意: フィールド追加時は ProjectState 型・doc (project.ts)・defaultState() の
+// 3 箇所を同期する。STATE_FIELDS に足し忘れるとタブ切替時に値が静かに失われる
+// (snapshotState が defaultState の値を黙って保存するため)
 const STATE_FIELDS = [
   "fileName",
   "dirty",
