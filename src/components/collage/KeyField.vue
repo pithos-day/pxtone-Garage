@@ -12,6 +12,7 @@ import {
   xToClock,
   KEY_HEIGHT,
   KEYNUM,
+  isWhiteKey,
   codeToRow,
   rowToKeyValue,
   keyValueToRow,
