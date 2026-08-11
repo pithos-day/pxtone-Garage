@@ -135,6 +135,12 @@ function syncUnitVisibility(s: typeof service): void {
 function syncUnits(): void {
   const s = service;
   syncUnitVisibility(s);
+  // read 直後は unit.woice が未設定 (VOICENO イベントで決まる) ため、
+  // 各ユニットの最後の VOICENO イベント値を事前に集めておく (1パスで解決)
+  const lastVoiceNo = new Map<number, number>();
+  for (const e of s.evels.records) {
+    if (e.kind === EventKind.VOICENO) lastVoiceNo.set(e.unitNo, e.value);
+  }
   const us: UnitInfo[] = [];
   for (let i = 0; i < s.unitNum; i++) {
     const u = s.unitGet(i);
@@ -148,11 +154,7 @@ function syncUnits(): void {
         }
       }
     } else {
-      // read 直後は unit.woice が未設定 (VOICENO イベントで決まる) ため、
-      // 最後の VOICENO イベント値から音色を解決する
-      for (const e of s.evels.records) {
-        if (e.kind === EventKind.VOICENO && e.unitNo === i) wIdx = e.value;
-      }
+      wIdx = lastVoiceNo.get(i) ?? -1;
       if (wIdx >= s.woiceNum) wIdx = -1;
     }
     us.push({
