@@ -24,11 +24,7 @@ function touch(): void {
   rev.value++;
 }
 
-// 波形タイプの表示名 (enum 順)
-const WAVE_TYPE_NAMES = [
-  "None", "Sine", "Saw", "Rect", "Random", "Saw2", "Rect2", "Tri",
-  "Random2", "Rect3", "Rect4", "Rect8", "Rect16", "Saw3", "Saw4", "Saw6", "Saw8",
-] as const;
+import { NOISE_WAVE_TYPE_NAMES as WAVE_TYPE_NAMES, NOISE_BUILT_SPS } from "../../lib/noise";
 const OSC_IDS = ["main", "freq", "volu"] as const;
 
 // 全レイヤーを縦に並べる (read 直後は有効ユニット数ぶん)
@@ -123,7 +119,6 @@ useUndoRedoRedraw(() => noise.value, () => {
 });
 
 // ---- リアルタイムビルド (250ms デバウンス) ----
-const BUILT_SPS = 44100;
 const builtPcm = ref<Float32Array | null>(null);
 const buildError = ref("");
 let rebuildTimer: number | null = null;
@@ -148,7 +143,7 @@ function scheduleRebuild(): void {
 function rebuild(): void {
   const d = noise.value;
   if (!d) return;
-  const pcm = renderNoise(d.noise, BUILT_SPS);
+  const pcm = renderNoise(d.noise, NOISE_BUILT_SPS);
   if (!pcm) {
     buildError.value = t("error.noiseBuild");
     return;
