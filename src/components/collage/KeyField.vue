@@ -8,7 +8,7 @@ import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText, drawPlayhead, drawScopeBand,
 } from "../../lib/draw";
 import { fieldOffset, clockAtX, zoomByWheel } from "../../lib/field";
-import { capturePointer, hasPointerCapture, releasePointerCapture } from "../../lib/field";
+import { capturePointer, releasePointerCapture } from "../../lib/field";
 import { iterVisibleRecords, visibleClockWindow } from "../../lib/records";
 import {
   clockToX,
