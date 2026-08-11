@@ -7,6 +7,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { useUndoRedoRedraw } from "../../composables/useUndoRedoRedraw";
+import { useGlobalKeys } from "../../composables/useGlobalKeys";
 import { useOnceUndo } from "../../composables/useUndo";
 import { COLORS } from "../../lib/theme";
 import { fillRect, fillText } from "../../lib/draw";
@@ -196,9 +197,6 @@ function onSaveWav(): void {
 
 // ---- Space: ビルド済み波形の再生 (未反映なら即ビルドして再生) ----
 function onKeydown(e: KeyboardEvent): void {
-  if (!props.active) return;
-  const tag = (e.target as HTMLElement)?.tagName;
-  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
   if (e.code !== "Space") return;
   e.preventDefault();
   if (e.repeat) return;
@@ -206,13 +204,12 @@ function onKeydown(e: KeyboardEvent): void {
   if (builtPcm.value) playPcmOnce(builtPcm.value);
 }
 
+useGlobalKeys(() => props.active, { keydown: onKeydown });
 onMounted(() => {
-  window.addEventListener("keydown", onKeydown);
   // 開いた直後にも波形を表示する
   scheduleRebuild();
 });
 onBeforeUnmount(() => {
-  window.removeEventListener("keydown", onKeydown);
   if (rebuildTimer !== null) clearTimeout(rebuildTimer);
 });
 

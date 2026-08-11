@@ -3,13 +3,14 @@
 // 左クリックで押している間ホールド再生 (ドラッグで音階変更)、離すと停止。
 // クリック (短い押下) でも必ず鳴るよう、最低 250ms は再生を継続する。
 // Space は最後に触れたキーのホールド再生 (本家 ptuiOrganKey の VK_SPACE 準拠)。
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { COLORS } from "../../lib/theme";
 import { fillRect, fillText } from "../../lib/draw";
 import { isWhiteKey, codeToRow, rowToKeyValue, KEY_CODE_TOP, KEY_CODE_BOTTOM, KEY_HEIGHT } from "../../lib/clock";
 import { capturePointer, releasePointerCapture } from "../../lib/field";
 import { useHoldPreview } from "../../composables/useHoldPreview";
+import { useGlobalKeys } from "../../composables/useGlobalKeys";
 import { currentVoice } from "../../state/voice";
 import { previewWoiceObjectHold, stopPreview, clearWoicePreviewCache } from "../../engine/preview";
 import { t } from "../../i18n";
@@ -114,9 +115,6 @@ function onPointerUp(e: PointerEvent): void {
 let spaceOn = false;
 
 function onKeydown(e: KeyboardEvent): void {
-  if (!props.active) return;
-  const tag = (e.target as HTMLElement)?.tagName;
-  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
   if (e.code !== "Space") return;
   e.preventDefault();
   if (e.repeat || spaceOn) return;
@@ -142,15 +140,8 @@ watch(
   () => clearWoicePreviewCache(),
 );
 
-onMounted(() => {
-  window.addEventListener("keydown", onKeydown);
-  window.addEventListener("keyup", onKeyup);
-});
-onBeforeUnmount(() => {
-  window.removeEventListener("keydown", onKeydown);
-  window.removeEventListener("keyup", onKeyup);
-  stopPreview();
-});
+useGlobalKeys(() => props.active, { keydown: onKeydown, keyup: onKeyup });
+onBeforeUnmount(() => stopPreview());
 </script>
 
 <template>

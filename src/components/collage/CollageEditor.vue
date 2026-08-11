@@ -2,9 +2,10 @@
 // 画面中央は常にピアノロール、左パネルは W/U タブで切り替え。
 // ピン留めユニットのレーンは上部に固定表示される。
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted } from "vue";
+import { computed } from "vue";
 import { doc, units, ensureInit, pinnedUnits, VOLUME_MODES } from "../../state/project";
 import { RULER_H, KEY_HEIGHT, KEYNUM } from "../../lib/layout";
+import { useGlobalKeys } from "../../composables/useGlobalKeys";
 import { panels } from "../../state/panels";
 import { togglePlay, seekToClock } from "../../state/player";
 import { undo, redo } from "../../state/undo";
@@ -32,9 +33,6 @@ ensureInit();
 const pinned = computed(() => pinnedUnits());
 
 function onKeydown(e: KeyboardEvent): void {
-  if (!props.active) return;
-  const tag = (e.target as HTMLElement)?.tagName;
-  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
   if (e.ctrlKey || e.metaKey) {
     switch (e.key.toLowerCase()) {
       case "z":
@@ -73,8 +71,7 @@ function onKeydown(e: KeyboardEvent): void {
   }
 }
 
-onMounted(() => window.addEventListener("keydown", onKeydown));
-onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
+useGlobalKeys(() => props.active, { keydown: onKeydown });
 
 // ボリュームモードボタンの表示名 (VOLUME_MODES と index 対応)
 const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
