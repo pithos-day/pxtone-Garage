@@ -8,7 +8,6 @@ import {
   userThemes,
   setThemeName,
   setDark,
-  addUserTheme,
   removeUserTheme,
   isUserTheme,
 } from "../../state/theme";
