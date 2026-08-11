@@ -7,6 +7,7 @@ import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText } from "../../lib/draw";
 import { fieldOffset, clockAtX, zoomByWheel } from "../../lib/field";
 import { clockToX, xToClock } from "../../lib/clock";
+import { RULER_H } from "../../lib/layout";
 import { EventKind, int32ToFloat } from "pxtone-ts";
 import {
   doc,
@@ -24,7 +25,6 @@ import {
 import { currentClock, isPlaying as isPlayingNow } from "../../state/player";
 
 const H = 128;
-const BAND = 12;
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const tuningInput = ref<{ x: number; y: number; clock: number; value: string } | null>(null);
 
@@ -48,11 +48,11 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   const view = clockContext();
   const mode = doc.volumeMode;
   const focus = doc.focusUnit;
-  const fTop = BAND;
-  const fH = h - BAND;
+  const fTop = RULER_H;
+  const fH = h - RULER_H;
 
   fillRect(ctx, 0, 0, w, h, COLORS.fieldBg);
-  drawGrid(ctx, { w, h, scrollX: doc.scrollX, view, top: 0, bottom: BAND, showNumber: true, numberTop: 0 });
+  drawGrid(ctx, { w, h, scrollX: doc.scrollX, view, top: 0, bottom: RULER_H, showNumber: true, numberTop: 0 });
   drawGrid(ctx, { w, h, scrollX: doc.scrollX, view, top: fTop, bottom: h });
 
   // 目盛り (128)
@@ -172,8 +172,8 @@ function clockAt(x: number): number {
 }
 
 function valueAt(y: number, grid = 2): number {
-  const fTop = BAND;
-  const fH = H - BAND;
+  const fTop = RULER_H;
+  const fH = H - RULER_H;
   const v = Math.round((fTop + fH - y) / grid) * grid;
   return Math.max(0, Math.min(128, v));
 }
@@ -182,7 +182,7 @@ function onPointerDown(e: PointerEvent): void {
   const c = canvasRef.value;
   if (!c) return;
   const { x, y } = fieldOffset(c, e);
-  if (y < BAND) return; // ルーラー帯は操作なし
+  if (y < RULER_H) return; // ルーラー帯は操作なし
   const s = getService();
   if (!s) return;
   if (doc.focusUnit < 0 || !s.unitGet(doc.focusUnit)) return;
