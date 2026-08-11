@@ -832,6 +832,20 @@ export function setPlayEnd(meas: number): void {
   doc.rev++;
 }
 
+// ボリュームオートメーションのモード定義 (doc.volumeMode 0..7 と対応)。
+// 書き込み対象のイベント種別・デフォルト値・表示名を1つのテーブルで管理する
+// (VolumeField の描画/編集と CollageEditor のモードボタンで共用)
+export const VOLUME_MODES = [
+  { kind: EventKind.VELOCITY, def: EVENTDEFAULT_VELOCITY, label: "Velocity" },
+  { kind: EventKind.PAN_VOLUME, def: EVENTDEFAULT_PAN_VOLUME, label: "Pan_Volume" },
+  { kind: EventKind.PAN_TIME, def: EVENTDEFAULT_PAN_TIME, label: "Pan_Time" },
+  { kind: EventKind.VOLUME, def: EVENTDEFAULT_VOLUME, label: "Volume" },
+  { kind: EventKind.PORTAMENT, def: EVENTDEFAULT_PORTAMENT, label: "Portament" },
+  { kind: EventKind.VOICENO, def: EVENTDEFAULT_VOICENO, label: "VoiceNo" },
+  { kind: EventKind.GROUPNO, def: EVENTDEFAULT_GROUPNO, label: "GroupNo" },
+  { kind: EventKind.TUNING, def: EVENTDEFAULT_TUNING, label: "Tuning" },
+] as const;
+
 // イベントデフォルト値の再エクスポート
 export {
   WoiceType,

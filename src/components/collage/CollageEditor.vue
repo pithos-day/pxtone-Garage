@@ -3,7 +3,7 @@
 // ピン留めユニットのレーンは上部に固定表示される。
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted } from "vue";
-import { doc, units, ensureInit, pinnedUnits } from "../../state/project";
+import { doc, units, ensureInit, pinnedUnits, VOLUME_MODES } from "../../state/project";
 import { RULER_H, KEY_HEIGHT, KEYNUM } from "../../lib/layout";
 import { panels } from "../../state/panels";
 import { togglePlay, seekToClock } from "../../state/player";
@@ -76,7 +76,8 @@ function onKeydown(e: KeyboardEvent): void {
 onMounted(() => window.addEventListener("keydown", onKeydown));
 onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 
-const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament", "VoiceNo", "GroupNo", "Tuning"];
+// ボリュームモードボタンの表示名 (VOLUME_MODES と index 対応)
+const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
 </script>
 
 <template>
@@ -121,7 +122,7 @@ const volumeModes = ["Velocity", "Pan_Volume", "Pan_Time", "Volume", "Portament"
       </div>
     </div>
     <div v-if="doc.volumeVisible" class="collage-vol">
-      <VolumePanel :modes="volumeModes" />
+      <VolumePanel :modes="volumeModeLabels" />
       <VolumeField />
     </div>
     <div class="collage-hscroll">

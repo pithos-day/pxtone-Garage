@@ -18,14 +18,7 @@ import {
   deleteEvents,
   setEventValue,
   setScope,
-  EVENTDEFAULT_VELOCITY,
-  EVENTDEFAULT_PAN_VOLUME,
-  EVENTDEFAULT_PAN_TIME,
-  EVENTDEFAULT_VOLUME,
-  EVENTDEFAULT_PORTAMENT,
-  EVENTDEFAULT_VOICENO,
-  EVENTDEFAULT_GROUPNO,
-  EVENTDEFAULT_TUNING,
+  VOLUME_MODES,
   woices,
 } from "../../state/project";
 import { currentClock, isPlaying as isPlayingNow } from "../../state/player";
@@ -34,18 +27,6 @@ const H = 128;
 const BAND = 12;
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const tuningInput = ref<{ x: number; y: number; clock: number; value: string } | null>(null);
-
-// モード → 書き込み対象イベント種別とデフォルト値 (描画・編集で共通使用)
-const VOLUME_MODES: Record<number, { kind: EventKind; def: number }> = {
-  0: { kind: EventKind.VELOCITY, def: EVENTDEFAULT_VELOCITY },
-  1: { kind: EventKind.PAN_VOLUME, def: EVENTDEFAULT_PAN_VOLUME },
-  2: { kind: EventKind.PAN_TIME, def: EVENTDEFAULT_PAN_TIME },
-  3: { kind: EventKind.VOLUME, def: EVENTDEFAULT_VOLUME },
-  4: { kind: EventKind.PORTAMENT, def: EVENTDEFAULT_PORTAMENT },
-  5: { kind: EventKind.VOICENO, def: EVENTDEFAULT_VOICENO },
-  6: { kind: EventKind.GROUPNO, def: EVENTDEFAULT_GROUPNO },
-  7: { kind: EventKind.TUNING, def: EVENTDEFAULT_TUNING },
-};
 
 useCanvas(
   canvasRef,
