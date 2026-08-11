@@ -23,9 +23,10 @@ import {
   EVENTDEFAULT_KEY,
   EVENTDEFAULT_VOLUME,
 } from "../../state/project";
-import { previewUnitHold, stopPreview } from "../../engine/preview";
+import { previewUnitHold } from "../../engine/preview";
 import { useCtxMenuClose } from "../../composables/useCtxMenu";
 import { useDragUndo } from "../../composables/useUndo";
+import { useHoldPreview } from "../../composables/useHoldPreview";
 import { t } from "../../i18n";
 import ChangeUnitDialog from "./ChangeUnitDialog.vue";
 
@@ -71,6 +72,7 @@ function onPointerDown(e: PointerEvent, idx: number): void {
   // 押下中サステインで試聴
   const u = s.unitGet(idx);
   if (u?.woice) {
+    hold.onPress();
     previewUnitHold(idx, EVENTDEFAULT_KEY, EVENTDEFAULT_VOLUME);
   }
 
@@ -107,8 +109,9 @@ function startDragReorder(tray: HTMLElement, idx: number): void {
   window.addEventListener("pointerup", onUp);
 }
 
+const hold = useHoldPreview();
 function onPointerUp(): void {
-  stopPreview();
+  hold.onRelease();
 }
 
 // ソロのラジオ操作。

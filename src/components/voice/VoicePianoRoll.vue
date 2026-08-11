@@ -9,6 +9,7 @@ import { COLORS } from "../../lib/theme";
 import { fillRect, fillText } from "../../lib/draw";
 import { isWhiteKey, codeToRow, rowToKeyValue, KEY_CODE_TOP, KEY_CODE_BOTTOM, KEY_HEIGHT } from "../../lib/clock";
 import { capturePointer, releasePointerCapture } from "../../lib/field";
+import { useHoldPreview } from "../../composables/useHoldPreview";
 import { currentVoice } from "../../state/voice";
 import { previewWoiceObjectHold, stopPreview, clearWoicePreviewCache } from "../../engine/preview";
 import { t } from "../../i18n";
@@ -26,7 +27,7 @@ const ROW_NUM = KEY_CODE_TOP - KEY_CODE_BOTTOM + 1; // 88
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const scrollRef = ref<HTMLDivElement | null>(null);
 const pressed = ref<number | null>(null); // 押下中のコード
-const pressStart = ref(0);
+const hold = useHoldPreview(250);
 
 useCanvas(canvasRef, draw, [() => voice.value, () => props.editRev, () => pressed.value, () => velocity.value]);
 
@@ -79,7 +80,7 @@ function onPointerDown(e: PointerEvent): void {
   const code = codeAtY(y);
   if (code < KEY_CODE_BOTTOM || code > KEY_CODE_TOP) return;
   pressed.value = code;
-  pressStart.value = performance.now();
+  hold.onPress();
   playKey(code);
   capturePointer(c, e);
 }
@@ -106,14 +107,7 @@ function onPointerUp(e: PointerEvent): void {
   pressed.value = null;
   if (code === null) return;
   // クリック (短い押下) でも必ず聴こえるよう、最低 250ms は鳴らしてから停止する
-  const dur = performance.now() - pressStart.value;
-  if (dur < 250) {
-    setTimeout(() => {
-      if (pressed.value === null) stopPreview();
-    }, 250 - dur);
-  } else {
-    stopPreview();
-  }
+  hold.onRelease(() => pressed.value !== null);
 }
 
 // ---- Space: 最後に触れたキーのホールド再生 ----

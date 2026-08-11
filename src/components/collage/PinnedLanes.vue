@@ -4,6 +4,7 @@
 import { ref } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { useDragUndo } from "../../composables/useUndo";
+import { useHoldPreview } from "../../composables/useHoldPreview";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText, noteFill, noteShadow,
   drawPlayhead,
@@ -28,7 +29,7 @@ import {
   EVENTDEFAULT_KEY,
 } from "../../state/project";
 import { currentClock, seekToClock, isPlaying as isPlayingNow } from "../../state/player";
-import { previewUnitHold, stopPreview } from "../../engine/preview";
+import { previewUnitHold } from "../../engine/preview";
 
 // 左のユニット名領域 = 左パネル (300px) + 鍵盤ストリップ (64px)。
 // レーンの開始位置をピアノロールフィールドと揃える (lib/layout.ts の NAME_W)
@@ -172,6 +173,7 @@ function unitAt(y: number): number {
   return pinned[i]!;
 }
 
+const hold = useHoldPreview();
 // 押下中サステインで試聴開始
 function previewAt(x: number, y: number): void {
   const s = getService();
@@ -181,6 +183,7 @@ function previewAt(x: number, y: number): void {
   const clock = clockAt(x);
   const key = s.evels.getValue(clock, u, EventKind.KEY) || EVENTDEFAULT_KEY;
   const vel = s.evels.getValue(clock, u, EventKind.VELOCITY) || EVENTDEFAULT_VELOCITY;
+  hold.onPress();
   previewUnitHold(u, key, vel);
 }
 
@@ -248,7 +251,7 @@ function applyDrag(): void {
 function onPointerUp(e: PointerEvent): void {
   const c = canvasRef.value;
   releasePointerCapture(c, e);
-  stopPreview();
+  hold.onRelease();
   const d = drag.value;
   drag.value = null;
   if (!d) return;

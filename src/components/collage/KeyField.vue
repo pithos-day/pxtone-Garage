@@ -5,6 +5,7 @@
 import { onMounted, ref, watch } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { useDragUndo } from "../../composables/useUndo";
+import { useHoldPreview } from "../../composables/useHoldPreview";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText, drawPlayhead, drawScopeBand,
 } from "../../lib/draw";
@@ -36,7 +37,7 @@ import {
   EVENTDEFAULT_KEY,
 } from "../../state/project";
 import { currentClock, seekToClock, isPlaying as isPlayingNow } from "../../state/player";
-import { previewUnitHold, stopPreview } from "../../engine/preview";
+import { previewUnitHold } from "../../engine/preview";
 import { getUnitColor } from "../../lib/theme";
 
 // 鍵盤ストリップの幅。ピアノ風の単音プレビュー領域で、左パネル (300px) の右に置く。
@@ -248,6 +249,7 @@ function rowAt(y: number): number {
 }
 
 // 押下中サステインで試聴開始 (pointerup まで鳴り続ける)
+const hold = useHoldPreview();
 function previewAt(y: number): void {
   const s = getService();
   if (!s) return;
@@ -255,6 +257,7 @@ function previewAt(y: number): void {
   if (focus < 0) return;
   const row = Math.max(0, Math.min(KEYNUM - 1, rowAt(y)));
   const value = rowToKeyValue(row);
+  hold.onPress();
   previewUnitHold(focus, value, EVENTDEFAULT_VELOCITY);
 }
 
@@ -337,7 +340,7 @@ function applyDrag(): void {
 function onPointerUp(e: PointerEvent): void {
   const c = canvasRef.value;
   releasePointerCapture(c, e);
-  stopPreview(); // 押下中サステインを停止
+  hold.onRelease(); // 押下中サステインを停止
   const d = drag.value;
   drag.value = null;
   if (!d) return;

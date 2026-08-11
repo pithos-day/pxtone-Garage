@@ -8,10 +8,11 @@ import {
   EVENTDEFAULT_KEY,
   EVENTDEFAULT_VELOCITY,
 } from "../../state/project";
-import { previewWoiceHold, stopPreview } from "../../engine/preview";
+import { previewWoiceHold } from "../../engine/preview";
 import { woiceTypeColor } from "../../lib/theme";
 import { woiceSummary as formatWoiceSummary } from "../../lib/woice";
 import { useCtxMenuClose } from "../../composables/useCtxMenu";
+import { useHoldPreview } from "../../composables/useHoldPreview";
 import { t } from "../../i18n";
 
 const menu = ref<{ x: number; y: number; w: number } | null>(null);
@@ -29,11 +30,15 @@ function onPointerDown(e: PointerEvent, idx: number): void {
   if (e.button !== 0) return;
   // 押下中サステインで試聴 (pointerup まで鳴り続ける)
   const w = s.woiceGet(idx);
-  if (w) previewWoiceHold(idx, EVENTDEFAULT_KEY, EVENTDEFAULT_VELOCITY);
+  if (w) {
+    hold.onPress();
+    previewWoiceHold(idx, EVENTDEFAULT_KEY, EVENTDEFAULT_VELOCITY);
+  }
 }
 
+const hold = useHoldPreview();
 function onPointerUp(): void {
-  stopPreview();
+  hold.onRelease();
 }
 
 function onMenuAction(action: "remove"): void {
