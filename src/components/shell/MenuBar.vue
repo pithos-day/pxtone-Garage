@@ -135,8 +135,7 @@ function onOpenVoice(): void {
 
 function onCloseVoice(): void {
   const id = currentVoiceId.value;
-  const v = voices.value.find((x) => x.id === id);
-  if (v?.dirty && !window.confirm(t("confirm.close"))) return;
+  if (currentVoice()?.dirty && !window.confirm(t("confirm.close"))) return;
   closeVoice(id);
 }
 
@@ -152,8 +151,7 @@ function onOpenNoise(): void {
 
 function onCloseNoise(): void {
   const id = currentNoiseId.value;
-  const n = noises.value.find((x) => x.id === id);
-  if (n?.dirty && !window.confirm(t("confirm.close"))) return;
+  if (currentNoise()?.dirty && !window.confirm(t("confirm.close"))) return;
   closeNoise(id);
 }
 
