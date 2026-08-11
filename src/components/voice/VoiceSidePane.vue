@@ -7,6 +7,7 @@
 import { computed, ref, watch } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { useEditRev } from "../../composables/useEditRev";
+import { useSliderModel } from "../../composables/useSliderModel";
 import { useOnceUndo } from "../../composables/useUndo";
 import { COLORS } from "../../lib/theme";
 import { fillRect, fillText } from "../../lib/draw";
@@ -85,27 +86,15 @@ function setVoiceUnit(fn: (c: NonNullable<ReturnType<typeof currentVoiceUnit>>) 
   touch();
 }
 
-// スライダーモデル (Vol/Pan/補正値/Release) の共通ファクトリ。
-// getter は rev を参照して undo/redo 後の再描画でも最新値を返す
-function makeSliderModel(get: () => number, set: (v: number) => void) {
-  return computed({
-    get: () => {
-      void rev.value;
-      return get();
-    },
-    set,
-  });
-}
-
-const volumeModel = makeSliderModel(
+const volumeModel = useSliderModel(rev, 
   () => currentVoiceUnit()?.volume ?? 64,
   (v) => setVoiceUnit((c) => (c.volume = Math.max(0, Math.min(64, Math.round(v))))),
 );
-const panModel = makeSliderModel(
+const panModel = useSliderModel(rev, 
   () => currentVoiceUnit()?.pan ?? 64,
   (v) => setVoiceUnit((c) => (c.pan = Math.max(0, Math.min(128, Math.round(v))))),
 );
-const correctModel = makeSliderModel(
+const correctModel = useSliderModel(rev, 
   () => Math.round(((currentVoiceUnit()?.tuning ?? 1) - 1) * 10000),
   (v) => setVoiceUnit((c) => (c.tuning = 1 + Math.max(-128, Math.min(128, Math.round(v))) / 10000)),
 );
@@ -115,7 +104,7 @@ const correctModel = makeSliderModel(
 function enveHeadCount(c: NonNullable<ReturnType<typeof currentVoiceUnit>>): number {
   return c.envelope.headNum + c.envelope.bodyNum;
 }
-const releaseModel = makeSliderModel(
+const releaseModel = useSliderModel(rev, 
   () => {
     const c = currentVoiceUnit();
     if (!c) return 0;
