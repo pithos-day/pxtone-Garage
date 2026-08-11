@@ -16,8 +16,6 @@ import {
   doc,
   getService,
   clockContext,
-  beginEdit,
-  commitEdit,
   addEvent,
   deleteEvents,
   setEventValue,
@@ -280,6 +278,7 @@ function onPointerUp(e: PointerEvent): void {
   }
 }
 
+const tuningUndo = useDragUndo();
 function commitTuning(): void {
   const t = tuningInput.value;
   tuningInput.value = null;
@@ -288,10 +287,10 @@ function commitTuning(): void {
   if (!Number.isFinite(v) || v <= 0) return;
   const s = getService();
   if (!s || doc.focusUnit < 0) return;
-  beginEdit();
+  tuningUndo.onFirstMove();
   s.evels.recordAddF(t.clock, doc.focusUnit, EventKind.TUNING, v);
   doc.rev++;
-  commitEdit();
+  tuningUndo.finish();
 }
 
 function onWheel(e: WheelEvent): void {
