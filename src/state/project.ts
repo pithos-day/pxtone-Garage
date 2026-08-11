@@ -647,9 +647,10 @@ export function setProjectSettings(settings: {
 export function setRepeatMeas(meas: number): void {
   // Repeat は 1-based 小節番号 (0 = なし)。エンジン/ファイルは 0-based で
   // 「1小節目 = 曲頭から再生」を表すため、保存側では変換して書き込む。
-  doc.repeatMeas = meas > 0 ? meas : 0;
+  const normalized = meas > 0 ? meas : 0;
+  doc.repeatMeas = normalized;
   mutate(() => {
-    service.master.setRepeatMeas(uiRepeatToFile(doc.repeatMeas));
+    service.master.setRepeatMeas(uiRepeatToFile(normalized));
   });
 }
 
