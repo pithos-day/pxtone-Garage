@@ -9,7 +9,7 @@ import { useCanvas } from "../../composables/useCanvas";
 import { useUndoRedoRedraw } from "../../composables/useUndoRedoRedraw";
 import { COLORS } from "../../lib/theme";
 import { fillRect, fillText } from "../../lib/draw";
-import { MemoryIo } from "pxtone-ts";
+import { MemoryIo, WaveType } from "pxtone-ts";
 import { currentNoise, newNoise, editNoise, NOISE_UNIT_NUM } from "../../state/noise";
 import { renderNoise, playPcmOnce } from "../../engine/preview";
 import { exportNoiseWav } from "../../engine/io";
@@ -72,11 +72,14 @@ function onFieldChange(): void {
   scheduleRebuild();
 }
 
-// オシレータの値を直接書き換え (undo はフォーカス時に1エントリ)
+// オシレータの値を直接書き換え (undo はフォーカス時に1エントリ)。
+// field は "type" | "bRev" が非数値、それ以外 (freq/volume/offset) は数値
 function setOsc(u: number, osc: (typeof OSC_IDS)[number], field: "type" | "bRev" | "freq" | "volume" | "offset", v: number | boolean): void {
   const o = unitAt(u)?.[osc];
   if (!o) return;
-  (o as unknown as Record<string, unknown>)[field] = v;
+  if (field === "type") o.type = v as WaveType;
+  else if (field === "bRev") o.bRev = v as boolean;
+  else o[field] = v as number;
   onFieldChange();
 }
 
