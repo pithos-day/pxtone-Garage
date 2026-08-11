@@ -115,8 +115,8 @@ const WAV_HEADER_SIZE = 44;
 const WAV_FMT_CHUNK_SIZE = 16;
 
 // pcm は 16bit サンプル前提 (dataSize はチャンネル込みバイト数)。
-// bps はヘッダの blockAlign/bitsPerSample にのみ使われる
-export function makeWav(pcm: Int16Array, sps: number, chNum: number, bps: number): Uint8Array {
+// bitsPerSample はヘッダの blockAlign/bitsPerSample にのみ使われる
+export function makeWav(pcm: Int16Array, sps: number, chNum: number, bitsPerSample: number): Uint8Array {
   const dataSize = pcm.length * 2;
   const buf = new ArrayBuffer(WAV_HEADER_SIZE + dataSize);
   const dv = new DataView(buf);
@@ -125,16 +125,16 @@ export function makeWav(pcm: Int16Array, sps: number, chNum: number, bps: number
     for (let i = 0; i < s.length; i++) u8[off + i] = s.charCodeAt(i);
   };
   writeStr(0, "RIFF");
-  dv.setUint32(4, WAV_FMT_CHUNK_SIZE + 20 + dataSize, true);
+  dv.setUint32(4, WAV_HEADER_SIZE - 8 + dataSize, true);
   writeStr(8, "WAVE");
   writeStr(12, "fmt ");
   dv.setUint32(16, WAV_FMT_CHUNK_SIZE, true);
   dv.setUint16(20, 1, true);
   dv.setUint16(22, chNum, true);
   dv.setUint32(24, sps, true);
-  dv.setUint32(28, (sps * chNum * bps) / 8, true);
-  dv.setUint16(32, (chNum * bps) / 8, true);
-  dv.setUint16(34, bps, true);
+  dv.setUint32(28, (sps * chNum * bitsPerSample) / 8, true);
+  dv.setUint16(32, (chNum * bitsPerSample) / 8, true);
+  dv.setUint16(34, bitsPerSample, true);
   writeStr(36, "data");
   dv.setUint32(40, dataSize, true);
   new Int16Array(buf, WAV_HEADER_SIZE).set(pcm);
