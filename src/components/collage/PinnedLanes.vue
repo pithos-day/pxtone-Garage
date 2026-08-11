@@ -153,7 +153,8 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     const y = fieldTop + i * KEY_HEIGHT;
     const u = pinned[i]!;
     const isFocus = u === doc.focusUnit;
-    fillRect(ctx, 0, y, NAME_W, KEY_HEIGHT, isFocus ? COLORS.focusRow : i % 2 ? COLORS.zebra : "transparent");
+    const bg = isFocus ? COLORS.focusRow : i % 2 === 0 ? "transparent" : COLORS.zebra;
+    fillRect(ctx, 0, y, NAME_W, KEY_HEIGHT, bg);
     fillText(ctx, `${u}: ${units.value[u]?.name ?? ""}`, 2, y + 11, isFocus ? COLORS.focusText : COLORS.text, 10);
   }
 }
