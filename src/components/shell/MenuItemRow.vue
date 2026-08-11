@@ -1,14 +1,7 @@
 // メニュー項目1行。サブメニューを持つ項目は内部で再帰的に描画する。
 // クリック時は選択された項目を "select" で親へ渡す
 <script setup lang="ts">
-export interface MenuItem {
-  label?: string;
-  action?: () => void;
-  disabled?: boolean;
-  checked?: boolean;
-  sep?: boolean;
-  sub?: MenuItem[];
-}
+import type { MenuItem } from "../../lib/menuItems";
 
 defineProps<{ item: MenuItem; subOpen: boolean }>();
 const emit = defineEmits<{

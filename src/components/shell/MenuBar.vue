@@ -16,11 +16,11 @@ import { newVoice, openVoice, saveVoice, closeVoice, undoVoice, redoVoice, curre
 import { newNoise, openNoise, saveNoise, closeNoise, undoNoise, redoNoise, currentNoise, currentNoiseId } from "../../state/noise";
 import { exportPttune, exportWav, openFileDialog } from "../../engine/io";
 import { undo, redo, canUndo, canRedo } from "../../state/undo";
-import { ZOOM_TABLE, DIVI_TABLE } from "../../lib/clock";
 import { t } from "../../i18n";
 import type { EventVolumeMode } from "../../lib/eventVolume";
 import type { AppMode } from "../../lib/modes";
-import MenuItemRow, { type MenuItem } from "./MenuItemRow.vue";
+import MenuItemRow from "./MenuItemRow.vue";
+import { buildFileMenu, buildEditMenu, buildViewMenu, type MenuItem, type ModeMenuOps } from "../../lib/menuItems";
 
 const mode = defineModel<AppMode>({ required: true });
 const emit = defineEmits<{
@@ -161,20 +161,7 @@ function onCloseNoise(): void {
 const allVisible = computed(() => doc.unitVisible.length > 0 && doc.unitVisible.every(Boolean));
 
 // モード別に差し替わる操作 (File メニュー・undo/redo)。3 分岐をこのテーブルに集約
-type Mode = AppMode;
-interface ModeOps {
-  new: () => void;
-  open: () => void;
-  save: () => void;
-  saveAs: () => void;
-  close: () => void;
-  undo: () => void;
-  redo: () => void;
-  canUndo: () => boolean;
-  canRedo: () => boolean;
-}
-
-const modeOps: Record<Mode, ModeOps> = {
+const modeOps: Record<AppMode, ModeMenuOps> = {
   collage: {
     new: onNew,
     open: onOpen,
@@ -212,64 +199,52 @@ const modeOps: Record<Mode, ModeOps> = {
 
 const fileMenu = computed<MenuItem[]>(() => {
   const ops = modeOps[mode.value];
-  const items: MenuItem[] = [
-    { label: t("menu.file.new"), action: ops.new },
-    { label: t("menu.file.open"), action: ops.open },
-    { label: t("menu.file.save"), action: ops.save },
-    { label: t("menu.file.saveAs"), action: ops.saveAs },
-    { sep: true },
-  ];
-  if (mode.value === "collage") {
-    items.push(
-      { label: t("menu.file.exportPttune"), action: onExportPttune },
-      { label: t("menu.file.exportWav"), action: onExportWav },
-      { sep: true },
-      { label: t("menu.file.project"), action: () => emit("project") },
-      { label: t("menu.file.settings"), action: () => emit("settings") },
-      { sep: true },
-    );
-  }
-  items.push({ label: t("menu.file.close"), action: ops.close });
-  return items;
+  const extra: MenuItem[] =
+    mode.value === "collage"
+      ? [
+          { label: t("menu.file.exportPttune"), action: onExportPttune },
+          { label: t("menu.file.exportWav"), action: onExportWav },
+          { sep: true },
+          { label: t("menu.file.project"), action: () => emit("project") },
+          { label: t("menu.file.settings"), action: () => emit("settings") },
+          { sep: true },
+        ]
+      : [];
+  return buildFileMenu(ops, extra);
 });
 
 const editMenu = computed<MenuItem[]>(() => {
   const ops = modeOps[mode.value];
-  const items: MenuItem[] = [
-    { label: t("menu.edit.undo"), action: ops.undo, disabled: !ops.canUndo() },
-    { label: t("menu.edit.redo"), action: ops.redo, disabled: !ops.canRedo() },
-  ];
-  if (mode.value === "voice") {
-    items.push(
-      { sep: true },
-      { label: t("menu.edit.copyAtoB"), action: () => emit("voiceCopyAB") },
-      { label: t("menu.edit.copyBtoA"), action: () => emit("voiceCopyBA") },
-    );
-  } else if (mode.value === "collage") {
-    items.push(
-      { sep: true },
-      { label: t("menu.edit.copyMeas"), action: () => emit("copyMeas") },
-      { label: t("menu.edit.velocity"), action: () => emit("eventVolume", "velocity") },
-      { label: t("menu.edit.pantime"), action: () => emit("eventVolume", "pantime") },
-      { label: t("menu.edit.panvolume"), action: () => emit("eventVolume", "panvolume") },
-      { label: t("menu.edit.volume"), action: () => emit("eventVolume", "volume") },
-    );
-  }
-  return items;
+  const extra: MenuItem[] =
+    mode.value === "voice"
+      ? [
+          { sep: true },
+          { label: t("menu.edit.copyAtoB"), action: () => emit("voiceCopyAB") },
+          { label: t("menu.edit.copyBtoA"), action: () => emit("voiceCopyBA") },
+        ]
+      : mode.value === "collage"
+        ? [
+            { sep: true },
+            { label: t("menu.edit.copyMeas"), action: () => emit("copyMeas") },
+            { label: t("menu.edit.velocity"), action: () => emit("eventVolume", "velocity") },
+            { label: t("menu.edit.pantime"), action: () => emit("eventVolume", "pantime") },
+            { label: t("menu.edit.panvolume"), action: () => emit("eventVolume", "panvolume") },
+            { label: t("menu.edit.volume"), action: () => emit("eventVolume", "volume") },
+          ]
+        : [];
+  return buildEditMenu(ops, extra);
 });
 
-const viewMenu = computed<MenuItem[]>(() => [
-  { label: t("menu.view.showAllUnits"), action: () => setAllUnitsVisible(!allVisible.value), checked: allVisible.value },
-  { sep: true },
-  {
-    label: t("menu.view.zoom"),
-    sub: ZOOM_TABLE.map((z) => ({ label: `${z}px`, action: () => (doc.zoom = z), checked: doc.zoom === z })),
-  },
-  {
-    label: t("menu.view.division"),
-    sub: DIVI_TABLE.map((d) => ({ label: `${d}`, action: () => (doc.divi = d), checked: doc.divi === d })),
-  },
-]);
+const viewMenu = computed<MenuItem[]>(() =>
+  buildViewMenu({
+    allVisible: allVisible.value,
+    zoom: doc.zoom,
+    divi: doc.divi,
+    onToggleAll: () => setAllUnitsVisible(!allVisible.value),
+    onZoom: (z) => (doc.zoom = z),
+    onDivi: (d) => (doc.divi = d),
+  }),
+);
 
 const openItems = computed<MenuItem[]>(() => {
   if (openMenu.value === "file") return fileMenu.value;
