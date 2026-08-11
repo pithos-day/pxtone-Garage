@@ -79,49 +79,51 @@ function setVoiceUnit(fn: (c: NonNullable<ReturnType<typeof currentVoiceUnit>>) 
   touch();
 }
 
-const volumeModel = computed({
-  get: () => {
-    void rev.value;
-    return currentVoiceUnit()?.volume ?? 64;
-  },
-  set: (v: number) => setVoiceUnit((c) => (c.volume = Math.max(0, Math.min(64, Math.round(v))))),
-});
-const panModel = computed({
-  get: () => {
-    void rev.value;
-    return currentVoiceUnit()?.pan ?? 64;
-  },
-  set: (v: number) => setVoiceUnit((c) => (c.pan = Math.max(0, Math.min(128, Math.round(v))))),
-});
-const correctModel = computed({
-  get: () => {
-    void rev.value;
-    return Math.round(((currentVoiceUnit()?.tuning ?? 1) - 1) * 10000);
-  },
-  set: (v: number) => setVoiceUnit((c) => (c.tuning = 1 + Math.max(-128, Math.min(128, Math.round(v))) / 10000)),
-});
+// スライダーモデル (Vol/Pan/補正値/Release) の共通ファクトリ。
+// getter は rev を参照して undo/redo 後の再描画でも最新値を返す
+function makeSliderModel(get: () => number, set: (v: number) => void) {
+  return computed({
+    get: () => {
+      void rev.value;
+      return get();
+    },
+    set,
+  });
+}
+
+const volumeModel = makeSliderModel(
+  () => currentVoiceUnit()?.volume ?? 64,
+  (v) => setVoiceUnit((c) => (c.volume = Math.max(0, Math.min(64, Math.round(v))))),
+);
+const panModel = makeSliderModel(
+  () => currentVoiceUnit()?.pan ?? 64,
+  (v) => setVoiceUnit((c) => (c.pan = Math.max(0, Math.min(128, Math.round(v))))),
+);
+const correctModel = makeSliderModel(
+  () => Math.round(((currentVoiceUnit()?.tuning ?? 1) - 1) * 10000),
+  (v) => setVoiceUnit((c) => (c.tuning = 1 + Math.max(-128, Math.min(128, Math.round(v))) / 10000)),
+);
 
 // リリース区間長 (本家 ptuiReleaseTime: points[headNum+bodyNum].x を 0..100。
 // 0 は即時カットオフ)
 function enveHeadCount(c: NonNullable<ReturnType<typeof currentVoiceUnit>>): number {
   return c.envelope.headNum + c.envelope.bodyNum;
 }
-const releaseModel = computed({
-  get: () => {
-    void rev.value;
+const releaseModel = makeSliderModel(
+  () => {
     const c = currentVoiceUnit();
     if (!c) return 0;
     const hc = enveHeadCount(c);
     return c.envelope.tailNum > 0 ? (c.envelope.points[hc]?.x ?? 0) : 0;
   },
-  set: (v: number) =>
+  (v) =>
     setVoiceUnit((c) => {
       const hc = c.envelope.headNum + c.envelope.bodyNum;
       if (c.envelope.tailNum > 0 && c.envelope.points[hc]) {
         c.envelope.points[hc]!.x = Math.max(0, Math.min(100, Math.round(v)));
       }
     }),
-});
+);
 
 // 右クリックで本家のデフォルト値に戻す (本家 _volume_default)
 function resetVolume(): void {
