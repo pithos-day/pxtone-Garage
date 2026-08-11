@@ -94,24 +94,28 @@ export function parseThemeCss(source: string): ThemeTokens | null {
     // ブロック内のコメントを除去してから宣言を処理する
     // (コメントが宣言と同セグメントになると抽出漏れするため)
     const cleanBody = body.replace(/\/\*[\s\S]*?\*\//g, "");
-
-    // カスタムプロパティ宣言のみ抽出
-    for (const decl of cleanBody.split(";")) {
-      const m = /^(\s*)(--[a-zA-Z0-9-]+)\s*:\s*(.*)$/.exec(decl);
-      if (!m) continue;
-      const name = m[2]!.trim();
-      // フォント系トークンは対象外 (フォントは独立設定のため)
-      if (name.startsWith("--font-")) continue;
-      // ジェネレーターのユーティリティ専用トークンは対象外
-      if (DENY_PREFIXES.some((p) => name.startsWith(p))) continue;
-      const value = sanitizeValue(m[3]!);
-      if (!value) continue;
-      (kind === "light" ? light : dark)[name] = value;
-    }
+    parseDeclarations(cleanBody, kind, light, dark);
   }
 
   if (Object.keys(light).length === 0 && Object.keys(dark).length === 0) return null;
   return { light, dark };
+}
+
+// ブロック本文からカスタムプロパティ宣言のみを抽出してマップへ書き込む。
+// フォント系・ジェネレーターのユーティリティ専用トークンは対象外
+function parseDeclarations(body: string, kind: "light" | "dark", light: Record<string, string>, dark: Record<string, string>): void {
+  for (const decl of body.split(";")) {
+    const m = /^(\s*)(--[a-zA-Z0-9-]+)\s*:\s*(.*)$/.exec(decl);
+    if (!m) continue;
+    const name = m[2]!.trim();
+    // フォント系トークンは対象外 (フォントは独立設定のため)
+    if (name.startsWith("--font-")) continue;
+    // ジェネレーターのユーティリティ専用トークンは対象外
+    if (DENY_PREFIXES.some((p) => name.startsWith(p))) continue;
+    const value = sanitizeValue(m[3]!);
+    if (!value) continue;
+    (kind === "light" ? light : dark)[name] = value;
+  }
 }
 
 /**
