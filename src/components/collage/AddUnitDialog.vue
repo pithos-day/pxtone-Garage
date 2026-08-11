@@ -1,16 +1,12 @@
 // ユニット追加ダイアログ。
 // 音色を1つ選び、名前を指定して追加する (名前のデフォルトは "u-音色名")。
 <script setup lang="ts">
-import { onMounted, ref, watch } from "vue";
 import { units, woices, addUnitWithWoice } from "../../state/project";
+import { useWoiceNameForm } from "../../composables/useWoiceNameForm";
 import { t } from "../../i18n";
 import ModalDialog from "../shell/ModalDialog.vue";
 
 const emit = defineEmits<{ (e: "close"): void }>();
-
-const woiceIdx = ref(-1);
-const name = ref("");
-const nameDirty = ref(false);
 
 const hasWoice = (): boolean => woices.value.length > 0;
 
@@ -22,24 +18,15 @@ function defaultName(idx: number): string {
   return `unit ${units.value.length + 1}`;
 }
 
-onMounted(() => {
-  woiceIdx.value = hasWoice() ? 0 : -1;
-  name.value = defaultName(woiceIdx.value);
+const { woiceIdx, name, onNameInput, onSubmit } = useWoiceNameForm({
+  initWoice: () => (hasWoice() ? 0 : -1),
+  initName: defaultName,
+  autoName: true,
+  submit: (idx, n) => {
+    addUnitWithWoice(n || defaultName(idx), hasWoice() ? Math.max(0, idx) : -1);
+    emit("close");
+  },
 });
-
-watch(woiceIdx, (idx) => {
-  if (!nameDirty.value) name.value = defaultName(idx);
-});
-
-function onNameInput(): void {
-  nameDirty.value = true;
-}
-
-function onSubmit(): void {
-  const idx = hasWoice() ? Math.max(0, woiceIdx.value) : -1;
-  addUnitWithWoice(name.value.trim() || defaultName(idx), idx);
-  emit("close");
-}
 </script>
 
 <template>

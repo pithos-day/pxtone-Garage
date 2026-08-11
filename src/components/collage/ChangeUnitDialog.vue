@@ -1,30 +1,26 @@
 // ユニット設定ダイアログ。
 // 対象ユニットの名前と音色をまとめて変更する (AddUnitDialog と同様の構成)。
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
 import { units, woices, setUnitNameAndWoice } from "../../state/project";
+import { useWoiceNameForm } from "../../composables/useWoiceNameForm";
 import { t } from "../../i18n";
 import ModalDialog from "../shell/ModalDialog.vue";
 
 const props = defineProps<{ unitIdx: number }>();
 const emit = defineEmits<{ (e: "close"): void }>();
 
-const woiceIdx = ref(-1);
-const name = ref("");
-
-onMounted(() => {
-  const u = units.value[props.unitIdx];
-  if (u) {
-    // 音色なしのユニットは先頭の音色を初期選択にする
-    woiceIdx.value = u.woiceIndex >= 0 ? u.woiceIndex : 0;
-    name.value = u.name;
-  }
+const { woiceIdx, name, onSubmit } = useWoiceNameForm({
+  // 音色なしのユニットは先頭の音色を初期選択にする
+  initWoice: () => {
+    const u = units.value[props.unitIdx];
+    return u ? (u.woiceIndex >= 0 ? u.woiceIndex : 0) : -1;
+  },
+  initName: () => units.value[props.unitIdx]?.name ?? "",
+  submit: (idx, n) => {
+    setUnitNameAndWoice(props.unitIdx, n, idx);
+    emit("close");
+  },
 });
-
-function onSubmit(): void {
-  setUnitNameAndWoice(props.unitIdx, name.value, woiceIdx.value);
-  emit("close");
-}
 </script>
 
 <template>
