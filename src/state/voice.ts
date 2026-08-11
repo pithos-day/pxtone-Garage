@@ -160,7 +160,8 @@ export function enveInsertPoint(points: { x: number; y: number }[], maxHead: num
     }
     cur -= p.x;
   }
-  // 末尾を超えるクリックは追加しない (本家準拠)
+  // 末尾を超えるクリックは追加しない (本家準拠)。
+  // 戻り値の true は「編集操作を受け付けた (空きスロットはない)」ことを表す
   return true;
 }
 
