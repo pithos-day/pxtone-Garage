@@ -190,18 +190,10 @@ export function enveDeletePoint(points: { x: number; y: number }[], maxHead: num
 export function enveSetHeadPointX(points: { x: number; y: number }[], maxHead: number, idx: number, cx: number): void {
   if (idx <= 0 || idx >= maxHead) return;
   const disp = enveDisplayPoints(points, maxHead);
-  let prev = 0;
-  let next = -1; // -1 = 上限なし (末尾の有効点)
-  let found = false;
-  for (let i = 0; i < disp.length; i++) {
-    if (disp[i]!.index === idx) {
-      prev = i > 0 ? disp[i - 1]!.x : 0;
-      next = i < disp.length - 1 ? disp[i + 1]!.x : -1;
-      found = true;
-      break;
-    }
-  }
-  if (!found) return;
+  const pos = disp.findIndex((p) => p.index === idx);
+  if (pos < 0) return;
+  const prev = pos > 0 ? disp[pos - 1]!.x : 0;
+  const next = pos < disp.length - 1 ? disp[pos + 1]!.x : -1; // -1 = 上限なし (末尾の有効点)
   const minX = prev + 1;
   const clamped = next < 0 ? Math.max(minX, cx) : Math.max(minX, Math.min(next - 1, cx));
   points[idx]!.x = clamped - prev;
