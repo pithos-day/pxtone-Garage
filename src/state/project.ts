@@ -705,8 +705,11 @@ export function addEvent(clock: number, unitNo: number, kind: number, value: num
 }
 
 export function deleteEvents(clock1: number, clock2: number, unitNo: number, kind?: number): void {
-  if (kind === undefined) service.evels.recordDeleteByUnit(clock1, clock2, unitNo);
-  else service.evels.recordDelete(clock1, clock2, unitNo, kind);
+  if (kind !== undefined) {
+    service.evels.recordDelete(clock1, clock2, unitNo, kind);
+    return;
+  }
+  service.evels.recordDeleteByUnit(clock1, clock2, unitNo);
 }
 
 export function setEventValue(clock1: number, clock2: number, unitNo: number, kind: number, value: number): void {
