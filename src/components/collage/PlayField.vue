@@ -134,7 +134,7 @@ function onPointerUp(e: PointerEvent): void {
   else setPlayEnd(meas + 1);
 }
 
-function onMenuAction(action: "setRepeat" | "setLast" | "cutRepeat" | "cutLast" | "setStart" | "setEnd" | "cutStart" | "cutEnd"): void {
+function onMenuAction(action: "setRepeat" | "setLast" | "clearRepeat" | "clearLast" | "setStart" | "setEnd" | "clearStart" | "clearEnd"): void {
   const m = menu.value;
   menu.value = null;
   if (!m) return;
@@ -147,10 +147,10 @@ function onMenuAction(action: "setRepeat" | "setLast" | "cutRepeat" | "cutLast" 
       // 本家準拠: last は「最後の小節番号」(終端境界 = (meas+1) 小節目の開始)
       setLastMeas(m.meas + 1);
       break;
-    case "cutRepeat":
+    case "clearRepeat":
       setRepeatMeas(0);
       break;
-    case "cutLast":
+    case "clearLast":
       setLastMeas(0);
       break;
     case "setStart":
@@ -159,10 +159,10 @@ function onMenuAction(action: "setRepeat" | "setLast" | "cutRepeat" | "cutLast" 
     case "setEnd":
       setPlayEnd(m.meas + 1);
       break;
-    case "cutStart":
+    case "clearStart":
       setPlayStart(-1);
       break;
-    case "cutEnd":
+    case "clearEnd":
       setPlayEnd(-1);
       break;
   }
@@ -185,15 +185,15 @@ function onMenuAction(action: "setRepeat" | "setLast" | "cutRepeat" | "cutLast" 
         <button @click="onMenuAction('setRepeat')">{{ t("playfield.setRepeat") }}</button>
         <button @click="onMenuAction('setLast')">{{ t("playfield.setLast") }}</button>
         <div class="sep" />
-        <button @click="onMenuAction('cutRepeat')">{{ t("playfield.clearRepeat") }}</button>
-        <button @click="onMenuAction('cutLast')">{{ t("playfield.clearLast") }}</button>
+        <button @click="onMenuAction('clearRepeat')">{{ t("playfield.clearRepeat") }}</button>
+        <button @click="onMenuAction('clearLast')">{{ t("playfield.clearLast") }}</button>
       </template>
       <template v-else>
         <button @click="onMenuAction('setStart')">{{ t("playfield.setStart") }}</button>
         <button @click="onMenuAction('setEnd')">{{ t("playfield.setEnd") }}</button>
         <div class="sep" />
-        <button @click="onMenuAction('cutStart')">{{ t("playfield.clearStart") }}</button>
-        <button @click="onMenuAction('cutEnd')">{{ t("playfield.clearEnd") }}</button>
+        <button @click="onMenuAction('clearStart')">{{ t("playfield.clearStart") }}</button>
+        <button @click="onMenuAction('clearEnd')">{{ t("playfield.clearEnd") }}</button>
       </template>
     </div>
   </div>
