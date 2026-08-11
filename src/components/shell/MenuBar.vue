@@ -193,8 +193,8 @@ const modeOps: Record<Mode, ModeOps> = {
     close: onCloseVoice,
     undo: undoVoice,
     redo: redoVoice,
-    canUndo: () => currentVoice()?.undoStack.length ? currentVoice()!.undoStack.length > 0 : false,
-    canRedo: () => currentVoice()?.redoStack.length ? currentVoice()!.redoStack.length > 0 : false,
+    canUndo: () => (currentVoice()?.undoStack.length ?? 0) > 0,
+    canRedo: () => (currentVoice()?.redoStack.length ?? 0) > 0,
   },
   noise: {
     new: () => newNoise(),
@@ -204,8 +204,8 @@ const modeOps: Record<Mode, ModeOps> = {
     close: onCloseNoise,
     undo: undoNoise,
     redo: redoNoise,
-    canUndo: () => currentNoise()?.undoStack.length ? currentNoise()!.undoStack.length > 0 : false,
-    canRedo: () => currentNoise()?.redoStack.length ? currentNoise()!.redoStack.length > 0 : false,
+    canUndo: () => (currentNoise()?.undoStack.length ?? 0) > 0,
+    canRedo: () => (currentNoise()?.redoStack.length ?? 0) > 0,
   },
 };
 
