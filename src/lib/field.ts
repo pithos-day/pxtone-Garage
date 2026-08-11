@@ -24,6 +24,13 @@ export function zoomByWheel(e: WheelEvent, current: number): number | null {
   return ZOOM_TABLE[next]!;
 }
 
+// Shift+ホイールの横スクロール量 (px)。Shift 以外は null
+const WHEEL_PAN_STEP = 48;
+export function wheelPanX(e: WheelEvent): number | null {
+  if (!e.shiftKey) return null;
+  return e.deltaY > 0 ? WHEEL_PAN_STEP : -WHEEL_PAN_STEP;
+}
+
 // ---- ポインタキャプチャ ----
 
 export function capturePointer(el: { setPointerCapture(pointerId: number): void } | null | undefined, e: PointerEvent): void {

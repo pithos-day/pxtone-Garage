@@ -7,7 +7,7 @@ import { useCanvas } from "../../composables/useCanvas";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText, drawPlayhead, drawScopeBand,
 } from "../../lib/draw";
-import { fieldOffset, clockAtX, zoomByWheel } from "../../lib/field";
+import { fieldOffset, clockAtX, zoomByWheel, wheelPanX } from "../../lib/field";
 import { capturePointer, releasePointerCapture } from "../../lib/field";
 import { iterVisibleRecords, visibleClockWindow } from "../../lib/records";
 import {
@@ -358,8 +358,9 @@ function onWheel(e: WheelEvent): void {
     doc.zoom = zoom;
     return;
   }
-  if (e.shiftKey) {
-    doc.scrollX = Math.max(0, doc.scrollX + (e.deltaY > 0 ? 48 : -48));
+  const dx = wheelPanX(e);
+  if (dx !== null) {
+    doc.scrollX = Math.max(0, doc.scrollX + dx);
     return;
   }
   doc.scrollYKey = Math.max(0, Math.min(KEYNUM - 1, doc.scrollYKey + Math.sign(e.deltaY)));
