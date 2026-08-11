@@ -10,7 +10,7 @@ export interface FontOption {
   source: "builtin" | "local";
 }
 
-// アプリ内蔵フォント (既定は DotGothic16)
+// アプリ内蔵フォント (既定は Noto Sans JP、下記 DEFAULT_FONT_FAMILY と同期)
 export const BUNDLED_FONTS: FontOption[] = [
   { family: "DotGothic16", label: "DotGothic16", source: "builtin" },
   { family: "M PLUS Rounded 1c", label: "M PLUS Rounded 1c", source: "builtin" },
