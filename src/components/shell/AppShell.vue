@@ -1,7 +1,7 @@
 // アプリのシェル: メニューバー (モードタブ + File/Edit/View) → ファイルタブ →
 // 再生コントロール → コンテンツ。
 <script setup lang="ts">
-import { ref } from "vue";
+import { onBeforeUnmount, ref } from "vue";
 import MenuBar from "./MenuBar.vue";
 import FileTabs from "./FileTabs.vue";
 import TransportBar from "./TransportBar.vue";
@@ -38,27 +38,26 @@ initLanguage();
 
 // ブラウザのコンテキストメニューをアプリ全体で無効化
 // (アプリ独自の右クリックメニューは preventDefault だけで動作する)
-window.addEventListener(
-  "contextmenu",
-  (e) => e.preventDefault(),
-  true,
-);
+const onAppContextMenu = (e: Event): void => e.preventDefault();
 
 // インプットフォーカスの解除: テキスト入力がフォーカス中に、
 // その入力の外側をクリックしたら blur() を呼んで確実に解除する
 // (一部の要素では既定のフォーカス移動が起きないため)
-window.addEventListener(
-  "pointerdown",
-  (e) => {
-    const el = document.activeElement;
-    if (!el || (el.tagName !== "INPUT" && el.tagName !== "TEXTAREA")) return;
-    if (el === e.target || el.contains(e.target as Node)) return;
-    const t = e.target as HTMLElement | null;
-    if (t && t.closest?.(".dlg, .ctxmenu")) return;
-    (el as HTMLElement).blur();
-  },
-  true,
-);
+const onAppPointerDown = (e: PointerEvent): void => {
+  const el = document.activeElement;
+  if (!el || (el.tagName !== "INPUT" && el.tagName !== "TEXTAREA")) return;
+  if (el === e.target || el.contains(e.target as Node)) return;
+  const t = e.target as HTMLElement | null;
+  if (t && t.closest?.(".dlg, .ctxmenu")) return;
+  (el as HTMLElement).blur();
+};
+
+window.addEventListener("contextmenu", onAppContextMenu, true);
+window.addEventListener("pointerdown", onAppPointerDown, true);
+onBeforeUnmount(() => {
+  window.removeEventListener("contextmenu", onAppContextMenu, true);
+  window.removeEventListener("pointerdown", onAppPointerDown, true);
+});
 </script>
 
 <template>
