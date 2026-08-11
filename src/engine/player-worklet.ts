@@ -41,9 +41,11 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
   private onMessage(msg: MainToWorklet): void {
     switch (msg.type) {
       case "load":
-        this.doLoad(msg.bytes, msg.sps, msg.playStartMeas, msg.playEndMeas);
+        this.load(msg.bytes, msg.sps, msg.playStartMeas, msg.playEndMeas);
         break;
       case "play":
+        // 曲末で停止した後に再生した場合は先頭から再開する
+        // (mooIsEndVomit は「曲末に達した」状態。そのまま再生すると無音になる)
         if (this.service?.mooIsEndVomit()) this.reseek(0);
         this.playing = true;
         this.lastPosNotifySample = -1;
@@ -93,7 +95,7 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
     return svc;
   }
 
-  private doLoad(bytes: ArrayBuffer, sps: number, playStartMeas = -1, playEndMeas = -1): void {
+  private load(bytes: ArrayBuffer, sps: number, playStartMeas = -1, playEndMeas = -1): void {
     this.sps = sps;
     const svc = this.loadService(bytes, sps);
     this.service = svc;
