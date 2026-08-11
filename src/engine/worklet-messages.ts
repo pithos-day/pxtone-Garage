@@ -9,6 +9,6 @@ export type MainToWorklet =
   | { type: "setMutedUnits"; units: number[] };
 
 export type WorkletToMain =
-  | { type: "loaded"; ok: boolean; error: string; totalSample: number }
+  | { type: "loaded"; ok: boolean; totalSample: number }
   | { type: "position"; sample: number }
   | { type: "ended" };

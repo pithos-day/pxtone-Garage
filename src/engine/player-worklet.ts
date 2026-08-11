@@ -80,22 +80,22 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
     }
   }
 
-  // Service の初期化・読み込み・準備を行う。エラー名を返す (成功時は svc + error "")
-  private loadService(bytes: ArrayBuffer, sps: number): { svc: Service | null; error: string } {
+  // Service の初期化・読み込み・準備を行う (失敗時は null)
+  private loadService(bytes: ArrayBuffer, sps: number): Service | null {
     const svc = new Service();
-    if (svc.initCollage(500000) !== PxtnErr.OK) return { svc: null, error: "init" };
+    if (svc.initCollage(500000) !== PxtnErr.OK) return null;
     const io = new MemoryIo(new Uint8Array(bytes));
-    if (svc.read(io) !== PxtnErr.OK) return { svc: null, error: "read" };
-    if (svc.tonesReady() !== PxtnErr.OK) return { svc: null, error: "tonesReady" };
-    if (!svc.setDestinationQuality(2, sps)) return { svc: null, error: "quality" };
+    if (svc.read(io) !== PxtnErr.OK) return null;
+    if (svc.tonesReady() !== PxtnErr.OK) return null;
+    if (!svc.setDestinationQuality(2, sps)) return null;
     svc.mooSetLoop(this.loop);
     svc.mooSetMasterVolume(this.volume);
-    return { svc, error: "" };
+    return svc;
   }
 
   private doLoad(bytes: ArrayBuffer, sps: number, playStart = -1, playEnd = -1): void {
     this.sps = sps;
-    const { svc, error } = this.loadService(bytes, sps);
+    const svc = this.loadService(bytes, sps);
     this.service = svc;
     this.playing = false;
     this.lastPosNotifySample = -1;
@@ -108,7 +108,6 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
     this.post({
       type: "loaded",
       ok: svc !== null,
-      error,
       totalSample: svc ? svc.mooGetSamplingEnd() : 0,
     });
   }
