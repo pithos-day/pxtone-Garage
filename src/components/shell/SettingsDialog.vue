@@ -134,23 +134,9 @@ select {
   accent-color: var(--primary);
 }
 
-.disclosure:hover {
-  background: var(--accent);
-  color: var(--accent-foreground);
-}
-
-.disclosure-arrow {
-  font-size: 9px;
-  color: var(--muted-foreground);
-}
-
 /* テーマインポート */
 .import-msg {
   color: var(--muted-foreground);
   font-size: 11px;
-}
-
-.spacer {
-  flex: 1;
 }
 </style>
