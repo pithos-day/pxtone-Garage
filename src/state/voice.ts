@@ -215,6 +215,11 @@ export const WAVE_PRESET_TITLES = ["正弦波", "三角波", "鋸波", "矩形�
 
 const WAVE_POINT_MAX = 31; // 本家 ptvFIXNUM_WAVE_POINT
 
+// Random プリセットの有効点数 (1..30 の乱数)
+function randomActiveNum(): number {
+  return 1 + Math.floor(Math.random() * (WAVE_POINT_MAX - 1));
+}
+
 // 倍音プリセット (本家 ptuiWavePreset::_module_overtone)
 function presetOvertone(vc: VoiceUnit, preset: WavePreset): void {
   const build = (): void => {
@@ -258,7 +263,7 @@ function presetOvertone(vc: VoiceUnit, preset: WavePreset): void {
     case 4: // Random
       vc.volume = 28;
       {
-        const work = 1 + Math.floor(Math.random() * (WAVE_POINT_MAX - 1)); // 1..30
+        const work = randomActiveNum();
         build();
         for (let s = 0; s < work; s++) vc.wave.points[s]!.y = -128 + Math.floor(Math.random() * 257);
         for (let s = work; s < WAVE_POINT_MAX; s++) vc.wave.points[s]!.y = 0;
@@ -311,7 +316,7 @@ function presetCoodinate(vc: VoiceUnit, preset: WavePreset): void {
     case 4: // Random (1..30 個の点を x でソート)
       vc.volume = 64;
       {
-        const num = 1 + Math.floor(Math.random() * (WAVE_POINT_MAX - 1));
+        const num = randomActiveNum();
         const pts: [number, number][] = [];
         for (let s = 1; s < num; s++) {
           pts.push([1 + Math.floor(Math.random() * 199), -100 + Math.floor(Math.random() * 201)]);
