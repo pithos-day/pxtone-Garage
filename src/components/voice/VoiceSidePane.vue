@@ -6,7 +6,7 @@
 // エンベロープは本家 ptuiEnvelope 準拠の「区間長 x + 累積描画」。
 import { computed, ref, watch } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
-import { useUndoRedoRedraw } from "../../composables/useUndoRedoRedraw";
+import { useEditRev } from "../../composables/useEditRev";
 import { useOnceUndo } from "../../composables/useUndo";
 import { COLORS } from "../../lib/theme";
 import { fillRect, fillText } from "../../lib/draw";
@@ -45,11 +45,8 @@ const props = defineProps<{ side: number }>();
 const emit = defineEmits<{ (e: "edit"): void }>();
 
 const voice = computed(() => currentVoice());
-const rev = ref(0);
-function touch(): void {
-  rev.value++;
-  emit("edit"); // プレビューキャッシュ破棄用に親へ通知
-}
+// rev は再描画トリガー、touch はプレビューキャッシュ破棄を親へ通知する
+const { rev, touch } = useEditRev(() => voice.value, () => emit("edit"));
 
 const waveType = ref<"coord" | "overtone">("coord");
 
@@ -69,8 +66,6 @@ watch(
   },
 );
 
-// undo/redo (メニュー) 後の再描画
-useUndoRedoRedraw(() => voice.value, () => touch());
 
 // ドラッグ/フォーカス中は最初の編集時のみ undo を積む (1 ジェスチャ = 1 エントリ)
 const dragUndo = useOnceUndo(() => editVoice(() => {}));

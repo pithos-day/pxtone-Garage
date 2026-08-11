@@ -6,7 +6,7 @@
 // History リスト、WAV 書き出しを提供する。
 import { computed, onMounted, ref } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
-import { useUndoRedoRedraw } from "../../composables/useUndoRedoRedraw";
+import { useEditRev } from "../../composables/useEditRev";
 import { useGlobalKeys } from "../../composables/useGlobalKeys";
 import { useDebounced } from "../../composables/useDebounced";
 import { useOnceUndo } from "../../composables/useUndo";
@@ -22,10 +22,8 @@ import { t } from "../../i18n";
 const props = defineProps<{ active: boolean }>();
 
 const noise = computed(() => currentNoise());
-const rev = ref(0);
-function touch(): void {
-  rev.value++;
-}
+// 編集リビジョン。undo/redo 後はリアルタイム反映のため再ビルドを予約する
+const { rev, touch } = useEditRev(() => noise.value, undefined, () => scheduleRebuild());
 
 import { NOISE_WAVE_TYPE_NAMES as WAVE_TYPE_NAMES, NOISE_BUILT_SPS } from "../../lib/noise";
 const OSC_IDS = ["main", "freq", "volu"] as const;
@@ -107,11 +105,6 @@ function setEnvePct(u: number, i: number, raw: string): void {
   onFieldChange();
 }
 
-// undo/redo (メニュー) 後もリアルタイム反映する
-useUndoRedoRedraw(() => noise.value, () => {
-  touch();
-  scheduleRebuild();
-});
 
 // ---- リアルタイムビルド (250ms デバウンス) ----
 const builtPcm = ref<Float32Array | null>(null);
