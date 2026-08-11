@@ -37,7 +37,7 @@ function touch(): void {
 
 const waveType = ref<"coord" | "overtone">("coord");
 
-function vc() {
+function currentVoiceUnit() {
   const v = voice.value;
   if (!v) return null;
   const s = Math.min(props.side, v.woice.voiceNum - 1);
@@ -73,9 +73,9 @@ function beginDragUndo(): void {
 //   補正値  = (tuning-1)*10000 ∈ ±128 (右クリックで 0 = 1.0)
 //   Release = リリース区間長 1..1000 (右クリックで 1)
 // getter は rev を参照して undo/redo 後の再描画でも最新値を返す
-function setVoiceUnit(fn: (c: NonNullable<ReturnType<typeof vc>>) => void): void {
+function setVoiceUnit(fn: (c: NonNullable<ReturnType<typeof currentVoiceUnit>>) => void): void {
   editVoice(() => {
-    const c = vc();
+    const c = currentVoiceUnit();
     if (c) fn(c);
   });
   touch();
@@ -84,34 +84,34 @@ function setVoiceUnit(fn: (c: NonNullable<ReturnType<typeof vc>>) => void): void
 const volumeModel = computed({
   get: () => {
     void rev.value;
-    return vc()?.volume ?? 64;
+    return currentVoiceUnit()?.volume ?? 64;
   },
   set: (v: number) => setVoiceUnit((c) => (c.volume = Math.max(0, Math.min(64, Math.round(v))))),
 });
 const panModel = computed({
   get: () => {
     void rev.value;
-    return vc()?.pan ?? 64;
+    return currentVoiceUnit()?.pan ?? 64;
   },
   set: (v: number) => setVoiceUnit((c) => (c.pan = Math.max(0, Math.min(128, Math.round(v))))),
 });
 const correctModel = computed({
   get: () => {
     void rev.value;
-    return Math.round(((vc()?.tuning ?? 1) - 1) * 10000);
+    return Math.round(((currentVoiceUnit()?.tuning ?? 1) - 1) * 10000);
   },
   set: (v: number) => setVoiceUnit((c) => (c.tuning = 1 + Math.max(-128, Math.min(128, Math.round(v))) / 10000)),
 });
 
 // リリース区間長 (本家 ptuiReleaseTime: points[headNum+bodyNum].x を 0..100。
 // 0 は即時カットオフ)
-function enveHeadCount(c: NonNullable<ReturnType<typeof vc>>): number {
+function enveHeadCount(c: NonNullable<ReturnType<typeof currentVoiceUnit>>): number {
   return c.envelope.headNum + c.envelope.bodyNum;
 }
 const releaseModel = computed({
   get: () => {
     void rev.value;
-    const c = vc();
+    const c = currentVoiceUnit();
     if (!c) return 0;
     const hc = enveHeadCount(c);
     return c.envelope.tailNum > 0 ? (c.envelope.points[hc]?.x ?? 0) : 0;
@@ -147,7 +147,7 @@ function setWaveType(type: "coord" | "overtone"): void {
   if (waveType.value === type) return;
   waveType.value = type;
   editVoice(() => {
-    const c = vc();
+    const c = currentVoiceUnit();
     if (!c) return;
     if (type === "overtone") {
       c.type = VoiceType.Overtone;
@@ -181,14 +181,14 @@ const waveRef = ref<HTMLCanvasElement | null>(null);
 const WAVE_PAD = 12;
 const SAMPLE_NUM = 256; // 本家 SCREEN_WAVE_MAIN 相当のサンプル数
 
-function coordX(c: NonNullable<ReturnType<typeof vc>>, w: number, x: number): number {
+function coordX(c: NonNullable<ReturnType<typeof currentVoiceUnit>>, w: number, x: number): number {
   return WAVE_PAD + (x / c.wave.reso) * (w - WAVE_PAD * 2);
 }
 function coordY(h: number, y: number): number {
   // 本家 ptuiWave と同じく、サンプル値 (volume 込み) をパディング間の全幅でマッピングする
   return h / 2 - (y / 128) * (h - WAVE_PAD * 2);
 }
-function coordPxToX(c: NonNullable<ReturnType<typeof vc>>, w: number, px: number): number {
+function coordPxToX(c: NonNullable<ReturnType<typeof currentVoiceUnit>>, w: number, px: number): number {
   return Math.max(0, Math.min(c.wave.reso, Math.round(((px - WAVE_PAD) / (w - WAVE_PAD * 2)) * c.wave.reso)));
 }
 function coordPxToY(h: number, py: number): number {
@@ -198,7 +198,7 @@ function coordPxToY(h: number, py: number): number {
 // 波形モニター: 本家 ptuiWave::_try_update と同様、生成波形 (GetOneSample) を描画する。
 // 波形も点も volume 込みで描画し、両者が一致するようにする
 function drawWave(ctx: CanvasRenderingContext2D, w: number, h: number): void {
-  const c = vc();
+  const c = currentVoiceUnit();
   fillRect(ctx, 0, 0, w, h, COLORS.fieldBg);
   if (!c) return;
   // 中央線 (y=0)
@@ -244,7 +244,7 @@ useCanvas(waveRef, drawWave, [() => rev.value, () => voice.value, () => waveType
 const waveDrag = ref<{ idx: number } | null>(null);
 
 function waveIndexAt(px: number, py: number, w: number, h: number): number {
-  const c = vc();
+  const c = currentVoiceUnit();
   if (!c) return -1;
   let best = -1;
   let bestD = 10;
@@ -270,8 +270,8 @@ function cursorToWaveY(h: number, py: number, volume: number): number {
 
 function onWavePointerDown(e: PointerEvent): void {
   const c = canvasRect(waveRef);
-  const c2 = vc();
-  if (!c || !c2 || c2.type !== VoiceType.Coodinate) return;
+  const unit = currentVoiceUnit();
+  if (!c || !unit || unit.type !== VoiceType.Coodinate) return;
   const { x, y } = relPos(e, c);
   const idx = waveIndexAt(x, y, c.w, c.h);
   if (e.button === 2) {
@@ -282,8 +282,8 @@ function onWavePointerDown(e: PointerEvent): void {
   if (e.button !== 0) return;
   if (idx < 0) {
     // 空き領域クリック = 点を追加 (x でソートされた位置に挿入。最大31点 = 本家 ptvFIXNUM_WAVE_POINT)
-    const px = coordPxToX(c2, c.w, x);
-    const py = cursorToWaveY(c.h, y, c2.volume);
+    const px = coordPxToX(unit, c.w, x);
+    const py = cursorToWaveY(c.h, y, unit.volume);
     if (px <= 0) return; // x=0 は点0 が占有 (本家 _point_add 準拠)
     setVoiceUnit((cc) => {
       if (!insertWavePoint(cc.wave.points, px, py, 31)) return;
@@ -301,16 +301,16 @@ function onWavePointerMove(e: PointerEvent): void {
   const d = waveDrag.value;
   if (!d) return;
   const c = canvasRect(waveRef);
-  const c2 = vc();
-  if (!c || !c2) return;
+  const unit = currentVoiceUnit();
+  if (!c || !unit) return;
   const { x, y } = relPos(e, c);
   beginDragUndo();
   // 前後の点を越えられないよう x をクランプ (本家 _point_set 準拠)
-  const p = c2.wave.points[d.idx];
+  const p = unit.wave.points[d.idx];
   if (!p) return;
-  p.y = cursorToWaveY(c.h, y, c2.volume);
-  const nx = coordPxToX(c2, c.w, x);
-  p.x = clampWavePointX(c2.wave.points, d.idx, nx, c2.wave.reso);
+  p.y = cursorToWaveY(c.h, y, unit.volume);
+  const nx = coordPxToX(unit, c.w, x);
+  p.x = clampWavePointX(unit.wave.points, d.idx, nx, unit.wave.reso);
   touch();
 }
 
@@ -327,7 +327,7 @@ function onWavePointerUp(e: PointerEvent): void {
 // 常に最新の配列を返す (markRaw のため参照の置き換えは reactive 追跡されない)
 const sinePoints = computed(() => {
   void rev.value;
-  return vc()?.wave.points ?? [];
+  return currentVoiceUnit()?.wave.points ?? [];
 });
 let sineUndoPushed = false;
 
@@ -341,7 +341,7 @@ function onSineBlur(): void {
 }
 function setSine(i: number, v: number): void {
   if (waveType.value === "coord" && i === 0) return; // 座標モードの点0 は固定
-  const c = vc();
+  const c = currentVoiceUnit();
   if (!c || !c.wave.points[i]) return;
   c.wave.points[i]!.y = Math.max(-128, Math.min(128, Math.round(v)));
   touch();
@@ -353,7 +353,7 @@ function setSine(i: number, v: number): void {
 const enveRef = ref<HTMLCanvasElement | null>(null);
 
 // ヘッド表示点 (累積座標) を返す
-function enveDisplay(c: NonNullable<ReturnType<typeof vc>>): {
+function enveDisplay(c: NonNullable<ReturnType<typeof currentVoiceUnit>>): {
   head: ReturnType<typeof enveDisplayPoints>;
   headCount: number;
 } {
@@ -362,21 +362,21 @@ function enveDisplay(c: NonNullable<ReturnType<typeof vc>>): {
   return { head, headCount };
 }
 
-function enveMaxX(c: NonNullable<ReturnType<typeof vc>>): number {
+function enveMaxX(c: NonNullable<ReturnType<typeof currentVoiceUnit>>): number {
   const { head } = enveDisplay(c);
   let m = 0;
   if (head.length) m = head[head.length - 1]!.x;
   return Math.max(100, m * 1.2);
 }
 
-function enveX(c: NonNullable<ReturnType<typeof vc>>, w: number, x: number): number {
+function enveX(c: NonNullable<ReturnType<typeof currentVoiceUnit>>, w: number, x: number): number {
   return WAVE_PAD + (x / enveMaxX(c)) * (w - WAVE_PAD * 2);
 }
 // 本家 _pos_fix 準拠: y は 0..128
 function enveY(h: number, y: number): number {
   return h - WAVE_PAD - (y / 128) * (h - WAVE_PAD * 2);
 }
-function envePxToX(c: NonNullable<ReturnType<typeof vc>>, w: number, px: number): number {
+function envePxToX(c: NonNullable<ReturnType<typeof currentVoiceUnit>>, w: number, px: number): number {
   return Math.max(0, Math.min(2000, Math.round(((px - WAVE_PAD) / (w - WAVE_PAD * 2)) * enveMaxX(c))));
 }
 function envePxToY(h: number, py: number): number {
@@ -384,7 +384,7 @@ function envePxToY(h: number, py: number): number {
 }
 
 function drawEnve(ctx: CanvasRenderingContext2D, w: number, h: number): void {
-  const c = vc();
+  const c = currentVoiceUnit();
   fillRect(ctx, 0, 0, w, h, COLORS.fieldBg);
   if (!c) return;
   const { head } = enveDisplay(c);
@@ -413,7 +413,7 @@ useCanvas(enveRef, drawEnve, [() => rev.value, () => voice.value]);
 const enveDrag = ref<{ index: number } | null>(null);
 
 function envePointAt(
-  c: NonNullable<ReturnType<typeof vc>>,
+  c: NonNullable<ReturnType<typeof currentVoiceUnit>>,
   w: number,
   h: number,
   px: number,
@@ -434,10 +434,10 @@ function envePointAt(
 
 function onEnvePointerDown(e: PointerEvent): void {
   const c = canvasRect(enveRef);
-  const c2 = vc();
-  if (!c || !c2) return;
+  const unit = currentVoiceUnit();
+  if (!c || !unit) return;
   const { x, y } = relPos(e, c);
-  const hit = envePointAt(c2, c.w, c.h, x, y);
+  const hit = envePointAt(unit, c.w, c.h, x, y);
   if (e.button === 2) {
     // 右クリック: ヘッド点を削除 (本家 _point_delete。有効点が1つのみなら不可)
     if (hit) {
@@ -453,7 +453,7 @@ function onEnvePointerDown(e: PointerEvent): void {
     return;
   }
   // 空き領域クリック = 点を追加 (累積座標を区間長に変換して挿入)
-  const cx = envePxToX(c2, c.w, x);
+  const cx = envePxToX(unit, c.w, x);
   const cy = envePxToY(c.h, y);
   setVoiceUnit((cc) => enveInsertPoint(cc.envelope.points, enveHeadCount(cc), cx, cy));
 }
@@ -462,16 +462,16 @@ function onEnvePointerMove(e: PointerEvent): void {
   const d = enveDrag.value;
   if (!d) return;
   const c = canvasRect(enveRef);
-  const c2 = vc();
-  if (!c || !c2) return;
+  const unit = currentVoiceUnit();
+  if (!c || !unit) return;
   const { x, y } = relPos(e, c);
   beginDragUndo();
-  const cx = envePxToX(c2, c.w, x);
+  const cx = envePxToX(unit, c.w, x);
   const cy = envePxToY(c.h, y);
   // ドラッグ中の移動は undo を積まず直接書き換える (undo はジェスチャ先頭の1回)。
   // 前後の点を乗り越えられないよう累積座標でクランプして区間長へ変換
-  enveSetHeadPointX(c2.envelope.points, enveHeadCount(c2), d.index, cx);
-  c2.envelope.points[d.index]!.y = cy;
+  enveSetHeadPointX(unit.envelope.points, enveHeadCount(unit), d.index, cx);
+  unit.envelope.points[d.index]!.y = cy;
   touch();
 }
 
