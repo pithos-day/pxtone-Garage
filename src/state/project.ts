@@ -69,7 +69,7 @@ export const doc = reactive({
   rev: 0, // 編集リビジョン (canvas 再描画のトリガー)
   focusUnit: -1,
   selectedUnits: [] as number[],
-  scrollX: 0, // フィールド左端のクロック
+  scrollX: 0, // フィールド左端のスクロール位置 (px)
   scrollYUnit: 0, // ユニットトレイの行オフセット
   scrollYKey: 0, // ピアノロールの行オフセット (0 = 最上段 = コード108)
   zoom: 48, // 1拍のピクセル幅
