@@ -2,7 +2,7 @@
 // 左: Collage/Voice/Noise のモードタブ (大きめフォント)
 // 右: モード別ドロップダウンメニュー (collage = File/Edit/View、voice/noise = File)
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed } from "vue";
 import { doc, setAllUnitsVisible, exportBytes } from "../../state/project";
 import {
   newProjectInTab,
@@ -21,6 +21,7 @@ import type { EventVolumeMode } from "../../lib/eventVolume";
 import type { AppMode } from "../../lib/modes";
 import MenuItemRow from "./MenuItemRow.vue";
 import { buildFileMenu, buildEditMenu, buildViewMenu, type MenuItem, type ModeMenuOps } from "../../lib/menuItems";
+import { useDropdownMenu } from "../../composables/useDropdownMenu";
 
 const mode = defineModel<AppMode>({ required: true });
 const emit = defineEmits<{
@@ -41,54 +42,18 @@ const MENU_LABELS: Record<MenuName, string> = {
   view: "View",
 };
 
-const openMenu = ref<null | MenuName>(null);
-const openSubIndex = ref(-1);
+// ドロップダウンの開閉管理 (メニュー外クリック / Escape で閉じる)
+const { openMenu, openSubIndex, toggleMenu, hoverMenu, close } = useDropdownMenu<MenuName>();
 
 // モード別のトップメニュー (voice/noise は File のみ)
 const menuNames = computed<MenuName[]>(() => (mode.value === "collage" ? ["file", "edit", "view"] : ["file"]));
 
-function toggleMenu(name: MenuName): void {
-  openMenu.value = openMenu.value === name ? null : name;
-  openSubIndex.value = -1;
-}
-
-function hoverMenu(name: MenuName): void {
-  if (openMenu.value) {
-    openMenu.value = name;
-    openSubIndex.value = -1;
-  }
-}
-
 function runMenuItem(item: MenuItem): void {
   if (item.disabled) return;
   if (item.sub) return;
-  openMenu.value = null;
-  openSubIndex.value = -1;
+  close();
   item.action?.();
 }
-
-function onGlobalClick(e: MouseEvent): void {
-  if (!(e.target as HTMLElement).closest(".menu-bar")) {
-    openMenu.value = null;
-    openSubIndex.value = -1;
-  }
-}
-
-function onKeydown(e: KeyboardEvent): void {
-  if (e.key === "Escape" && openMenu.value) {
-    openMenu.value = null;
-    openSubIndex.value = -1;
-  }
-}
-
-onMounted(() => {
-  window.addEventListener("click", onGlobalClick);
-  window.addEventListener("keydown", onKeydown);
-});
-onBeforeUnmount(() => {
-  window.removeEventListener("click", onGlobalClick);
-  window.removeEventListener("keydown", onKeydown);
-});
 
 // ---- コラージュのアクション ----
 
