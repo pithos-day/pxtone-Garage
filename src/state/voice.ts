@@ -183,19 +183,27 @@ export function enveDeletePoint(points: { x: number; y: number }[], maxHead: num
 
 // ヘッド点ドラッグ: 累積座標 cx を前後の累積座標の間にクランプして区間長として保存する。
 // (前後の点を乗り越えられないようにする。本家には無いが座標波形と同じルール)
+// クランプは「有効点 (ゼロ点を除く)」を基準に行う。配列の隣接要素でクランプすると、
+// 末尾の有効点の後ろはゼロ点 (区間長 0) のため accs[idx+1] == accs[idx] となり
+// 右へ動かせなくなる。末尾の有効点は右方向へ自由に動かせる
 export function enveSetHeadPointX(points: { x: number; y: number }[], maxHead: number, idx: number, cx: number): void {
   if (idx <= 0 || idx >= maxHead) return;
-  const accs: number[] = [];
-  let acc = 0;
-  for (let i = 0; i < maxHead; i++) {
-    acc += points[i]!.x;
-    accs.push(acc);
+  const disp = enveDisplayPoints(points, maxHead);
+  let prev = 0;
+  let next = -1; // -1 = 上限なし (末尾の有効点)
+  let found = false;
+  for (let i = 0; i < disp.length; i++) {
+    if (disp[i]!.index === idx) {
+      prev = i > 0 ? disp[i - 1]!.x : 0;
+      next = i < disp.length - 1 ? disp[i + 1]!.x : -1;
+      found = true;
+      break;
+    }
   }
-  const prev = accs[idx - 1]!;
-  const next = idx < maxHead - 1 ? accs[idx + 1]! : prev + 1000;
+  if (!found) return;
   const minX = prev + 1;
-  const maxX = next > minX ? next - 1 : minX;
-  points[idx]!.x = Math.max(minX, Math.min(maxX, cx)) - prev;
+  const clamped = next < 0 ? Math.max(minX, cx) : Math.max(minX, Math.min(next - 1, cx));
+  points[idx]!.x = clamped - prev;
 }
 
 // 音声スナップショット (undo 用)

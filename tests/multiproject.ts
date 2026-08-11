@@ -736,6 +736,14 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(disp.length, 2, "enve: 削除後の表示点 2つ");
     checkEq(disp[1]!.x, 21, "enve: 削除後の累積 21");
 
+    // 末尾の有効点は右へ自由に動かせる (配列の後ろがゼロ点でも accs[idx+1] で
+    // クランプされないこと — ドラッグが右に動かない不具合の回帰テスト)
+    enveSetHeadPointX(pts, 31, 1, 300);
+    checkEq(pts[1]!.x, 300, "enve: 末尾の有効点は右へ自由に動かせる");
+    // 左へは前の有効点 (累積0) を越えられない
+    enveSetHeadPointX(pts, 31, 1, -10);
+    checkEq(pts[1]!.x, 1, "enve: 末尾の有効点も前の点を越えられない");
+
     // 有効点が1つのみなら削除不可
     const pts2 = Array.from({ length: 32 }, () => ({ x: 0, y: 0 }));
     pts2[0] = { x: 0, y: 96 };

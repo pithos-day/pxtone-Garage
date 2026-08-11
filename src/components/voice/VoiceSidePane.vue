@@ -99,7 +99,8 @@ const correctModel = computed({
   set: (v: number) => setVoiceUnit((c) => (c.tuning = 1 + Math.max(-128, Math.min(128, Math.round(v))) / 10000)),
 });
 
-// リリース区間長 (本家 ptuiReleaseTime: points[headNum+bodyNum].x を 1..100)
+// リリース区間長 (本家 ptuiReleaseTime: points[headNum+bodyNum].x を 0..100。
+// 0 は即時カットオフ)
 function enveHeadCount(c: NonNullable<ReturnType<typeof vc>>): number {
   return c.envelope.headNum + c.envelope.bodyNum;
 }
@@ -107,15 +108,15 @@ const releaseModel = computed({
   get: () => {
     void rev.value;
     const c = vc();
-    if (!c) return 1;
+    if (!c) return 0;
     const hc = enveHeadCount(c);
-    return c.envelope.tailNum > 0 ? (c.envelope.points[hc]?.x ?? 1) : 1;
+    return c.envelope.tailNum > 0 ? (c.envelope.points[hc]?.x ?? 0) : 0;
   },
   set: (v: number) =>
     setVoiceUnit((c) => {
       const hc = c.envelope.headNum + c.envelope.bodyNum;
       if (c.envelope.tailNum > 0 && c.envelope.points[hc]) {
-        c.envelope.points[hc]!.x = Math.max(1, Math.min(100, Math.round(v)));
+        c.envelope.points[hc]!.x = Math.max(0, Math.min(100, Math.round(v)));
       }
     }),
 });
@@ -518,7 +519,7 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
       </div>
       <div class="vsp-param">
         <span class="vsp-plabel" :title="t('voice.release')">R</span>
-        <input type="range" class="vsp-prange" min="1" max="100" step="1" v-model.number="releaseModel" @contextmenu.prevent="resetRelease" />
+        <input type="range" class="vsp-prange" min="0" max="100" step="1" v-model.number="releaseModel" @contextmenu.prevent="resetRelease" />
         <span class="vsp-pval">{{ releaseModel }}</span>
       </div>
     </div>
