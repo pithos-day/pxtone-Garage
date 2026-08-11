@@ -4,7 +4,7 @@
 import { ref } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { COLORS } from "../../lib/theme";
-import { drawGrid, fillRect, fillText } from "../../lib/draw";
+import { drawGrid, fillRect, fillText, drawPlayhead } from "../../lib/draw";
 import { fieldOffset, clockAtX, zoomByWheel } from "../../lib/field";
 import { clockToX, xToClock } from "../../lib/clock";
 import { RULER_H } from "../../lib/layout";
@@ -159,8 +159,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 
   // プレイヘッド
   if (isPlayingNow.value) {
-    const px = clockToX(view, currentClock.value) - doc.scrollX;
-    if (px >= 0 && px <= w) fillRect(ctx, px - 1, 0, 2, h, COLORS.playhead);
+    drawPlayhead(ctx, clockToX(view, currentClock.value) - doc.scrollX, w, h);
   }
 }
 

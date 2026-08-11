@@ -3,7 +3,7 @@
 import { ref } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { COLORS } from "../../lib/theme";
-import { drawGrid, fillRect } from "../../lib/draw";
+import { drawGrid, fillRect, drawPlayhead } from "../../lib/draw";
 import { clockToX } from "../../lib/clock";
 import { doc, clockContext } from "../../state/project";
 import { currentClock, isPlaying as isPlayingNow } from "../../state/player";
@@ -29,8 +29,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   }
   // プレイヘッド (再生バー)
   if (isPlayingNow.value) {
-    const px = clockToX(view, currentClock.value) - doc.scrollX;
-    if (px >= 0 && px <= w) fillRect(ctx, px - 1, 0, 2, h, COLORS.playhead);
+    drawPlayhead(ctx, clockToX(view, currentClock.value) - doc.scrollX, w, h);
   }
 }
 </script>

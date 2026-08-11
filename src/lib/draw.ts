@@ -86,6 +86,16 @@ export function noteShadow(unitNo: number, playing: boolean, vel: number, vol: n
   return getUnitColor(unitNo).shadow(playing, vel, vol);
 }
 
+// 再生位置の縦線 (幅 2px)。x がフィールド幅 w の範囲外なら描画しない
+export function drawPlayhead(ctx: CanvasRenderingContext2D, x: number, w: number, h: number): void {
+  if (x >= 0 && x <= w) fillRect(ctx, x - 1, 0, 2, h, COLORS.playhead);
+}
+
+// 選択範囲 (スコープ) 帯。x1..x2 はフィールド座標 (px)。空幅は 0 にクランプして描画
+export function drawScopeBand(ctx: CanvasRenderingContext2D, x1: number, x2: number, top: number, h: number, color: string): void {
+  fillRect(ctx, x1, top, Math.max(0, x2 - x1), h, color);
+}
+
 export function fillText(
   ctx: CanvasRenderingContext2D,
   text: string,
