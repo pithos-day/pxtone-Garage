@@ -6,6 +6,7 @@ import { useCanvas } from "../../composables/useCanvas";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText, drawPlayhead } from "../../lib/draw";
 import { fieldOffset, clockAtX, zoomByWheel } from "../../lib/field";
+import { capturePointer, releasePointerCapture } from "../../lib/field";
 import { clockToX, xToClock } from "../../lib/clock";
 import { RULER_H } from "../../lib/layout";
 import { EventKind, int32ToFloat } from "pxtone-ts";
@@ -198,13 +199,13 @@ function onPointerDown(e: PointerEvent): void {
       };
       return;
     }
-    c.setPointerCapture(e.pointerId);
+    capturePointer(c, e);
     beginEdit();
     drag.value = { button: 0, x1: clockAt(x), x2: clockAt(x) };
     setScope(clockAt(x), clockAt(x) + Math.max(1, doc.divi));
     applyDragAt(e, y);
   } else if (e.button === 2) {
-    c.setPointerCapture(e.pointerId);
+    capturePointer(c, e);
     beginEdit();
     drag.value = { button: 2, x1: clockAt(x), x2: clockAt(x) };
   }
@@ -271,7 +272,7 @@ function applyDragAt(e: PointerEvent, y: number): void {
 
 function onPointerUp(e: PointerEvent): void {
   const c = canvasRef.value;
-  if (c && c.hasPointerCapture(e.pointerId)) c.releasePointerCapture(e.pointerId);
+  releasePointerCapture(c, e);
   if (drag.value) {
     drag.value = null;
     commitEdit();

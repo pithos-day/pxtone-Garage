@@ -7,7 +7,7 @@ import { ref } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText, drawPlayhead } from "../../lib/draw";
-import { clockAtX } from "../../lib/field";
+import { clockAtX, capturePointer, releasePointerCapture } from "../../lib/field";
 import { clockToX, measOfClock, xToClock } from "../../lib/clock";
 import {
   doc,
@@ -87,7 +87,7 @@ function onPointerDown(e: PointerEvent): void {
   const r = c.getBoundingClientRect();
   if (e.button === 0) {
     drag.value = { x0: e.clientX, y0: e.clientY, moved: false };
-    c.setPointerCapture(e.pointerId);
+    capturePointer(c, e);
     return;
   }
   if (e.button === 2) {
@@ -110,7 +110,7 @@ function onPointerMove(e: PointerEvent): void {
 
 function onPointerUp(e: PointerEvent): void {
   const c = canvasRef.value;
-  if (c && c.hasPointerCapture(e.pointerId)) c.releasePointerCapture(e.pointerId);
+  releasePointerCapture(c, e);
   const d = drag.value;
   drag.value = null;
   if (!d) return;

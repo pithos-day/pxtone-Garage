@@ -4,6 +4,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { doc, getService } from "../../state/project";
 import { KEYNUM, KEY_HEIGHT, KEY_BAND_H } from "../../lib/layout";
+import { capturePointer, releasePointerCapture } from "../../lib/field";
 
 const props = defineProps<{
   vertical?: boolean;
@@ -98,7 +99,7 @@ function setFrac(f: number): void {
 function onPointerDown(e: PointerEvent): void {
   const track = trackRef.value;
   if (!track) return;
-  track.setPointerCapture(e.pointerId);
+  capturePointer(track, e);
   dragging.value = true;
   fracAtStart.value = frac.value;
   mouseAtStart.value = props.vertical ? e.clientY : e.clientX;
@@ -116,7 +117,7 @@ function onPointerMove(e: PointerEvent): void {
 function onPointerUp(e: PointerEvent): void {
   dragging.value = false;
   const track = trackRef.value;
-  if (track?.hasPointerCapture(e.pointerId)) track.releasePointerCapture(e.pointerId);
+  releasePointerCapture(track, e);
 }
 
 // トラッククリックで thumb 中央をそこへジャンプ

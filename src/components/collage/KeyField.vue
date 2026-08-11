@@ -8,6 +8,7 @@ import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText, drawPlayhead, drawScopeBand,
 } from "../../lib/draw";
 import { fieldOffset, clockAtX, zoomByWheel } from "../../lib/field";
+import { capturePointer, hasPointerCapture, releasePointerCapture } from "../../lib/field";
 import { iterVisibleRecords, visibleClockWindow } from "../../lib/records";
 import {
   clockToX,
@@ -273,12 +274,12 @@ function onPointerDown(e: PointerEvent): void {
       previewAt(y);
       return;
     }
-    c.setPointerCapture(e.pointerId);
+    capturePointer(c, e);
     drag.value = { button: 0, x1: clock, x2: clock, row, undoPushed: false };
     setScope(clock, clock + Math.max(1, doc.divi));
     previewAt(y);
   } else if (e.button === 2) {
-    c.setPointerCapture(e.pointerId);
+    capturePointer(c, e);
     drag.value = { button: 2, x1: clock, x2: clock, row, undoPushed: false };
   }
 }
@@ -338,7 +339,7 @@ function applyDrag(): void {
 
 function onPointerUp(e: PointerEvent): void {
   const c = canvasRef.value;
-  if (c && c.hasPointerCapture(e.pointerId)) c.releasePointerCapture(e.pointerId);
+  releasePointerCapture(c, e);
   stopPreview(); // 押下中サステインを停止
   const d = drag.value;
   drag.value = null;

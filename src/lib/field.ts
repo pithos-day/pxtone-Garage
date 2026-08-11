@@ -23,3 +23,17 @@ export function zoomByWheel(e: WheelEvent, current: number): number | null {
   const next = e.deltaY < 0 ? Math.min(ZOOM_TABLE.length - 1, base + 1) : Math.max(0, base - 1);
   return ZOOM_TABLE[next]!;
 }
+
+// ---- ポインタキャプチャ ----
+
+export function capturePointer(el: { setPointerCapture(pointerId: number): void } | null | undefined, e: PointerEvent): void {
+  el?.setPointerCapture(e.pointerId);
+}
+
+export function hasPointerCapture(el: { hasPointerCapture(pointerId: number): boolean } | null | undefined, e: PointerEvent): boolean {
+  return !!el?.hasPointerCapture(e.pointerId);
+}
+
+export function releasePointerCapture(el: { hasPointerCapture(pointerId: number): boolean; releasePointerCapture(pointerId: number): void } | null | undefined, e: PointerEvent): void {
+  if (el?.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
+}

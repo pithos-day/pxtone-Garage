@@ -8,6 +8,7 @@ import { useCanvas } from "../../composables/useCanvas";
 import { COLORS } from "../../lib/theme";
 import { fillRect, fillText } from "../../lib/draw";
 import { isWhiteKey, codeToRow, rowToKeyValue, KEY_CODE_TOP, KEY_CODE_BOTTOM, KEY_HEIGHT } from "../../lib/clock";
+import { capturePointer, releasePointerCapture } from "../../lib/field";
 import { currentVoice } from "../../state/voice";
 import { previewWoiceObjectHold, stopPreview, clearWoicePreviewCache } from "../../engine/preview";
 import { t } from "../../i18n";
@@ -80,7 +81,7 @@ function onPointerDown(e: PointerEvent): void {
   pressed.value = code;
   pressStart.value = performance.now();
   playKey(code);
-  c.setPointerCapture(e.pointerId);
+  capturePointer(c, e);
 }
 
 function onPointerMove(e: PointerEvent): void {
@@ -100,7 +101,7 @@ function onPointerMove(e: PointerEvent): void {
 
 function onPointerUp(e: PointerEvent): void {
   const c = canvasRef.value;
-  if (c && c.hasPointerCapture(e.pointerId)) c.releasePointerCapture(e.pointerId);
+  releasePointerCapture(c, e);
   const code = pressed.value;
   pressed.value = null;
   if (code === null) return;

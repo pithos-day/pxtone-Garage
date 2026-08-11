@@ -8,7 +8,7 @@ import { drawGrid, fillRect, fillText, noteFill, noteShadow,
   drawPlayhead,
   drawScopeBand,
 } from "../../lib/draw";
-import { fieldOffset, clockAtX, zoomByWheel } from "../../lib/field";
+import { fieldOffset, clockAtX, zoomByWheel, capturePointer, releasePointerCapture } from "../../lib/field";
 import { clockToX } from "../../lib/clock";
 import { iterVisibleRecords, visibleClockWindow } from "../../lib/records";
 import { RULER_H, NAME_W, KEY_HEIGHT } from "../../lib/layout";
@@ -198,12 +198,12 @@ function onPointerDown(e: PointerEvent): void {
   if (!s) return;
   if (u < 0) return;
   if (e.button === 0) {
-    c.setPointerCapture(e.pointerId);
+    capturePointer(c, e);
     drag.value = { button: 0, x1: clockAt(x), x2: clockAt(x), unit: u, undoPushed: false };
     setScope(clockAt(x), clockAt(x) + Math.max(1, doc.divi));
     previewAt(x, y);
   } else if (e.button === 2) {
-    c.setPointerCapture(e.pointerId);
+    capturePointer(c, e);
     drag.value = { button: 2, x1: clockAt(x), x2: clockAt(x), unit: u, undoPushed: false };
   }
 }
@@ -250,7 +250,7 @@ function applyDrag(): void {
 
 function onPointerUp(e: PointerEvent): void {
   const c = canvasRef.value;
-  if (c && c.hasPointerCapture(e.pointerId)) c.releasePointerCapture(e.pointerId);
+  releasePointerCapture(c, e);
   stopPreview();
   const d = drag.value;
   drag.value = null;
