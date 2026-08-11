@@ -138,9 +138,12 @@ export interface NoteColorGen {
 // 0.15 は最低明度、0.85 はベロシティが明度に寄与する割合
 function noteColor(c: [number, number, number][], playing: boolean, vel: number, vol: number): string {
   if (!playing) return rgb(c[0]!);
-  const bright = Math.min((0.15 + (0.85 * vel) / EVENTDEFAULT_VELOCITY) * (vol / EVENTDEFAULT_VOLUME), 1);
+  const velRatio = vel / EVENTDEFAULT_VELOCITY;
+  const volRatio = vol / EVENTDEFAULT_VOLUME;
+  const bright = Math.min((0.15 + 0.85 * velRatio) * volRatio, 1);
   if (bright < 1) return rgb(lerp(c[0]!, c[1]!, bright));
   // 既定値 (MAX vel/vol) を超える分を基準に、最明色への補間割合を決める
+  // (128 は MIDI 値の上限。既定の組み合わせが「標準の明るさ」を表す)
   const defP = (EVENTDEFAULT_VELOCITY * EVENTDEFAULT_VOLUME) / 128 / 128;
   const rawP = (vel * vol) / 128 / 128;
   const beyond = Math.max(0, (rawP - defP) / (1 - defP));
