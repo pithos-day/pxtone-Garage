@@ -42,6 +42,36 @@ export function currentVoice(): VoiceDoc | null {
   return v ? (v as unknown as VoiceDoc) : null;
 }
 
+// ---- Coordinate 波形の編集ルール (本家 ptuiWave.cpp 準拠) ----
+
+// 点ドラッグ: 前後の点を越えられないよう x をクランプする (本家 _point_set)。
+// idx 0 は x=0 固定 (動かせない)
+export function clampWavePointX(points: { x: number }[], idx: number, x: number, reso: number): number {
+  if (idx <= 0) return points[0]!.x;
+  const minX = points[idx - 1]!.x;
+  const maxX = idx < points.length - 1 ? points[idx + 1]!.x : reso;
+  return Math.max(minX, Math.min(maxX, x));
+}
+
+// 点追加: x でソートされた位置に挿入 (本家 _point_add)。同一 x は既存点の y を更新。
+// x=0 は点0 が占有するため不可、最大 maxNum 点。成功時 true
+export function insertWavePoint(points: { x: number; y: number }[], x: number, y: number, maxNum: number): boolean {
+  if (x <= 0) return false;
+  for (let i = 0; i < points.length; i++) {
+    if (x === points[i]!.x) {
+      points[i]!.y = y;
+      return true;
+    }
+    if (x < points[i]!.x) {
+      points.splice(i, 0, { x, y });
+      return true;
+    }
+  }
+  if (points.length >= maxNum) return false;
+  points.push({ x, y });
+  return true;
+}
+
 // 本家 WoiceUnit::data_reset / default_coodinate / _envelope_default 相当のデフォルト音声
 export function createDefaultWoice(): Woice {
   const w = new Woice();

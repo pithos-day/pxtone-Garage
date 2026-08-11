@@ -269,20 +269,34 @@ export function renderNoise(noise: Noise, sps: number): Float32Array | null {
   return f;
 }
 
-// 音声単体 (コラージュ外の Woice オブジェクト) を押下中サステインで試聴開始する
+// 音声単体 (コラージュ外の Woice オブジェクト) を押下中サステインで試聴開始する。
+// レンダリングは (key, velocity) 単位でキャッシュし、再計算を避ける
+// (音色を編集した場合は clearWoicePreviewCache() で破棄する)
+let voicePreviewKey = "";
+let voicePreviewWork: Float32Array | null = null;
+
+export function clearWoicePreviewCache(): void {
+  voicePreviewKey = "";
+  voicePreviewWork = null;
+}
+
 export function previewWoiceObjectHold(woice: Woice, key: number, velocity: number = EVENTDEFAULT_VELOCITY, durSec = PREVIEW_SEC): void {
   const ctx = getCtx();
   if (!ctx) return;
-  const work = renderWoice(woice, key, velocity, durSec, ctx.sampleRate);
-  if (!work) return;
-  startHold(work, ctx);
+  const k = `${key}-${velocity}-${durSec}`;
+  if (voicePreviewKey !== k) {
+    voicePreviewKey = k;
+    voicePreviewWork = renderWoice(woice, key, velocity, durSec, ctx.sampleRate);
+  }
+  if (!voicePreviewWork) return;
+  startHold(voicePreviewWork, ctx);
 }
 
-// レンダリング済み PCM をループ再生で開始する (ノイズのクリック再生用)
-export function playPcmLoop(pcm: Float32Array): void {
+// レンダリング済み PCM を単発再生する (ノイズのクリック再生用。ループしない)
+export function playPcmOnce(pcm: Float32Array): void {
   const ctx = getCtx();
   if (!ctx) return;
-  startHold(pcm, ctx);
+  playBuffer(pcm, ctx.sampleRate);
 }
 
 // 押下中サステインを停止する (短いフェードをかけてから停止し、ポップを防ぐ)

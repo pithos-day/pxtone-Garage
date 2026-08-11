@@ -44,6 +44,8 @@ import {
   undoVoice,
   redoVoice,
   createDefaultWoice,
+  clampWavePointX,
+  insertWavePoint,
 } from "../src/state/voice";
 import {
   noises,
@@ -649,6 +651,38 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     // ビルド (波形生成) が通ること
     const pcm = renderNoise(currentNoise()!.noise, 44100);
     check(pcm !== null && pcm.length === 44100 * 2, "noise: renderNoise が1秒ステレオ PCM を返す", `len=${pcm?.length}`);
+  }
+
+  // ---- 20. Coordinate 波形の編集ルール (本家 ptuiWave 準拠) ----
+  {
+    const pts = [
+      { x: 0, y: 0 },
+      { x: 64, y: 64 },
+      { x: 192, y: -64 },
+    ];
+    // 点0 は固定 (x=0)
+    checkEq(clampWavePointX(pts, 0, 50, 256), 0, "coord: 点0 は x=0 固定");
+    // 前後の点を越えられない (点1 の前は x=0、後ろは 192)
+    checkEq(clampWavePointX(pts, 1, 100, 256), 100, "coord: 点1 は隣接点の範囲内 (0..192) で自由");
+    checkEq(clampWavePointX(pts, 1, 300, 256), 192, "coord: 点1 は後ろの点 (192) を越えられない");
+    checkEq(clampWavePointX(pts, 2, 10, 256), 64, "coord: 点2 は前の点 (64) より左へ行けない");
+    checkEq(clampWavePointX(pts, 2, 64, 256), 64, "coord: 点2 は前の点と同 x まで");
+    checkEq(clampWavePointX(pts, 2, 300, 256), 256, "coord: 末尾の点は reso (256) まで");
+    // 点追加: x でソートされた位置に挿入
+    const pts2 = [
+      { x: 0, y: 0 },
+      { x: 64, y: 64 },
+    ];
+    checkEq(insertWavePoint(pts2, 32, 100, 31), true, "coord: 追加成功");
+    checkEq(pts2[1]!.x, 32, "coord: ソート位置に挿入される");
+    checkEq(pts2[2]!.x, 64, "coord: 既存点は後ろへずれる");
+    checkEq(insertWavePoint(pts2, 64, 55, 31), true, "coord: 同一 x は y を更新");
+    checkEq(pts2[2]!.y, 55, "coord: 同一 x で y 更新");
+    checkEq(insertWavePoint(pts2, 0, 100, 31), false, "coord: x=0 は追加不可 (点0 が占有)");
+    // 最大31点
+    const pts3 = [{ x: 0, y: 0 }];
+    for (let i = 1; i <= 30; i++) pts3.push({ x: i * 10, y: 0 });
+    checkEq(insertWavePoint(pts3, 305, 0, 31), false, "coord: 31点を超えて追加不可");
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);

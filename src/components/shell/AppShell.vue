@@ -63,9 +63,9 @@ window.addEventListener(
     <FileTabs :mode="activeTab" />
     <TransportBar v-if="activeTab === 'collage'" />
     <main class="app-main">
-      <CollageTab v-show="activeTab === 'collage'" />
-      <VoiceTab v-show="activeTab === 'voice'" />
-      <NoiseTab v-show="activeTab === 'noise'" />
+      <CollageTab v-show="activeTab === 'collage'" :active="activeTab === 'collage'" />
+      <VoiceTab v-show="activeTab === 'voice'" :active="activeTab === 'voice'" />
+      <NoiseTab v-show="activeTab === 'noise'" :active="activeTab === 'noise'" />
     </main>
     <ProjectDialog v-if="projectDialogOpen" @close="projectDialogOpen = false" />
     <SettingsDialog v-if="settingsDialogOpen" @close="settingsDialogOpen = false" />

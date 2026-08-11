@@ -1,16 +1,21 @@
 <script setup lang="ts">
 // ptNoise (PTN ノイズエディタ)。
-// 4レイヤー×3オシレータ (main/freq/volu) のテーブル編集、ビルド→波形プレビュー、
-// History リスト、WAV 書き出しを提供する。編集は state/noise.ts の editNoise で行う。
-import { computed, ref, watch } from "vue";
+// レイヤー1..4 をタブで切替 (本家 dlg_Noise_Design 準拠)。各レイヤーに
+// オシレータ (main/freq/volu 縦3行 + 列ヘッダ)・エンベロープ (秒/%)・Enable/パン。
+// ビルド→波形プレビュー (クリックで単発再生 = ループしない。本家 PcmTable_BuildAndPlay 準拠)。
+// History リスト、WAV 書き出しを提供する。
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { COLORS } from "../../lib/theme";
 import { fillRect, fillText } from "../../lib/draw";
 import { MemoryIo } from "pxtone-ts";
 import { currentNoise, newNoise, editNoise, NOISE_UNIT_NUM } from "../../state/noise";
-import { renderNoise, playPcmLoop, stopPreview } from "../../engine/preview";
+import { renderNoise, playPcmOnce } from "../../engine/preview";
 import { exportNoiseWav } from "../../engine/io";
 import { t } from "../../i18n";
+
+// v-show で常時マウントされるため、Space は noise モードのときだけ有効にする
+const props = defineProps<{ active: boolean }>();
 
 const noise = computed(() => currentNoise());
 const rev = ref(0);
@@ -23,22 +28,24 @@ const WAVE_TYPE_NAMES = [
   "None", "Sine", "Saw", "Rect", "Random", "Saw2", "Rect2", "Tri",
   "Random2", "Rect3", "Rect4", "Rect8", "Rect16", "Saw3", "Saw4", "Saw6", "Saw8",
 ] as const;
+const OSC_IDS = ["main", "freq", "volu"] as const;
 
-// 表示対象のユニット (read 直後は有効ユニット数ぶん)
-const unitList = computed(() => {
-  const n = noise.value?.noise;
-  if (!n) return [] as number[];
-  const out: number[] = [];
-  for (let u = 0; u < n.unitNum && u < NOISE_UNIT_NUM; u++) out.push(u);
-  return out;
+// レイヤータブ (read 直後は有効ユニット数ぶん)
+const layerCount = computed(() => Math.min(NOISE_UNIT_NUM, noise.value?.noise.unitNum ?? 0));
+const activeLayer = ref(0);
+watch(layerCount, (n) => {
+  if (activeLayer.value >= n) activeLayer.value = Math.max(0, n - 1);
 });
 
 // テンプレート用の非 null アクセサ (v-else 内でのみ呼ばれる)
 function unitAt(u: number) {
   return noise.value?.noise.getUnit(u) ?? null;
 }
+function unit() {
+  return unitAt(activeLayer.value);
+}
 
-// テーブル編集は v-model で直接 Noise を書き、undo はフォーカス時に1エントリ積む。
+// テーブル編集は直接 Noise を書き、undo はフォーカス時に1エントリ積む。
 // (markRaw なので reactive にならない。rev はテンプレートの :data-rev で再描画を駆動)
 let undoPushed = false;
 function onFieldFocus(): void {
@@ -58,22 +65,50 @@ function onFieldChange(): void {
   touch();
 }
 
-// エンベロープ点数の変更 (undo 1エントリ + 配列長を合わせる)
-function onEnveNumChange(u: number, v: number): void {
-  const d = noise.value;
-  if (!d) return;
-  const unit = d.noise.getUnit(u);
-  if (!unit) return;
+// オシレータの値を直接書き換え (undo はフォーカス時に1エントリ)
+function setOsc(osc: (typeof OSC_IDS)[number], field: "type" | "bRev" | "freq" | "volume" | "offset", v: number | boolean): void {
+  const o = oscAt(osc);
+  if (!o) return;
+  (o as unknown as Record<string, unknown>)[field] = v;
+  onFieldChange();
+}
+function oscAt(osc: (typeof OSC_IDS)[number]) {
+  return unit()?.[osc] ?? null;
+}
+
+// エンベロープ点数 (0..3) の変更 (undo 1エントリ + 配列長を合わせる)
+function onEnveNumChange(v: number): void {
+  const u = unit();
+  if (!u) return;
   editNoise(() => {
     const target = Math.max(0, Math.min(3, Math.round(v)));
-    unit.enveNum = target;
-    while (unit.enves.length < target) unit.enves.push({ x: 0, y: 0 });
-    unit.enves.length = target;
+    u.enveNum = target;
+    while (u.enves.length < target) u.enves.push({ x: 0, y: 0 });
+    u.enves.length = target;
   });
   touch();
 }
 
-// undo/redo 後にテーブルとキャンバスを再描画する
+// エンベロープ: 秒 (x/1000) と % (y)。本家 dlg_Noise_Design の
+// IDC_ENVELOPE_SEC_* / IDC_ENVELOPE_VOL_* と同じ表示単位
+function setEnveSec(i: number, raw: string): void {
+  const u = unit();
+  if (!u || !u.enves[i]) return;
+  const v = parseFloat(raw);
+  if (!Number.isFinite(v)) return;
+  u.enves[i]!.x = Math.max(0, Math.min(10000, Math.round(v * 1000)));
+  onFieldChange();
+}
+function setEnvePct(i: number, raw: string): void {
+  const u = unit();
+  if (!u || !u.enves[i]) return;
+  const v = parseFloat(raw);
+  if (!Number.isFinite(v)) return;
+  u.enves[i]!.y = Math.max(0, Math.min(100, Math.round(v)));
+  onFieldChange();
+}
+
+// undo/redo (メニュー) 後の再描画
 watch(
   () => [noise.value?.undoStack.length, noise.value?.redoStack.length],
   () => touch(),
@@ -82,7 +117,6 @@ watch(
 // ---- ビルド / プレビュー ----
 const BUILT_SPS = 44100;
 const builtPcm = ref<Float32Array | null>(null);
-const playingNow = ref(false);
 const buildError = ref("");
 
 interface HistoryEntry {
@@ -110,22 +144,14 @@ function onBuild(): void {
   touch();
 }
 
+// 波形クリック = 単発再生 (ループしない。本家準拠)
 function onPcmClick(): void {
-  if (!builtPcm.value) return;
-  if (playingNow.value) {
-    stopPreview();
-    playingNow.value = false;
-  } else {
-    playPcmLoop(builtPcm.value);
-    playingNow.value = true;
-  }
+  if (builtPcm.value) playPcmOnce(builtPcm.value);
 }
 
 function playHistory(i: number): void {
   const e = history.value[i];
-  if (!e) return;
-  playPcmLoop(e.pcm);
-  playingNow.value = true;
+  if (e) playPcmOnce(e.pcm);
 }
 
 // ダブルクリックでエディタに反映 (undo 1エントリ)
@@ -145,6 +171,21 @@ function onSaveWav(): void {
   const err = exportNoiseWav(d.noise, d.fileName || "untitled");
   if (err) buildError.value = err;
 }
+
+// ---- Space: ビルド済み波形の再生 (未ビルドならビルドして再生) ----
+function onKeydown(e: KeyboardEvent): void {
+  if (!props.active) return;
+  const tag = (e.target as HTMLElement)?.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+  if (e.code !== "Space") return;
+  e.preventDefault();
+  if (e.repeat) return;
+  if (!builtPcm.value) onBuild();
+  if (builtPcm.value) playPcmOnce(builtPcm.value);
+}
+
+onMounted(() => window.addEventListener("keydown", onKeydown));
+onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 
 // ---- 波形プレビュー描画 ----
 const waveRef = ref<HTMLCanvasElement | null>(null);
@@ -189,20 +230,30 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
       <button class="btn btn-accent" @click="newNoise()">{{ t("menu.file.new") }}</button>
     </div>
     <div v-else class="ne-main" :data-rev="rev">
-      <div class="ne-table" @focusin="onFieldFocus" @focusout="onFieldBlur">
-        <div v-for="u in unitList" :key="u" class="ne-unit">
-          <div class="ne-unit-head">
-            <span class="ne-unit-name">Unit {{ u + 1 }}</span>
+      <div class="ne-left">
+        <div class="ne-tabs">
+          <button
+            v-for="l in layerCount"
+            :key="l"
+            class="ne-tab"
+            :class="{ on: activeLayer === l - 1 }"
+            @click="activeLayer = l - 1"
+          >
+            {{ t("noise.layer") }} {{ l }}
+          </button>
+        </div>
+        <div class="ne-layer" @focusin="onFieldFocus" @focusout="onFieldBlur">
+          <div class="ne-layer-head">
             <label class="chk">{{ t("noise.enable") }}
               <input
-                v-model="unitAt(u)!.bEnable"
+                v-model="unitAt(activeLayer)!.bEnable"
                 type="checkbox"
                 @change="onFieldChange"
               />
             </label>
             <label>{{ t("noise.pan") }}
               <input
-                v-model.number="unitAt(u)!.pan"
+                v-model.number="unitAt(activeLayer)!.pan"
                 type="number"
                 min="-100"
                 max="100"
@@ -211,85 +262,88 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
               />
             </label>
           </div>
-          <div v-for="osc in ['main', 'freq', 'volu'] as const" :key="osc" class="ne-osc">
-            <span class="ne-osc-name">{{ t(`noise.${osc}`) }}</span>
-            <select
-              :value="unitAt(u)![osc].type"
-              @change="(e) => { unitAt(u)![osc].type = Number((e.target as HTMLSelectElement).value); onFieldChange(); }"
-            >
-              <option v-for="(name, wi) in WAVE_TYPE_NAMES" :key="wi" :value="wi">{{ name }}</option>
-            </select>
-            <label>{{ t("noise.freqValue") }}
+          <div class="ne-grid">
+            <div class="ne-row ne-head">
+              <span class="ne-osc-name" />
+              <span>{{ t("noise.type") }}</span>
+              <span>{{ t("noise.reverse") }}</span>
+              <span>{{ t("noise.freqValue") }}</span>
+              <span>{{ t("noise.oscVolume") }}</span>
+              <span>{{ t("noise.offset") }}</span>
+            </div>
+            <div v-for="osc in OSC_IDS" :key="osc" class="ne-row">
+              <span class="ne-osc-name">{{ t(`noise.${osc}`) }}</span>
+              <select :value="oscAt(osc)!.type" @change="setOsc(osc, 'type', Number(($event.target as HTMLSelectElement).value))">
+                <option v-for="(name, wi) in WAVE_TYPE_NAMES" :key="wi" :value="wi">{{ name }}</option>
+              </select>
               <input
-                v-model.number="unitAt(u)![osc].freq"
+                type="checkbox"
+                :checked="oscAt(osc)!.bRev"
+                @change="setOsc(osc, 'bRev', ($event.target as HTMLInputElement).checked)"
+              />
+              <input
                 type="number"
+                :value="oscAt(osc)!.freq"
                 min="0"
                 max="44100"
                 class="num"
-                @change="onFieldChange"
+                @change="setOsc(osc, 'freq', Number(($event.target as HTMLInputElement).value))"
               />
-            </label>
-            <label>{{ t("noise.oscVolume") }}
               <input
-                v-model.number="unitAt(u)![osc].volume"
                 type="number"
+                :value="oscAt(osc)!.volume"
                 min="0"
                 max="200"
                 class="num"
-                @change="onFieldChange"
+                @change="setOsc(osc, 'volume', Number(($event.target as HTMLInputElement).value))"
               />
-            </label>
-            <label>{{ t("noise.offset") }}
               <input
-                v-model.number="unitAt(u)![osc].offset"
                 type="number"
+                :value="oscAt(osc)!.offset"
                 min="0"
                 max="100"
                 class="num"
-                @change="onFieldChange"
+                @change="setOsc(osc, 'offset', Number(($event.target as HTMLInputElement).value))"
               />
-            </label>
-            <label class="chk">{{ t("noise.reverse") }}
-              <input
-                v-model="unitAt(u)![osc].bRev"
-                type="checkbox"
-                @change="onFieldChange"
-              />
-            </label>
+            </div>
           </div>
           <div class="ne-enve">
-            <span class="ne-osc-name">{{ t("noise.envelope") }}</span>
-            <select
-              :value="unitAt(u)!.enveNum"
-              @change="(e) => onEnveNumChange(u, Number((e.target as HTMLSelectElement).value))"
-            >
-              <option :value="0">0</option>
-              <option :value="1">1</option>
-              <option :value="2">2</option>
-              <option :value="3">3</option>
-            </select>
-            <template v-for="(p, pi) in unitAt(u)!.enves" :key="pi">
-              <label>{{ t("noise.envePoint") }}{{ pi + 1 }} x
+            <div class="ne-enve-title">
+              <span>{{ t("noise.envelope") }}</span>
+              <select :value="unitAt(activeLayer)!.enveNum" @change="onEnveNumChange(Number(($event.target as HTMLSelectElement).value))">
+                <option :value="0">0</option>
+                <option :value="1">1</option>
+                <option :value="2">2</option>
+                <option :value="3">3</option>
+              </select>
+            </div>
+            <div class="ne-enve-grid">
+              <div class="ne-row ne-head">
+                <span class="ne-enve-no" />
+                <span>%</span>
+                <span>{{ t("noise.secUnit") }}</span>
+              </div>
+              <div v-for="(p, i) in unitAt(activeLayer)!.enves" :key="i" class="ne-row">
+                <span class="ne-enve-no">{{ t("noise.envePoint") }}{{ i + 1 }}</span>
                 <input
-                  v-model.number="p.x"
                   type="number"
-                  min="0"
-                  max="10000"
-                  class="num"
-                  @change="onFieldChange"
-                />
-              </label>
-              <label>y
-                <input
-                  v-model.number="p.y"
-                  type="number"
+                  :value="p.y"
                   min="0"
                   max="100"
                   class="num"
-                  @change="onFieldChange"
+                  @change="setEnvePct(i, ($event.target as HTMLInputElement).value)"
                 />
-              </label>
-            </template>
+                <input
+                  type="number"
+                  :value="p.x / 1000"
+                  min="0"
+                  max="10"
+                  step="0.001"
+                  class="num"
+                  @change="setEnveSec(i, ($event.target as HTMLInputElement).value)"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -356,58 +410,50 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
   gap: 8px;
 }
 
-.ne-table {
-  width: 560px;
+.ne-left {
+  width: 460px;
   flex: none;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding-right: 4px;
+  gap: 4px;
 }
 
-.ne-unit {
+.ne-tabs {
+  display: flex;
+  gap: 2px;
+}
+
+.ne-tab {
+  flex: 1;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted-foreground);
+  font-size: 12px;
+  padding: 2px 0;
+  cursor: pointer;
+}
+
+.ne-tab.on {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.ne-layer {
   border: 1px solid var(--border);
   background: var(--card);
   padding: 6px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
+  overflow-y: auto;
   font-size: 12px;
   color: var(--muted-foreground);
 }
 
-.ne-unit-head {
+.ne-layer-head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-weight: bold;
-}
-
-.ne-unit-name {
-  color: var(--foreground);
-}
-
-.ne-osc {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.ne-osc-name {
-  width: 52px;
-  flex: none;
-  font-weight: bold;
-}
-
-.ne-enve {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  border-top: 1px dashed var(--border);
-  padding-top: 4px;
+  gap: 12px;
 }
 
 .chk {
@@ -416,24 +462,87 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
   gap: 3px;
 }
 
-.ne-table label {
+.ne-layer label {
   display: flex;
   align-items: center;
   gap: 3px;
   white-space: nowrap;
 }
 
-.ne-table select,
-.ne-table input {
+.ne-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ne-row {
+  display: grid;
+  grid-template-columns: 46px 72px 22px 64px 64px 64px;
+  align-items: center;
+  gap: 4px;
+}
+
+.ne-head {
+  font-size: 10px;
+  color: var(--muted-foreground);
+  border-bottom: 1px dashed var(--border);
+  padding-bottom: 2px;
+}
+
+.ne-osc-name {
+  width: 46px;
+  flex: none;
+  font-weight: bold;
+  color: var(--foreground);
+}
+
+.ne-layer select,
+.ne-layer input {
   font-size: 12px;
   background: var(--background);
   color: var(--foreground);
   border: 1px solid var(--border);
   padding: 1px 3px;
+  width: 100%;
 }
 
-.ne-table .num {
-  width: 72px;
+.ne-row input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  justify-self: center;
+}
+
+.ne-layer .num {
+  width: 100%;
+}
+
+.ne-enve {
+  border-top: 1px dashed var(--border);
+  padding-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ne-enve-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ne-enve-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ne-enve-grid .ne-row {
+  grid-template-columns: 70px 64px 64px;
+}
+
+.ne-enve-no {
+  width: 70px;
+  flex: none;
 }
 
 .ne-preview {

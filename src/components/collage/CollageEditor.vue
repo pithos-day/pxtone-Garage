@@ -22,11 +22,16 @@ import ScrollBar from "./ScrollBar.vue";
 import MeasNoField from "./MeasNoField.vue";
 import { t } from "../../i18n";
 
+// v-show で常時マウントされるため、キーハンドラは collage モードのときだけ有効にする
+// (Voice/Noise モードでは各エディタが Space をプレビュー再生に使う)
+const props = defineProps<{ active: boolean }>();
+
 ensureInit();
 
 const pinned = computed(() => pinnedUnits());
 
 function onKeydown(e: KeyboardEvent): void {
+  if (!props.active) return;
   const tag = (e.target as HTMLElement)?.tagName;
   if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
   if (e.ctrlKey || e.metaKey) {
