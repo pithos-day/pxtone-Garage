@@ -11,7 +11,6 @@ import { fieldOffset, clockAtX, zoomByWheel } from "../../lib/field";
 import { iterVisibleRecords, visibleClockWindow } from "../../lib/records";
 import {
   clockToX,
-  xToClock,
   KEY_HEIGHT,
   KEYNUM,
   isWhiteKey,
