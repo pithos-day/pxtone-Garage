@@ -432,9 +432,7 @@ export function replaceUnitRaw(oldPlace: number, newPlace: number): void {
     // 番号と同じ並べ替えを index 順配列に適用し、soloUnit の新位置を引く
     // (unitReplace 後に数値として換算できないため配列経由で追従する)
     const n = Math.max(units.value.length, oldPlace + 1, newPlace + 1);
-    const order = [...Array(n).keys()];
-    const [moved] = order.splice(oldPlace, 1);
-    order.splice(Math.min(newPlace, order.length), 0, moved!);
+    const order = move([...Array(n).keys()]);
     doc.soloUnit = order[doc.soloUnit] ?? -1;
   }
   service.unitReplace(oldPlace, newPlace);
