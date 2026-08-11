@@ -37,7 +37,7 @@ const ROW_PAD_L = 4; // .unit-row の左パディング (チェックボック�
 const editing = ref<number | null>(null);
 const editText = ref("");
 const menu = ref<{ x: number; y: number; unit: number } | null>(null);
-const changeUnit = ref(-1);
+const changeUnitIdx = ref(-1);
 const trayRef = ref<HTMLElement | null>(null);
 
 useCtxMenuClose(menu);
@@ -149,7 +149,7 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
   if (u === undefined) return;
   if (action === "edit") startEditName(u);
   else if (action === "remove") removeUnit(u);
-  else changeUnit.value = u;
+  else changeUnitIdx.value = u;
 }
 </script>
 
@@ -212,7 +212,7 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
       <button @click="onMenuAction('edit')">{{ t("unit.editName") }}</button>
       <button class="danger" @click="onMenuAction('remove')">{{ t("common.delete") }}</button>
     </div>
-    <ChangeUnitDialog v-if="changeUnit >= 0" :unit-idx="changeUnit" @close="changeUnit = -1" />
+    <ChangeUnitDialog v-if="changeUnitIdx >= 0" :unit-idx="changeUnitIdx" @close="changeUnitIdx = -1" />
   </div>
 </template>
 
