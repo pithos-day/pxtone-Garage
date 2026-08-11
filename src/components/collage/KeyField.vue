@@ -8,6 +8,7 @@ import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText, drawPlayhead, drawScopeBand,
 } from "../../lib/draw";
 import { fieldOffset, clockAtX, zoomByWheel } from "../../lib/field";
+import { iterVisibleRecords, visibleClockWindow } from "../../lib/records";
 import {
   clockToX,
   xToClock,
@@ -180,9 +181,7 @@ function drawNotes(
 ): void {
   const { w, top: fieldTop, h: fieldH, view, scrollX, scrollY } = field;
   const records = s.evels.records;
-  // 表示範囲 (clock)。scrollX は px なので xToClock で変換する
-  const endClock = xToClock(view, scrollX + w);
-  const startClock = Math.max(0, xToClock(view, scrollX) - 10);
+  const { startClock, endClock } = visibleClockWindow(view, scrollX, w);
 
   const color = getUnitColor(unitNo);
   let curKey = EVENTDEFAULT_KEY;
@@ -212,11 +211,7 @@ function drawNotes(
     }
   };
 
-  for (const e of records) {
-    if (e.kind === EventKind.NULL) continue;
-    if (e.unitNo !== unitNo) continue;
-    if (e.clock > endClock) break;
-    if (e.clock + (e.kind === EventKind.ON ? e.value : 0) < startClock) continue;
+  for (const e of iterVisibleRecords(records, { startClock, endClock }, (e) => e.unitNo === unitNo)) {
     if (e.kind === EventKind.ON) {
       if (e.clock > prevClock) drawAt(prevClock, curKey, e.clock - prevClock, "off");
       drawAt(e.clock, curKey, e.value, "on");

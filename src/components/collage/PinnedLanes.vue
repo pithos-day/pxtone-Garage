@@ -9,7 +9,8 @@ import { drawGrid, fillRect, fillText, noteFill, noteShadow,
   drawScopeBand,
 } from "../../lib/draw";
 import { fieldOffset, clockAtX, zoomByWheel } from "../../lib/field";
-import { clockToX, xToClock } from "../../lib/clock";
+import { clockToX } from "../../lib/clock";
+import { iterVisibleRecords, visibleClockWindow } from "../../lib/records";
 import { RULER_H, NAME_W, KEY_HEIGHT } from "../../lib/layout";
 import { EventKind } from "pxtone-ts";
 import {
@@ -71,8 +72,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 
   // イベント描画
   const records = s.evels.records;
-  const endClock = xToClock(view, scrollX + fieldW);
-  const startClock = Math.max(0, xToClock(view, scrollX) - 10);
+  const { startClock, endClock } = visibleClockWindow(view, scrollX, fieldW);
 
   interface RowNote {
     unit: number;
@@ -85,11 +85,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   const marks: { unit: number; clock: number; kind: number }[] = [];
   let currentVel = EVENTDEFAULT_VELOCITY;
 
-  for (const e of records) {
-    if (e.kind === EventKind.NULL || e.unitNo < 0) continue;
-    if (e.clock > endClock) break;
-    if (e.clock + (e.kind === EventKind.ON ? e.value : 0) < startClock) continue;
-    if (!doc.unitPinned[e.unitNo]) continue;
+  for (const e of iterVisibleRecords(records, { startClock, endClock }, (e) => e.unitNo >= 0 && doc.unitPinned[e.unitNo])) {
     switch (e.kind) {
       case EventKind.ON:
         notes.push({ unit: e.unitNo, clock: e.clock, length: e.value, vel: currentVel, vol: EVENTDEFAULT_VOLUME });
