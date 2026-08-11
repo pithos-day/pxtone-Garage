@@ -47,13 +47,13 @@ export function renderPreview(
 
   // 対象ユニットの音色番号 (VOICENO イベントの最後の値) を整理前に取得
   let voiceNo = target.woiceIdx ?? 0;
-  if (target.unitNo !== null && target.unitNo >= 0) {
+  if (target.unitNo !== null) {
     for (const e of s.evels.records) {
       if (e.kind === EventKind.VOICENO && e.unitNo === target.unitNo) voiceNo = e.value;
     }
   }
 
-  if (target.unitNo !== null && target.unitNo >= 0) {
+  if (target.unitNo !== null) {
     for (let u = s.unitNum - 1; u >= 0; u--) {
       if (u !== target.unitNo) s.unitRemove(u);
     }
@@ -63,6 +63,19 @@ export function renderPreview(
   }
   if (!s.unitGet(0)) return null;
 
+  return renderEvents(s, voiceNo, key, velocity, durSec, sps);
+}
+
+// 単音レンダリングの共通部: clock 0 に VOICENO/KEY/VELOCITY/ON を置いて
+// Moo で PCM 化する (tempo=120, beatClock=480 固定)
+function renderEvents(
+  s: Service,
+  voiceNo: number,
+  key: number,
+  velocity: number,
+  durSec: number,
+  sps: number,
+): Float32Array | null {
   s.master.set(4, 120, 480);
   s.master.setMeasNum(2);
   s.evels.clear();
@@ -79,7 +92,12 @@ export function renderPreview(
   const n = Math.min(Math.trunc(durSec * sps), s.mooGetSamplingEnd());
   const out = new Int16Array(n * 2);
   s.Moo(out, n);
-  const f = new Float32Array(n * 2);
+  return int16ToFloat32(out);
+}
+
+// Int16 (ステレオインターリーブ) → 0..1 に正規化した Float32
+function int16ToFloat32(out: Int16Array): Float32Array {
+  const f = new Float32Array(out.length);
   for (let i = 0; i < out.length; i++) f[i] = out[i]! / 32768;
   return f;
 }
@@ -239,15 +257,6 @@ export function renderWoice(
   if (!io.seek(SEEK_SET, 0)) return null;
   if (s.woiceRead(0, io, WoiceType.PTV) !== PxtnErr.OK) return null;
   if (!s.unitAddNew()) return null;
-  s.master.set(4, 120, 480);
-  s.master.setMeasNum(2);
-  s.evels.clear();
-  // clockRate (samples/clock) = sps/960 (tempo=120, beatClock=480)
-  const durClocks = Math.max(1, Math.round(durSec * 960));
-  s.evels.recordAddI(0, 0, EventKind.VOICENO, 0);
-  s.evels.recordAddI(0, 0, EventKind.KEY, key);
-  s.evels.recordAddI(0, 0, EventKind.VELOCITY, velocity);
-  s.evels.recordAddI(0, 0, EventKind.ON, durClocks);
   // read() を経由しないと _mooBValidData が立たず mooPreparation が失敗するため、
   // 一時プロジェクトを ptcop にシリアライズして読み直す (renderPreview と同じ経路)
   const out = new MemoryIo();
@@ -255,15 +264,7 @@ export function renderWoice(
   const s2 = new Service();
   if (s2.initCollage(PXTN_MAX_EVENT_NUM) !== PxtnErr.OK) return null;
   if (s2.read(new MemoryIo(out.toUint8Array())) !== PxtnErr.OK) return null;
-  if (s2.tonesReady() !== PxtnErr.OK) return null;
-  if (!s2.setDestinationQuality(2, sps)) return null;
-  if (!s2.mooPreparation(null)) return null;
-  const n = Math.min(Math.trunc(durSec * sps), s2.mooGetSamplingEnd());
-  const work = new Int16Array(n * 2);
-  s2.Moo(work, n);
-  const f = new Float32Array(n * 2);
-  for (let i = 0; i < work.length; i++) f[i] = work[i]! / 32768;
-  return f;
+  return renderEvents(s2, 0, key, velocity, durSec, sps);
 }
 
 // ノイズを NoiseBuilder で波形化して Float32Array (ステレオインターリーブ) を得る
@@ -274,10 +275,7 @@ export function renderNoise(noise: Noise, sps: number): Float32Array | null {
   if (!pcm) return null;
   const buf = pcm.devolveSamplingBuffer();
   if (!buf) return null;
-  const s16 = new Int16Array(buf.buffer, buf.byteOffset, buf.byteLength >> 1);
-  const f = new Float32Array(s16.length);
-  for (let i = 0; i < s16.length; i++) f[i] = s16[i]! / 32768;
-  return f;
+  return int16ToFloat32(new Int16Array(buf.buffer, buf.byteOffset, buf.byteLength >> 1));
 }
 
 // 音声単体 (コラージュ外の Woice オブジェクト) を押下中サステインで試聴開始する。
