@@ -1,6 +1,6 @@
 // メイン⇔AudioWorklet 間の postMessage 型 (player-worklet.ts / realtime-player.ts で共用)
 export type MainToWorklet =
-  | { type: "load"; bytes: ArrayBuffer; sps: number; playStart: number; playEnd: number }
+  | { type: "load"; bytes: ArrayBuffer; sps: number; playStartMeas: number; playEndMeas: number }
   | { type: "play" }
   | { type: "stop" }
   | { type: "seek"; sample: number }

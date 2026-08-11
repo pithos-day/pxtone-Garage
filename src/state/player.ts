@@ -60,7 +60,7 @@ async function ensureLoaded(bytes: Uint8Array): Promise<void> {
   const pos = positionSample.value;
   const ok = await player.load(bytes, doc.playStart, doc.playEnd);
   if (ok) loadedRev = doc.rev;
-  if (pos > 0) player.seek(pos / player.sampleRate);
+  if (pos > 0) player.seekSec(pos / player.sampleRate);
 }
 
 // 再生中に編集 (doc.rev 変更) が入ったら worklet へ再ロードし、
@@ -89,7 +89,7 @@ async function refreshWhilePlaying(): Promise<void> {
     }
     loadedRev = doc.rev;
     const pos = player.getCurrentSample();
-    if (pos > 0) player.seek(pos / player.sampleRate);
+    if (pos > 0) player.seekSec(pos / player.sampleRate);
     applyPlaybackState();
   } finally {
     refreshing = false;
@@ -112,7 +112,7 @@ function clampToPlayStart(s: NonNullable<ReturnType<typeof getService>>): void {
   const startSample = Math.trunc(clockToSec(s, startClock) * player.sampleRate);
   if (positionSample.value < startSample) {
     positionSample.value = startSample;
-    player.seek(startSample / player.sampleRate);
+    player.seekSec(startSample / player.sampleRate);
   }
 }
 
@@ -170,7 +170,7 @@ export function seekToClock(clock: number): void {
   const maxClock = songLengthClock(s);
   const c = Math.max(0, Math.min(maxClock, Math.trunc(clock)));
   const sec = clockToSec(s, c);
-  player.seek(sec);
+  player.seekSec(sec);
   positionSample.value = Math.trunc(sec * player.sampleRate);
 }
 

@@ -80,12 +80,12 @@ export class RealtimePlayer {
     }
   }
 
-  async load(bytes: Uint8Array, playStart = -1, playEnd = -1): Promise<boolean> {
+  async load(bytes: Uint8Array, playStartMeas = -1, playEndMeas = -1): Promise<boolean> {
     await this.init();
     const buf = toArrayBuffer(bytes);
     const ok = await new Promise<boolean>((resolve) => {
       this.pendingLoad = { resolve };
-      this.node!.port.postMessage({ type: "load", bytes: buf, sps: this.sps, playStart, playEnd }, [buf]);
+      this.node!.port.postMessage({ type: "load", bytes: buf, sps: this.sps, playStartMeas, playEndMeas }, [buf]);
     });
     return ok;
   }
@@ -101,7 +101,8 @@ export class RealtimePlayer {
     this.node?.port.postMessage({ type: "stop" });
   }
 
-  seek(sec: number): void {
+  // シーク。引数は秒
+  seekSec(sec: number): void {
     const sample = Math.trunc(Math.max(0, sec) * this.sps);
     this.node?.port.postMessage({ type: "seek", sample });
     this.lastPosSample = sample;

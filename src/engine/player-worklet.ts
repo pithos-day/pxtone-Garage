@@ -26,8 +26,8 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
   private volume = 1.0;
   private mutedUnits: number[] = [];
   private lastPosNotifySample = -1;
-  private playStart = -1;
-  private playEnd = -1;
+  private playStartMeas = -1;
+  private playEndMeas = -1;
 
   constructor() {
     super();
@@ -41,7 +41,7 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
   private onMessage(msg: MainToWorklet): void {
     switch (msg.type) {
       case "load":
-        this.doLoad(msg.bytes, msg.sps, msg.playStart, msg.playEnd);
+        this.doLoad(msg.bytes, msg.sps, msg.playStartMeas, msg.playEndMeas);
         break;
       case "play":
         if (this.service?.mooIsEndVomit()) this.reseek(0);
@@ -93,14 +93,14 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
     return svc;
   }
 
-  private doLoad(bytes: ArrayBuffer, sps: number, playStart = -1, playEnd = -1): void {
+  private doLoad(bytes: ArrayBuffer, sps: number, playStartMeas = -1, playEndMeas = -1): void {
     this.sps = sps;
     const svc = this.loadService(bytes, sps);
     this.service = svc;
     this.playing = false;
     this.lastPosNotifySample = -1;
-    this.playStart = playStart;
-    this.playEnd = playEnd;
+    this.playStartMeas = playStartMeas;
+    this.playEndMeas = playEndMeas;
     if (svc) {
       this.applyMute();
       this.reseek(0);
@@ -121,11 +121,11 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
     // 編集用再生範囲 (Start/End) を反映。startPosSample が 0 のときだけ
     // startPosMeas が開始位置に使われる (mooPreparation の仕様)
     const prep: VomitPreparation = {
-      startPosMeas: this.playStart >= 0 ? this.playStart : 0,
+      startPosMeas: this.playStartMeas >= 0 ? this.playStartMeas : 0,
       startPosSample: s,
       startPosFloat: 0,
-      measEnd: this.playEnd > 0 ? this.playEnd : 0,
-      measRepeat: this.playStart >= 0 && this.playEnd > 0 ? this.playStart : 0,
+      measEnd: this.playEndMeas > 0 ? this.playEndMeas : 0,
+      measRepeat: this.playStartMeas >= 0 && this.playEndMeas > 0 ? this.playStartMeas : 0,
       fadeinSec: 0,
       flags: (this.loop ? PXTN_VOMIT_PREP_FLAG_LOOP : 0) | PXTN_VOMIT_PREP_FLAG_UNIT_MUTE,
       masterVolume: this.volume,
