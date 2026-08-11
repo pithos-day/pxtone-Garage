@@ -450,9 +450,7 @@ export function setFocusUnit(idx: number): void {
 }
 
 export function toggleSelected(idx: number): void {
-  const i = doc.selectedUnits.indexOf(idx);
-  if (i >= 0) doc.selectedUnits.splice(i, 1);
-  else doc.selectedUnits.push(idx);
+  doc.selectedUnits = toggleInArray(doc.selectedUnits, idx);
 }
 
 export function selectRange(idx: number): void {
