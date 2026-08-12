@@ -31,6 +31,15 @@ export function wheelPanX(e: WheelEvent): number | null {
   return e.deltaY > 0 ? WHEEL_PAN_STEP : -WHEEL_PAN_STEP;
 }
 
+// Ctrl+ホイールのズーム / Shift+ホイールの横スクロールをまとめて判定。
+// どちらでもなければ { zoom: null, pan: null } (呼び出し側で通常スクロールへ)
+// 適用先 (doc.zoom / doc.scrollX) は state 層に依存するため呼び出し側で行う
+export function zoomOrPan(e: WheelEvent, current: number): { zoom: number | null; pan: number | null } {
+  const zoom = zoomByWheel(e, current);
+  if (zoom !== null) return { zoom, pan: null };
+  return { zoom: null, pan: wheelPanX(e) };
+}
+
 // ---- ポインタキャプチャ ----
 
 export function capturePointer(el: { setPointerCapture(pointerId: number): void } | null | undefined, e: PointerEvent): void {

@@ -10,7 +10,7 @@ import { drawGrid, fillRect, fillText, noteFill, noteShadow,
   drawPlayhead,
   drawScopeBand,
 } from "../../lib/draw";
-import { clockAtX, zoomByWheel } from "../../lib/field";
+import { clockAtX, zoomOrPan } from "../../lib/field";
 import { clockToX } from "../../lib/clock";
 import { iterVisibleRecords, visibleClockWindow } from "../../lib/records";
 import { KEY_HEIGHT } from "../../lib/clock";
@@ -248,14 +248,9 @@ const { onPointerDown, onPointerMove, onPointerUp } = useCanvasDrag<LanesDrag>({
 
 // ホイール: Ctrl=ズーム / Shift=横スクロール
 function onWheel(e: WheelEvent): void {
-  const zoom = zoomByWheel(e, doc.zoom);
-  if (zoom !== null) {
-    doc.zoom = zoom;
-    return;
-  }
-  if (e.shiftKey) {
-    doc.scrollX = Math.max(0, doc.scrollX + (e.deltaY > 0 ? 48 : -48));
-  }
+  const { zoom, pan } = zoomOrPan(e, doc.zoom);
+  if (zoom !== null) doc.zoom = zoom;
+  else if (pan !== null) doc.scrollX = Math.max(0, doc.scrollX + pan);
 }
 </script>
 

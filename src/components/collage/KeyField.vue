@@ -9,7 +9,7 @@ import { useHoldPreview } from "../../composables/useHoldPreview";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText, drawPlayhead, drawScopeBand,
 } from "../../lib/draw";
-import { clockAtX, zoomByWheel, wheelPanX } from "../../lib/field";
+import { clockAtX, zoomOrPan } from "../../lib/field";
 import { iterVisibleRecords, visibleClockWindow } from "../../lib/records";
 import {
   clockToX,
@@ -328,15 +328,15 @@ const { onPointerDown, onPointerMove, onPointerUp } = useCanvasDrag<KeyDrag>({
   },
 });
 
+// ホイール: Ctrl=ズーム / Shift=横スクロール / それ以外は縦スクロール
 function onWheel(e: WheelEvent): void {
-  const zoom = zoomByWheel(e, doc.zoom);
+  const { zoom, pan } = zoomOrPan(e, doc.zoom);
   if (zoom !== null) {
     doc.zoom = zoom;
     return;
   }
-  const dx = wheelPanX(e);
-  if (dx !== null) {
-    doc.scrollX = Math.max(0, doc.scrollX + dx);
+  if (pan !== null) {
+    doc.scrollX = Math.max(0, doc.scrollX + pan);
     return;
   }
   doc.scrollYKey = Math.max(0, Math.min(KEYNUM - 1, doc.scrollYKey + Math.sign(e.deltaY)));
