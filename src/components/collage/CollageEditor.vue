@@ -91,7 +91,7 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
           <ToolPanel />
           <UnitTray v-if="doc.mode === 'U'" />
           <WoiceTray v-if="doc.mode === 'W'" />
-          <button class="volume-toggle" :class="{ on: doc.volumeVisible }" :title="t('common.volumeToggle')" @click="doc.volumeVisible = !doc.volumeVisible">
+          <button class="volume-toggle bar-header" :class="{ on: doc.volumeVisible }" :title="t('common.volumeToggle')" @click="doc.volumeVisible = !doc.volumeVisible">
             <span class="vt-label">Volume</span>
             <span class="vt-arrow">{{ doc.volumeVisible ? "▾" : "▸" }}</span>
           </button>
@@ -181,7 +181,7 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
   overflow: hidden;
 }
 
-/* Volume トグル (左パネル最下部) */
+/* Volume トグル (左パネル最下部)。枠は上罫のみ (bar-header の下罫は border:none で打ち消す) */
 .volume-toggle {
   flex: none;
   display: flex;
@@ -189,12 +189,9 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
   justify-content: space-between;
   border: none;
   border-top: 1px solid var(--border);
-  background: var(--background);
-  color: var(--muted-foreground);
   font-size: var(--text-sm);
   padding: 6px 10px;
   cursor: pointer;
-  user-select: none;
 }
 
 .volume-toggle:hover {

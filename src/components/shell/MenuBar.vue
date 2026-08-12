@@ -243,7 +243,7 @@ const openItems = computed<MenuItem[]>(() => {
 </script>
 
 <template>
-  <div class="menu-bar">
+  <div class="menu-bar bar-header">
     <ModeTabs :mode="mode" @change="mode = $event" />
     <div class="menu-right">
       <button
@@ -275,9 +275,6 @@ const openItems = computed<MenuItem[]>(() => {
   display: flex;
   align-items: stretch;
   height: 36px;
-  background: var(--background);
-  border-bottom: 1px solid var(--border);
-  user-select: none;
   z-index: 30;
 }
 

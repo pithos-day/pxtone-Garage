@@ -154,14 +154,14 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
 
 <template>
   <div class="tray" :style="{ '--checks-w': CHECKS_W + 'px' }">
-    <div class="tray-title">
+    <div class="tray-title bar-header">
       {{ t("unit.title") }} ({{ units.length }})
       <span class="tray-tools">
         <button class="btn btn-sm" :class="{ on: doc.tool === 'pen' }" :title="t('unit.pen')" @click="doc.tool = 'pen'">ペン</button>
         <button class="btn btn-sm" :class="{ on: doc.tool === 'hand' }" :title="t('unit.hand')" @click="doc.tool = 'hand'">キー</button>
       </span>
     </div>
-    <div class="unit-header">
+    <div class="unit-header bar-header">
       <span class="unit-header-checks">
         <span :title="t('unit.play')">{{ t("unit.headerPlay") }}</span>
         <span :title="t('unit.show')">{{ t("unit.headerShow") }}</span>
@@ -230,9 +230,6 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
   justify-content: space-between;
   padding: 3px 6px;
   font-size: var(--text-sm);
-  color: var(--muted-foreground);
-  border-bottom: 1px solid var(--border);
-  background: var(--background);
 }
 
 .tray-tools {
@@ -246,11 +243,7 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
   gap: var(--space-2xs);
   padding: 2px 4px;
   font-size: var(--text-2xs);
-  color: var(--muted-foreground);
-  background: var(--background);
-  border-bottom: 1px solid var(--border);
   flex: none;
-  user-select: none;
 }
 
 .unit-header-checks {

@@ -186,6 +186,14 @@ textarea {
   border-radius: 2px;
 }
 
+/* ---- バーヘッダ共通 (背景・下罫・ミュート文字色) ---- */
+.bar-header {
+  background: var(--background);
+  border-bottom: 1px solid var(--border);
+  color: var(--muted-foreground);
+  user-select: none;
+}
+
 /* ---- ポップアップ共通 (メニュー・コンテキストメニュー) ---- */
 .popup {
   border: 1px solid var(--border);
