@@ -5,7 +5,7 @@
 import { computed } from "vue";
 import { doc, units, ensureInit, pinnedUnits, VOLUME_MODES } from "../../state/project";
 import { KEY_HEIGHT, KEYNUM } from "../../lib/clock";
-import { RULER_H } from "../../lib/layout";
+import { RULER_H, STRIP_W, LEFT_W, NAME_W } from "../../lib/layout";
 import { useGlobalKeys } from "../../composables/useGlobalKeys";
 import { panels } from "../../state/panels";
 import { togglePlay, seekToClock } from "../../state/player";
@@ -79,7 +79,8 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
 </script>
 
 <template>
-  <div class="collage">
+  <!-- レイアウト幅は lib/layout から CSS 変数として注入 (px の手動同期を排除) -->
+  <div class="collage" :style="{ '--left-w': LEFT_W + 'px', '--strip-w': STRIP_W + 'px', '--name-w': NAME_W + 'px' }">
     <div class="collage-body">
       <!-- ピン留めユニットのレーン (上部固定) -->
       <div v-if="pinned.length > 0" class="collage-pinned" :style="{ height: (RULER_H + pinned.length * KEY_HEIGHT) + 'px' }">
@@ -172,7 +173,7 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
 }
 
 .collage-tray {
-  width: 300px;
+  width: var(--left-w);
   flex: none;
   border-right: 1px solid var(--border);
   background: var(--background);
@@ -231,7 +232,7 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
 }
 
 .collage-ruler-spacer {
-  width: 64px;
+  width: var(--strip-w);
   flex: none;
 }
 
@@ -294,7 +295,7 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
 }
 
 .collage-hscroll-spacer {
-  width: 364px;
+  width: var(--name-w);
   flex: none;
 }
 
