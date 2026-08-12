@@ -246,7 +246,9 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
   flex: none;
 }
 
-.unit-header-checks {
+/* チェック列 (ヘッダーと行で同一レイアウト) */
+.unit-header-checks,
+.unit-checks {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -310,16 +312,6 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
 .unit-row.muted .unit-name {
   color: var(--muted-foreground);
   text-decoration: line-through;
-}
-
-.unit-checks {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-sm);
-  width: var(--checks-w);
-  flex: none;
 }
 
 .unit-checks input {
