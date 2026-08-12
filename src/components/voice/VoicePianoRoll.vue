@@ -173,7 +173,7 @@ onBeforeUnmount(() => stopPreview());
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border);
-  background: var(--card);
+  background: var(--background);
   padding: 4px;
 }
 

@@ -546,7 +546,7 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
   flex-direction: column;
   gap: 4px;
   border: 1px solid var(--border);
-  background: var(--card);
+  background: var(--background);
   padding: 4px;
 }
 
