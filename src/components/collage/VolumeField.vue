@@ -3,7 +3,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
-import { useCanvasDrag } from "../../composables/useCanvasDrag";
+import { useCanvasDrag, type CanvasDragState } from "../../composables/useCanvasDrag";
 import { useDragUndo } from "../../composables/useUndo";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText, drawPlayhead } from "../../lib/draw";
@@ -172,7 +172,6 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 // ドラッグの骨格 (pointerdown/move/up + キャプチャ + undo) は useCanvasDrag が担当し、
 // インライン入力・モード別書き込みのみを注入する。
 // 押下時に即書き込むため undo は pointerdown 時に積む (undoOnDown)
-type VolDrag = { button: number; clock1: number; clock2: number };
 
 function clockAt(x: number): number {
   return clockAtX(clockContext(), doc.divi, doc.scrollX, x);
@@ -185,7 +184,7 @@ function valueAt(y: number, grid = 2): number {
   return Math.max(0, Math.min(128, v));
 }
 
-function applyDragAt(d: VolDrag, y: number, e: PointerEvent): void {
+function applyDragAt(d: CanvasDragState, y: number, e: PointerEvent): void {
   const s = getService();
   if (!s) return;
   const u = doc.focusUnit;
@@ -217,7 +216,7 @@ function applyDragAt(d: VolDrag, y: number, e: PointerEvent): void {
   doc.rev++;
 }
 
-const { onPointerDown, onPointerMove, onPointerUp } = useCanvasDrag<VolDrag>({
+const { onPointerDown, onPointerMove, onPointerUp } = useCanvasDrag<CanvasDragState>({
   canvasRef,
   clockAt,
   undoOnDown: true,
@@ -238,7 +237,7 @@ const { onPointerDown, onPointerMove, onPointerUp } = useCanvasDrag<VolDrag>({
         };
         return null;
       }
-      const d: VolDrag = { button: 0, clock1: clock, clock2: clock };
+      const d: CanvasDragState = { button: 0, clock1: clock, clock2: clock };
       setScope(clock, clock + Math.max(1, doc.divi));
       applyDragAt(d, pt.y, e); // 押下時に即書き込む
       return d;
