@@ -55,12 +55,13 @@ export function* iterNoteDraws(
   let curKey = defKey;
   let prevClock = range.startClock;
   for (const e of iterVisibleRecords(records, range, (e) => e.unitNo === unitNo)) {
+    // ON/KEY 共通: 直近の発音終端からイベント位置までの空白区間は余韻 (off)。
+    // curKey はどちらの分岐でもイベント処理前に使うため先に出力してよい
+    if (e.clock > prevClock) yield { kind: "off", clock: prevClock, key: curKey, len: e.clock - prevClock };
     if (e.kind === EventKind.ON) {
-      if (e.clock > prevClock) yield { kind: "off", clock: prevClock, key: curKey, len: e.clock - prevClock };
       yield { kind: "on", clock: e.clock, key: curKey, len: e.value };
       prevClock = e.clock + e.value;
     } else if (e.kind === EventKind.KEY) {
-      if (e.clock > prevClock) yield { kind: "off", clock: prevClock, key: curKey, len: e.clock - prevClock };
       yield { kind: "key", clock: e.clock, key: e.value };
       curKey = e.value;
       prevClock = e.clock;
