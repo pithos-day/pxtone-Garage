@@ -10,6 +10,7 @@ import { useEditRev } from "../../composables/useEditRev";
 import { useUndoOnce } from "../../composables/useUndo";
 import { COLORS } from "../../lib/theme";
 import { fillRect, fillText } from "../../lib/draw";
+import { capturePointer, fieldOffset, releasePointerCapture } from "../../lib/field";
 import {
   WAVE_PAD,
   SAMPLE_NUM,
@@ -249,7 +250,7 @@ function onWavePointerDown(e: PointerEvent): void {
   const c = canvasRect(waveRef);
   const unit = currentVoiceUnit();
   if (!c || !unit || unit.type !== VoiceType.Coodinate) return;
-  const { x, y } = relPos(e, c);
+  const { x, y } = fieldOffset(c.el, e);
   const idx = waveIndexAt(x, y, c.w, c.h);
   if (e.button === 2) {
     // 右クリック: 点を削除 (点0 は固定なので削除不可)
@@ -276,7 +277,7 @@ function onWavePointerDown(e: PointerEvent): void {
   if (idx === 0) return; // 点0 は動かせない (本家 _point_set 準拠)
   waveDrag.value = { idx };
   dragUndo.reset();
-  canvasRefSetCapture(waveRef, e);
+  capturePointer(c.el, e);
 }
 
 function onWavePointerMove(e: PointerEvent): void {
@@ -285,7 +286,7 @@ function onWavePointerMove(e: PointerEvent): void {
   const c = canvasRect(waveRef);
   const unit = currentVoiceUnit();
   if (!c || !unit) return;
-  const { x, y } = relPos(e, c);
+  const { x, y } = fieldOffset(c.el, e);
   dragUndo.onBegin();
   // 前後の点を越えられないよう x をクランプ (本家 _point_set 準拠)
   const p = unit.wave.points[d.idx];
@@ -297,7 +298,7 @@ function onWavePointerMove(e: PointerEvent): void {
 }
 
 function onWavePointerUp(e: PointerEvent): void {
-  if (canvasHasCapture(waveRef, e)) releaseCapture(waveRef, e);
+  releasePointerCapture(waveRef.value, e);
   waveDrag.value = null;
   dragUndo.reset();
 }
@@ -392,7 +393,7 @@ function onEnvePointerDown(e: PointerEvent): void {
   const c = canvasRect(enveRef);
   const unit = currentVoiceUnit();
   if (!c || !unit) return;
-  const { x, y } = relPos(e, c);
+  const { x, y } = fieldOffset(c.el, e);
   const hit = envePointAt(unit, c.w, c.h, x, y);
   if (e.button === 2) {
     // 右クリック: ヘッド点を削除 (本家 _point_delete。有効点が1つのみなら不可)
@@ -405,7 +406,7 @@ function onEnvePointerDown(e: PointerEvent): void {
   if (hit) {
     enveDrag.value = hit;
     dragUndo.reset();
-    canvasRefSetCapture(enveRef, e);
+    capturePointer(c.el, e);
     return;
   }
   // 空き領域クリック = 点を追加 (累積座標を区間長に変換して挿入)
@@ -420,7 +421,7 @@ function onEnvePointerMove(e: PointerEvent): void {
   const c = canvasRect(enveRef);
   const unit = currentVoiceUnit();
   if (!c || !unit) return;
-  const { x, y } = relPos(e, c);
+  const { x, y } = fieldOffset(c.el, e);
   dragUndo.onBegin();
   const cx = envePxToX(c.w, x, enveMaxHeadX(unit));
   const cy = envePxToY(c.h, y);
@@ -432,29 +433,18 @@ function onEnvePointerMove(e: PointerEvent): void {
 }
 
 function onEnvePointerUp(e: PointerEvent): void {
-  if (canvasHasCapture(enveRef, e)) releaseCapture(enveRef, e);
+  releasePointerCapture(enveRef.value, e);
   enveDrag.value = null;
   dragUndo.reset();
 }
 
 // ---- canvas 共通ヘルパ ----
-function canvasRect(ref: { value: HTMLCanvasElement | null }): { el: HTMLCanvasElement; w: number; h: number; left: number; top: number } | null {
+// canvas と CSS サイズを取得する (ポインタ座標は lib/field の fieldOffset で算出)
+function canvasRect(ref: { value: HTMLCanvasElement | null }): { el: HTMLCanvasElement; w: number; h: number } | null {
   const el = ref.value;
   if (!el) return null;
   const r = el.getBoundingClientRect();
-  return { el, w: r.width, h: r.height, left: r.left, top: r.top };
-}
-function relPos(e: PointerEvent, c: { left: number; top: number }): { x: number; y: number } {
-  return { x: e.clientX - c.left, y: e.clientY - c.top };
-}
-function canvasRefSetCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEvent): void {
-  ref.value?.setPointerCapture(e.pointerId);
-}
-function canvasHasCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEvent): boolean {
-  return !!ref.value?.hasPointerCapture(e.pointerId);
-}
-function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEvent): void {
-  if (ref.value?.hasPointerCapture(e.pointerId)) ref.value.releasePointerCapture(e.pointerId);
+  return { el, w: r.width, h: r.height };
 }
 </script>
 
