@@ -10,7 +10,7 @@ import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText, drawPlayhead, drawScopeBand,
 } from "../../lib/draw";
 import { clockAtX, zoomOrPan } from "../../lib/field";
-import { iterVisibleRecords, visibleClockWindow } from "../../lib/records";
+import { visibleClockWindow, iterNoteDraws } from "../../lib/records";
 import {
   clockToX,
   KEY_HEIGHT,
@@ -187,8 +187,6 @@ function drawNotes(
   const { startClock, endClock } = visibleClockWindow(view, scrollX, w);
 
   const color = getUnitColor(unitNo);
-  let curKey = EVENTDEFAULT_KEY;
-  let prevClock = startClock;
 
   // クリップ (translate 後の座標系なので 0..w がフィールド幅)
   ctx.save();
@@ -198,41 +196,31 @@ function drawNotes(
   // 非フォーカスユニットは半透明 (色分けして重ねて表示)
   if (!isFocus) ctx.globalAlpha = 0.45;
 
-  const drawAt = (clock: number, key: number, len: number, depth: "off" | "on"): void => {
-    const row = keyValueToRow(key);
+  // ON/KEY イベント列 → 描画レコード変換は lib/records の iterNoteDraws
+  for (const d of iterNoteDraws(records, unitNo, { startClock, endClock }, EVENTDEFAULT_KEY)) {
+    if (d.kind === "key") {
+      // KEY: 縦線 + 点
+      const row = keyValueToRow(d.key);
+      const y = fieldTop + row * KEY_HEIGHT - scrollY + KEY_HEIGHT / 2;
+      const x = clockToX(view, d.clock) - scrollX;
+      fillRect(ctx, x - 1, y - 4, 2, 8, COLORS.noteHead);
+      fillRect(ctx, x - 1, y - 4, 2, 2, COLORS.noteHead);
+      continue;
+    }
+    const row = keyValueToRow(d.key);
     const y = fieldTop + row * KEY_HEIGHT - scrollY + KEY_HEIGHT / 2;
-    const x1 = clockToX(view, Math.max(startClock, clock)) - scrollX;
-    const x2 = clockToX(view, Math.min(endClock, clock + len)) - scrollX;
-    if (x2 <= x1) return;
-    if (depth === "off") {
+    const x1 = clockToX(view, Math.max(startClock, d.clock)) - scrollX;
+    const x2 = clockToX(view, Math.min(endClock, d.clock + d.len)) - scrollX;
+    if (x2 <= x1) continue;
+    if (d.kind === "off") {
       fillRect(ctx, x1, y - 1, x2 - x1, 2, color.shadow(false, EVENTDEFAULT_VELOCITY, EVENTDEFAULT_VOLUME));
     } else {
-      const playing = currentClock.value >= clock && currentClock.value < clock + len;
+      const playing = currentClock.value >= d.clock && currentClock.value < d.clock + d.len;
       fillRect(ctx, x1, y - 3, x2 - x1, 7, color.note(playing, EVENTDEFAULT_VELOCITY, EVENTDEFAULT_VOLUME));
       // ヘッド
       fillRect(ctx, x1, y - 3, 2, 7, COLORS.noteHead);
     }
-  };
-
-  for (const e of iterVisibleRecords(records, { startClock, endClock }, (e) => e.unitNo === unitNo)) {
-    if (e.kind === EventKind.ON) {
-      if (e.clock > prevClock) drawAt(prevClock, curKey, e.clock - prevClock, "off");
-      drawAt(e.clock, curKey, e.value, "on");
-      prevClock = e.clock + e.value;
-    } else if (e.kind === EventKind.KEY) {
-      // KEY: 縦線 + 点
-      if (e.clock > prevClock) drawAt(prevClock, curKey, e.clock - prevClock, "off");
-      const row = keyValueToRow(e.value);
-      const y = fieldTop + row * KEY_HEIGHT - scrollY + KEY_HEIGHT / 2;
-      const x = clockToX(view, e.clock) - scrollX;
-      fillRect(ctx, x - 1, y - 4, 2, 8, COLORS.noteHead);
-      fillRect(ctx, x - 1, y - 4, 2, 2, COLORS.noteHead);
-      curKey = e.value;
-      prevClock = e.clock;
-    }
   }
-  // 末尾 OFF
-  if (endClock > prevClock) drawAt(prevClock, curKey, endClock - prevClock, "off");
 
   ctx.restore();
   ctx.globalAlpha = 1;

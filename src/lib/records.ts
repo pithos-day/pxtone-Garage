@@ -33,3 +33,41 @@ export function* iterVisibleRecords(
     yield e;
   }
 }
+
+// ---- ピアノロール描画用のノートレコード変換 ----
+
+// ノート描画レコード (KeyField の drawNotes で描画に使う)。
+// ON/KEY イベント列を「発音区間と KEY 位置」へ変換したもの
+export type NoteDraw =
+  | { kind: "on"; clock: number; key: number; len: number } // ON による発音
+  | { kind: "off"; clock: number; key: number; len: number } // 直前 KEY の余韻 (ON が無い区間)
+  | { kind: "key"; clock: number; key: number }; // KEY イベント位置 (縦線)
+
+// ON/KEY イベント列を時系列順にノート描画レコードへ変換するジェネレータ。
+// 進行中の KEY (curKey) と直近の発音終端 (prevClock) を管理し、
+// ON が無い区間は直前 KEY の音が続く (off) として出力する
+export function* iterNoteDraws(
+  records: EveRecord[],
+  unitNo: number,
+  range: { startClock: number; endClock: number },
+  defKey: number,
+): Generator<NoteDraw> {
+  let curKey = defKey;
+  let prevClock = range.startClock;
+  for (const e of iterVisibleRecords(records, range, (e) => e.unitNo === unitNo)) {
+    if (e.kind === EventKind.ON) {
+      if (e.clock > prevClock) yield { kind: "off", clock: prevClock, key: curKey, len: e.clock - prevClock };
+      yield { kind: "on", clock: e.clock, key: curKey, len: e.value };
+      prevClock = e.clock + e.value;
+    } else if (e.kind === EventKind.KEY) {
+      if (e.clock > prevClock) yield { kind: "off", clock: prevClock, key: curKey, len: e.clock - prevClock };
+      yield { kind: "key", clock: e.clock, key: e.value };
+      curKey = e.value;
+      prevClock = e.clock;
+    }
+  }
+  // 末尾の余韻 (表示範囲の端まで)
+  if (range.endClock > prevClock) {
+    yield { kind: "off", clock: prevClock, key: curKey, len: range.endClock - prevClock };
+  }
+}

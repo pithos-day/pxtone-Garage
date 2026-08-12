@@ -74,7 +74,7 @@ import { writeNote, writeNoteLength, eraseNote, writeVolumeEvent, type EventWrit
 import { MENU_LABELS, menuNamesFor } from "../src/lib/menuItems";
 import { secToEnveX, pctToEnveY, pushHistoryEntry } from "../src/lib/noise";
 import { nearestPoint } from "../src/lib/voice-geometry";
-import { visibleClockWindow, iterVisibleRecords } from "../src/lib/records";
+import { visibleClockWindow, iterVisibleRecords, iterNoteDraws, type NoteDraw } from "../src/lib/records";
 import { woiceSummary } from "../src/lib/woice";
 import { MemoryIo, VoiceType, WaveType, EventKind, type EveRecord } from "pxtone-ts";
 
@@ -1046,6 +1046,31 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(seen2[0]!.clock, 100, "lib: iterVisibleRecords 対象は clock 100 の ON");
     const seen3 = [...iterVisibleRecords(recs, { startClock: 0, endClock: 150 })];
     checkEq(seen3.length, 2, "lib: iterVisibleRecords は endClock 超過で break (900 の KEY は見ない)");
+
+    // lib/records: iterNoteDraws (KEY/ON → ノート描画レコード変換)
+    const noteRecs: EveRecord[] = [
+      { unitNo: 0, clock: 0, kind: EventKind.KEY, value: 0x6000 },
+      { unitNo: 0, clock: 100, kind: EventKind.ON, value: 500 },
+      { unitNo: 0, clock: 200, kind: EventKind.KEY, value: 0x7000 },
+      { unitNo: 0, clock: 300, kind: EventKind.ON, value: 100 },
+    ];
+    const fmt = (d: NoteDraw[]) =>
+      d.map((x) => (x.kind === "key" ? `key@${x.clock}` : `${x.kind}@${x.clock}+${x.len}`)).join(",");
+    checkEq(
+      fmt([...iterNoteDraws(noteRecs, 0, { startClock: 0, endClock: 480 }, 0x5000)]),
+      "key@0,off@0+100,on@100+500,key@200,off@200+100,on@300+100,off@400+80",
+      "lib: iterNoteDraws は running key で off/on/key を出力",
+    );
+    checkEq(
+      fmt([...iterNoteDraws(noteRecs, 1, { startClock: 0, endClock: 480 }, 0x5000)]),
+      "off@0+480",
+      "lib: iterNoteDraws は対象ユニット外を無視し末尾 off を出力",
+    );
+    checkEq(
+      fmt([...iterNoteDraws(noteRecs, 0, { startClock: 150, endClock: 250 }, 0x5000)]),
+      "on@100+500,key@200,off@200+50",
+      "lib: iterNoteDraws は ON を長さ込みで可視判定",
+    );
 
     // lib/woice: 音色サマリ
     const sum = woiceSummary(createDefaultWoice());
