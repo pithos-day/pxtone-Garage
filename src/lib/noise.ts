@@ -28,15 +28,15 @@ export function pctToEnveY(raw: string): number | null {
 
 // ---- ビルド履歴の追加 ----
 // 連続編集 (2 秒以内の再ビルド) は直前エントリを置き換え、30 件で打ち切り。
-// 新しい最終記録時刻を返す
+// 新しい最終記録時刻 (ms) を返す
 export const NOISE_HISTORY_COALESCE_MS = 2000;
 export const NOISE_HISTORY_MAX = 30;
-export function pushHistoryEntry<T>(history: T[], lastAt: number, now: number, entry: T): number {
-  if (history.length > 0 && now - lastAt < NOISE_HISTORY_COALESCE_MS) {
+export function pushHistoryEntry<T>(history: T[], lastAtMs: number, nowMs: number, entry: T): number {
+  if (history.length > 0 && nowMs - lastAtMs < NOISE_HISTORY_COALESCE_MS) {
     history[0] = entry;
   } else {
     history.unshift(entry);
     if (history.length > NOISE_HISTORY_MAX) history.length = NOISE_HISTORY_MAX;
   }
-  return now;
+  return nowMs;
 }
