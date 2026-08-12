@@ -22,6 +22,7 @@ import {
   keyValueToRow,
 } from "../../lib/clock";
 import { EventKind } from "pxtone-ts";
+import { writeNote, eraseNote, type EventWriteOps } from "../../lib/editing";
 import { STRIP_W } from "../../lib/layout";
 import {
   doc,
@@ -39,6 +40,9 @@ import {
 import { currentClock, seekToClock, isPlaying as isPlayingNow } from "../../state/player";
 import { previewUnitHold } from "../../engine/preview";
 import { getUnitColor } from "../../lib/theme";
+
+// イベント書き換え API のアダプタ (lib/editing へ渡す)
+const writeOps: EventWriteOps = { deleteEvents, addEvent, setEventValue };
 
 // 鍵盤ストリップの幅。ピアノ風の単音プレビュー領域で、左パネル (300px) の右に置く。
 // 本家 144px から半分以下に縮小 (lib/layout.ts の STRIP_W)
@@ -317,22 +321,14 @@ function applyDrag(): void {
   const keyOnly = doc.tool === "hand";
   if (d.button === 0) {
     if (keyOnly) {
+      // 手ツール: KEY の書き換えのみ
       setEventValue(c1, c2, u, EventKind.KEY, value);
       addEvent(c1, u, EventKind.KEY, value);
     } else {
-      deleteEvents(c1, c2, u, EventKind.KEY);
-      addEvent(c1, u, EventKind.KEY, value);
-      deleteEvents(c1, c2, u, EventKind.VELOCITY);
-      addEvent(c1, u, EventKind.VELOCITY, EVENTDEFAULT_VELOCITY);
-      deleteEvents(c1, c2, u, EventKind.ON);
-      addEvent(c1, u, EventKind.ON, c2 - c1);
+      writeNote(writeOps, c1, c2, u, value, EVENTDEFAULT_VELOCITY);
     }
   } else {
-    deleteEvents(c1, c2, u, EventKind.KEY);
-    if (!keyOnly) {
-      deleteEvents(c1, c2, u, EventKind.ON);
-      deleteEvents(c1, c2, u, EventKind.VELOCITY);
-    }
+    eraseNote(writeOps, c1, c2, u, { key: true, onVel: !keyOnly });
   }
   doc.rev++;
 }

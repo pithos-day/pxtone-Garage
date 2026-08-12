@@ -10,7 +10,8 @@ import { fieldOffset, clockAtX, zoomByWheel } from "../../lib/field";
 import { capturePointer, releasePointerCapture } from "../../lib/field";
 import { clockToX, xToClock } from "../../lib/clock";
 import { RULER_H } from "../../lib/layout";
-import { VOLUME_EDIT_KIND, scaleToWoice, scaleToGroup } from "../../lib/volume";
+import { VOLUME_EDIT_KIND } from "../../lib/volume";
+import { writeVolumeEvent, type EventWriteOps } from "../../lib/editing";
 import { EventKind, int32ToFloat } from "pxtone-ts";
 import {
   doc,
@@ -24,6 +25,9 @@ import {
   woices,
 } from "../../state/project";
 import { currentClock, isPlaying as isPlayingNow } from "../../state/player";
+
+// イベント書き換え API のアダプタ (lib/editing へ渡す)
+const writeOps: EventWriteOps = { deleteEvents, addEvent, setEventValue };
 
 const H = 128;
 const canvasRef = ref<HTMLCanvasElement | null>(null);
@@ -240,31 +244,18 @@ function applyDragAt(e: PointerEvent, y: number): void {
   const grid = e.ctrlKey ? 8 : 2;
   const value = valueAt(y, grid);
   if (d.button === 0) {
-    const kind = VOLUME_MODES[mode]!.kind;
-    const edit = VOLUME_EDIT_KIND[mode]!;
-    if (edit === "setValue") {
-      // Velocity: 値の書換のみ
-      setEventValue(c1, c2, u, kind, value);
-    } else if (edit === "replace") {
-      // Pan_Volume / Pan_Time / Volume
-      deleteEvents(c1, c2, u, kind);
-      addEvent(c1, u, kind, value);
-      setEventValue(c1, c2, u, kind, value);
-    } else if (edit === "length") {
-      // Portament: 長さを書き込み
-      deleteEvents(c1, c2, u, kind);
-      addEvent(c1, u, kind, c2 - c1);
-    } else if (edit === "scaleWoice") {
-      // VoiceNo: 値 (0..128) を音色番号へ換算
-      deleteEvents(c1, c2, u, kind);
-      addEvent(c1, u, kind, scaleToWoice(value, s.woiceNum));
-    } else {
-      // GroupNo: 値 (0..128) を 0..7 へ換算
-      deleteEvents(c1, c2, u, kind);
-      addEvent(c1, u, kind, scaleToGroup(value));
-    }
+    writeVolumeEvent(
+      writeOps,
+      c1,
+      c2,
+      u,
+      VOLUME_MODES[mode]!.kind,
+      VOLUME_EDIT_KIND[mode]!,
+      value,
+      s.woiceNum,
+    );
   } else {
-    deleteEvents(c1, c2, u, VOLUME_MODES[mode]!.kind);
+    writeOps.deleteEvents(c1, c2, u, VOLUME_MODES[mode]!.kind);
   }
   doc.rev++;
 }

@@ -70,6 +70,7 @@ import {
 import { renderWoice, renderNoise } from "../src/engine/preview";
 import { formatTime, measStartClock } from "../src/lib/clock";
 import { scaleToWoice, scaleToGroup, VOLUME_EDIT_KIND } from "../src/lib/volume";
+import { writeNote, writeNoteLength, eraseNote, writeVolumeEvent, type EventWriteOps } from "../src/lib/editing";
 import { nearestPoint } from "../src/lib/voice-geometry";
 import { visibleClockWindow, iterVisibleRecords } from "../src/lib/records";
 import { woiceSummary } from "../src/lib/woice";
@@ -950,6 +951,58 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     const win2 = visibleClockWindow(cv, 48, 48, 24);
     checkEq(win2.startClock, 456, "lib: 可視ウィンドウ margin 付き start");
     checkEq(win2.endClock, 960, "lib: 可視ウィンドウ margin 付き end");
+
+    // lib/editing: イベント書き換えの choreography (書き込み操作を記録するスパイ)
+    const kindName = (k: EventKind) => EventKind[k] ?? String(k);
+    const log: string[] = [];
+    const ops: EventWriteOps = {
+      deleteEvents: (c1, c2, unit, kind) => log.push(`del ${c1}-${c2} u${unit} ${kindName(kind)}`),
+      addEvent: (clock, unit, kind, value) => log.push(`add ${clock} u${unit} ${kindName(kind)} ${value}`),
+      setEventValue: (c1, c2, unit, kind, value) => log.push(`set ${c1}-${c2} u${unit} ${kindName(kind)} ${value}`),
+    };
+    writeNote(ops, 0, 480, 1, 0x6000, 90);
+    checkEq(
+      log.join(";"),
+      "del 0-480 u1 KEY;add 0 u1 KEY 24576;del 0-480 u1 VELOCITY;add 0 u1 VELOCITY 90;del 0-480 u1 ON;add 0 u1 ON 480",
+      "lib: writeNote は KEY+VELOCITY+ON を範囲書換",
+    );
+    log.length = 0;
+    writeNoteLength(ops, 0, 480, 1, 90);
+    checkEq(
+      log.join(";"),
+      "del 0-480 u1 ON;del 0-480 u1 VELOCITY;add 0 u1 ON 480;add 0 u1 VELOCITY 90",
+      "lib: writeNoteLength は ON+VELOCITY のみ書換 (KEY 不変)",
+    );
+    log.length = 0;
+    eraseNote(ops, 0, 480, 1, { key: true, onVel: true });
+    checkEq(log.join(";"), "del 0-480 u1 KEY;del 0-480 u1 ON;del 0-480 u1 VELOCITY", "lib: eraseNote は KEY+ON+VELOCITY 削除");
+    log.length = 0;
+    eraseNote(ops, 0, 480, 1, { key: true, onVel: false });
+    checkEq(log.join(";"), "del 0-480 u1 KEY", "lib: eraseNote は手ツール時 KEY のみ削除");
+    log.length = 0;
+    writeVolumeEvent(ops, 0, 480, 1, EventKind.PORTAMENT, "length", 100, 4);
+    checkEq(
+      log.join(";"),
+      "del 0-480 u1 PORTAMENT;add 0 u1 PORTAMENT 480",
+      "lib: writeVolumeEvent length は長さを書き込み",
+    );
+    log.length = 0;
+    writeVolumeEvent(ops, 0, 480, 1, EventKind.VOICENO, "scaleWoice", 64, 4);
+    checkEq(
+      log.join(";"),
+      "del 0-480 u1 VOICENO;add 0 u1 VOICENO 2",
+      "lib: writeVolumeEvent scaleWoice は音色番号へ換算",
+    );
+    log.length = 0;
+    writeVolumeEvent(ops, 0, 480, 1, EventKind.VOLUME, "replace", 80, 4);
+    checkEq(
+      log.join(";"),
+      "del 0-480 u1 VOLUME;add 0 u1 VOLUME 80;set 0-480 u1 VOLUME 80",
+      "lib: writeVolumeEvent replace は delete+add+set",
+    );
+    log.length = 0;
+    writeVolumeEvent(ops, 0, 480, 1, EventKind.VELOCITY, "setValue", 80, 4);
+    checkEq(log.join(";"), "set 0-480 u1 VELOCITY 80", "lib: writeVolumeEvent setValue は値の書換のみ");
 
     // lib/records: iterVisibleRecords (範囲フィルタ・ON 長さ考慮・break)
     const recs: EveRecord[] = [
