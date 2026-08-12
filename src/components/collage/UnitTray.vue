@@ -206,7 +206,7 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
       </div>
       <div v-if="units.length === 0" class="tray-empty">{{ t("unit.empty") }}</div>
     </div>
-    <div v-if="menu" class="ctxmenu" :style="{ left: menu.x + 'px', top: menu.y + 'px' }">
+    <div v-if="menu" class="ctxmenu popup" :style="{ left: menu.x + 'px', top: menu.y + 'px' }">
       <button v-if="woices.length > 0" @click="onMenuAction('change')">{{ t("unit.changeWoice") }}</button>
       <button @click="onMenuAction('edit')">{{ t("unit.editName") }}</button>
       <button class="danger" @click="onMenuAction('remove')">{{ t("common.delete") }}</button>

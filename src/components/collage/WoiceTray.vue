@@ -76,7 +76,7 @@ function woiceSummary(idx: number): string {
         {{ t("woice.empty") }}
       </div>
     </div>
-    <div v-if="menu" class="ctxmenu" :style="{ left: menu.x + 'px', top: menu.y + 'px' }">
+    <div v-if="menu" class="ctxmenu popup" :style="{ left: menu.x + 'px', top: menu.y + 'px' }">
       <button class="danger" @click="onMenuAction('remove')">{{ t("common.delete") }}</button>
     </div>
   </div>

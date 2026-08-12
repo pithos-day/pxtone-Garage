@@ -22,7 +22,7 @@ const emit = defineEmits<{
     <span class="menu-check">{{ item.checked ? "✓" : "" }}</span>
     <span class="menu-text">{{ item.label }}</span>
     <span v-if="item.sub" class="menu-arrow">▸</span>
-    <div v-if="item.sub && subOpen" class="menu-sub">
+    <div v-if="item.sub && subOpen" class="menu-sub popup">
       <MenuItemRow
         v-for="(sub, j) in item.sub"
         :key="j"
@@ -89,8 +89,6 @@ const emit = defineEmits<{
   top: -4px;
   min-width: 150px;
   background: var(--card);
-  border: 1px solid var(--border);
-  box-shadow: 2px 2px 10px rgb(0 0 0 / 0.35);
   padding: 3px 0;
 }
 </style>

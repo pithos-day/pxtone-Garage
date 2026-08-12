@@ -256,7 +256,7 @@ const openItems = computed<MenuItem[]>(() => {
       >
         {{ MENU_LABELS[m] }}
       </button>
-      <div v-if="openMenu" class="menu-pop">
+      <div v-if="openMenu" class="menu-pop popup">
         <MenuItemRow
           v-for="(item, i) in openItems"
           :key="i"
@@ -330,9 +330,6 @@ const openItems = computed<MenuItem[]>(() => {
   left: 0;
   min-width: 190px;
   background: var(--card);
-  border: 1px solid var(--border);
-  box-shadow: 2px 2px 10px rgb(0 0 0 / 0.35);
   padding: 3px 0;
-  z-index: 100;
 }
 </style>

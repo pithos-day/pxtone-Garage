@@ -177,7 +177,7 @@ function onMenuAction(action: "setRepeat" | "setLast" | "clearRepeat" | "clearLa
       @pointercancel="onPointerUp"
       @contextmenu.prevent
     />
-    <div v-if="menu" class="ctxmenu" :style="{ left: menu.x + 'px', top: menu.y + 'px' }">
+    <div v-if="menu" class="ctxmenu popup" :style="{ left: menu.x + 'px', top: menu.y + 'px' }">
       <template v-if="menu.zone === 'repeat'">
         <button @click="onMenuAction('setRepeat')">{{ t("playfield.setRepeat") }}</button>
         <button @click="onMenuAction('setLast')">{{ t("playfield.setLast") }}</button>
