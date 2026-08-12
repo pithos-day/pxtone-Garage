@@ -3,7 +3,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { doc, getService } from "../../state/project";
-import { KEYNUM, KEY_HEIGHT, KEY_BAND_H } from "../../lib/layout";
+import { KEYNUM, KEY_HEIGHT } from "../../lib/clock";
+import { KEY_BAND_H } from "../../lib/layout";
 import { capturePointer, releasePointerCapture } from "../../lib/field";
 
 const props = defineProps<{
