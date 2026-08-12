@@ -11,23 +11,18 @@ import { clockAtX, zoomOrPan } from "../../lib/field";
 import { clockToX, xToClock } from "../../lib/clock";
 import { RULER_H } from "../../lib/layout";
 import { VOLUME_EDIT_KIND } from "../../lib/volume";
-import { writeVolumeEvent, type EventWriteOps } from "../../lib/editing";
+import { writeVolumeEvent } from "../../lib/editing";
 import { EventKind, int32ToFloat } from "pxtone-ts";
 import {
   doc,
   getService,
   clockContext,
-  addEvent,
-  deleteEvents,
-  setEventValue,
+  projectWriteOps,
   setScope,
   VOLUME_MODES,
   woices,
 } from "../../state/project";
 import { currentClock, isPlaying as isPlayingNow } from "../../state/player";
-
-// イベント書き換え API のアダプタ (lib/editing へ渡す)
-const writeOps: EventWriteOps = { deleteEvents, addEvent, setEventValue };
 
 const H = 128; // フィールド高 (CSS の --volfield-h と同期)
 const canvasRef = ref<HTMLCanvasElement | null>(null);
@@ -201,7 +196,7 @@ function applyDragAt(d: CanvasDragState, y: number, e: PointerEvent): void {
   const value = valueAt(y, grid);
   if (d.button === 0) {
     writeVolumeEvent(
-      writeOps,
+      projectWriteOps,
       c1,
       c2,
       u,
@@ -211,7 +206,7 @@ function applyDragAt(d: CanvasDragState, y: number, e: PointerEvent): void {
       s.woiceNum,
     );
   } else {
-    writeOps.deleteEvents(c1, c2, u, VOLUME_MODES[mode]!.kind);
+    projectWriteOps.deleteEvents(c1, c2, u, VOLUME_MODES[mode]!.kind);
   }
   doc.rev++;
 }

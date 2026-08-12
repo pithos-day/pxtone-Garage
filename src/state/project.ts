@@ -20,6 +20,7 @@ import {
   type EveRecord,
 } from "pxtone-ts";
 import { encodeShiftJis } from "../lib/sjis";
+import type { EventWriteOps } from "../lib/editing";
 import { service, ensureService } from "./service";
 import { pushUndo, clearUndo, snapshotProject } from "./undo";
 import { t } from "../i18n";
@@ -730,6 +731,9 @@ export function deleteEvents(clock1: number, clock2: number, unitNo: number, kin
 export function setEventValue(clock1: number, clock2: number, unitNo: number, kind: number, value: number): void {
   service.evels.recordValueSet(clock1, clock2, unitNo, kind, value);
 }
+
+// lib/editing の書き込み API アダプタ (KeyField / VolumeField / PinnedLanes で共有)
+export const projectWriteOps: EventWriteOps = { deleteEvents, addEvent, setEventValue };
 
 // 範囲内のイベント値を加算変更する (本家の「ベロシティ/パン/ボリューム」相当)。
 // 対象はフォーカス+選択中のユニット。加算は recordValueChange が

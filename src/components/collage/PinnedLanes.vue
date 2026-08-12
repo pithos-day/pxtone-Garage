@@ -16,15 +16,13 @@ import { iterVisibleRecords, visibleClockWindow } from "../../lib/records";
 import { KEY_HEIGHT } from "../../lib/clock";
 import { RULER_H, NAME_W } from "../../lib/layout";
 import { EventKind } from "pxtone-ts";
-import { writeNoteLength, eraseNote, type EventWriteOps } from "../../lib/editing";
+import { writeNoteLength, eraseNote } from "../../lib/editing";
 import {
   doc,
   units,
   getService,
   clockContext,
-  addEvent,
-  deleteEvents,
-  setEventValue,
+  projectWriteOps,
   setScope,
   pinnedUnits,
   EVENTDEFAULT_VOLUME,
@@ -33,9 +31,6 @@ import {
 } from "../../state/project";
 import { currentClock, seekToClock, isPlaying as isPlayingNow } from "../../state/player";
 import { previewUnitHold } from "../../engine/preview";
-
-// イベント書き換え API のアダプタ (lib/editing へ渡す)
-const writeOps: EventWriteOps = { deleteEvents, addEvent, setEventValue };
 
 // 左のユニット名領域 = 左パネル (300px) + 鍵盤ストリップ (64px)。
 // レーンの開始位置をピアノロールフィールドと揃える (lib/layout.ts の NAME_W)
@@ -206,9 +201,9 @@ function applyDrag(d: LanesDrag): void {
   setScope(c1, c2);
   const u = d.unit;
   if (d.button === 0) {
-    writeNoteLength(writeOps, c1, c2, u, EVENTDEFAULT_VELOCITY);
+    writeNoteLength(projectWriteOps, c1, c2, u, EVENTDEFAULT_VELOCITY);
   } else {
-    eraseNote(writeOps, c1, c2, u, { key: true, onVel: true });
+    eraseNote(projectWriteOps, c1, c2, u, { key: true, onVel: true });
   }
   doc.rev++;
 }
