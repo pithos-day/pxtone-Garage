@@ -3,11 +3,11 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
+import { useCanvasDrag } from "../../composables/useCanvasDrag";
 import { useDragUndo } from "../../composables/useUndo";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText, drawPlayhead } from "../../lib/draw";
-import { fieldOffset, clockAtX, zoomByWheel } from "../../lib/field";
-import { capturePointer, releasePointerCapture } from "../../lib/field";
+import { clockAtX, zoomByWheel } from "../../lib/field";
 import { clockToX, xToClock } from "../../lib/clock";
 import { RULER_H } from "../../lib/layout";
 import { VOLUME_EDIT_KIND } from "../../lib/volume";
@@ -169,8 +169,10 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 }
 
 // ---- ポインタ ----
-const drag = ref<{ button: number; x1: number; x2: number } | null>(null);
-const dragUndo = useDragUndo();
+// ドラッグの骨格 (pointerdown/move/up + キャプチャ + undo) は useCanvasDrag が担当し、
+// インライン入力・モード別書き込みのみを注入する。
+// 押下時に即書き込むため undo は pointerdown 時に積む (undoOnDown)
+type VolDrag = { button: number; x1: number; x2: number };
 
 function clockAt(x: number): number {
   return clockAtX(clockContext(), doc.divi, doc.scrollX, x);
@@ -183,54 +185,9 @@ function valueAt(y: number, grid = 2): number {
   return Math.max(0, Math.min(128, v));
 }
 
-function onPointerDown(e: PointerEvent): void {
-  const c = canvasRef.value;
-  if (!c) return;
-  const { x, y } = fieldOffset(c, e);
-  if (y < RULER_H) return; // ルーラー帯は操作なし
+function applyDragAt(d: VolDrag, y: number, e: PointerEvent): void {
   const s = getService();
   if (!s) return;
-  if (doc.focusUnit < 0 || !s.unitGet(doc.focusUnit)) return;
-  if (e.button === 0) {
-    if (doc.volumeMode === 7) {
-      // Tuning: インライン入力
-      const clock = clockAt(x);
-      const cur = s.evels.getValue(clock, doc.focusUnit, EventKind.TUNING);
-      tuningInput.value = {
-        x,
-        y,
-        clock,
-        value: cur ? int32ToFloat(cur).toFixed(4) : "1.0",
-      };
-      return;
-    }
-    capturePointer(c, e);
-    dragUndo.onFirstMove();
-    drag.value = { button: 0, x1: clockAt(x), x2: clockAt(x) };
-    setScope(clockAt(x), clockAt(x) + Math.max(1, doc.divi));
-    applyDragAt(e, y);
-  } else if (e.button === 2) {
-    capturePointer(c, e);
-    dragUndo.onFirstMove();
-    drag.value = { button: 2, x1: clockAt(x), x2: clockAt(x) };
-  }
-}
-
-function onPointerMove(e: PointerEvent): void {
-  const d = drag.value;
-  if (!d) return;
-  const { x, y } = fieldOffset(canvasRef.value!, e);
-  const clock = clockAt(x);
-  if (clock !== d.x2) {
-    d.x2 = clock;
-    applyDragAt(e, y);
-  }
-}
-
-function applyDragAt(e: PointerEvent, y: number): void {
-  const s = getService();
-  if (!s) return;
-  const d = drag.value!;
   const u = doc.focusUnit;
   if (u < 0) return;
   const c1 = Math.min(d.x1, d.x2);
@@ -260,14 +217,39 @@ function applyDragAt(e: PointerEvent, y: number): void {
   doc.rev++;
 }
 
-function onPointerUp(e: PointerEvent): void {
-  const c = canvasRef.value;
-  releasePointerCapture(c, e);
-  if (drag.value) {
-    drag.value = null;
-    dragUndo.finish();
-  }
-}
+const { onPointerDown, onPointerMove, onPointerUp } = useCanvasDrag<VolDrag>({
+  canvasRef,
+  clockAt,
+  undoOnDown: true,
+  beginDrag(e, pt) {
+    if (pt.y < RULER_H) return null; // ルーラー帯は操作なし
+    const s = getService();
+    if (!s || doc.focusUnit < 0 || !s.unitGet(doc.focusUnit)) return null;
+    const clock = clockAt(pt.x);
+    if (e.button === 0) {
+      if (doc.volumeMode === 7) {
+        // Tuning: インライン入力
+        const cur = s.evels.getValue(clock, doc.focusUnit, EventKind.TUNING);
+        tuningInput.value = {
+          x: pt.x,
+          y: pt.y,
+          clock,
+          value: cur ? int32ToFloat(cur).toFixed(4) : "1.0",
+        };
+        return null;
+      }
+      const d: VolDrag = { button: 0, x1: clock, x2: clock };
+      setScope(clock, clock + Math.max(1, doc.divi));
+      applyDragAt(d, pt.y, e); // 押下時に即書き込む
+      return d;
+    }
+    if (e.button === 2) return { button: 2, x1: clock, x2: clock };
+    return null;
+  },
+  applyDrag(d, pt, e) {
+    applyDragAt(d, pt.y, e);
+  },
+});
 
 const tuningUndo = useDragUndo();
 function commitTuning(): void {

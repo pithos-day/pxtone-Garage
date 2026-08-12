@@ -4,13 +4,12 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
-import { useDragUndo } from "../../composables/useUndo";
+import { useCanvasDrag } from "../../composables/useCanvasDrag";
 import { useHoldPreview } from "../../composables/useHoldPreview";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText, drawPlayhead, drawScopeBand,
 } from "../../lib/draw";
-import { fieldOffset, clockAtX, zoomByWheel, wheelPanX } from "../../lib/field";
-import { capturePointer, releasePointerCapture } from "../../lib/field";
+import { clockAtX, zoomByWheel, wheelPanX } from "../../lib/field";
 import { iterVisibleRecords, visibleClockWindow } from "../../lib/records";
 import {
   clockToX,
@@ -240,8 +239,9 @@ function drawNotes(
 }
 
 // ---- ポインタ ----
-const drag = ref<{ button: number; x1: number; x2: number; row: number } | null>(null);
-const dragUndo = useDragUndo();
+// ドラッグの骨格 (pointerdown/move/up + キャプチャ + undo) は useCanvasDrag が担当し、
+// 鍵盤試聴・イベント書き換え・クリックシークのみを注入する
+type KeyDrag = { button: number; x1: number; x2: number; row: number };
 
 // フィールド内の x → clock。フィールドは鍵盤ストリップ (STRIP_W) の右から始まる
 function clockAt(x: number): number {
@@ -265,49 +265,9 @@ function previewAt(y: number): void {
   previewUnitHold(focus, value, EVENTDEFAULT_VELOCITY);
 }
 
-function onPointerDown(e: PointerEvent): void {
-  const c = canvasRef.value;
-  if (!c) return;
-  const { x, y } = fieldOffset(c, e);
-  const focus = doc.focusUnit;
+function applyDrag(d: KeyDrag): void {
   const s = getService();
   if (!s) return;
-  if (focus < 0 || !s.unitGet(focus)) return;
-  const row = Math.max(0, Math.min(KEYNUM - 1, rowAt(y)));
-  const clock = clockAt(x);
-  if (e.button === 0) {
-    if (x < STRIP_W) {
-      // 鍵盤ストリップ: 試聴のみ (シークしない)
-      previewAt(y);
-      return;
-    }
-    capturePointer(c, e);
-    drag.value = { button: 0, x1: clock, x2: clock, row };
-    setScope(clock, clock + Math.max(1, doc.divi));
-    previewAt(y);
-  } else if (e.button === 2) {
-    capturePointer(c, e);
-    drag.value = { button: 2, x1: clock, x2: clock, row };
-  }
-}
-
-function onPointerMove(e: PointerEvent): void {
-  const d = drag.value;
-  if (!d) return;
-  const { x } = fieldOffset(canvasRef.value!, e);
-  const clock = clockAt(x);
-  if (clock !== d.x2) {
-    // 最初の移動時に undo を積む (クリックのみなら積まない)
-    dragUndo.onFirstMove();
-    d.x2 = clock;
-    applyDrag();
-  }
-}
-
-function applyDrag(): void {
-  const s = getService();
-  if (!s) return;
-  const d = drag.value!;
   const u = doc.focusUnit;
   if (u < 0) return;
   const c1 = Math.min(d.x1, d.x2);
@@ -333,19 +293,40 @@ function applyDrag(): void {
   doc.rev++;
 }
 
-function onPointerUp(e: PointerEvent): void {
-  const c = canvasRef.value;
-  releasePointerCapture(c, e);
-  hold.onRelease(); // 押下中サステインを停止
-  const d = drag.value;
-  drag.value = null;
-  if (!d) return;
-  if (dragUndo.finish()) return;
-  if (d.button === 0) {
-    // ドラッグなしのクリック = シーク
-    seekToClock(d.x1);
-  }
-}
+const { onPointerDown, onPointerMove, onPointerUp } = useCanvasDrag<KeyDrag>({
+  canvasRef,
+  clockAt,
+  beginDrag(e, pt) {
+    const s = getService();
+    if (!s) return null;
+    const focus = doc.focusUnit;
+    if (focus < 0 || !s.unitGet(focus)) return null;
+    const row = Math.max(0, Math.min(KEYNUM - 1, rowAt(pt.y)));
+    const clock = clockAt(pt.x);
+    if (e.button === 0) {
+      if (pt.x < STRIP_W) {
+        // 鍵盤ストリップ: 試聴のみ (シークしない)
+        previewAt(pt.y);
+        return null;
+      }
+      setScope(clock, clock + Math.max(1, doc.divi));
+      previewAt(pt.y);
+      return { button: 0, x1: clock, x2: clock, row };
+    }
+    if (e.button === 2) return { button: 2, x1: clock, x2: clock, row };
+    return null;
+  },
+  applyDrag,
+  onClick(d) {
+    if (d.button === 0) {
+      // ドラッグなしのクリック = シーク
+      seekToClock(d.x1);
+    }
+  },
+  onEnd() {
+    hold.onRelease(); // 押下中サステインを停止
+  },
+});
 
 function onWheel(e: WheelEvent): void {
   const zoom = zoomByWheel(e, doc.zoom);

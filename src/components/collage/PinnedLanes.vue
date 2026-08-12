@@ -3,14 +3,14 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
-import { useDragUndo } from "../../composables/useUndo";
+import { useCanvasDrag } from "../../composables/useCanvasDrag";
 import { useHoldPreview } from "../../composables/useHoldPreview";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText, noteFill, noteShadow,
   drawPlayhead,
   drawScopeBand,
 } from "../../lib/draw";
-import { fieldOffset, clockAtX, zoomByWheel, capturePointer, releasePointerCapture } from "../../lib/field";
+import { clockAtX, zoomByWheel } from "../../lib/field";
 import { clockToX } from "../../lib/clock";
 import { iterVisibleRecords, visibleClockWindow } from "../../lib/records";
 import { KEY_HEIGHT } from "../../lib/clock";
@@ -164,8 +164,9 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 }
 
 // ---- ポインタ操作 ----
-const drag = ref<{ button: number; x1: number; x2: number; unit: number } | null>(null);
-const dragUndo = useDragUndo();
+// ドラッグの骨格 (pointerdown/move/up + キャプチャ + undo) は useCanvasDrag が担当し、
+// ルーラーシーク・試聴・イベント書き換えのみを注入する
+type LanesDrag = { button: number; x1: number; x2: number; unit: number };
 
 // フィールド内の x → clock (ユニット名領域を除く)
 function clockAt(x: number): number {
@@ -193,46 +194,9 @@ function previewAt(x: number, y: number): void {
   previewUnitHold(u, key, vel);
 }
 
-function onPointerDown(e: PointerEvent): void {
-  const c = canvasRef.value;
-  if (!c) return;
-  const { x, y } = fieldOffset(c, e);
-  if (y < RULER_H) {
-    // ルーラー帯クリック = シーク (ユニット名領域は対象外)
-    if (e.button === 0 && x >= NAME_W) seekToClock(clockAt(x));
-    return;
-  }
-  const u = unitAt(y);
+function applyDrag(d: LanesDrag): void {
   const s = getService();
   if (!s) return;
-  if (u < 0) return;
-  if (e.button === 0) {
-    capturePointer(c, e);
-    drag.value = { button: 0, x1: clockAt(x), x2: clockAt(x), unit: u };
-    setScope(clockAt(x), clockAt(x) + Math.max(1, doc.divi));
-    previewAt(x, y);
-  } else if (e.button === 2) {
-    capturePointer(c, e);
-    drag.value = { button: 2, x1: clockAt(x), x2: clockAt(x), unit: u };
-  }
-}
-
-function onPointerMove(e: PointerEvent): void {
-  const d = drag.value;
-  if (!d) return;
-  const { x } = fieldOffset(canvasRef.value!, e);
-  const clock = clockAt(x);
-  if (clock !== d.x2) {
-    dragUndo.onFirstMove();
-    d.x2 = clock;
-    applyDrag();
-  }
-}
-
-function applyDrag(): void {
-  const s = getService();
-  if (!s) return;
-  const d = drag.value!;
   const c1 = Math.min(d.x1, d.x2);
   const c2 = Math.max(d.x1, d.x2);
   if (c2 <= c1) {
@@ -249,18 +213,38 @@ function applyDrag(): void {
   doc.rev++;
 }
 
-function onPointerUp(e: PointerEvent): void {
-  const c = canvasRef.value;
-  releasePointerCapture(c, e);
-  hold.onRelease();
-  const d = drag.value;
-  drag.value = null;
-  if (!d) return;
-  if (dragUndo.finish()) return;
-  if (d.button === 0) {
-    seekToClock(d.x1);
-  }
-}
+const { onPointerDown, onPointerMove, onPointerUp } = useCanvasDrag<LanesDrag>({
+  canvasRef,
+  clockAt,
+  beginDrag(e, pt) {
+    if (pt.y < RULER_H) {
+      // ルーラー帯クリック = シーク (ユニット名領域は対象外)
+      if (e.button === 0 && pt.x >= NAME_W) seekToClock(clockAt(pt.x));
+      return null;
+    }
+    const u = unitAt(pt.y);
+    const s = getService();
+    if (!s || u < 0) return null;
+    const clock = clockAt(pt.x);
+    if (e.button === 0) {
+      setScope(clock, clock + Math.max(1, doc.divi));
+      previewAt(pt.x, pt.y);
+      return { button: 0, x1: clock, x2: clock, unit: u };
+    }
+    if (e.button === 2) return { button: 2, x1: clock, x2: clock, unit: u };
+    return null;
+  },
+  applyDrag,
+  onClick(d) {
+    if (d.button === 0) {
+      // ドラッグなしのクリック = シーク
+      seekToClock(d.x1);
+    }
+  },
+  onEnd() {
+    hold.onRelease();
+  },
+});
 
 // ホイール: Ctrl=ズーム / Shift=横スクロール
 function onWheel(e: WheelEvent): void {
