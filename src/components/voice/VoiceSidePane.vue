@@ -593,7 +593,8 @@ function canvasRect(ref: { value: HTMLCanvasElement | null }): { el: HTMLCanvasE
   color: var(--foreground);
 }
 
-.vsp-prange {
+.vsp-prange,
+.vsp-sine-range {
   flex: 1;
   min-width: 0;
   accent-color: var(--primary);
@@ -606,7 +607,8 @@ function canvasRect(ref: { value: HTMLCanvasElement | null }): { el: HTMLCanvasE
   font-size: var(--text-xs);
 }
 
-.vsp-wave {
+.vsp-wave,
+.vsp-enve {
   flex: 1;
   min-height: 50px;
 }
@@ -654,10 +656,5 @@ function canvasRect(ref: { value: HTMLCanvasElement | null }): { el: HTMLCanvasE
   font-size: var(--text-xs);
   color: var(--muted-foreground);
   flex: none;
-}
-
-.vsp-enve {
-  flex: 1;
-  min-height: 50px;
 }
 </style>
