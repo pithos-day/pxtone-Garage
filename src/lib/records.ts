@@ -50,9 +50,9 @@ export function* iterNoteDraws(
   records: EveRecord[],
   unitNo: number,
   range: { startClock: number; endClock: number },
-  defKey: number,
+  defaultKey: number,
 ): Generator<NoteDraw> {
-  let curKey = defKey;
+  let curKey = defaultKey;
   let prevClock = range.startClock;
   for (const e of iterVisibleRecords(records, range, (e) => e.unitNo === unitNo)) {
     // ON/KEY 共通: 直近の発音終端からイベント位置までの空白区間は余韻 (off)。
