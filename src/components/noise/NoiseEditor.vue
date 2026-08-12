@@ -24,7 +24,13 @@ const noise = computed(() => currentNoise());
 // 編集リビジョン。undo/redo 後はリアルタイム反映のため再ビルドを予約する
 const { rev, touch } = useEditRev(() => noise.value, undefined, () => scheduleRebuild());
 
-import { NOISE_WAVE_TYPE_NAMES as WAVE_TYPE_NAMES, NOISE_BUILT_SPS } from "../../lib/noise";
+import {
+  NOISE_WAVE_TYPE_NAMES as WAVE_TYPE_NAMES,
+  NOISE_BUILT_SPS,
+  secToEnveX,
+  pctToEnveY,
+  pushHistoryEntry,
+} from "../../lib/noise";
 const OSC_IDS = ["main", "freq", "volu"] as const;
 
 // 全レイヤーを縦に並べる (read 直後は有効ユニット数ぶん)
@@ -85,22 +91,21 @@ function onEnveNumChange(u: number, v: number): void {
   scheduleRebuild();
 }
 
-// エンベロープ: 秒 (x/1000) と % (y)。本家 dlg_Noise_Design の
-// IDC_ENVELOPE_SEC_* / IDC_ENVELOPE_VOL_* と同じ表示単位
+// エンベロープ: 秒 (x/1000) と % (y)。変換と範囲クランプは lib/noise が担当
 function setEnveSec(u: number, i: number, raw: string): void {
   const unit = unitAt(u);
   if (!unit || !unit.enves[i]) return;
-  const v = parseFloat(raw);
-  if (!Number.isFinite(v)) return;
-  unit.enves[i]!.x = Math.max(0, Math.min(10000, Math.round(v * 1000)));
+  const v = secToEnveX(raw);
+  if (v === null) return;
+  unit.enves[i]!.x = v;
   onFieldChange();
 }
 function setEnvePct(u: number, i: number, raw: string): void {
   const unit = unitAt(u);
   if (!unit || !unit.enves[i]) return;
-  const v = parseFloat(raw);
-  if (!Number.isFinite(v)) return;
-  unit.enves[i]!.y = Math.max(0, Math.min(100, Math.round(v)));
+  const v = pctToEnveY(raw);
+  if (v === null) return;
+  unit.enves[i]!.y = v;
   onFieldChange();
 }
 
@@ -129,7 +134,8 @@ function rebuild(): void {
   touch();
 }
 
-// History 記録。連続編集 (2秒以内の再ビルド) は直前のエントリを置き換える
+// History 記録。連続編集 (2 秒以内の再ビルド) は直前のエントリを置き換える
+// (追加ルールは lib/noise の pushHistoryEntry)
 function pushHistory(): void {
   const d = noise.value;
   if (!d || !builtPcm.value) return;
@@ -137,14 +143,7 @@ function pushHistory(): void {
   d.noise.write(io);
   const label = new Date().toLocaleTimeString("ja-JP", { hour12: false });
   const entry: HistoryEntry = { label, bytes: io.toUint8Array(), pcm: builtPcm.value };
-  const now = Date.now();
-  if (history.value.length > 0 && now - lastHistoryAt < 2000) {
-    history.value[0] = entry;
-  } else {
-    history.value.unshift(entry);
-    if (history.value.length > 30) history.value.length = 30;
-  }
-  lastHistoryAt = now;
+  lastHistoryAt = pushHistoryEntry(history.value, lastHistoryAt, Date.now(), entry);
 }
 
 // 波形クリック = 単発再生 (ループしない。本家準拠)

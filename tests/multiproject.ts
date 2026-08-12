@@ -72,6 +72,7 @@ import { formatTime, measStartClock } from "../src/lib/clock";
 import { scaleToWoice, scaleToGroup, VOLUME_EDIT_KIND } from "../src/lib/volume";
 import { writeNote, writeNoteLength, eraseNote, writeVolumeEvent, type EventWriteOps } from "../src/lib/editing";
 import { MENU_LABELS, menuNamesFor } from "../src/lib/menuItems";
+import { secToEnveX, pctToEnveY, pushHistoryEntry } from "../src/lib/noise";
 import { nearestPoint } from "../src/lib/voice-geometry";
 import { visibleClockWindow, iterVisibleRecords } from "../src/lib/records";
 import { woiceSummary } from "../src/lib/woice";
@@ -1010,6 +1011,25 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(menuNamesFor("collage").join(","), "file,edit,view", "lib: menuNamesFor collage は File/Edit/View");
     checkEq(menuNamesFor("voice").join(","), "file,edit", "lib: menuNamesFor voice は File/Edit");
     checkEq(menuNamesFor("noise").join(","), "file,edit", "lib: menuNamesFor noise は File/Edit");
+
+    // lib/noise: エンベロープ変換と履歴追加
+    checkEq(secToEnveX("1.5"), 1500, "lib: secToEnveX は秒を 1/1000 へ変換");
+    checkEq(secToEnveX("12"), 10000, "lib: secToEnveX は上限 10000 でクランプ");
+    checkEq(secToEnveX("abc"), null, "lib: secToEnveX は無効値で null");
+    checkEq(pctToEnveY("50"), 50, "lib: pctToEnveY は % をそのまま");
+    checkEq(pctToEnveY("150"), 100, "lib: pctToEnveY は上限 100 でクランプ");
+    checkEq(pctToEnveY("x"), null, "lib: pctToEnveY は無効値で null");
+    const hist: number[] = [];
+    const t0 = pushHistoryEntry(hist, 0, 1000, 1);
+    checkEq(hist.join(","), "1", "lib: pushHistoryEntry は最初のエントリを追加");
+    pushHistoryEntry(hist, t0, 1500, 2);
+    checkEq(hist.join(","), "2", "lib: pushHistoryEntry は 2 秒以内なら置き換え");
+    pushHistoryEntry(hist, 1500, 4000, 3);
+    checkEq(hist.join(","), "3,2", "lib: pushHistoryEntry は 2 秒超なら先頭に追加");
+    const many: number[] = [];
+    for (let i = 0; i < 40; i++) many.unshift(i);
+    pushHistoryEntry(many, 0, 5000, -1);
+    checkEq(many.length, 30, "lib: pushHistoryEntry は 30 件で打ち切り");
 
     // lib/records: iterVisibleRecords (範囲フィルタ・ON 長さ考慮・break)
     const recs: EveRecord[] = [
