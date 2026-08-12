@@ -43,9 +43,3 @@ const { woiceIdx, name, onSubmit } = useWoiceNameForm({
   </ModalDialog>
 </template>
 
-<style scoped>
-.grow {
-  flex: 1;
-  min-width: 0;
-}
-</style>

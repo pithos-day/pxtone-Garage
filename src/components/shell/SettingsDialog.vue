@@ -105,12 +105,6 @@ async function onLoadLocalFonts(): Promise<void> {
 </template>
 
 <style scoped>
-.grow {
-  flex: 1;
-  min-width: 0;
-}
-
-select.grow,
 select {
   max-width: 100%;
 }

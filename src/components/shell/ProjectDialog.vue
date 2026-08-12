@@ -84,11 +84,6 @@ function onCancel(): void {
 </template>
 
 <style scoped>
-.grow {
-  flex: 1;
-  min-width: 0;
-}
-
 .unit {
   font-size: 10px;
   color: var(--muted-foreground);

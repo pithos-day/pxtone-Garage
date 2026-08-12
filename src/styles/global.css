@@ -131,6 +131,11 @@ body {
   min-width: 56px;
 }
 
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+
 input[type="range"] {
   accent-color: var(--primary);
   width: 90px;
