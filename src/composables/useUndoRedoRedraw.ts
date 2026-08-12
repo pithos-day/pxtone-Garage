@@ -3,10 +3,13 @@
 // リアクティブ追跡されないため、スタック長が変化の目印になる)
 import { watch } from "vue";
 
-export function useUndoRedoRedraw(
-  doc: () => { undoStack: unknown[]; redoStack: unknown[] } | null | undefined,
-  fn: () => void,
-): void {
+// undo/redo スタックを持つドキュメント (監視対象の最小型)
+export interface UndoAware {
+  undoStack: unknown[];
+  redoStack: unknown[];
+}
+
+export function useUndoRedoRedraw(doc: () => UndoAware | null | undefined, fn: () => void): void {
   watch(
     () => [doc()?.undoStack.length, doc()?.redoStack.length],
     () => fn(),
