@@ -1,5 +1,4 @@
 // ボリュームオートメーションの編集方式テーブル (VolumeField の switch を定数化)
-
 // mode (doc.volumeMode 0..7) → 書き込み方式:
 //  "setValue": 値の書換のみ (Velocity)
 //  "replace":  delete + add + set (Pan_Volume / Pan_Time / Volume)

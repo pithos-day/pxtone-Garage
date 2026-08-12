@@ -20,6 +20,7 @@ export function coordPxToX(c: VoiceUnit, w: number, px: number): number {
   return Math.max(0, Math.min(c.wave.reso, Math.round(((px - WAVE_PAD) / (w - WAVE_PAD * 2)) * c.wave.reso)));
 }
 
+// px → データ y。下限は -128、上限は 127 (本家の座標丸めに合わせた非対称値)
 export function coordPxToY(h: number, py: number): number {
   return Math.max(-128, Math.min(127, Math.round(((h / 2 - py) / (h - WAVE_PAD * 2)) * 128)));
 }

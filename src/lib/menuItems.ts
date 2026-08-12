@@ -25,7 +25,7 @@ export interface ModeMenuOps {
   canRedo: () => boolean;
 }
 
-// File メニュー。基本 5 項目 + モード固有項目 (extra) + close
+// File メニュー。共通 5 項目 (new/open/save/saveAs + 区切り) + モード固有項目 (extra) + close
 export function buildFileMenu(ops: ModeMenuOps, extra: MenuItem[]): MenuItem[] {
   return [
     { label: t("menu.file.new"), action: ops.new },
