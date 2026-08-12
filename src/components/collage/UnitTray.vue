@@ -229,7 +229,7 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
   align-items: center;
   justify-content: space-between;
   padding: 3px 6px;
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--muted-foreground);
   border-bottom: 1px solid var(--border);
   background: var(--background);
@@ -245,7 +245,7 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
   display: flex;
   gap: 2px;
   padding: 2px 4px;
-  font-size: 9px;
+  font-size: var(--text-2xs);
   color: var(--muted-foreground);
   background: var(--background);
   border-bottom: 1px solid var(--border);
@@ -287,7 +287,7 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
   display: flex;
   gap: 2px;
   padding: 2px 4px;
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--muted-foreground);
   cursor: pointer;
   border-bottom: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
@@ -352,14 +352,14 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
 }
 
 .unit-name-input {
-  font-size: 11px;
+  font-size: var(--text-sm);
   padding: 0 2px;
   background: var(--secondary);
   color: var(--secondary-foreground);
 }
 
 .unit-summary {
-  font-size: 9px;
+  font-size: var(--text-2xs);
   color: var(--muted-foreground);
   white-space: nowrap;
   overflow: hidden;
@@ -368,7 +368,7 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
 
 .tray-empty {
   padding: 8px;
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--muted-foreground);
   line-height: 1.6;
   white-space: pre-line;

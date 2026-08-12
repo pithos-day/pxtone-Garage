@@ -47,7 +47,7 @@ function onOverlayClick(e: MouseEvent): void {
 
 .dlg-title {
   padding: 8px 12px;
-  font-size: 13px;
+  font-size: var(--text-base);
   font-weight: bold;
   color: var(--foreground);
   background: var(--background);

@@ -33,7 +33,7 @@ function toggle(i: number): void {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--muted-foreground);
   cursor: pointer;
 }

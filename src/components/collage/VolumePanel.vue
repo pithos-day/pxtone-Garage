@@ -37,7 +37,7 @@ defineProps<{ modes: string[] }>();
 
 .vol-mode {
   text-align: left;
-  font-size: 10px;
+  font-size: var(--text-xs);
   padding: 2px 6px;
 }
 

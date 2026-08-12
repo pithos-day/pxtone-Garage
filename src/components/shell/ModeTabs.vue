@@ -32,7 +32,7 @@ const tabs = [
   border-right: 1px solid var(--border);
   background: transparent;
   color: var(--muted-foreground);
-  font-size: 17px;
+  font-size: var(--text-xl);
   font-weight: bold;
   cursor: pointer;
 }

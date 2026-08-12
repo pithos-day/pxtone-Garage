@@ -119,7 +119,7 @@ select {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
+  font-size: var(--text-md);
   color: var(--foreground);
   cursor: pointer;
 }
@@ -131,6 +131,6 @@ select {
 /* テーマインポート */
 .import-msg {
   color: var(--muted-foreground);
-  font-size: 11px;
+  font-size: var(--text-sm);
 }
 </style>

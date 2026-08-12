@@ -191,7 +191,7 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
   border-top: 1px solid var(--border);
   background: var(--background);
   color: var(--muted-foreground);
-  font-size: 11px;
+  font-size: var(--text-sm);
   padding: 6px 10px;
   cursor: pointer;
   user-select: none;
@@ -211,11 +211,11 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
 }
 
 .vt-label {
-  font-size: 11px;
+  font-size: var(--text-sm);
 }
 
 .vt-arrow {
-  font-size: 9px;
+  font-size: var(--text-2xs);
 }
 
 /* フィールド列 (ルーラー + トラック) */

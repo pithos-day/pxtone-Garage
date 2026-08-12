@@ -72,6 +72,6 @@ async function onAddWoice(): Promise<void> {
 
 .tool-err {
   color: var(--destructive);
-  font-size: 10px;
+  font-size: var(--text-xs);
 }
 </style>

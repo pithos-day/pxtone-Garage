@@ -164,7 +164,7 @@ function onRemoveOverdrive(idx: number): void {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--foreground);
   margin-bottom: 2px;
 }
@@ -173,7 +173,7 @@ function onRemoveOverdrive(idx: number): void {
   display: flex;
   gap: 6px;
   align-items: center;
-  font-size: 11px;
+  font-size: var(--text-sm);
   padding: 1px 2px;
   color: var(--muted-foreground);
 }
@@ -184,7 +184,7 @@ function onRemoveOverdrive(idx: number): void {
 }
 
 .eff-empty {
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--muted-foreground);
   padding: 2px;
 }

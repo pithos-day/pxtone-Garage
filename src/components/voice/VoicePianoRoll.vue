@@ -198,7 +198,7 @@ onBeforeUnmount(() => stopPreview());
 }
 
 .vpr-vel-label {
-  font-size: 9px;
+  font-size: var(--text-2xs);
   color: var(--muted-foreground);
   writing-mode: vertical-rl;
 }
@@ -210,7 +210,7 @@ onBeforeUnmount(() => stopPreview());
 }
 
 .vpr-vel-val {
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--muted-foreground);
   width: 22px;
   text-align: right;

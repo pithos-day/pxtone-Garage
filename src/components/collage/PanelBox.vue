@@ -36,7 +36,7 @@ const emit = defineEmits<{ close: [] }>();
   padding: 3px 6px;
   background: var(--background);
   border-bottom: 1px solid var(--border);
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--foreground);
   user-select: none;
   flex: none;
@@ -47,7 +47,7 @@ const emit = defineEmits<{ close: [] }>();
   background: transparent;
   color: var(--foreground);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--text-md);
   padding: 0 4px;
 }
 
@@ -57,7 +57,7 @@ const emit = defineEmits<{ close: [] }>();
 
 .panelbox-body {
   padding: 6px;
-  font-size: 12px;
+  font-size: var(--text-md);
   overflow-y: auto;
   min-height: 0;
 }

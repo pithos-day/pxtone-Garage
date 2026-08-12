@@ -93,7 +93,7 @@ function woiceSummary(idx: number): string {
 
 .tray-title {
   padding: 3px 6px;
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--muted-foreground);
   border-bottom: 1px solid var(--border);
   background: var(--background);
@@ -109,7 +109,7 @@ function woiceSummary(idx: number): string {
   display: flex;
   flex-direction: column;
   padding: 2px 4px;
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--muted-foreground);
   border-bottom: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
   cursor: pointer;
@@ -135,12 +135,12 @@ function woiceSummary(idx: number): string {
 }
 
 .woice-type {
-  font-size: 9px;
+  font-size: var(--text-2xs);
   color: var(--primary);
 }
 
 .woice-summary {
-  font-size: 9px;
+  font-size: var(--text-2xs);
   color: var(--muted-foreground);
   white-space: nowrap;
   overflow: hidden;
@@ -149,7 +149,7 @@ function woiceSummary(idx: number): string {
 
 .tray-empty {
   padding: 8px;
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--muted-foreground);
   line-height: 1.6;
   white-space: pre-line;

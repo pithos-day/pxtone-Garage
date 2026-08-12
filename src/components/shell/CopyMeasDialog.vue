@@ -120,7 +120,7 @@ function onSubmit(): void {
 }
 
 .section-title {
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--muted-foreground);
   margin-bottom: 4px;
 }
@@ -135,7 +135,7 @@ function onSubmit(): void {
   display: flex;
   align-items: center;
   gap: 3px;
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--foreground);
   cursor: pointer;
 }

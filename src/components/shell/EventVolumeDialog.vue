@@ -73,7 +73,7 @@ function onSubmit(): void {
 }
 
 .hint {
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--muted-foreground);
 }
 </style>

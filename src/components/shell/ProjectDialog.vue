@@ -85,12 +85,12 @@ function onCancel(): void {
 
 <style scoped>
 .unit {
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--muted-foreground);
 }
 
 .dim {
-  font-size: 11px;
+  font-size: var(--text-sm);
 }
 
 .dim span {

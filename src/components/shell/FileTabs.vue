@@ -119,7 +119,7 @@ function onClose(id: number): void {
   border-right: 1px solid var(--border);
   background: transparent;
   color: var(--muted-foreground);
-  font-size: 12px;
+  font-size: var(--text-md);
   cursor: pointer;
   max-width: 200px;
 }
@@ -151,7 +151,7 @@ function onClose(id: number): void {
 
 .tab-close {
   color: var(--muted-foreground);
-  font-size: 13px;
+  font-size: var(--text-base);
   padding: 0 3px;
   border-radius: 2px;
   flex: none;
@@ -168,7 +168,7 @@ function onClose(id: number): void {
   border-right: 1px solid var(--border);
   background: transparent;
   color: var(--muted-foreground);
-  font-size: 14px;
+  font-size: var(--text-lg);
   cursor: pointer;
 }
 

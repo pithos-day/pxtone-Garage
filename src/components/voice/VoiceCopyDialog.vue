@@ -24,7 +24,7 @@ const message = computed(() => t(props.direction === "AB" ? "voice.copyABMessage
 <style scoped>
 .msg {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-base);
   color: var(--foreground);
 }
 </style>

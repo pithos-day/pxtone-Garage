@@ -39,7 +39,7 @@ const emit = defineEmits<{
   display: flex;
   align-items: center;
   padding: 5px 12px;
-  font-size: 12px;
+  font-size: var(--text-md);
   color: var(--card-foreground);
   cursor: pointer;
   position: relative;
@@ -63,7 +63,7 @@ const emit = defineEmits<{
 .menu-check {
   width: 16px;
   color: var(--primary);
-  font-size: 11px;
+  font-size: var(--text-sm);
   flex: none;
 }
 
@@ -74,7 +74,7 @@ const emit = defineEmits<{
 .menu-arrow {
   margin-left: 10px;
   color: var(--muted-foreground);
-  font-size: 10px;
+  font-size: var(--text-xs);
 }
 
 .menu-sep {

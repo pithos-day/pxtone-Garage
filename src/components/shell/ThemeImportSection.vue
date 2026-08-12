@@ -79,7 +79,7 @@ function onImport(): void {
   border: none;
   background: transparent;
   color: var(--primary);
-  font-size: 12px;
+  font-size: var(--text-md);
   cursor: pointer;
   padding: 2px 0;
   text-align: left;
@@ -101,7 +101,7 @@ function onImport(): void {
 .import-css {
   min-height: 90px;
   font-family: monospace;
-  font-size: 10px;
+  font-size: var(--text-xs);
   resize: vertical;
 }
 
@@ -117,7 +117,7 @@ function onImport(): void {
 
 .import-err {
   color: var(--danger);
-  font-size: 11px;
+  font-size: var(--text-sm);
 }
 
 .spacer {

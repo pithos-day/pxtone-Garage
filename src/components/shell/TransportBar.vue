@@ -83,12 +83,12 @@ function timeLabel(): string {
 }
 
 .vol-label {
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--muted-foreground);
 }
 
 .pct {
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--muted-foreground);
   width: 30px;
 }
@@ -96,12 +96,12 @@ function timeLabel(): string {
 .time {
   font-variant-numeric: tabular-nums;
   color: var(--foreground);
-  font-size: 12px;
+  font-size: var(--text-md);
 }
 
 .clock {
   color: var(--muted-foreground);
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
 }
 
@@ -110,14 +110,14 @@ function timeLabel(): string {
 }
 
 .panel-label {
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--muted-foreground);
   margin-right: 2px;
 }
 
 .btn-sm {
   padding: 1px 8px;
-  font-size: 11px;
+  font-size: var(--text-sm);
 }
 
 .btn-sm.on {

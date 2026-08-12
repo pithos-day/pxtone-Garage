@@ -560,7 +560,7 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
 }
 
 .vsp-side {
-  font-size: 14px;
+  font-size: var(--text-lg);
   font-weight: bold;
   color: var(--foreground);
 }
@@ -576,7 +576,7 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
 }
 
 .vsp-preset {
-  font-size: 10px;
+  font-size: var(--text-xs);
   padding: 0 5px;
 }
 
@@ -586,7 +586,7 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
   flex-direction: column;
   gap: 2px;
   flex: none;
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--muted-foreground);
 }
 
@@ -613,7 +613,7 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
   width: 34px;
   flex: none;
   text-align: right;
-  font-size: 10px;
+  font-size: var(--text-xs);
 }
 
 .vsp-wave {
@@ -643,7 +643,7 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
 .vsp-sine-no {
   width: 20px;
   text-align: right;
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--muted-foreground);
   flex: none;
 }
@@ -661,7 +661,7 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
 .vsp-sine-val {
   width: 30px;
   text-align: right;
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--muted-foreground);
   flex: none;
 }

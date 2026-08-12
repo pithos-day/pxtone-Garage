@@ -384,7 +384,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--card-foreground);
 }
 
@@ -436,7 +436,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
 }
 
 .ne-head {
-  font-size: 9px;
+  font-size: var(--text-2xs);
   color: var(--card-foreground);
   border-bottom: 1px dashed var(--border);
   padding-bottom: 1px;
@@ -447,12 +447,12 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
   flex: none;
   font-weight: bold;
   color: var(--card-foreground);
-  font-size: 10px;
+  font-size: var(--text-xs);
 }
 
 .ne-layer select,
 .ne-layer input {
-  font-size: 11px;
+  font-size: var(--text-sm);
   background: var(--secondary);
   color: var(--secondary-foreground);
   border: 1px solid var(--border);
@@ -479,7 +479,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
 .ne-enve-title {
   font-weight: bold;
   color: var(--card-foreground);
-  font-size: 10px;
+  font-size: var(--text-xs);
 }
 
 .ne-enve select {
@@ -488,7 +488,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
 
 .ne-enve-no {
   color: var(--card-foreground);
-  font-size: 10px;
+  font-size: var(--text-xs);
 }
 
 .ne-enve .ne-enve-pct {
@@ -527,7 +527,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
 }
 
 .ne-history-title {
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: bold;
   color: var(--foreground);
   display: flex;
@@ -535,7 +535,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
 }
 
 .ne-hint {
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--muted-foreground);
 }
 
@@ -544,7 +544,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
   border: none;
   background: transparent;
   color: var(--muted-foreground);
-  font-size: 11px;
+  font-size: var(--text-sm);
   padding: 1px 4px;
   cursor: pointer;
 }
