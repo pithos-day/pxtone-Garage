@@ -1,5 +1,5 @@
-<script setup lang="ts">
 // 上部のモードタブ (Collage / Voice / Noise)
+<script setup lang="ts">
 import type { AppMode } from "../../lib/modes";
 
 defineProps<{ mode: AppMode }>();

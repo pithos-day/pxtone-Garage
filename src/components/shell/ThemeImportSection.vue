@@ -1,6 +1,6 @@
-<script setup lang="ts">
 // テーマインポートの展開ブロック (SettingsDialog から分割)。
 // 状態はこのコンポーネント内で完結させる (専用 composable に切り出すまでもない)
+<script setup lang="ts">
 import { reactive } from "vue";
 import { addUserTheme, setThemeName } from "../../state/theme";
 import { t } from "../../i18n";
