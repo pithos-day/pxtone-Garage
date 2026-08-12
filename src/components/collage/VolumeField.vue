@@ -29,7 +29,7 @@ import { currentClock, isPlaying as isPlayingNow } from "../../state/player";
 // イベント書き換え API のアダプタ (lib/editing へ渡す)
 const writeOps: EventWriteOps = { deleteEvents, addEvent, setEventValue };
 
-const H = 128;
+const H = 128; // フィールド高 (CSS の --volfield-h と同期)
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const tuningInput = ref<{ x: number; y: number; clock: number; value: string } | null>(null);
 
@@ -275,7 +275,7 @@ function onWheel(e: WheelEvent): void {
 </script>
 
 <template>
-  <div class="volfield">
+  <div class="volfield" :style="{ '--volfield-h': H + 'px' }">
     <canvas
       ref="canvasRef"
       class="field-canvas"
@@ -306,7 +306,7 @@ function onWheel(e: WheelEvent): void {
 .volfield {
   flex: 1;
   min-width: 0;
-  height: 128px;
+  height: var(--volfield-h);
   position: relative;
 }
 
