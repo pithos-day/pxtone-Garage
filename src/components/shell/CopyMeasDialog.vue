@@ -125,23 +125,6 @@ function onSubmit(): void {
   margin-bottom: 4px;
 }
 
-.range {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.range label {
-  font-size: 10px;
-  color: var(--muted-foreground);
-  min-width: 0;
-}
-
-.range input {
-  width: 48px;
-}
-
 .kinds {
   display: flex;
   flex-wrap: wrap;

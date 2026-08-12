@@ -64,23 +64,6 @@ function onSubmit(): void {
 </template>
 
 <style scoped>
-.range {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.range label {
-  font-size: 10px;
-  color: var(--muted-foreground);
-  min-width: 0;
-}
-
-.range input {
-  width: 48px;
-}
-
 .dash {
   color: var(--muted-foreground);
 }
