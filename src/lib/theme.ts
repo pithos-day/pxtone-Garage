@@ -1,4 +1,4 @@
-// テーマ色の定義。Canvas 描画用の COLORS は src/theme/*.css が定義する
+// テーマ色の定義。Canvas 描画用の COLORS は src/themes/*.css が定義する
 // CSS 変数 (shadcn 形式) から読み取る。テーマ切替時は syncThemeColors() を呼ぶ。
 import { reactive } from "vue";
 import { EVENTDEFAULT_VELOCITY, EVENTDEFAULT_VOLUME, WoiceType } from "pxtone-ts";

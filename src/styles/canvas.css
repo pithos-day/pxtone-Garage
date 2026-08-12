@@ -1,5 +1,5 @@
 /* Canvas 描画用トークン (テーマ非依存)。
- * src/theme/*.css は shadcn 標準キーのみを持ち、ピアノロール等の
+ * src/themes/*.css は shadcn 標準キーのみを持ち、ピアノロール等の
  * Canvas 描画色はこのファイルが提供する。
  * ライト (:root) / ダーク (.dark) の 2 系統を持つ (値は pxtone テーマ由来)。 */
 

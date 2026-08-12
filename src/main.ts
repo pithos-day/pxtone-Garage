@@ -1,6 +1,6 @@
 import { createApp } from "vue";
-import "./style.css";
-import "./canvas.css";
+import "./styles/global.css";
+import "./styles/canvas.css";
 import App from "./App.vue";
 import { initTheme } from "./state/theme";
 import { initFonts } from "./state/fonts";
@@ -32,12 +32,12 @@ import "@fontsource/noto-sans-jp/400.css";
 import "@fontsource/noto-sans-jp/700.css";
 
 // テーマ CSS ソース (?raw でテキストとして取り込み、実行時にパースして注入)
-import pxtoneTheme from "./theme/pxtone.css?raw";
-import indigoTheme from "./theme/indigo.css?raw";
-import caffeineTheme from "./theme/caffeine.css?raw";
-import zenTheme from "./theme/zen.css?raw";
-import vintageTheme from "./theme/vintage.css?raw";
-import roseTheme from "./theme/rose.css?raw";
+import pxtoneTheme from "./themes/pxtone.css?raw";
+import indigoTheme from "./themes/indigo.css?raw";
+import caffeineTheme from "./themes/caffeine.css?raw";
+import zenTheme from "./themes/zen.css?raw";
+import vintageTheme from "./themes/vintage.css?raw";
+import roseTheme from "./themes/rose.css?raw";
 
 initTheme({
   pxtone: pxtoneTheme,

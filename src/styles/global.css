@@ -1,5 +1,5 @@
 /* pxtone-garage ベーススタイル。
- * 色はすべて src/theme/*.css が定義する CSS 変数 (shadcn 形式) を参照する。
+ * 色はすべて src/themes/*.css が定義する CSS 変数 (shadcn 形式) を参照する。
  * テーマの切替は <html> の data-theme 属性と .dark クラスで行う (src/state/theme.ts)。 */
 
 * {
