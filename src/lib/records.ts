@@ -22,13 +22,13 @@ export function visibleClockWindow(
 // isTarget でユニットなどの対象絞り込みを行う
 export function* iterVisibleRecords(
   records: EveRecord[],
-  window: { startClock: number; endClock: number },
+  range: { startClock: number; endClock: number },
   isTarget: (e: EveRecord) => boolean = () => true,
 ): Generator<EveRecord> {
   for (const e of records) {
     if (e.kind === EventKind.NULL) continue;
-    if (e.clock > window.endClock) break;
-    if (e.clock + (e.kind === EventKind.ON ? e.value : 0) < window.startClock) continue;
+    if (e.clock > range.endClock) break;
+    if (e.clock + (e.kind === EventKind.ON ? e.value : 0) < range.startClock) continue;
     if (!isTarget(e)) continue;
     yield e;
   }
