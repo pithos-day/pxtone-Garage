@@ -46,8 +46,9 @@ const MENU_LABELS: Record<MenuName, string> = {
 // ドロップダウンの開閉管理 (メニュー外クリック / Escape で閉じる)
 const { openMenu, openSubIndex, toggleMenu, hoverMenu, close } = useDropdownMenu<MenuName>();
 
-// モード別のトップメニュー (voice/noise は File のみ)
-const menuNames = computed<MenuName[]>(() => (mode.value === "collage" ? ["file", "edit", "view"] : ["file"]));
+// モード別のトップメニュー (voice/noise は File + Edit。Edit には undo/redo と
+// A/B コピー (voice) があるため表示する)
+const menuNames = computed<MenuName[]>(() => (mode.value === "collage" ? ["file", "edit", "view"] : ["file", "edit"]));
 
 function runMenuItem(item: MenuItem): void {
   if (item.disabled) return;
