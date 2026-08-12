@@ -14,7 +14,7 @@ import {
 } from "../../state/projects";
 import { newVoice, openVoice, saveVoice, closeVoice, undoVoice, redoVoice, currentVoice, currentVoiceId } from "../../state/voice";
 import { newNoise, openNoise, saveNoise, closeNoise, undoNoise, redoNoise, currentNoise, currentNoiseId } from "../../state/noise";
-import { exportPttune, exportWav, openFileDialog } from "../../engine/io";
+import { exportPttune, exportWav, exportVoiceWav, exportNoiseWav, openFileDialog } from "../../engine/io";
 import { undo, redo, canUndo, canRedo } from "../../state/undo";
 import { t } from "../../i18n";
 import type { EventVolumeMode } from "../../lib/eventVolume";
@@ -123,6 +123,23 @@ function onCloseNoise(): void {
   closeNoise(id);
 }
 
+// ---- WAV 書き出し (voice/noise) ----
+
+function onExportVoiceWav(): void {
+  const v = currentVoice();
+  if (!v) return;
+  void exportVoiceWav(v.woice, v.fileName || "untitled").then((err) => {
+    if (err) window.alert(err);
+  });
+}
+
+function onExportNoiseWav(): void {
+  const d = currentNoise();
+  if (!d) return;
+  const err = exportNoiseWav(d.noise, d.fileName || "untitled");
+  if (err) window.alert(err);
+}
+
 // ---- モード別メニュー ----
 
 const allVisible = computed(() => doc.unitVisible.length > 0 && doc.unitVisible.every(Boolean));
@@ -176,7 +193,13 @@ const fileMenu = computed<MenuItem[]>(() => {
           { label: t("menu.file.settings"), action: () => emit("settings") },
           { sep: true },
         ]
-      : [];
+      : [
+          // voice: 現在の音色を単音レンダリングして WAV 化 / noise: 現在のノイズを WAV 化
+          { label: t("menu.file.exportWav"), action: mode.value === "voice" ? onExportVoiceWav : onExportNoiseWav },
+          { sep: true },
+          { label: t("menu.file.settings"), action: () => emit("settings") },
+          { sep: true },
+        ];
   return buildFileMenu(ops, extra);
 });
 

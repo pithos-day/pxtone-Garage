@@ -15,7 +15,6 @@ import { fillRect, fillText } from "../../lib/draw";
 import { MemoryIo, WaveType } from "pxtone-ts";
 import { currentNoise, newNoise, editNoise, NOISE_UNIT_NUM } from "../../state/noise";
 import { renderNoise, playPcmOnce } from "../../engine/preview";
-import { exportNoiseWav } from "../../engine/io";
 import { t } from "../../i18n";
 
 // v-show で常時マウントされるため、Space は noise モードのときだけ有効にする
@@ -108,7 +107,6 @@ function setEnvePct(u: number, i: number, raw: string): void {
 
 // ---- リアルタイムビルド (250ms デバウンス) ----
 const builtPcm = ref<Float32Array | null>(null);
-const buildError = ref("");
 
 interface HistoryEntry {
   label: string;
@@ -125,11 +123,7 @@ function rebuild(): void {
   const d = noise.value;
   if (!d) return;
   const pcm = renderNoise(d.noise, NOISE_BUILT_SPS);
-  if (!pcm) {
-    buildError.value = t("error.noiseBuild");
-    return;
-  }
-  buildError.value = "";
+  if (!pcm) return;
   builtPcm.value = pcm;
   pushHistory();
   touch();
@@ -175,12 +169,7 @@ function applyHistory(i: number): void {
   scheduleRebuild();
 }
 
-function onSaveWav(): void {
-  const d = noise.value;
-  if (!d) return;
-  const err = exportNoiseWav(d.noise, d.fileName || "untitled");
-  if (err) buildError.value = err;
-}
+// WAV 書き出しは File メニュー (menu.file.exportWav) から行うため、ボタンは廃止した
 
 // ---- Space: ビルド済み波形の再生 (未反映なら即ビルドして再生) ----
 function onKeydown(e: KeyboardEvent): void {
@@ -330,10 +319,6 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
         </div>
       </div>
       <div class="ne-preview">
-        <div class="ne-build-row">
-          <button class="btn" @click="onSaveWav">{{ t("noise.saveWav") }}</button>
-          <span v-if="buildError" class="ne-error">{{ buildError }}</span>
-        </div>
         <canvas
           ref="waveRef"
           class="field-canvas ne-wave"
@@ -520,17 +505,6 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
-
-.ne-build-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.ne-error {
-  color: var(--destructive);
-  font-size: 11px;
 }
 
 /* 1画面に収めるため波形は小さめに固定 */

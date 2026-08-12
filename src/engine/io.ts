@@ -1,6 +1,6 @@
 // ファイルの開く・保存・書き出し
 import { Service, PxtnErr, MemoryIo, NoiseBuilder } from "pxtone-ts";
-import type { Noise } from "pxtone-ts";
+import type { Noise, Woice } from "pxtone-ts";
 import { EXE_VER } from "../state/service";
 import { exportBytes } from "../state/project";
 import { t } from "../i18n";
@@ -105,6 +105,28 @@ export function exportNoiseWav(noise: Noise, fileName: string, sps = 44100): str
   const buf = pcm.devolveSamplingBuffer();
   if (!buf) return t("error.noiseBuild");
   const s16 = new Int16Array(buf.buffer, buf.byteOffset, buf.byteLength >> 1);
+  const wav = makeWav(s16, sps, 2, 16);
+  downloadBytes(wav, sanitizeFileName(fileName, ".wav"), "audio/wav");
+  return null;
+}
+
+// 音声 (PTV) を単音レンダリングして WAV として書き出し。
+// エラーメッセージを返す (成功時 null)
+export async function exportVoiceWav(
+  woice: Woice,
+  fileName: string,
+  key = 0x6000,
+  velocity = 104,
+  durSec = 1,
+  sps = 44100,
+): Promise<string | null> {
+  // preview.ts は player と循環 import になるため動的 import する
+  // (player → realtime-player → io → preview → player の循環を避ける)
+  const { renderWoice } = await import("./preview");
+  const pcm = renderWoice(woice, key, velocity, durSec, sps);
+  if (!pcm) return t("error.tonesReady");
+  const s16 = new Int16Array(pcm.length);
+  for (let i = 0; i < pcm.length; i++) s16[i] = Math.round(pcm[i]! * 32767);
   const wav = makeWav(s16, sps, 2, 16);
   downloadBytes(wav, sanitizeFileName(fileName, ".wav"), "audio/wav");
   return null;
