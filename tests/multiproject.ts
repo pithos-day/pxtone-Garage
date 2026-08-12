@@ -68,7 +68,12 @@ import {
   createDefaultNoise,
 } from "../src/state/noise";
 import { renderWoice, renderNoise } from "../src/engine/preview";
-import { MemoryIo, VoiceType, WaveType, EventKind } from "pxtone-ts";
+import { formatTime, measStartClock } from "../src/lib/clock";
+import { scaleToWoice, scaleToGroup, VOLUME_EDIT_KIND } from "../src/lib/volume";
+import { nearestPoint } from "../src/lib/voice-geometry";
+import { visibleClockWindow, iterVisibleRecords } from "../src/lib/records";
+import { woiceSummary } from "../src/lib/woice";
+import { MemoryIo, VoiceType, WaveType, EventKind, type EveRecord } from "pxtone-ts";
 
 let failed = 0;
 function fail(name: string, detail = ""): void {
@@ -907,6 +912,64 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     setRepeatMeas(0); // 後続テストのためにクリア
     undo();
     checkEq(doc.repeatMeas, 5, "repeat: クリアの undo で表示値が 5 に戻る");
+  }
+
+  // ---- 26. 抽出 lib の純関数 (リファクタ後の回帰テスト) ----
+  {
+    // lib/clock: formatTime (mm:ss) / measStartClock
+    checkEq(formatTime(0), "0:00", "lib: formatTime(0)");
+    checkEq(formatTime(65), "1:05", "lib: formatTime(65)");
+    checkEq(formatTime(3599.9), "59:59", "lib: formatTime(3599.9)");
+    const cv = { beatClock: 480, beatNum: 4, zoom: 48 };
+    checkEq(measStartClock(cv, 2), 3840, "lib: measStartClock(小節2) = 3840 クロック");
+
+    // lib/volume: スケール換算と編集方式
+    checkEq(scaleToWoice(64, 4), 2, "lib: scaleToWoice 64/4音色 → 2 (1.5 を丸め)");
+    checkEq(scaleToWoice(128, 4), 3, "lib: scaleToWoice 128/4音色 → 3");
+    checkEq(scaleToWoice(128, 1), 0, "lib: scaleToWoice 音色1個 → 0");
+    checkEq(scaleToGroup(64), 4, "lib: scaleToGroup 64 → 4 (3.5 を丸め)");
+    checkEq(scaleToGroup(128), 7, "lib: scaleToGroup 128 → 7");
+    checkEq(VOLUME_EDIT_KIND[0], "setValue", "lib: モード0 は setValue");
+    checkEq(VOLUME_EDIT_KIND[4], "length", "lib: モード4 は length");
+    checkEq(VOLUME_EDIT_KIND[7], undefined, "lib: モード7 (Tuning) は対象外");
+
+    // lib/voice-geometry: 最近傍点探索
+    const pts = [
+      { x: 0, y: 0 },
+      { x: 100, y: 0 },
+      { x: 200, y: 0 },
+    ];
+    checkEq(nearestPoint(pts, 105, 2), 1, "lib: nearestPoint 中間の点");
+    checkEq(nearestPoint(pts, 500, 500), -1, "lib: nearestPoint 範囲外は -1");
+    checkEq(nearestPoint(pts, 0, 0, 1), 0, "lib: nearestPoint 閾値内の最近傍");
+
+    // lib/records: 可視範囲ウィンドウ (w と scrollX は px。zoom=48 で 1 拍 = 480 クロック)
+    const win = visibleClockWindow(cv, 0, 48);
+    checkEq(win.startClock, 0, "lib: 可視ウィンドウ start");
+    checkEq(win.endClock, 480, "lib: 可視ウィンドウ end (1 拍分)");
+    const win2 = visibleClockWindow(cv, 48, 48, 24);
+    checkEq(win2.startClock, 456, "lib: 可視ウィンドウ margin 付き start");
+    checkEq(win2.endClock, 960, "lib: 可視ウィンドウ margin 付き end");
+
+    // lib/records: iterVisibleRecords (範囲フィルタ・ON 長さ考慮・break)
+    const recs: EveRecord[] = [
+      { unitNo: 0, clock: 0, kind: EventKind.KEY, value: 0x6000 },
+      { unitNo: 0, clock: 100, kind: EventKind.ON, value: 500 },
+      { unitNo: 0, clock: 200, kind: EventKind.NULL, value: 0 },
+      { unitNo: 0, clock: 900, kind: EventKind.KEY, value: 0x6000 },
+    ];
+    const seen = [...iterVisibleRecords(recs, { startClock: 0, endClock: 480 })];
+    checkEq(seen.length, 2, "lib: iterVisibleRecords は範囲内のみ (NULL 除外)");
+    checkEq(seen[0]!.kind, EventKind.KEY, "lib: iterVisibleRecords は時系列順");
+    const seen2 = [...iterVisibleRecords(recs, { startClock: 480, endClock: 600 })];
+    checkEq(seen2.length, 1, "lib: iterVisibleRecords は ON を長さ込みで判定");
+    checkEq(seen2[0]!.clock, 100, "lib: iterVisibleRecords 対象は clock 100 の ON");
+    const seen3 = [...iterVisibleRecords(recs, { startClock: 0, endClock: 150 })];
+    checkEq(seen3.length, 2, "lib: iterVisibleRecords は endClock 超過で break (900 の KEY は見ない)");
+
+    // lib/woice: 音色サマリ
+    const sum = woiceSummary(createDefaultWoice());
+    check(sum.startsWith("座標波形"), "lib: woiceSummary は座標波形サマリ", sum);
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);
