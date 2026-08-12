@@ -229,7 +229,7 @@ function drawNotes(
 // ---- ポインタ ----
 // ドラッグの骨格 (pointerdown/move/up + キャプチャ + undo) は useCanvasDrag が担当し、
 // 鍵盤試聴・イベント書き換え・クリックシークのみを注入する
-type KeyDrag = { button: number; x1: number; x2: number; row: number };
+type KeyDrag = { button: number; clock1: number; clock2: number; row: number };
 
 // フィールド内の x → clock。フィールドは鍵盤ストリップ (STRIP_W) の右から始まる
 function clockAt(x: number): number {
@@ -258,8 +258,8 @@ function applyDrag(d: KeyDrag): void {
   if (!s) return;
   const u = doc.focusUnit;
   if (u < 0) return;
-  const c1 = Math.min(d.x1, d.x2);
-  const c2 = Math.max(d.x1, d.x2);
+  const c1 = Math.min(d.clock1, d.clock2);
+  const c2 = Math.max(d.clock1, d.clock2);
   if (c2 <= c1) {
     if (d.button === 0) setScope(c1, c1 + Math.max(1, doc.divi));
     return;
@@ -299,16 +299,16 @@ const { onPointerDown, onPointerMove, onPointerUp } = useCanvasDrag<KeyDrag>({
       }
       setScope(clock, clock + Math.max(1, doc.divi));
       previewAt(pt.y);
-      return { button: 0, x1: clock, x2: clock, row };
+      return { button: 0, clock1: clock, clock2: clock, row };
     }
-    if (e.button === 2) return { button: 2, x1: clock, x2: clock, row };
+    if (e.button === 2) return { button: 2, clock1: clock, clock2: clock, row };
     return null;
   },
   applyDrag,
   onClick(d) {
     if (d.button === 0) {
       // ドラッグなしのクリック = シーク
-      seekToClock(d.x1);
+      seekToClock(d.clock1);
     }
   },
   onEnd() {

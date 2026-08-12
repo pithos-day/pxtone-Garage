@@ -166,7 +166,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 // ---- ポインタ操作 ----
 // ドラッグの骨格 (pointerdown/move/up + キャプチャ + undo) は useCanvasDrag が担当し、
 // ルーラーシーク・試聴・イベント書き換えのみを注入する
-type LanesDrag = { button: number; x1: number; x2: number; unit: number };
+type LanesDrag = { button: number; clock1: number; clock2: number; unit: number };
 
 // フィールド内の x → clock (ユニット名領域を除く)
 function clockAt(x: number): number {
@@ -197,8 +197,8 @@ function previewAt(x: number, y: number): void {
 function applyDrag(d: LanesDrag): void {
   const s = getService();
   if (!s) return;
-  const c1 = Math.min(d.x1, d.x2);
-  const c2 = Math.max(d.x1, d.x2);
+  const c1 = Math.min(d.clock1, d.clock2);
+  const c2 = Math.max(d.clock1, d.clock2);
   if (c2 <= c1) {
     if (d.button === 0) setScope(c1, c1 + Math.max(1, doc.divi));
     return;
@@ -229,16 +229,16 @@ const { onPointerDown, onPointerMove, onPointerUp } = useCanvasDrag<LanesDrag>({
     if (e.button === 0) {
       setScope(clock, clock + Math.max(1, doc.divi));
       previewAt(pt.x, pt.y);
-      return { button: 0, x1: clock, x2: clock, unit: u };
+      return { button: 0, clock1: clock, clock2: clock, unit: u };
     }
-    if (e.button === 2) return { button: 2, x1: clock, x2: clock, unit: u };
+    if (e.button === 2) return { button: 2, clock1: clock, clock2: clock, unit: u };
     return null;
   },
   applyDrag,
   onClick(d) {
     if (d.button === 0) {
       // ドラッグなしのクリック = シーク
-      seekToClock(d.x1);
+      seekToClock(d.clock1);
     }
   },
   onEnd() {

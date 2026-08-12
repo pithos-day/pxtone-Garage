@@ -6,11 +6,12 @@ import { ref, type Ref } from "vue";
 import { useDragUndo } from "./useUndo";
 import { capturePointer, fieldOffset, releasePointerCapture } from "../lib/field";
 
-// ドラッグ状態の共通部分。button: 0=左 (書込) / 2=右 (削除)
+// ドラッグ状態の共通部分。button: 0=左 (書込) / 2=右 (削除)。
+// clock1/clock2 はドラッグの始端・終端クロック (px ではなく clockAt の戻り値)
 export interface CanvasDragState {
   button: number;
-  x1: number;
-  x2: number;
+  clock1: number;
+  clock2: number;
 }
 
 export interface CanvasDragHooks<T extends CanvasDragState> {
@@ -54,10 +55,10 @@ export function useCanvasDrag<T extends CanvasDragState>(hooks: CanvasDragHooks<
     if (!d) return;
     const pt = fieldOffset(hooks.canvasRef.value!, e);
     const clock = hooks.clockAt(pt.x);
-    if (clock === d.x2) return;
+    if (clock === d.clock2) return;
     // 最初の移動時に undo を積む (クリックのみなら積まない)
     if (!hooks.undoOnDown) dragUndo.onFirstMove();
-    d.x2 = clock;
+    d.clock2 = clock;
     hooks.applyDrag(d, pt, e);
   }
 

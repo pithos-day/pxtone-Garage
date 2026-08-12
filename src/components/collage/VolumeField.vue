@@ -172,7 +172,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 // ドラッグの骨格 (pointerdown/move/up + キャプチャ + undo) は useCanvasDrag が担当し、
 // インライン入力・モード別書き込みのみを注入する。
 // 押下時に即書き込むため undo は pointerdown 時に積む (undoOnDown)
-type VolDrag = { button: number; x1: number; x2: number };
+type VolDrag = { button: number; clock1: number; clock2: number };
 
 function clockAt(x: number): number {
   return clockAtX(clockContext(), doc.divi, doc.scrollX, x);
@@ -190,8 +190,8 @@ function applyDragAt(d: VolDrag, y: number, e: PointerEvent): void {
   if (!s) return;
   const u = doc.focusUnit;
   if (u < 0) return;
-  const c1 = Math.min(d.x1, d.x2);
-  const c2 = Math.max(d.x1, d.x2);
+  const c1 = Math.min(d.clock1, d.clock2);
+  const c2 = Math.max(d.clock1, d.clock2);
   if (c2 <= c1) {
     setScope(c1, c1 + Math.max(1, doc.divi));
     return;
@@ -238,12 +238,12 @@ const { onPointerDown, onPointerMove, onPointerUp } = useCanvasDrag<VolDrag>({
         };
         return null;
       }
-      const d: VolDrag = { button: 0, x1: clock, x2: clock };
+      const d: VolDrag = { button: 0, clock1: clock, clock2: clock };
       setScope(clock, clock + Math.max(1, doc.divi));
       applyDragAt(d, pt.y, e); // 押下時に即書き込む
       return d;
     }
-    if (e.button === 2) return { button: 2, x1: clock, x2: clock };
+    if (e.button === 2) return { button: 2, clock1: clock, clock2: clock };
     return null;
   },
   applyDrag(d, pt, e) {
