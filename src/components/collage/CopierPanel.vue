@@ -14,8 +14,8 @@ function toggle(i: number): void {
 <template>
   <PanelBox :title="t('copier.title')">
     <div class="copier-body">
-      <label v-for="k in KINDS" :key="k.i" class="copier-item">
-        <input type="checkbox" :checked="doc.copier[k.i]" @change="toggle(k.i)" />
+      <label v-for="k in KINDS" :key="k.index" class="copier-item">
+        <input type="checkbox" :checked="doc.copier[k.index]" @change="toggle(k.index)" />
         {{ k.label }}
       </label>
     </div>
