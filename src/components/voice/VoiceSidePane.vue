@@ -68,7 +68,7 @@ watch(
 
 
 // ドラッグ/フォーカス中は最初の編集時のみ undo を積む (1 ジェスチャ = 1 エントリ)
-const dragUndo = useOnceUndo(() => editVoice(() => {}));
+const dragUndo = useUndoOnce(() => editVoice(() => {}));
 
 // ---- 面ごとのパラメータ (Vol/Pan/補正値/Release) ----
 // 本家 ptuiRackFull / ptuiReleaseTime 準拠:
@@ -311,7 +311,7 @@ const sinePoints = computed(() => {
   void rev.value;
   return currentVoiceUnit()?.wave.points ?? [];
 });
-const sineUndo = useOnceUndo(() => editVoice(() => {}));
+const sineUndo = useUndoOnce(() => editVoice(() => {}));
 function setSine(i: number, v: number): void {
   if (waveType.value === "coord" && i === 0) return; // 座標モードの点0 は固定
   const c = currentVoiceUnit();

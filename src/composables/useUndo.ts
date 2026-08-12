@@ -4,7 +4,7 @@ import { beginEdit, commitEdit } from "../state/project";
 
 // 一度だけ begin() を実行するガード。reset() で次のジェスチャを受け付ける
 // (フォーカス時 undo 1 エントリ: focus 時に editX(() => {}) を積み、blur でリセット)
-export function useOnceUndo(begin: () => void): { onBegin: () => void; reset: () => void } {
+export function useUndoOnce(begin: () => void): { onBegin: () => void; reset: () => void } {
   let pushed = false;
   return {
     onBegin: () => {

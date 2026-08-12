@@ -50,7 +50,7 @@ const unitRows = computed(() =>
 
 // テーブル編集は直接 Noise を書き、undo はフォーカス時に1エントリ積む。
 // (markRaw なので reactive にならない。rev はテンプレートの :data-rev で再描画を駆動)
-const fieldUndo = useOnceUndo(() => editNoise(() => {}));
+const fieldUndo = useUndoOnce(() => editNoise(() => {}));
 function onFieldChange(): void {
   const d = noise.value;
   if (d) {
