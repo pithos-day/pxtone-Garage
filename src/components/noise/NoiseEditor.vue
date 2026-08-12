@@ -9,7 +9,7 @@ import { useCanvas } from "../../composables/useCanvas";
 import { useEditRev } from "../../composables/useEditRev";
 import { useGlobalKeys } from "../../composables/useGlobalKeys";
 import { useDebounced } from "../../composables/useDebounced";
-import { useOnceUndo } from "../../composables/useUndo";
+import { useUndoOnce } from "../../composables/useUndo";
 import { COLORS } from "../../lib/theme";
 import { fillRect, fillText } from "../../lib/draw";
 import { MemoryIo, WaveType } from "pxtone-ts";

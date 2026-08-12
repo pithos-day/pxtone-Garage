@@ -7,7 +7,7 @@
 import { computed, ref, watch } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { useEditRev } from "../../composables/useEditRev";
-import { useOnceUndo } from "../../composables/useUndo";
+import { useUndoOnce } from "../../composables/useUndo";
 import { COLORS } from "../../lib/theme";
 import { fillRect, fillText } from "../../lib/draw";
 import {
