@@ -962,10 +962,10 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       addEvent: (clock, unit, kind, value) => log.push(`add ${clock} u${unit} ${kindName(kind)} ${value}`),
       setEventValue: (c1, c2, unit, kind, value) => log.push(`set ${c1}-${c2} u${unit} ${kindName(kind)} ${value}`),
     };
-    writeNote(ops, 0, 480, 1, 0x6000, 90);
+    writeNote(ops, 0, 480, 1, 96, 90);
     checkEq(
       log.join(";"),
-      "del 0-480 u1 KEY;add 0 u1 KEY 24576;del 0-480 u1 VELOCITY;add 0 u1 VELOCITY 90;del 0-480 u1 ON;add 0 u1 ON 480",
+      "del 0-480 u1 KEY;add 0 u1 KEY 96;del 0-480 u1 VELOCITY;add 0 u1 VELOCITY 90;del 0-480 u1 ON;add 0 u1 ON 480",
       "lib: writeNote は KEY+VELOCITY+ON を範囲書換",
     );
     log.length = 0;
