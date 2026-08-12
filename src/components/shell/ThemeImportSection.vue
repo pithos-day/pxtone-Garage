@@ -1,9 +1,53 @@
 <script setup lang="ts">
-// テーマインポートの展開ブロック (SettingsDialog から分割)
-import { useThemeImport } from "../../composables/useThemeImport";
+// テーマインポートの展開ブロック (SettingsDialog から分割)。
+// 状態はこのコンポーネント内で完結させる (専用 composable に切り出すまでもない)
+import { reactive } from "vue";
+import { addUserTheme, setThemeName } from "../../state/theme";
 import { t } from "../../i18n";
 
-const { importState, toggleImport, onImportFile, onImport } = useThemeImport();
+const importState = reactive({
+  open: false,
+  name: "",
+  css: "",
+  error: "",
+});
+
+function resetImport(): void {
+  importState.name = "";
+  importState.css = "";
+  importState.error = "";
+}
+
+function toggleImport(): void {
+  importState.open = !importState.open;
+  if (importState.open) resetImport();
+}
+
+function closeImport(): void {
+  importState.open = false;
+}
+
+function onImportFile(e: Event): void {
+  const f = (e.target as HTMLInputElement).files?.[0];
+  if (!f) return;
+  void f.text().then((text) => {
+    importState.css = text;
+    if (!importState.name) {
+      importState.name = f.name.replace(/\.css$/i, "").trim();
+    }
+  });
+}
+
+function onImport(): void {
+  const th = addUserTheme(importState.css, importState.name);
+  if (!th) {
+    importState.error = t("settings.importFailed");
+    return;
+  }
+  setThemeName(th.id);
+  closeImport();
+  resetImport();
+}
 </script>
 
 <template>
@@ -25,7 +69,7 @@ const { importState, toggleImport, onImportFile, onImport } = useThemeImport();
       <span v-if="importState.error" class="import-err">{{ importState.error }}</span>
       <span class="spacer" />
       <button class="btn btn-accent btn-sm" @click="onImport">{{ t("settings.import") }}</button>
-      <button class="btn btn-sm" @click="importState.open = false">{{ t("common.cancel") }}</button>
+      <button class="btn btn-sm" @click="closeImport">{{ t("common.cancel") }}</button>
     </div>
   </div>
 </template>
