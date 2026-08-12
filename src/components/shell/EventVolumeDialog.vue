@@ -85,18 +85,6 @@ function onSubmit(): void {
   color: var(--muted-foreground);
 }
 
-.row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.row label {
-  font-size: 11px;
-  color: var(--muted-foreground);
-  min-width: 56px;
-}
-
 .row input {
   width: 70px;
 }
