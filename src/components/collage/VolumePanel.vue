@@ -28,7 +28,7 @@ defineProps<{ modes: string[] }>();
   flex: none;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-2xs);
   padding: 4px;
   border-right: 1px solid var(--border);
   background: var(--background);

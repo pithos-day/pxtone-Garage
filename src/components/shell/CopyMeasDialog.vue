@@ -128,13 +128,13 @@ function onSubmit(): void {
 .kinds {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 10px;
+  gap: var(--space-sm) 10px;
 }
 
 .kinds label {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--space-xs);
   font-size: var(--text-sm);
   color: var(--foreground);
   cursor: pointer;

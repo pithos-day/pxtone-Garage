@@ -237,13 +237,13 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
 
 .tray-tools {
   display: flex;
-  gap: 2px;
+  gap: var(--space-2xs);
 }
 
 /* 列ヘッダー (再生/表示/ピン/ソロ/名前) */
 .unit-header {
   display: flex;
-  gap: 2px;
+  gap: var(--space-2xs);
   padding: 2px 4px;
   font-size: var(--text-2xs);
   color: var(--muted-foreground);
@@ -257,7 +257,7 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 4px;
+  gap: var(--space-sm);
   width: var(--checks-w);
   flex: none;
 }
@@ -285,7 +285,7 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
 
 .unit-row {
   display: flex;
-  gap: 2px;
+  gap: var(--space-2xs);
   padding: 2px 4px;
   font-size: var(--text-sm);
   color: var(--muted-foreground);
@@ -324,7 +324,7 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  gap: 4px;
+  gap: var(--space-sm);
   width: var(--checks-w);
   flex: none;
 }

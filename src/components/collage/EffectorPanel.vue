@@ -152,7 +152,7 @@ function onRemoveOverdrive(idx: number): void {
 .eff-body {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-md);
 }
 
 .eff-section {
@@ -171,7 +171,7 @@ function onRemoveOverdrive(idx: number): void {
 
 .eff-row {
   display: flex;
-  gap: 6px;
+  gap: var(--space-md);
   align-items: center;
   font-size: var(--text-sm);
   padding: 1px 2px;
@@ -195,6 +195,6 @@ function onRemoveOverdrive(idx: number): void {
   padding-top: 6px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-sm);
 }
 </style>

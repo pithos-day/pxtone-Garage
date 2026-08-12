@@ -191,7 +191,7 @@ onBeforeUnmount(() => stopPreview());
 .vpr-vel {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-sm);
   flex: none;
   padding-top: 4px;
   border-top: 1px solid var(--border);

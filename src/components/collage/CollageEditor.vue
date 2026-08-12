@@ -272,7 +272,7 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
   z-index: 50;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-md);
   max-height: calc(100% - 16px);
   pointer-events: none;
 }

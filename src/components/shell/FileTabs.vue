@@ -113,7 +113,7 @@ function onClose(id: number): void {
 .file-tab {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-md);
   padding: 0 10px;
   border: none;
   border-right: 1px solid var(--border);

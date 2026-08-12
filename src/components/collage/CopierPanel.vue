@@ -26,13 +26,13 @@ function toggle(i: number): void {
 .copier-body {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--space-xs);
 }
 
 .copier-item {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-md);
   font-size: var(--text-sm);
   color: var(--muted-foreground);
   cursor: pointer;

@@ -544,7 +544,7 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-sm);
   border: 1px solid var(--border);
   background: var(--background);
   padding: 4px;
@@ -553,7 +553,7 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
 .vsp-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-lg);
   flex-wrap: wrap;
   user-select: none;
   flex: none;
@@ -567,12 +567,12 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
 
 .vsp-wavetype {
   display: flex;
-  gap: 2px;
+  gap: var(--space-2xs);
 }
 
 .vsp-presets {
   display: flex;
-  gap: 2px;
+  gap: var(--space-2xs);
 }
 
 .vsp-preset {
@@ -584,7 +584,7 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
 .vsp-params {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-2xs);
   flex: none;
   font-size: var(--text-xs);
   color: var(--muted-foreground);
@@ -593,7 +593,7 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
 .vsp-param {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-sm);
 }
 
 .vsp-plabel {
@@ -635,7 +635,7 @@ function releaseCapture(ref: { value: HTMLCanvasElement | null }, e: PointerEven
 .vsp-sine-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-md);
   height: 18px;
   flex: none;
 }

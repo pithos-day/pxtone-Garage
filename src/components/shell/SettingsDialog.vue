@@ -111,14 +111,14 @@ select {
 
 .radios {
   display: flex;
-  gap: 10px;
+  gap: var(--space-xl);
   flex-wrap: wrap;
 }
 
 .radio-item {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-sm);
   font-size: var(--text-md);
   color: var(--foreground);
   cursor: pointer;

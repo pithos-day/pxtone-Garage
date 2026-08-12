@@ -23,6 +23,12 @@ textarea {
   --text-base: 13px;
   --text-lg: 14px;
   --text-xl: 17px;
+  --space-2xs: 2px;
+  --space-xs: 3px;
+  --space-sm: 4px;
+  --space-md: 6px;
+  --space-lg: 8px;
+  --space-xl: 10px;
 }
 
 body {
@@ -106,7 +112,7 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-lg);
   color: var(--muted-foreground);
 }
 
@@ -132,7 +138,7 @@ body {
 .row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-md);
 }
 
 .row label {
@@ -148,7 +154,7 @@ body {
 
 .range {
   display: flex;
-  gap: 4px;
+  gap: var(--space-sm);
   align-items: center;
   flex-wrap: wrap;
 }

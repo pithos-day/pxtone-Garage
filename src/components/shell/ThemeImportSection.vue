@@ -95,7 +95,7 @@ function onImport(): void {
   padding: 6px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-md);
 }
 
 .import-css {

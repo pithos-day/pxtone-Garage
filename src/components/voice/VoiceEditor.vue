@@ -39,7 +39,7 @@ const { rev, touch } = useEditRev(() => voice.value);
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-md);
   padding: 6px;
   background: var(--background);
 }
@@ -50,7 +50,7 @@ const { rev, touch } = useEditRev(() => voice.value);
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-lg);
   color: var(--muted-foreground);
   text-align: center;
   white-space: pre-line;
@@ -60,6 +60,6 @@ const { rev, touch } = useEditRev(() => voice.value);
   flex: 1;
   min-height: 0;
   display: flex;
-  gap: 6px;
+  gap: var(--space-md);
 }
 </style>

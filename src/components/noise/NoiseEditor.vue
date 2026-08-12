@@ -363,7 +363,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-lg);
   color: var(--muted-foreground);
   text-align: center;
   white-space: pre-line;
@@ -373,7 +373,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
   flex: 1;
   min-height: 0;
   display: flex;
-  gap: 8px;
+  gap: var(--space-lg);
 }
 
 /* 全レイヤーを縦に並べる。収まらない場合はこの列だけスクロール */
@@ -383,7 +383,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-sm);
   font-size: var(--text-sm);
   color: var(--card-foreground);
 }
@@ -394,14 +394,14 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
   padding: 3px 5px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--space-xs);
   flex: none;
 }
 
 .ne-layer-head {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-xl);
 }
 
 .ne-layer-name {
@@ -412,13 +412,13 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
 .chk {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--space-xs);
 }
 
 .ne-layer label {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--space-xs);
   white-space: nowrap;
 }
 
@@ -432,7 +432,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
   display: grid;
   grid-template-columns: 46px 72px 22px 60px 60px 60px;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-sm);
 }
 
 .ne-head {
@@ -470,7 +470,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
 .ne-enve {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-sm);
   flex-wrap: wrap;
   border-top: 1px dashed var(--border);
   padding-top: 2px;
@@ -504,7 +504,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-md);
 }
 
 /* 1画面に収めるため波形は小さめに固定 */
@@ -523,7 +523,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
   padding: 4px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-2xs);
 }
 
 .ne-history-title {
@@ -531,7 +531,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
   font-weight: bold;
   color: var(--foreground);
   display: flex;
-  gap: 8px;
+  gap: var(--space-lg);
 }
 
 .ne-hint {

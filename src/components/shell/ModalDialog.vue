@@ -64,7 +64,7 @@ function onOverlayClick(e: MouseEvent): void {
 .dlg-buttons {
   display: flex;
   justify-content: flex-end;
-  gap: 6px;
+  gap: var(--space-md);
   padding: 0 12px 12px;
 }
 </style>

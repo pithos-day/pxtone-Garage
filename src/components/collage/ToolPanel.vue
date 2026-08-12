@@ -48,7 +48,7 @@ async function onAddWoice(): Promise<void> {
   flex: none;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-sm);
   padding: 4px 6px 6px;
   border-bottom: 1px solid var(--border);
   background: var(--background);
@@ -57,7 +57,7 @@ async function onAddWoice(): Promise<void> {
 
 .tool-mode {
   display: flex;
-  gap: 2px;
+  gap: var(--space-2xs);
 }
 
 .tool-mode .btn {
@@ -67,7 +67,7 @@ async function onAddWoice(): Promise<void> {
 .tool-buttons {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: var(--space-sm);
 }
 
 .tool-err {

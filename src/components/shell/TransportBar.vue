@@ -56,7 +56,7 @@ function timeLabel(): string {
 .transport {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-md);
   height: 34px;
   padding: 0 8px;
   background: var(--background);
