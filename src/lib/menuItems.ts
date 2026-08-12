@@ -2,6 +2,23 @@
 // モード別メニュー定義の構築ロジックを SFC から分離する
 import { ZOOM_TABLE, DIVI_TABLE } from "./clock";
 import { t } from "../i18n";
+import type { AppMode } from "./modes";
+
+// トップメニューの名前 (表示ラベルとモード別表示順もここで定義)
+export type MenuName = "file" | "edit" | "view";
+
+// トップメニューの表示ラベル
+export const MENU_LABELS: Record<MenuName, string> = {
+  file: "File",
+  edit: "Edit",
+  view: "View",
+};
+
+// モード別のトップメニュー (voice/noise は File + Edit。Edit には undo/redo と
+// A/B コピー (voice) があるため表示する)
+export function menuNamesFor(mode: AppMode): MenuName[] {
+  return mode === "collage" ? ["file", "edit", "view"] : ["file", "edit"];
+}
 
 export interface MenuItem {
   label?: string;

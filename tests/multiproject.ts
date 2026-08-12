@@ -71,6 +71,7 @@ import { renderWoice, renderNoise } from "../src/engine/preview";
 import { formatTime, measStartClock } from "../src/lib/clock";
 import { scaleToWoice, scaleToGroup, VOLUME_EDIT_KIND } from "../src/lib/volume";
 import { writeNote, writeNoteLength, eraseNote, writeVolumeEvent, type EventWriteOps } from "../src/lib/editing";
+import { MENU_LABELS, menuNamesFor } from "../src/lib/menuItems";
 import { nearestPoint } from "../src/lib/voice-geometry";
 import { visibleClockWindow, iterVisibleRecords } from "../src/lib/records";
 import { woiceSummary } from "../src/lib/woice";
@@ -1003,6 +1004,12 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     log.length = 0;
     writeVolumeEvent(ops, 0, 480, 1, EventKind.VELOCITY, "setValue", 80, 4);
     checkEq(log.join(";"), "set 0-480 u1 VELOCITY 80", "lib: writeVolumeEvent setValue は値の書換のみ");
+
+    // lib/menuItems: トップメニュー定義
+    checkEq(MENU_LABELS.file, "File", "lib: MENU_LABELS file");
+    checkEq(menuNamesFor("collage").join(","), "file,edit,view", "lib: menuNamesFor collage は File/Edit/View");
+    checkEq(menuNamesFor("voice").join(","), "file,edit", "lib: menuNamesFor voice は File/Edit");
+    checkEq(menuNamesFor("noise").join(","), "file,edit", "lib: menuNamesFor noise は File/Edit");
 
     // lib/records: iterVisibleRecords (範囲フィルタ・ON 長さ考慮・break)
     const recs: EveRecord[] = [

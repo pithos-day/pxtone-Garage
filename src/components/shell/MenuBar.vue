@@ -20,12 +20,20 @@ import { t } from "../../i18n";
 import type { EventVolumeMode } from "../../lib/eventVolume";
 import type { AppMode } from "../../lib/modes";
 import MenuItemRow from "./MenuItemRow.vue";
-import { buildFileMenu, buildEditMenu, buildViewMenu, type MenuItem, type ModeMenuOps } from "../../lib/menuItems";
+import {
+  buildFileMenu,
+  buildEditMenu,
+  buildViewMenu,
+  MENU_LABELS,
+  menuNamesFor,
+  type MenuItem,
+  type MenuName,
+  type ModeMenuOps,
+} from "../../lib/menuItems";
 import { useDropdownMenu } from "../../composables/useDropdownMenu";
 import ModeTabs from "./ModeTabs.vue";
 
-const mode = defineModel<AppMode>({ required: true });
-const emit = defineEmits<{
+const mode = defineModel<AppMode>({ required: true });const emit = defineEmits<{
   (e: "project"): void;
   (e: "settings"): void;
   (e: "copyMeas"): void;
@@ -34,21 +42,11 @@ const emit = defineEmits<{
   (e: "voiceCopyBA"): void;
 }>();
 
-type MenuName = "file" | "edit" | "view";
-
-// トップメニューの表示ラベル (順序もここで定義)
-const MENU_LABELS: Record<MenuName, string> = {
-  file: "File",
-  edit: "Edit",
-  view: "View",
-};
-
 // ドロップダウンの開閉管理 (メニュー外クリック / Escape で閉じる)
 const { openMenu, openSubIndex, toggleMenu, hoverMenu, close } = useDropdownMenu<MenuName>();
 
-// モード別のトップメニュー (voice/noise は File + Edit。Edit には undo/redo と
-// A/B コピー (voice) があるため表示する)
-const menuNames = computed<MenuName[]>(() => (mode.value === "collage" ? ["file", "edit", "view"] : ["file", "edit"]));
+// モード別のトップメニュー (表示ラベルと順序は lib/menuItems で定義)
+const menuNames = computed<MenuName[]>(() => menuNamesFor(mode.value));
 
 function runMenuItem(item: MenuItem): void {
   if (item.disabled) return;
