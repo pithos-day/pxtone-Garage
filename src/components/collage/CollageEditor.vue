@@ -4,7 +4,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { doc, units, ensureInit, pinnedUnits, VOLUME_MODES } from "../../state/project";
-import { RULER_H, KEY_HEIGHT, KEYNUM } from "../../lib/layout";
+import { KEY_HEIGHT, KEYNUM } from "../../lib/clock";
+import { RULER_H } from "../../lib/layout";
 import { useGlobalKeys } from "../../composables/useGlobalKeys";
 import { panels } from "../../state/panels";
 import { togglePlay, seekToClock } from "../../state/player";

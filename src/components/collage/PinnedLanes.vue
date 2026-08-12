@@ -13,7 +13,8 @@ import { drawGrid, fillRect, fillText, noteFill, noteShadow,
 import { fieldOffset, clockAtX, zoomByWheel, capturePointer, releasePointerCapture } from "../../lib/field";
 import { clockToX } from "../../lib/clock";
 import { iterVisibleRecords, visibleClockWindow } from "../../lib/records";
-import { RULER_H, NAME_W, KEY_HEIGHT } from "../../lib/layout";
+import { KEY_HEIGHT } from "../../lib/clock";
+import { RULER_H, NAME_W } from "../../lib/layout";
 import { EventKind } from "pxtone-ts";
 import {
   doc,
