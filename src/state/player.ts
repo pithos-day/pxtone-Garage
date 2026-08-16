@@ -2,6 +2,7 @@
 import { computed, ref, watch } from "vue";
 import { RealtimePlayer } from "../engine/realtime-player";
 import { decodeProjectBytes } from "../engine/oggv";
+import { EXE_VER } from "./service";
 import { getService, exportBytes, doc } from "./project";
 
 export const player = new RealtimePlayer({
@@ -59,7 +60,7 @@ export function resetLoaded(): void {
 async function ensureLoaded(bytes: Uint8Array): Promise<void> {
   if (loadedRev === doc.rev) return;
   const pos = positionSample.value;
-  const decoded = await decodeProjectBytes(bytes);
+  const decoded = await decodeProjectBytes(bytes, EXE_VER);
   if (!decoded) return;
   const ok = await player.load(decoded, doc.playStart, doc.playEnd);
   if (ok) loadedRev = doc.rev;
@@ -88,7 +89,7 @@ async function refreshWhilePlaying(): Promise<void> {
       revAtStart = doc.rev;
       const bytes = exportBytes();
       if (!bytes) return;
-      const decoded = await decodeProjectBytes(bytes);
+      const decoded = await decodeProjectBytes(bytes, EXE_VER);
       if (!decoded) return;
       if (!(await player.load(decoded, doc.playStart, doc.playEnd))) return;
     }

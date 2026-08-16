@@ -42,7 +42,7 @@ export async function renderPreview(
   durSec: number,
   sps: number,
 ): Promise<Float32Array | null> {
-  const decoded = await decodeProjectBytes(projectBytes);
+  const decoded = await decodeProjectBytes(projectBytes, EXE_VER);
   if (!decoded) return null;
   const s = new Service();
   if (s.initCollage(PXTN_MAX_EVENT_NUM) !== PxtnErr.OK) return null;

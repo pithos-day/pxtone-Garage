@@ -78,7 +78,7 @@ export function exportPttune(bytes: Uint8Array, fileName: string): boolean {
 
 // WAV 書き出し (オフライン全曲レンダリング)
 export async function exportWav(bytes: Uint8Array, fileName: string, sps = 44100): Promise<string | null> {
-  const decoded = await decodeProjectBytes(bytes);
+  const decoded = await decodeProjectBytes(bytes, EXE_VER);
   if (!decoded) return t("error.ogg");
   const s = new Service();
   if (s.init() !== PxtnErr.OK) return t("error.engineInit");

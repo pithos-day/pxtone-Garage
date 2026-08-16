@@ -5,7 +5,8 @@
 import { convertOggvToPcm } from "pxtone-ts";
 
 // プロジェクトバイト列を OGGV デコード済み (PCM 化) の一時バイト列へ変換する。
-// OGGV を含まないプロジェクトはそのまま返る。失敗時 null
-export async function decodeProjectBytes(bytes: Uint8Array): Promise<Uint8Array | null> {
-  return convertOggvToPcm(bytes);
+// OGGV を含まないプロジェクトはそのまま返る。失敗時 null。
+// exeVer は書き出し ptcop のヘッダに入るエディタバージョン (既定 0 = pxtone-ts の従来挙動)
+export async function decodeProjectBytes(bytes: Uint8Array, exeVer?: number): Promise<Uint8Array | null> {
+  return convertOggvToPcm(bytes, exeVer);
 }
