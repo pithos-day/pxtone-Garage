@@ -22,7 +22,7 @@ importers:
         version: 5.3.0
       pxtone-ts:
         specifier: https://codeberg.org/pithos/pxtone-ts.git
-        version: git+https://codeberg.org/pithos/pxtone-ts.git#0171c92ce1fa84ed2e0987361ec4c0e4bd6dbdff
+        version: git+https://codeberg.org/pithos/pxtone-ts.git#95e0768979504793da18d3dc13790f1fd2799768
       vue:
         specifier: ^3.5.40
         version: 3.5.40(typescript@6.0.3)
@@ -224,6 +224,9 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@eshaz/web-worker@1.2.2':
+    resolution: {integrity: sha512-WxXiHFmD9u/owrzempiDlBB1ZYqiLnm9s6aPc8AlFQalq2tKmqdmMr9GXOupDgzXtqnBipj8Un0gkIm7Sjf8mw==}
+
   '@fontsource/dotgothic16@5.3.0':
     resolution: {integrity: sha512-HYOA4yd61tGyjFvDXG0dzvCdXjmPIVuqDFCaMk2ok0G/eWbub6nJ9NlrHaGOUKUWiypGIoz6vZuzm11uFNdm8w==}
 
@@ -395,8 +398,17 @@ packages:
       vue:
         optional: true
 
+  '@wasm-audio-decoders/common@9.0.7':
+    resolution: {integrity: sha512-WRaUuWSKV7pkttBygml/a6dIEpatq2nnZGFIoPTc5yPLkxL6Wk4YaslPM98OPQvWacvNZ+Py9xROGDtrFBDzag==}
+
+  '@wasm-audio-decoders/ogg-vorbis@0.1.20':
+    resolution: {integrity: sha512-zaQPasU5usRjUDXtXOHYED5tfkR4QMXd+EH3Nrz1+4+M5pCsdD+s9YxJqb0oqnTyRu/KUujOmu5Z/m/NT47vwg==}
+
   alien-signals@3.2.1:
     resolution: {integrity: sha512-I8FjmltrfnDFoZedi5CG8DghVYNhzb/Ijluz7tCSJH0xpd0484Kowhbb1XDYOxfJpU1p5wnM2X54dA+IfGyD1g==}
+
+  codec-parser@2.5.0:
+    resolution: {integrity: sha512-Ru9t80fV8B0ZiixQl8xhMTLru+dzuis/KQld32/x5T/+3LwZb0/YvQdSKytX9JqCnRdiupvAvyYJINKrXieziQ==}
 
   csstype@3.2.3:
     resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
@@ -530,14 +542,17 @@ packages:
     resolution: {integrity: sha512-DTPx3RWSSnWyzLxQnlH0rJP+EW5ekl16ZU4/psbIhA0e53kJfdgaN5vKM+xP7yJtXVu+nfdVFmlgFDEKAe4Pyw==}
     engines: {node: ^10 || ^12 || >=14}
 
-  pxtone-ts@git+https://codeberg.org/pithos/pxtone-ts.git#0171c92ce1fa84ed2e0987361ec4c0e4bd6dbdff:
-    resolution: {commit: 0171c92ce1fa84ed2e0987361ec4c0e4bd6dbdff, repo: https://codeberg.org/pithos/pxtone-ts.git, type: git}
+  pxtone-ts@git+https://codeberg.org/pithos/pxtone-ts.git#95e0768979504793da18d3dc13790f1fd2799768:
+    resolution: {commit: 95e0768979504793da18d3dc13790f1fd2799768, repo: https://codeberg.org/pithos/pxtone-ts.git, type: git}
     version: 1.0.0
 
   rolldown@1.2.2:
     resolution: {integrity: sha512-opwpo1tQBAcpSUJDt94B7hhLNGOKjCdE//XXjeLrnx9b83bjnw45tXdg1b09yEw/VLFBJGZpwRULMmOZo7ol+A==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
+
+  simple-yenc@1.0.4:
+    resolution: {integrity: sha512-5gvxpSd79e9a3V4QDYUqnqxeD4HGlhCakVpb6gMnDD7lexJggSBJRBO5h52y/iJrdXRilX9UCuDaIJhSWm5OWw==}
 
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
@@ -708,6 +723,8 @@ snapshots:
   '@esbuild/win32-x64@0.25.12':
     optional: true
 
+  '@eshaz/web-worker@1.2.2': {}
+
   '@fontsource/dotgothic16@5.3.0': {}
 
   '@fontsource/m-plus-rounded-1c@5.3.0': {}
@@ -855,7 +872,19 @@ snapshots:
       typescript: 6.0.3
       vue: 3.5.40(typescript@6.0.3)
 
+  '@wasm-audio-decoders/common@9.0.7':
+    dependencies:
+      '@eshaz/web-worker': 1.2.2
+      simple-yenc: 1.0.4
+
+  '@wasm-audio-decoders/ogg-vorbis@0.1.20':
+    dependencies:
+      '@wasm-audio-decoders/common': 9.0.7
+      codec-parser: 2.5.0
+
   alien-signals@3.2.1: {}
+
+  codec-parser@2.5.0: {}
 
   csstype@3.2.3: {}
 
@@ -970,7 +999,9 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
-  pxtone-ts@git+https://codeberg.org/pithos/pxtone-ts.git#0171c92ce1fa84ed2e0987361ec4c0e4bd6dbdff: {}
+  pxtone-ts@git+https://codeberg.org/pithos/pxtone-ts.git#95e0768979504793da18d3dc13790f1fd2799768:
+    dependencies:
+      '@wasm-audio-decoders/ogg-vorbis': 0.1.20
 
   rolldown@1.2.2:
     dependencies:
@@ -991,6 +1022,8 @@ snapshots:
       '@rolldown/binding-openharmony-arm64': 1.2.2
       '@rolldown/binding-win32-arm64-msvc': 1.2.2
       '@rolldown/binding-win32-x64-msvc': 1.2.2
+
+  simple-yenc@1.0.4: {}
 
   source-map-js@1.2.1: {}
 
