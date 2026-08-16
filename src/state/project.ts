@@ -587,7 +587,7 @@ const PXTN_OGGV_HEADER_SIZE = 16;
 
 // 生 OGG バイト列を mateOGGV チャンクとして io に書き込む。
 // ch/sps/smpNum はデコード結果から取得する (本家 pxtnWoice::read の OGGV 分岐と同一の初期値)
-function writeOggvChunk(io: MemoryIo, data: Uint8Array, ch: number, sps: number, smpNum: number): void {
+function writeMateOggvChunk(io: MemoryIo, data: Uint8Array, ch: number, sps: number, smpNum: number): void {
   ioPutUint32LE(io, MATE_OGGV_STRUCT_SIZE + PXTN_OGGV_HEADER_SIZE + data.length);
   ioPutUint16LE(io, 0); // xxx
   ioPutUint16LE(io, EVENTDEFAULT_BASICKEY); // basicKey (本家 Voice_Allocate の初期値)
@@ -608,12 +608,12 @@ export async function addWoice(bytes: Uint8Array, type: WoiceType): Promise<stri
   if (type === WoiceType.OGGV) {
     // 生 OGG からチャンネル/サンプリングレート/サンプル数を取得してチャンクを組み立てる
     // (データは未デコードのまま保持し、再生時にデコードする)
-    const decoded = await defaultOggvDecoder.decode(bytes);
-    const ch = decoded.ch;
-    const sps = decoded.sps;
-    const smpNum = decoded.samples[0]?.length ?? 0;
+    const oggInfo = await defaultOggvDecoder.decode(bytes);
+    const ch = oggInfo.ch;
+    const sps = oggInfo.sps;
+    const smpNum = oggInfo.samples[0]?.length ?? 0;
     if (ch <= 0 || sps <= 0 || smpNum <= 0) return t("error.ogg");
-    writeOggvChunk(io, bytes, ch, sps, smpNum);
+    writeMateOggvChunk(io, bytes, ch, sps, smpNum);
   } else {
     io.write(bytes, 1, bytes.length);
   }
