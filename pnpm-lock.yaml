@@ -22,7 +22,7 @@ importers:
         version: 5.3.0
       pxtone-ts:
         specifier: https://codeberg.org/pithos/pxtone-ts.git
-        version: git+https://codeberg.org/pithos/pxtone-ts.git#95e0768979504793da18d3dc13790f1fd2799768
+        version: git+https://codeberg.org/pithos/pxtone-ts.git#7102c1ad08e77a24fff2cadfdefeeedb81351f57
       vue:
         specifier: ^3.5.40
         version: 3.5.40(typescript@6.0.3)
@@ -542,8 +542,8 @@ packages:
     resolution: {integrity: sha512-DTPx3RWSSnWyzLxQnlH0rJP+EW5ekl16ZU4/psbIhA0e53kJfdgaN5vKM+xP7yJtXVu+nfdVFmlgFDEKAe4Pyw==}
     engines: {node: ^10 || ^12 || >=14}
 
-  pxtone-ts@git+https://codeberg.org/pithos/pxtone-ts.git#95e0768979504793da18d3dc13790f1fd2799768:
-    resolution: {commit: 95e0768979504793da18d3dc13790f1fd2799768, repo: https://codeberg.org/pithos/pxtone-ts.git, type: git}
+  pxtone-ts@git+https://codeberg.org/pithos/pxtone-ts.git#7102c1ad08e77a24fff2cadfdefeeedb81351f57:
+    resolution: {commit: 7102c1ad08e77a24fff2cadfdefeeedb81351f57, repo: https://codeberg.org/pithos/pxtone-ts.git, type: git}
     version: 1.0.0
 
   rolldown@1.2.2:
@@ -999,7 +999,7 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
-  pxtone-ts@git+https://codeberg.org/pithos/pxtone-ts.git#95e0768979504793da18d3dc13790f1fd2799768:
+  pxtone-ts@git+https://codeberg.org/pithos/pxtone-ts.git#7102c1ad08e77a24fff2cadfdefeeedb81351f57:
     dependencies:
       '@wasm-audio-decoders/ogg-vorbis': 0.1.20
 
