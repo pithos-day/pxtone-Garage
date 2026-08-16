@@ -1182,6 +1182,75 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
     // 不正なヘッダは失敗
     checkEq(parseMidi(new Uint8Array([0x4d, 0x54, 0x68, 0x64, 0, 0])), null, "midi: 不正ヘッダは null");
+
+    // ---- 和音分割 (splitOverlap) ----
+    {
+      // ch0 に同時3ノート (クロック0〜480) + 後続1ノート (960〜): 同時3音 → 3ユニット
+      const chord = buildMidi(480, [
+        [
+          ...ev(0, 0x90, 60, 100),
+          ...ev(0, 0x90, 64, 90), // 同時
+          ...ev(0, 0x90, 67, 80), // 同時
+          ...ev(480, 0x80, 60, 0),
+          ...ev(0, 0x80, 64, 0),
+          ...ev(0, 0x80, 67, 0),
+          ...ev(960, 0x90, 72, 90), // 和音終了後の順次ノート → スロット0を再利用
+          ...ev(960, 0x80, 72, 0),
+          ...meta(0, 0x2f, []),
+        ],
+      ]);
+      const bytes = convertMidiToPtcop(chord, { splitOverlap: true });
+      check(bytes !== null, "split: 変換成功");
+      if (bytes) {
+        const svc = new Service();
+        svc.initCollage(PXTN_MAX_EVENT_NUM);
+        checkEq(svc.read(new MemoryIo(bytes)), PxtnErr.OK, "split: ptcop 読み込み成功");
+        checkEq(svc.unitNum, 3, "split: 同時3音 → 3ユニット");
+        checkEq(svc.unitGet(0)?.name, "channel-0-0", "split: ユニット名 channel-0-0");
+        checkEq(svc.unitGet(1)?.name, "channel-0-1", "split: ユニット名 channel-0-1");
+        checkEq(svc.unitGet(2)?.name, "channel-0-2", "split: ユニット名 channel-0-2");
+        const ons = svc.evels.records.filter((e) => e.kind === EventKind.ON);
+        checkEq(ons.length, 4, "split: ON 4つ (統合されない)");
+        checkEq(ons.filter((e) => e.clock === 0).length, 3, "split: クロック0に ON 3つ");
+        const seq = ons.find((e) => e.clock === 960);
+        check(seq !== undefined && seq.unitNo === 0, "split: 順次ノートは unit0 を再利用", `unit=${seq?.unitNo}`);
+      }
+    }
+
+    // ---- 分割なし: ユニット名は channel-{ch} ----
+    {
+      const m = buildMidi(480, [
+        [...ev(0, 0x90, 60, 100), ...ev(480, 0x80, 60, 0), ...meta(0, 0x2f, [])],
+        [...ev(0, 0x91, 64, 90), ...ev(480, 0x80, 64, 0), ...meta(0, 0x2f, [])],
+      ]);
+      const bytes = convertMidiToPtcop(m);
+      check(bytes !== null, "name: 変換成功");
+      if (bytes) {
+        const svc = new Service();
+        svc.initCollage(PXTN_MAX_EVENT_NUM);
+        svc.read(new MemoryIo(bytes));
+        checkEq(svc.unitGet(0)?.name, "channel-0", "name: ユニット名 channel-0");
+        checkEq(svc.unitGet(1)?.name, "channel-1", "name: ユニット名 channel-1");
+      }
+    }
+
+    // ---- 50ユニット上限クランプ ----
+    {
+      // 51音同時 (全ノートオンを tick 0 に置く) → ユニット数は 50 にクランプされる
+      const events: number[] = [];
+      for (let i = 0; i < 51; i++) events.push(...ev(0, 0x90, 21 + i, 100));
+      for (let i = 0; i < 51; i++) events.push(...ev(480, 0x80, 21 + i, 0));
+      events.push(...meta(0, 0x2f, []));
+      const m = buildMidi(480, [events]);
+      const bytes = convertMidiToPtcop(m, { splitOverlap: true });
+      check(bytes !== null, "limit: 変換成功");
+      if (bytes) {
+        const svc = new Service();
+        svc.initCollage(PXTN_MAX_EVENT_NUM);
+        checkEq(svc.read(new MemoryIo(bytes)), PxtnErr.OK, "limit: ptcop 読み込み成功");
+        checkEq(svc.unitNum, 50, "limit: ユニットは50にクランプ");
+      }
+    }
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);
