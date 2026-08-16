@@ -68,6 +68,7 @@ import {
   createDefaultNoise,
 } from "../src/state/noise";
 import { renderWoice, renderNoise } from "../src/engine/preview";
+import { parseMidi, convertMidiToPtcop } from "../src/engine/midi";
 import { formatTime, measStartClock } from "../src/lib/clock";
 import { scaleToWoice, scaleToGroup, VOLUME_EDIT_KIND } from "../src/lib/volume";
 import { writeNote, writeNoteLength, eraseNote, writeVolumeEvent, type EventWriteOps } from "../src/lib/editing";
@@ -77,6 +78,7 @@ import { nearestPoint } from "../src/lib/voice-geometry";
 import { visibleClockWindow, iterVisibleRecords, iterNoteDraws, type NoteDraw } from "../src/lib/records";
 import { woiceSummary } from "../src/lib/woice";
 import { MemoryIo, VoiceType, WaveType, EventKind, type EveRecord } from "pxtone-ts";
+import { Service, PxtnErr, PXTN_MAX_EVENT_NUM } from "pxtone-ts";
 
 let failed = 0;
 function fail(name: string, detail = ""): void {
@@ -1075,6 +1077,111 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     // lib/woice: 音色サマリ
     const sum = woiceSummary(createDefaultWoice());
     check(sum.startsWith("座標波形"), "lib: woiceSummary は座標波形サマリ", sum);
+  }
+
+  // ---- 25. MIDI (SMF) → ptcop 変換 ----
+  {
+    // SMF 組み立てヘルパー
+    const vlq = (v: number): number[] => {
+      const out = [v & 0x7f];
+      v >>= 7;
+      while (v > 0) {
+        out.unshift((v & 0x7f) | 0x80);
+        v >>= 7;
+      }
+      return out;
+    };
+    const ev = (delta: number, status: number, ...data: number[]): number[] => [...vlq(delta), status, ...data];
+    const meta = (delta: number, type: number, data: number[]): number[] => [...vlq(delta), 0xff, type, ...vlq(data.length), ...data];
+
+    const buildMidi = (ppq: number, tracks: number[][]): Uint8Array => {
+      const out = [0x4d, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 0, tracks.length >> 8, tracks.length & 0xff, ppq >> 8, ppq & 0xff];
+      for (const trk of tracks) {
+        out.push(0x4d, 0x54, 0x72, 0x6b, (trk.length >> 24) & 0xff, (trk.length >> 16) & 0xff, (trk.length >> 8) & 0xff, trk.length & 0xff);
+        out.push(...trk);
+      }
+      return new Uint8Array(out);
+    };
+
+    // PPQ=480: テンポ120・4/4。ch0: ノート60 (0..480, vel100) / ノート64 (480..960, vel90)。
+    // ch1: ノート72 (0..960, vel80)。ch2: ノート無し (CCのみ) → ユニット化されない
+    const midi = buildMidi(480, [
+      [
+        ...meta(0, 0x51, [0x07, 0xa1, 0x20]), // 120 BPM (500000µs)
+        ...meta(0, 0x58, [4, 2, 24, 8]), // 4/4
+        ...ev(0, 0x90, 60, 100), // note on ch0
+        ...ev(480, 0x80, 60, 0), // note off
+        ...ev(0, 0x90, 64, 90), // ランニングステータス (ステータス省略)
+        ...ev(480, 0x80, 64, 0),
+        ...ev(0, 0xb2, 7, 100), // ch2 の CC のみ (ノート無し)
+        ...meta(0, 0x2f, []),
+      ],
+      [
+        ...ev(0, 0x90, 72, 80), // ch1
+        ...ev(960, 0x80, 72, 0),
+        ...meta(0, 0x51, [0x03, 0x0d, 0x40]), // 途中テンポ変更 (無視される)
+        ...meta(0, 0x2f, []),
+      ],
+    ]);
+
+    // パース結果
+    const song = parseMidi(midi);
+    check(song !== null, "midi: パース成功");
+    if (song) {
+      checkEq(song.tempo, 120, "midi: テンポ 120");
+      checkEq(song.beatNum, 4, "midi: 拍子 4/4");
+      checkEq(song.notes.length, 3, "midi: ノート3つ (ch2 の CC は無視)");
+      checkEq(song.notes[0]!.channel, 0, "midi: ch0 のノート");
+      checkEq(song.notes[0]!.clock, 0, "midi: ノートオン位置 0");
+      checkEq(song.notes[0]!.key, 0x1b00 + 60 * 0x100, "midi: KEY = 0x1B00 + note*0x100");
+      checkEq(song.notes[0]!.velocity, 100, "midi: ベロシティ 100");
+      checkEq(song.notes[0]!.length, 480, "midi: 長さ 480 クロック");
+      checkEq(song.notes[1]!.clock, 480, "midi: 2音目の位置 480");
+      checkEq(song.notes[1]!.velocity, 90, "midi: ランニングステータスでもベロシティ取得");
+      checkEq(song.notes[2]!.channel, 1, "midi: ch1 のノート");
+
+      // ptcop 変換
+      const bytes = convertMidiToPtcop(midi);
+      check(bytes !== null, "midi: ptcop 変換成功");
+      if (bytes) {
+        const svc = new Service();
+        checkEq(svc.initCollage(PXTN_MAX_EVENT_NUM), PxtnErr.OK, "midi: Service init");
+        checkEq(svc.read(new MemoryIo(bytes)), PxtnErr.OK, "midi: ptcop として読み込み成功");
+        checkEq(svc.master.beatTempo, 120, "midi: ptcop テンポ 120");
+        checkEq(svc.master.beatNum, 4, "midi: ptcop 拍子 4");
+        checkEq(svc.master.beatClock, 480, "midi: ptcop beatClock 480");
+        checkEq(svc.unitNum, 2, "midi: ユニットはノートのあるチャンネル数のみ");
+        checkEq(svc.woiceNum, 1, "midi: デフォルト音色が1つ");
+        const notes = svc.evels.records.filter((e) => e.kind === EventKind.ON);
+        checkEq(notes.length, 3, "midi: ON イベント3つ");
+        const keys = svc.evels.records.filter((e) => e.kind === EventKind.KEY);
+        check(keys.some((e) => e.value === 0x1b00 + 60 * 0x100), "midi: KEY 60 が存在");
+        check(keys.some((e) => e.value === 0x1b00 + 72 * 0x100), "midi: KEY 72 (ch1) が存在");
+        checkEq(svc.master.measNum >= 1, true, "midi: 小節数が調整される");
+      }
+    }
+
+    // PPQ=96 (非480) のクロック変換: tick 480 → 480*480/96 = 2400
+    const midi96 = buildMidi(96, [[...ev(0, 0x90, 60, 100), ...ev(480, 0x80, 60, 0), ...meta(0, 0x2f, [])]]);
+    const song96 = parseMidi(midi96);
+    check(song96 !== null && song96.notes.length === 1 && song96.notes[0]!.clock === 2400, "midi: PPQ=96 でクロック変換 (tick 480 → 2400)", `clock=${song96?.notes[0]?.clock}`);
+
+    // 重なりノート (同じ note をオフ前に再オン) → 先のノートは新しい位置で閉じる
+    const midiOv = buildMidi(480, [[...ev(0, 0x90, 60, 100), ...ev(240, 0x90, 60, 90), ...ev(480, 0x80, 60, 0), ...meta(0, 0x2f, [])]]);
+    const songOv = parseMidi(midiOv);
+    check(songOv !== null && songOv.notes.length === 2, "midi: 重なりノートは2つに分割", `n=${songOv?.notes.length}`);
+    if (songOv) {
+      checkEq(songOv.notes[0]!.length, 240, "midi: 重なり1つ目は 240 クロック");
+      checkEq(songOv.notes[1]!.clock, 240, "midi: 重なり2つ目は 240 から");
+    }
+
+    // ノートオフの無いノートは曲末で閉じられる
+    const midiOpen = buildMidi(480, [[...ev(0, 0x90, 60, 100), ...ev(480, 0x90, 64, 80), ...meta(0, 0x2f, [])]]);
+    const songOpen = parseMidi(midiOpen);
+    check(songOpen !== null && songOpen.notes.length === 2, "midi: 未閉じノートも曲末で閉じる", `n=${songOpen?.notes.length}`);
+
+    // 不正なヘッダは失敗
+    checkEq(parseMidi(new Uint8Array([0x4d, 0x54, 0x68, 0x64, 0, 0])), null, "midi: 不正ヘッダは null");
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);
