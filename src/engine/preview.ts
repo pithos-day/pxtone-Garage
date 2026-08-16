@@ -2,7 +2,7 @@
 // worklet の preview メッセージは未実装のため、メインスレッドで
 // 一時 Service にプロジェクト全体を読み込み、対象ユニットのみの
 // ノートをオフライン短レンダリング → AudioBuffer 再生で実現する。
-import { Service, PxtnErr, MemoryIo, SEEK_SET, EventKind, PXTN_MAX_EVENT_NUM, EVENTDEFAULT_VELOCITY, WoiceType, NoiseBuilder } from "pxtone-ts";
+import { Service, PxtnErr, MemoryIo, SEEK_SET, EventKind, PXTN_MAX_EVENT_NUM, EVENTDEFAULT_VELOCITY, WoiceType, NoiseBuilder, convertOggvToPcm } from "pxtone-ts";
 import type { Woice, Noise } from "pxtone-ts";
 import { exportBytes } from "../state/project";
 import { getService } from "../state/project";
@@ -33,14 +33,18 @@ export interface PreviewTarget {
 // プロジェクトバイト列から単音をレンダリング。
 // 対象ユニット以外を削除し、clock 0 に VOICENO/KEY/VELOCITY/ON を置く
 // (音色は VOICENO イベントで割り当てる — read 直後の unit には woice が未設定)
-export function renderPreview(
+export async function renderPreview(
   projectBytes: Uint8Array,
   target: PreviewTarget,
   key: number,
   velocity: number,
   durSec: number,
   sps: number,
-): Float32Array | null {
+): Promise<Float32Array | null> {
+  // OGGV 音色は未デコードのままでは再生できないため、PCM 化した一時バイト列でレンダリングする
+  const decoded = await convertOggvToPcm(projectBytes);
+  if (!decoded) return null;
+  projectBytes = decoded;
   const s = new Service();
   if (s.initCollage(PXTN_MAX_EVENT_NUM) !== PxtnErr.OK) return null;
   if (s.read(new MemoryIo(projectBytes)) !== PxtnErr.OK) return null;
@@ -175,7 +179,7 @@ function playBuffer(work: Float32Array, sps: number): void {
 // 音色は read 直後の unit には未設定 (VOICENO イベントで決まる) ため、
 // renderPreview 側で VOICENO から割り当てる。ここではユニット存在のみ確認
 // (hold = false なら 1 回だけ再生、true なら pointerup までループ再生)
-function preview(target: PreviewTarget, key: number, velocity: number, durSec: number, hold: boolean): void {
+async function preview(target: PreviewTarget, key: number, velocity: number, durSec: number, hold: boolean): Promise<void> {
   const svc = getService();
   if (!svc) return;
   if (target.unitNo !== null) {
@@ -187,24 +191,24 @@ function preview(target: PreviewTarget, key: number, velocity: number, durSec: n
   if (!bytes) return;
   const ctx = getCtx();
   if (!ctx) return;
-  const work = renderPreview(bytes, target, key, velocity, durSec, ctx.sampleRate);
+  const work = await renderPreview(bytes, target, key, velocity, durSec, ctx.sampleRate);
   if (!work) return;
   if (hold) startHold(work, ctx);
   else playBuffer(work, ctx.sampleRate);
 }
 
-export function previewUnit(unitNo: number, key: number, velocity: number = EVENTDEFAULT_VELOCITY, durSec = PREVIEW_SEC): void {
-  preview({ unitNo, woiceIdx: null }, key, velocity, durSec, false);
+export async function previewUnit(unitNo: number, key: number, velocity: number = EVENTDEFAULT_VELOCITY, durSec = PREVIEW_SEC): Promise<void> {
+  await preview({ unitNo, woiceIdx: null }, key, velocity, durSec, false);
 }
 
 // ユニットの音色をループ再生で開始する。pointerup まで鳴り続ける
-export function previewUnitHold(unitNo: number, key: number, velocity: number = EVENTDEFAULT_VELOCITY, durSec = PREVIEW_SEC): void {
-  preview({ unitNo, woiceIdx: null }, key, velocity, durSec, true);
+export async function previewUnitHold(unitNo: number, key: number, velocity: number = EVENTDEFAULT_VELOCITY, durSec = PREVIEW_SEC): Promise<void> {
+  await preview({ unitNo, woiceIdx: null }, key, velocity, durSec, true);
 }
 
 // 音色単体をループ再生で開始する。pointerup まで鳴り続ける
-export function previewWoiceHold(woiceIdx: number, key: number, velocity: number = EVENTDEFAULT_VELOCITY, durSec = PREVIEW_SEC): void {
-  preview({ unitNo: null, woiceIdx }, key, velocity, durSec, true);
+export async function previewWoiceHold(woiceIdx: number, key: number, velocity: number = EVENTDEFAULT_VELOCITY, durSec = PREVIEW_SEC): Promise<void> {
+  await preview({ unitNo: null, woiceIdx }, key, velocity, durSec, true);
 }
 
 // ---- 押下中サステイン (押している間ループ再生) ----

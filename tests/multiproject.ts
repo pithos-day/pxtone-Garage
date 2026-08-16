@@ -360,7 +360,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     globalThis.AudioContext = MockAudioContext as unknown as typeof AudioContext;
     // モジュール内の previewCtx キャッシュは初回呼び出しで作られる
     masterVolume.value = 0.5;
-    p.previewUnitHold(0, 0x6000, 104);
+    await p.previewUnitHold(0, 0x6000, 104);
     const mock = MockAudioContext.instances.at(-1)!;
     check("プレビュー開始で hold ソース作成", mock.lastSource !== null, `instances=${MockAudioContext.instances.length}`);
     checkEq(mock.lastGain?.gain.value, 0.5, "プレビューの音量にマスター音量が適用");

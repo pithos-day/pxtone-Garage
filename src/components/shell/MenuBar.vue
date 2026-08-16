@@ -93,8 +93,9 @@ function onImportMidi(split: boolean): void {
 function onExportWav(): void {
   const bytes = exportBytes();
   if (bytes) {
-    const err = exportWav(bytes, doc.fileName || "untitled");
-    if (err) window.alert(err);
+    void exportWav(bytes, doc.fileName || "untitled").then((err) => {
+      if (err) window.alert(err);
+    });
   }
 }
 

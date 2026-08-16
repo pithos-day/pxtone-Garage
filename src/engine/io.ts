@@ -1,5 +1,5 @@
 // ファイルの開く・保存・書き出し
-import { Service, PxtnErr, MemoryIo, NoiseBuilder } from "pxtone-ts";
+import { Service, PxtnErr, MemoryIo, NoiseBuilder, convertOggvToPcm } from "pxtone-ts";
 import type { Noise, Woice } from "pxtone-ts";
 import { EXE_VER } from "../state/service";
 import { exportBytes } from "../state/project";
@@ -76,7 +76,11 @@ export function exportPttune(bytes: Uint8Array, fileName: string): boolean {
 }
 
 // WAV 書き出し (オフライン全曲レンダリング)
-export function exportWav(bytes: Uint8Array, fileName: string, sps = 44100): string | null {
+export async function exportWav(bytes: Uint8Array, fileName: string, sps = 44100): Promise<string | null> {
+  // OGGV 音色は未デコードのままでは再生できないため、PCM 化した一時バイト列でレンダリングする
+  const decoded = await convertOggvToPcm(bytes);
+  if (!decoded) return t("error.ogg");
+  bytes = decoded;
   const s = new Service();
   if (s.init() !== PxtnErr.OK) return t("error.engineInit");
   if (s.read(new MemoryIo(bytes)) !== PxtnErr.OK) return t("error.loadFailed");

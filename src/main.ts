@@ -77,10 +77,10 @@ if (import.meta.env.DEV) {
     stopPreview,
     // 単音プレビューのデバッグ用: { len, peak } を返す
     // (durSec=1.2 秒でレンダリングし、20サンプル間隔でピークを走査する)
-    previewDebug: (unitNo: number, key: number, velocity = EVENTDEFAULT_VELOCITY, sps = 44100) => {
+    previewDebug: async (unitNo: number, key: number, velocity = EVENTDEFAULT_VELOCITY, sps = 44100) => {
       const bytes = exportBytes();
       if (!bytes) return { err: "no project" };
-      const buf = renderPreview(bytes, { unitNo, woiceIdx: null }, key, velocity, 1.2, sps);
+      const buf = await renderPreview(bytes, { unitNo, woiceIdx: null }, key, velocity, 1.2, sps);
       if (!buf) return { err: "renderPreview failed" };
       let peak = 0;
       for (let i = 0; i < buf.length; i += 20) {
