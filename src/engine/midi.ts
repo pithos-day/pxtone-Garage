@@ -148,6 +148,8 @@ export function parseMidi(bytes: Uint8Array): MidiSong | null {
         p += type === 0xc || type === 0xd ? 1 : 2;
       }
     }
+    // 次のトラックのチャンクヘッダを読めるよう、位置をトラック終端へ進める
+    pos = end;
   }
 
   // ノートオフの無い未閉じノートを末尾で閉じる
