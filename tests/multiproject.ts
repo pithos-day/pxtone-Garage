@@ -79,7 +79,8 @@ import { visibleClockWindow, iterVisibleRecords, iterNoteDraws, type NoteDraw } 
 import { woiceSummary } from "../src/lib/woice";
 import { MemoryIo, VoiceType, WaveType, EventKind, type EveRecord } from "pxtone-ts";
 import { Service, PxtnErr, PXTN_MAX_EVENT_NUM } from "pxtone-ts";
-import { convertOggvToPcm, defaultOggvDecoder } from "pxtone-ts";
+import { defaultOggvDecoder } from "pxtone-ts";
+import { decodeProjectBytes } from "../src/engine/oggv";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -1283,13 +1284,29 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       check("oggv: 保存は mateOGGV チャンク", ascii.includes("mateOGGV"));
     }
 
-    // convertOggvToPcm: デコード済みバイト列は PCM チャンクになる
-    const decoded = bytes ? await convertOggvToPcm(bytes) : null;
-    check("oggv: convertOggvToPcm 成功", decoded !== null);
+    // decodeProjectBytes (アプリの実動): デコード済みバイト列は PCM チャンクになり、
+    // 書き出し ptcop のヘッダにエディタバージョン EXE_VER が記録される
+    const decoded = bytes ? await decodeProjectBytes(bytes, serviceMod.EXE_VER) : null;
+    check("oggv: decodeProjectBytes 成功", decoded !== null);
     if (decoded) {
       const ascii = new TextDecoder().decode(decoded);
       check("oggv: デコード後は mateOGGV が無い", !ascii.includes("mateOGGV"));
       check("oggv: デコード後は PCM チャンクになる", ascii.includes("matePCM"));
+      // ヘッダ: 先頭 16 バイトの形式コード ("PTCOLLAGE-071119") の直後に exeVer が U16LE で続く
+      const exeVer = decoded[16] | (decoded[17] << 8);
+      checkEq(exeVer, serviceMod.EXE_VER, "oggv: デコード後 ptcop の exeVer は EXE_VER");
+      checkEq(
+        String.fromCharCode(...decoded.subarray(0, 16)),
+        "PTCOLLAGE-071119",
+        "oggv: デコード後 ptcop の形式コード",
+      );
+    }
+
+    // exeVer 未指定なら従来どおり 0 (後方互換)
+    const decodedDefault = bytes ? await decodeProjectBytes(bytes) : null;
+    check("oggv: decodeProjectBytes (exeVer 未指定) 成功", decodedDefault !== null);
+    if (decodedDefault) {
+      checkEq(decodedDefault[16] | (decodedDefault[17] << 8), 0, "oggv: 未指定なら exeVer 0");
     }
 
     // デコード済み ptcop は再生準備 (tonesReady) が通る
