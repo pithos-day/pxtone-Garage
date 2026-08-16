@@ -81,8 +81,8 @@ export function parseMidi(bytes: Uint8Array): MidiSong | null {
     const p = pendingNotes.get(ch)?.get(note);
     if (!p) return;
     pendingNotes.get(ch)!.delete(note);
-    const length = Math.max(1, clock - p.clock);
-    notes.push({ channel: ch, clock: p.clock, key: KEY_BASE + note * 0x100, velocity: p.velocity, length });
+    const length = noteEndLength(clock, p.clock);
+    notes.push({ channel: ch, clock: p.clock, key: midiNoteKey(note), velocity: p.velocity, length });
     if (clock > maxClock) maxClock = clock;
   };
 
@@ -166,12 +166,22 @@ export function parseMidi(bytes: Uint8Array): MidiSong | null {
   // ノートオフの無い未閉じノートを末尾で閉じる
   for (const [ch, map] of pendingNotes) {
     for (const [note, p] of map) {
-      const length = Math.max(1, maxClock - p.clock);
-      notes.push({ channel: ch, clock: p.clock, key: KEY_BASE + note * 0x100, velocity: p.velocity, length });
+      const length = noteEndLength(maxClock, p.clock);
+      notes.push({ channel: ch, clock: p.clock, key: midiNoteKey(note), velocity: p.velocity, length });
     }
   }
 
   return { tempo, beatNum, notes, maxClock };
+}
+
+// MIDI ノート番号 → pxtone KEY 値
+function midiNoteKey(note: number): number {
+  return KEY_BASE + note * 0x100;
+}
+
+// ノート長 (クロック)。最低 1 クロック (負や 0 を防ぐ)
+function noteEndLength(endClock: number, onClock: number): number {
+  return Math.max(1, endClock - onClock);
 }
 
 // チャンネルメッセージ (0x8n..0xEn) のデータバイト数。0xCn/0xDn は1、他は2
