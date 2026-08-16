@@ -215,7 +215,7 @@ const ja = {
   "error.prepare": "再生準備失敗",
   "error.notReady": "エンジン未初期化",
   "error.format": "対応していないファイル形式です",
-  "error.ogg": "OGG音色は未対応です",
+  "error.ogg": "OGG音色を読み込めませんでした",
   "error.beatClock": "beat clock が 480 ではない曲は開けません",
   "error.tooManyEvents": "イベント数が多すぎます",
   "error.noiseBuild": "ノイズのビルドに失敗しました",

@@ -18,6 +18,9 @@ export function woiceSummary(w: Woice): string {
       return t("woice.summaryUnknown");
     case WoiceType.PTN:
       return t("woice.summaryPtn").replace("{n}", String(vc.ptn.unitNum)).replace("{ms}", (vc.ptn.sec * 1000).toFixed(0));
+    case WoiceType.OGGV:
+      // 生 OGG の情報 (チャンネル/サンプリングレート/サンプル数) を表示 (本家 GetInfo 相当)
+      return `${vc.oggv?.ch ?? "?"}ch/${vc.oggv?.sps ?? "?"}Hz/${vc.oggv?.smpNum ?? "?"}smp`;
     default:
       return "";
   }
