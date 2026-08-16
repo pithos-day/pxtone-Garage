@@ -7,6 +7,7 @@ import {
   EventKind,
   PxtnErr,
   MemoryIo,
+  SEEK_SET,
   shiftJisToString,
   EVENTDEFAULT_KEY,
   EVENTDEFAULT_VELOCITY,
@@ -17,6 +18,13 @@ import {
   EVENTDEFAULT_VOICENO,
   EVENTDEFAULT_GROUPNO,
   EVENTDEFAULT_TUNING,
+  EVENTDEFAULT_BASICKEY,
+  PTV_VOICEFLAG_SMOOTH,
+  defaultOggvDecoder,
+  ioPutUint32LE,
+  ioPutUint16LE,
+  ioPutFloatLE,
+  ioPutInt32LE,
   type EveRecord,
 } from "pxtone-ts";
 import { encodeShiftJis } from "../lib/sjis";
@@ -573,12 +581,46 @@ export function focusedOrSelected(): number[] {
 
 // ---- 音色 ----
 
-// PTV/PTN/PCM ファイルバイト列を音色として追加。エラーメッセージを返す (成功時 null)
-export function addWoice(bytes: Uint8Array, type: WoiceType): string | null {
+// OGGV (mateOGGV チャンク) のヘッダサイズ (本家 _MATERIALSTRUCT_OGGV 相当)
+const MATE_OGGV_STRUCT_SIZE = 12;
+const PXTN_OGGV_HEADER_SIZE = 16;
+
+// 生 OGG バイト列を mateOGGV チャンクとして io に書き込む。
+// ch/sps/smpNum はデコード結果から取得する (本家 pxtnWoice::read の OGGV 分岐と同一の初期値)
+function writeOggvChunk(io: MemoryIo, data: Uint8Array, ch: number, sps: number, smpNum: number): void {
+  ioPutUint32LE(io, MATE_OGGV_STRUCT_SIZE + PXTN_OGGV_HEADER_SIZE + data.length);
+  ioPutUint16LE(io, 0); // xxx
+  ioPutUint16LE(io, EVENTDEFAULT_BASICKEY); // basicKey (本家 Voice_Allocate の初期値)
+  ioPutUint32LE(io, PTV_VOICEFLAG_SMOOTH); // voiceFlags (本家の初期値)
+  ioPutFloatLE(io, 1); // tuning
+  ioPutInt32LE(io, ch);
+  ioPutInt32LE(io, sps);
+  ioPutInt32LE(io, smpNum);
+  ioPutInt32LE(io, data.length);
+  io.write(data, 1, data.length);
+}
+
+// PTV/PTN/PCM/OGGV ファイルバイト列を音色として追加。エラーメッセージを返す (成功時 null)。
+// OGGV は生 OGG のまま保持するため、保存時は本家と同一の mateOGGV チャンクになる
+export async function addWoice(bytes: Uint8Array, type: WoiceType): Promise<string | null> {
   if (!doc.ready) return t("error.notReady");
+  const io = new MemoryIo();
+  if (type === WoiceType.OGGV) {
+    // 生 OGG からチャンネル/サンプリングレート/サンプル数を取得してチャンクを組み立てる
+    // (データは未デコードのまま保持し、再生時にデコードする)
+    const decoded = await defaultOggvDecoder.decode(bytes);
+    const ch = decoded.ch;
+    const sps = decoded.sps;
+    const smpNum = decoded.samples[0]?.length ?? 0;
+    if (ch <= 0 || sps <= 0 || smpNum <= 0) return t("error.ogg");
+    writeOggvChunk(io, bytes, ch, sps, smpNum);
+  } else {
+    io.write(bytes, 1, bytes.length);
+  }
+  // 読み込み前に位置を先頭へ戻す
+  if (!io.seek(SEEK_SET, 0)) return t("error.notReady");
   return (
     mutate(() => {
-      const io = new MemoryIo(bytes);
       const res = service.woiceRead(service.woiceNum, io, type);
       if (res !== PxtnErr.OK) return pxtnErrorMessage(res);
       return null;

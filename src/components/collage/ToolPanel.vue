@@ -10,13 +10,15 @@ const errorMsg = ref("");
 const showAddUnit = ref(false);
 
 async function onAddWoice(): Promise<void> {
-  const file = await openFileDialog(".ptvoice,.ptnoise,.wav");
+  const file = await openFileDialog(".ptvoice,.ptnoise,.wav,.ogg");
   if (!file) return;
   const head = String.fromCharCode(...file.bytes.subarray(0, 8));
+  const oggHead = String.fromCharCode(...file.bytes.subarray(0, 4));
   let type = WoiceType.PCM;
   if (head === "PTVOICE-") type = WoiceType.PTV;
   else if (head === "PTNOISE-") type = WoiceType.PTN;
-  const err = addWoice(file.bytes, type);
+  else if (oggHead === "OggS") type = WoiceType.OGGV;
+  const err = await addWoice(file.bytes, type);
   if (err) {
     errorMsg.value = err;
     setTimeout(() => (errorMsg.value = ""), 4000);

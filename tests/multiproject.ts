@@ -354,7 +354,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       }
     }
 
-    const addWoiceRes = addWoice(pcm, WoiceType.PCM);
+    const addWoiceRes = await addWoice(pcm, WoiceType.PCM);
     checkEq(addWoiceRes, null, "プレビュー用のPCM音色を追加");
     const p = await import("../src/engine/preview");
     globalThis.AudioContext = MockAudioContext as unknown as typeof AudioContext;
@@ -489,7 +489,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(vel?.value, 128, "音量加算: 64+100 が 128 にクランプ");
 
     // ユニット追加 (名前 + 音色)。音色変更の検証用に音色を 2 個以上にしておく
-    while (serviceMod.service.woiceNum < 2) addWoice(buildPcmWav(), WoiceType.PCM);
+    while (serviceMod.service.woiceNum < 2) await addWoice(buildPcmWav(), WoiceType.PCM);
     const wIdx = serviceMod.service.woiceNum - 1;
     const added = addUnitWithWoice("u-テスト", wIdx);
     checkEq(added, true, "addUnitWithWoice: 追加される");
