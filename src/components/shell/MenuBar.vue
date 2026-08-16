@@ -76,11 +76,11 @@ function onExportPttune(): void {
   if (bytes) exportPttune(bytes, doc.fileName || "untitled");
 }
 
-// MIDI ファイルを選択して ptcop として読み込む
-function onImportMidi(): void {
+// MIDI ファイルを選択して ptcop として読み込む (split = 和音を別ユニットに分割)
+function onImportMidi(split: boolean): void {
   void openFileDialog(".mid,.midi", /\.midi?$/i).then((file) => {
     if (!file) return;
-    const bytes = convertMidiToPtcop(file.bytes);
+    const bytes = convertMidiToPtcop(file.bytes, split ? { splitOverlap: true } : {});
     if (!bytes) {
       window.alert(t("error.midi"));
       return;
@@ -199,7 +199,13 @@ const fileMenu = computed<MenuItem[]>(() => {
   const extra: MenuItem[] =
     mode.value === "collage"
       ? [
-          { label: t("menu.file.importMidi"), action: onImportMidi },
+          {
+            label: t("menu.file.importMidi"),
+            sub: [
+              { label: t("menu.file.importMidiNormal"), action: () => onImportMidi(false) },
+              { label: t("menu.file.importMidiSplit"), action: () => onImportMidi(true) },
+            ],
+          },
           { label: t("menu.file.exportPttune"), action: onExportPttune },
           { label: t("menu.file.exportWav"), action: onExportWav },
           { sep: true },

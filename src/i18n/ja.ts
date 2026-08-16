@@ -16,7 +16,9 @@ const ja = {
   // メニュー: File
   "menu.file.new": "新規作成",
   "menu.file.open": "開く...",
-  "menu.file.importMidi": "MIDI から変換...",
+  "menu.file.importMidi": "MIDI から変換",
+  "menu.file.importMidiNormal": "そのまま (1チャンネル=1ユニット)",
+  "menu.file.importMidiSplit": "和音を別ユニットに分割",
   "menu.file.save": "保存",
   "menu.file.saveAs": "別名で保存...",
   "menu.file.exportPttune": "書き出し (.pttune)",
