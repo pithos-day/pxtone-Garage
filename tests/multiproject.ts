@@ -1117,7 +1117,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
         ...meta(0, 0x2f, []),
       ],
       [
-        ...ev(0, 0x90, 72, 80), // ch1
+        ...ev(0, 0x91, 72, 80), // ch1 (ステータス 0x91)
         ...ev(960, 0x80, 72, 0),
         ...meta(0, 0x51, [0x03, 0x0d, 0x40]), // 途中テンポ変更 (無視される)
         ...meta(0, 0x2f, []),
@@ -1126,7 +1126,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
     // パース結果
     const song = parseMidi(midi);
-    check(song !== null, "midi: パース成功");
+    check("midi: パース成功", song !== null);
     if (song) {
       checkEq(song.tempo, 120, "midi: テンポ 120");
       checkEq(song.beatNum, 4, "midi: 拍子 4/4");
@@ -1164,12 +1164,12 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     // PPQ=96 (非480) のクロック変換: tick 480 → 480*480/96 = 2400
     const midi96 = buildMidi(96, [[...ev(0, 0x90, 60, 100), ...ev(480, 0x80, 60, 0), ...meta(0, 0x2f, [])]]);
     const song96 = parseMidi(midi96);
-    check(song96 !== null && song96.notes.length === 1 && song96.notes[0]!.clock === 2400, "midi: PPQ=96 でクロック変換 (tick 480 → 2400)", `clock=${song96?.notes[0]?.clock}`);
+    check("midi: PPQ=96 でクロック変換 (tick 480 → 2400)", song96 !== null && song96.notes.length === 1 && song96.notes[0]!.length === 2400, `length=${song96?.notes[0]?.length}`);
 
     // 重なりノート (同じ note をオフ前に再オン) → 先のノートは新しい位置で閉じる
     const midiOv = buildMidi(480, [[...ev(0, 0x90, 60, 100), ...ev(240, 0x90, 60, 90), ...ev(480, 0x80, 60, 0), ...meta(0, 0x2f, [])]]);
     const songOv = parseMidi(midiOv);
-    check(songOv !== null && songOv.notes.length === 2, "midi: 重なりノートは2つに分割", `n=${songOv?.notes.length}`);
+    check("midi: 重なりノートは2つに分割", songOv !== null && songOv.notes.length === 2, `n=${songOv?.notes.length}`);
     if (songOv) {
       checkEq(songOv.notes[0]!.length, 240, "midi: 重なり1つ目は 240 クロック");
       checkEq(songOv.notes[1]!.clock, 240, "midi: 重なり2つ目は 240 から");
@@ -1178,7 +1178,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     // ノートオフの無いノートは曲末で閉じられる
     const midiOpen = buildMidi(480, [[...ev(0, 0x90, 60, 100), ...ev(480, 0x90, 64, 80), ...meta(0, 0x2f, [])]]);
     const songOpen = parseMidi(midiOpen);
-    check(songOpen !== null && songOpen.notes.length === 2, "midi: 未閉じノートも曲末で閉じる", `n=${songOpen?.notes.length}`);
+    check("midi: 未閉じノートも曲末で閉じる", songOpen !== null && songOpen.notes.length === 2, `n=${songOpen?.notes.length}`);
 
     // 不正なヘッダは失敗
     checkEq(parseMidi(new Uint8Array([0x4d, 0x54, 0x68, 0x64, 0, 0])), null, "midi: 不正ヘッダは null");
