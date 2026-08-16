@@ -198,6 +198,66 @@ export interface MidiConvertOptions {
 // ユニット数の上限 (pxtone の PXTN_MAX_TUNE_UNIT_STRUCT)
 const MAX_UNIT_NUM = 50;
 
+interface AssignedNote {
+  note: MidiNote;
+  unit: number;
+}
+
+// チャンネルごとにノートを開始クロック順でスロット (ユニット) へ割り当てる。
+// splitChords 時は空きスロットを再利用し、重なるノートがあれば新規スロットを作る。
+// ユニット名は channel-{ch} (分割時は channel-{ch}-{slot})。ユニット数は MAX_UNIT_NUM でクランプ
+function assignUnits(notes: MidiNote[], splitChords: boolean): { unitNames: string[]; assigned: AssignedNote[] } {
+  const byChannel = new Map<number, MidiNote[]>();
+  for (const n of notes) {
+    if (!byChannel.has(n.channel)) byChannel.set(n.channel, []);
+    byChannel.get(n.channel)!.push(n);
+  }
+  const channels = [...byChannel.keys()].sort((a, b) => a - b);
+
+  const unitNames: string[] = [];
+  const assigned: AssignedNote[] = [];
+  for (const ch of channels) {
+    const channelNotes = byChannel.get(ch)!.slice().sort((a, b) => a.clock - b.clock);
+    const slots: { freeAt: number; unit: number }[] = [];
+    for (const n of channelNotes) {
+      const slot = allocateSlot(slots, unitNames, ch, n.clock, splitChords);
+      slots[slot]!.freeAt = n.clock + n.length;
+      assigned.push({ note: n, unit: slots[slot]!.unit });
+    }
+  }
+  return { unitNames, assigned };
+}
+
+// ノートを割り当てるスロットのインデックスを返す (常に有効)。
+// splitChords 時: 終了済みスロットを再利用、無ければ新規作成 (ユニット上限まで、超過はスロット0へ統合)。
+// それ以外: チャンネルごとに最初のスロットのみを使う (1 チャンネル = 1 ユニット)
+function allocateSlot(
+  slots: { freeAt: number; unit: number }[],
+  unitNames: string[],
+  ch: number,
+  clock: number,
+  splitChords: boolean,
+): number {
+  if (!splitChords) {
+    if (slots.length === 0) {
+      const unit = unitNames.length;
+      slots.push({ freeAt: 0, unit });
+      unitNames.push(`channel-${ch}`);
+    }
+    return 0;
+  }
+  for (let i = 0; i < slots.length; i++) {
+    if (slots[i]!.freeAt <= clock) return i;
+  }
+  if (unitNames.length < MAX_UNIT_NUM) {
+    const unit = unitNames.length;
+    slots.push({ freeAt: 0, unit });
+    unitNames.push(`channel-${ch}-${unit}`);
+    return slots.length - 1;
+  }
+  return 0; // ユニット上限超過はスロット0へ統合
+}
+
 // MIDI バイト列を ptcop に変換する。失敗時 null
 export function convertMidiToPtcop(bytes: Uint8Array, options: MidiConvertOptions = {}): Uint8Array | null {
   const song = parseMidi(bytes);
@@ -214,50 +274,8 @@ export function convertMidiToPtcop(bytes: Uint8Array, options: MidiConvertOption
   if (!wio.seek(SEEK_SET, 0)) return null;
   if (s.woiceRead(0, wio, WoiceType.PTV) !== PxtnErr.OK) return null;
 
-  // チャンネルごとにノートを開始クロック順でスロット (ユニット) へ割り当てる。
-  // splitChords 時は空きスロットを再利用し、重なるノートがあれば新規スロットを作る。
-  // ユニット名は channel-{ch} (分割時は channel-{ch}-{slot})
-  const byChannel = new Map<number, MidiNote[]>();
-  for (const n of song.notes) {
-    if (!byChannel.has(n.channel)) byChannel.set(n.channel, []);
-    byChannel.get(n.channel)!.push(n);
-  }
-  const channels = [...byChannel.keys()].sort((a, b) => a - b);
-
-  const unitNames: string[] = [];
-  const assigned: { note: MidiNote; unit: number }[] = [];
-  for (const ch of channels) {
-    const ns = byChannel.get(ch)!.slice().sort((a, b) => a.clock - b.clock);
-    const slots: { freeAt: number; unit: number }[] = [];
-    for (const n of ns) {
-      let slot = -1;
-      if (splitChords) {
-        // 終了済みのスロットを再利用
-        for (let i = 0; i < slots.length; i++) {
-          if (slots[i]!.freeAt <= n.clock) {
-            slot = i;
-            break;
-          }
-        }
-        // 空きが無ければ新規スロット (上限まで)
-        if (slot < 0 && unitNames.length < MAX_UNIT_NUM) {
-          slot = slots.length;
-          slots.push({ freeAt: 0, unit: unitNames.length });
-          unitNames.push(`channel-${ch}-${slot}`);
-        }
-        // ユニット上限超過はスロット0へ統合
-        if (slot < 0) slot = 0;
-      } else {
-        if (slots.length === 0) {
-          slots.push({ freeAt: 0, unit: unitNames.length });
-          unitNames.push(`channel-${ch}`);
-        }
-        slot = 0;
-      }
-      slots[slot]!.freeAt = n.clock + n.length;
-      assigned.push({ note: n, unit: slots[slot]!.unit });
-    }
-  }
+  // ノートをユニットへ割り当て (和音の分割可否でユニット数が変わる)
+  const { unitNames, assigned } = assignUnits(song.notes, splitChords);
 
   for (let u = 0; u < unitNames.length; u++) {
     if (!s.unitAddNew()) return null;
