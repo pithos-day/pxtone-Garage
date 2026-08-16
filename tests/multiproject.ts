@@ -79,6 +79,9 @@ import { visibleClockWindow, iterVisibleRecords, iterNoteDraws, type NoteDraw } 
 import { woiceSummary } from "../src/lib/woice";
 import { MemoryIo, VoiceType, WaveType, EventKind, type EveRecord } from "pxtone-ts";
 import { Service, PxtnErr, PXTN_MAX_EVENT_NUM } from "pxtone-ts";
+import { convertOggvToPcm, defaultOggvDecoder } from "pxtone-ts";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 let failed = 0;
 function fail(name: string, detail = ""): void {
@@ -1251,6 +1254,55 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
         checkEq(svc.unitNum, 50, "limit: ユニットは50にクランプ");
       }
     }
+  }
+
+  // ---- 27. OGGV 音色 ----
+  {
+    // pxtone-ts のテスト用 OGG フィクスチャ (2ch/44100Hz/1秒)
+    const ogg = new Uint8Array(readFileSync(join(__dirname, "fixtures", "test-tone.ogg")));
+    checkEq(String.fromCharCode(...ogg.subarray(0, 4)), "OggS", "oggv: フィクスチャのヘッダは OggS");
+
+    // 音色追加 (未デコードのまま保持される)
+    const addRes = await addWoice(ogg, WoiceType.OGGV);
+    checkEq(addRes, null, "oggv: addWoice 成功");
+    const svc = serviceMod.service;
+    const w = svc.woiceGet(svc.woiceNum - 1)!;
+    checkEq(w.type, WoiceType.OGGV, "oggv: タイプは OGGV");
+    checkEq(w.isOggvDecoded(), false, "oggv: 追加直後は未デコード");
+    const vc = w.getVoice(0)!;
+    checkEq(vc.oggv?.ch, 2, "oggv: チャンネル 2");
+    checkEq(vc.oggv?.sps, 44100, "oggv: サンプリングレート 44100");
+    checkEq(vc.oggv?.smpNum, 44100, "oggv: サンプル数 44100");
+    checkEq(vc.oggv?.data.length, ogg.length, "oggv: OGG データが保持される");
+
+    // 保存: 未デコードのまま mateOGGV チャンクで書かれる (本家準拠)
+    const bytes = exportBytes();
+    check("oggv: exportBytes 成功", bytes !== null);
+    if (bytes) {
+      const ascii = new TextDecoder().decode(bytes);
+      check("oggv: 保存は mateOGGV チャンク", ascii.includes("mateOGGV"));
+    }
+
+    // convertOggvToPcm: デコード済みバイト列は PCM チャンクになる
+    const decoded = bytes ? await convertOggvToPcm(bytes) : null;
+    check("oggv: convertOggvToPcm 成功", decoded !== null);
+    if (decoded) {
+      const ascii = new TextDecoder().decode(decoded);
+      check("oggv: デコード後は mateOGGV が無い", !ascii.includes("mateOGGV"));
+      check("oggv: デコード後は PCM チャンクになる", ascii.includes("matePCM"));
+    }
+
+    // デコード済み ptcop は再生準備 (tonesReady) が通る
+    if (decoded) {
+      const s2 = new Service();
+      s2.initCollage(PXTN_MAX_EVENT_NUM);
+      checkEq(s2.read(new MemoryIo(decoded)), PxtnErr.OK, "oggv: デコード後 ptcop 読み込み成功");
+      checkEq(s2.tonesReady(), PxtnErr.OK, "oggv: デコード後 tonesReady 成功");
+    }
+
+    // Woice.decodeOggv で直接デコードできる
+    checkEq(await w.decodeOggv(defaultOggvDecoder), PxtnErr.OK, "oggv: decodeOggv 成功");
+    checkEq(w.isOggvDecoded(), true, "oggv: デコード済みになる");
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);
