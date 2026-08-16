@@ -15,6 +15,7 @@ import {
 import { newVoice, openVoice, saveVoice, closeVoice, undoVoice, redoVoice, currentVoice, currentVoiceId } from "../../state/voice";
 import { newNoise, openNoise, saveNoise, closeNoise, undoNoise, redoNoise, currentNoise, currentNoiseId } from "../../state/noise";
 import { exportPttune, exportWav, exportVoiceWav, exportNoiseWav, openFileDialog } from "../../engine/io";
+import { convertMidiToPtcop } from "../../engine/midi";
 import { undo, redo, canUndo, canRedo } from "../../state/undo";
 import { t } from "../../i18n";
 import type { EventVolumeMode } from "../../lib/eventVolume";
@@ -73,6 +74,20 @@ function onOpen(): void {
 function onExportPttune(): void {
   const bytes = exportBytes();
   if (bytes) exportPttune(bytes, doc.fileName || "untitled");
+}
+
+// MIDI ファイルを選択して ptcop として読み込む
+function onImportMidi(): void {
+  void openFileDialog(".mid,.midi", /\.midi?$/i).then((file) => {
+    if (!file) return;
+    const bytes = convertMidiToPtcop(file.bytes);
+    if (!bytes) {
+      window.alert(t("error.midi"));
+      return;
+    }
+    const err = openProjectInTab(bytes, file.name);
+    if (err) window.alert(err);
+  });
 }
 
 function onExportWav(): void {
@@ -184,6 +199,7 @@ const fileMenu = computed<MenuItem[]>(() => {
   const extra: MenuItem[] =
     mode.value === "collage"
       ? [
+          { label: t("menu.file.importMidi"), action: onImportMidi },
           { label: t("menu.file.exportPttune"), action: onExportPttune },
           { label: t("menu.file.exportWav"), action: onExportWav },
           { sep: true },
@@ -192,8 +208,13 @@ const fileMenu = computed<MenuItem[]>(() => {
           { sep: true },
         ]
       : [
-          // voice: 現在の音色を単音レンダリングして WAV 化 / noise: 現在のノイズを WAV 化
-          { label: t("menu.file.exportWav"), action: mode.value === "voice" ? onExportVoiceWav : onExportNoiseWav },
+          // voice: 現在の音色を単音レンダリングして WAV 化 / noise: 現在のノイズを WAV 化。
+          // ファイル未オープン (タブ0件) では書き出せないため disabled
+          {
+            label: t("menu.file.exportWav"),
+            action: mode.value === "voice" ? onExportVoiceWav : onExportNoiseWav,
+            disabled: mode.value === "voice" ? !currentVoice() : !currentNoise(),
+          },
           { sep: true },
           { label: t("menu.file.settings"), action: () => emit("settings") },
           { sep: true },

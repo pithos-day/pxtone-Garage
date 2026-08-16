@@ -16,6 +16,7 @@ const ja = {
   // メニュー: File
   "menu.file.new": "新規作成",
   "menu.file.open": "開く...",
+  "menu.file.importMidi": "MIDI から変換...",
   "menu.file.save": "保存",
   "menu.file.saveAs": "別名で保存...",
   "menu.file.exportPttune": "書き出し (.pttune)",
@@ -216,6 +217,7 @@ const ja = {
   "error.beatClock": "beat clock が 480 ではない曲は開けません",
   "error.tooManyEvents": "イベント数が多すぎます",
   "error.noiseBuild": "ノイズのビルドに失敗しました",
+  "error.midi": "MIDIファイルを読み込めませんでした",
 } as const;
 
 export default ja;
