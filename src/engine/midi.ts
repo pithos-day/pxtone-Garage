@@ -163,10 +163,20 @@ export function parseMidi(bytes: Uint8Array): MidiSong | null {
   return { tempo, beatNum, notes, maxClock };
 }
 
+export interface MidiConvertOptions {
+  // 同一チャンネルで同時に鳴るノート (和音) を別ユニットに分割する。
+  // 未指定時は 1 チャンネル = 1 ユニット (和音は1つに統合される)
+  splitOverlap?: boolean;
+}
+
+// ユニット数の上限 (pxtone の PXTN_MAX_TUNE_UNIT_STRUCT)
+const MAX_UNIT_NUM = 50;
+
 // MIDI バイト列を ptcop に変換する。失敗時 null
-export function convertMidiToPtcop(bytes: Uint8Array): Uint8Array | null {
+export function convertMidiToPtcop(bytes: Uint8Array, options: MidiConvertOptions = {}): Uint8Array | null {
   const song = parseMidi(bytes);
   if (!song) return null;
+  const split = !!options.splitOverlap;
 
   const s = new Service();
   if (s.initCollage(PXTN_MAX_EVENT_NUM) !== PxtnErr.OK) return null;
@@ -178,21 +188,62 @@ export function convertMidiToPtcop(bytes: Uint8Array): Uint8Array | null {
   if (!wio.seek(SEEK_SET, 0)) return null;
   if (s.woiceRead(0, wio, WoiceType.PTV) !== PxtnErr.OK) return null;
 
-  // チャンネル単位でユニット化 (ノートのあるチャンネルのみ)
-  const channels = [...new Set(song.notes.map((n) => n.channel))].sort((a, b) => a - b);
-  const unitOf = new Map<number, number>();
+  // チャンネルごとにノートを開始クロック順でスロット (ユニット) へ割り当てる。
+  // split 時は空きスロットを再利用し、重なるノートがあれば新規スロットを作る。
+  // ユニット名は channel-{ch} (分割時は channel-{ch}-{slot})
+  const byChannel = new Map<number, MidiNote[]>();
+  for (const n of song.notes) {
+    if (!byChannel.has(n.channel)) byChannel.set(n.channel, []);
+    byChannel.get(n.channel)!.push(n);
+  }
+  const channels = [...byChannel.keys()].sort((a, b) => a - b);
+
+  const unitNames: string[] = [];
+  const assigned: { note: MidiNote; unit: number }[] = [];
   for (const ch of channels) {
-    unitOf.set(ch, s.unitNum);
-    if (!s.unitAddNew()) return null;
+    const ns = byChannel.get(ch)!.slice().sort((a, b) => a.clock - b.clock);
+    const slots: { freeAt: number; unit: number }[] = [];
+    for (const n of ns) {
+      let slot = -1;
+      if (split) {
+        // 終了済みのスロットを再利用
+        for (let i = 0; i < slots.length; i++) {
+          if (slots[i]!.freeAt <= n.clock) {
+            slot = i;
+            break;
+          }
+        }
+        // 空きが無ければ新規スロット (上限まで)
+        if (slot < 0 && unitNames.length < MAX_UNIT_NUM) {
+          slot = slots.length;
+          slots.push({ freeAt: 0, unit: unitNames.length });
+          unitNames.push(`channel-${ch}-${slot}`);
+        }
+        // ユニット上限超過はスロット0へ統合
+        if (slot < 0) slot = 0;
+      } else {
+        if (slots.length === 0) {
+          slots.push({ freeAt: 0, unit: unitNames.length });
+          unitNames.push(`channel-${ch}`);
+        }
+        slot = 0;
+      }
+      slots[slot]!.freeAt = n.clock + n.length;
+      assigned.push({ note: n, unit: slots[slot]!.unit });
+    }
   }
 
+  for (let u = 0; u < unitNames.length; u++) {
+    if (!s.unitAddNew()) return null;
+  }
+  unitNames.forEach((name, u) => s.unitGet(u)?.setNameBuf(name));
+
   // VOICENO (デフォルト音声) → ノート
-  for (const u of unitOf.values()) s.evels.recordAddI(0, u, EventKind.VOICENO, 0);
-  for (const n of song.notes) {
-    const u = unitOf.get(n.channel)!;
-    s.evels.recordAddI(n.clock, u, EventKind.KEY, n.key);
-    s.evels.recordAddI(n.clock, u, EventKind.VELOCITY, n.velocity);
-    s.evels.recordAddI(n.clock, u, EventKind.ON, n.length);
+  for (let u = 0; u < unitNames.length; u++) s.evels.recordAddI(0, u, EventKind.VOICENO, 0);
+  for (const { note, unit } of assigned) {
+    s.evels.recordAddI(note.clock, unit, EventKind.KEY, note.key);
+    s.evels.recordAddI(note.clock, unit, EventKind.VELOCITY, note.velocity);
+    s.evels.recordAddI(note.clock, unit, EventKind.ON, note.length);
   }
 
   s.master.set(song.beatNum, song.tempo, 480);
