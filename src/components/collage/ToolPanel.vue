@@ -12,12 +12,12 @@ const showAddUnit = ref(false);
 async function onAddWoice(): Promise<void> {
   const file = await openFileDialog(".ptvoice,.ptnoise,.wav,.ogg");
   if (!file) return;
+  // マジックバイト (先頭8バイト) で音色タイプを判別する。OGG は先頭4バイトが "OggS"
   const head = String.fromCharCode(...file.bytes.subarray(0, 8));
-  const oggHead = String.fromCharCode(...file.bytes.subarray(0, 4));
   let type = WoiceType.PCM;
   if (head === "PTVOICE-") type = WoiceType.PTV;
   else if (head === "PTNOISE-") type = WoiceType.PTN;
-  else if (oggHead === "OggS") type = WoiceType.OGGV;
+  else if (head.startsWith("OggS")) type = WoiceType.OGGV;
   const err = await addWoice(file.bytes, type);
   if (err) {
     errorMsg.value = err;
