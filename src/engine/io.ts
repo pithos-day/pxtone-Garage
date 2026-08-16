@@ -80,10 +80,9 @@ export async function exportWav(bytes: Uint8Array, fileName: string, sps = 44100
   // OGGV 音色は未デコードのままでは再生できないため、PCM 化した一時バイト列でレンダリングする
   const decoded = await convertOggvToPcm(bytes);
   if (!decoded) return t("error.ogg");
-  bytes = decoded;
   const s = new Service();
   if (s.init() !== PxtnErr.OK) return t("error.engineInit");
-  if (s.read(new MemoryIo(bytes)) !== PxtnErr.OK) return t("error.loadFailed");
+  if (s.read(new MemoryIo(decoded)) !== PxtnErr.OK) return t("error.loadFailed");
   if (s.tonesReady() !== PxtnErr.OK) return t("error.tonesReady");
   if (!s.setDestinationQuality(2, sps)) return t("error.quality");
   if (!s.mooPreparation(null)) return t("error.prepare");

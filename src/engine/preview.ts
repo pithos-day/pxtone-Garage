@@ -44,10 +44,9 @@ export async function renderPreview(
   // OGGV 音色は未デコードのままでは再生できないため、PCM 化した一時バイト列でレンダリングする
   const decoded = await convertOggvToPcm(projectBytes);
   if (!decoded) return null;
-  projectBytes = decoded;
   const s = new Service();
   if (s.initCollage(PXTN_MAX_EVENT_NUM) !== PxtnErr.OK) return null;
-  if (s.read(new MemoryIo(projectBytes)) !== PxtnErr.OK) return null;
+  if (s.read(new MemoryIo(decoded)) !== PxtnErr.OK) return null;
 
   // 対象ユニットの音色番号 (VOICENO イベントの最後の値) を整理前に取得
   let voiceNo = target.woiceIdx ?? 0;
