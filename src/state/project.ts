@@ -7,7 +7,6 @@ import {
   EventKind,
   PxtnErr,
   MemoryIo,
-  SEEK_SET,
   shiftJisToString,
   EVENTDEFAULT_KEY,
   EVENTDEFAULT_VELOCITY,
@@ -600,28 +599,29 @@ function writeMateOggvChunk(io: MemoryIo, data: Uint8Array, ch: number, sps: num
   io.write(data, 1, data.length);
 }
 
+// 生 OGG バイト列を mateOGGV チャンク (未デコードのまま保持) に変換する。失敗時 null
+async function oggBytesToMateChunk(bytes: Uint8Array): Promise<Uint8Array | null> {
+  // チャンネル/サンプリングレート/サンプル数は OGG のヘッダ情報としてデコード結果から取得する
+  const oggInfo = await defaultOggvDecoder.decode(bytes);
+  const ch = oggInfo.ch;
+  const sps = oggInfo.sps;
+  const smpNum = oggInfo.samples[0]?.length ?? 0;
+  if (ch <= 0 || sps <= 0 || smpNum <= 0) return null;
+  const io = new MemoryIo();
+  writeMateOggvChunk(io, bytes, ch, sps, smpNum);
+  return io.toUint8Array();
+}
+
 // PTV/PTN/PCM/OGGV ファイルバイト列を音色として追加。エラーメッセージを返す (成功時 null)。
 // OGGV は生 OGG のまま保持するため、保存時は本家と同一の mateOGGV チャンクになる
 export async function addWoice(bytes: Uint8Array, type: WoiceType): Promise<string | null> {
   if (!doc.ready) return t("error.notReady");
-  const io = new MemoryIo();
-  if (type === WoiceType.OGGV) {
-    // 生 OGG からチャンネル/サンプリングレート/サンプル数を取得してチャンクを組み立てる
-    // (データは未デコードのまま保持し、再生時にデコードする)
-    const oggInfo = await defaultOggvDecoder.decode(bytes);
-    const ch = oggInfo.ch;
-    const sps = oggInfo.sps;
-    const smpNum = oggInfo.samples[0]?.length ?? 0;
-    if (ch <= 0 || sps <= 0 || smpNum <= 0) return t("error.ogg");
-    writeMateOggvChunk(io, bytes, ch, sps, smpNum);
-  } else {
-    io.write(bytes, 1, bytes.length);
-  }
-  // 読み込み前に位置を先頭へ戻す
-  if (!io.seek(SEEK_SET, 0)) return t("error.notReady");
+  // OGGV のみ mateOGGV チャンク形式へ変換する (他はそのまま)
+  const chunk = type === WoiceType.OGGV ? await oggBytesToMateChunk(bytes) : bytes;
+  if (!chunk) return t("error.ogg");
   return (
     mutate(() => {
-      const res = service.woiceRead(service.woiceNum, io, type);
+      const res = service.woiceRead(service.woiceNum, new MemoryIo(chunk), type);
       if (res !== PxtnErr.OK) return pxtnErrorMessage(res);
       return null;
     }) ?? null
