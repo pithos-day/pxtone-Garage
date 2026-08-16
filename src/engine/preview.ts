@@ -2,9 +2,10 @@
 // worklet の preview メッセージは未実装のため、メインスレッドで
 // 一時 Service にプロジェクト全体を読み込み、対象ユニットのみの
 // ノートをオフライン短レンダリング → AudioBuffer 再生で実現する。
-import { Service, PxtnErr, MemoryIo, SEEK_SET, EventKind, PXTN_MAX_EVENT_NUM, EVENTDEFAULT_VELOCITY, WoiceType, NoiseBuilder, convertOggvToPcm } from "pxtone-ts";
+import { Service, PxtnErr, MemoryIo, SEEK_SET, EventKind, PXTN_MAX_EVENT_NUM, EVENTDEFAULT_VELOCITY, WoiceType, NoiseBuilder } from "pxtone-ts";
 import type { Woice, Noise } from "pxtone-ts";
 import { exportBytes } from "../state/project";
+import { decodeProjectBytes } from "./oggv";
 import { getService } from "../state/project";
 import { EXE_VER } from "../state/service";
 import { watch } from "vue";
@@ -41,8 +42,7 @@ export async function renderPreview(
   durSec: number,
   sps: number,
 ): Promise<Float32Array | null> {
-  // OGGV 音色は未デコードのままでは再生できないため、PCM 化した一時バイト列でレンダリングする
-  const decoded = await convertOggvToPcm(projectBytes);
+  const decoded = await decodeProjectBytes(projectBytes);
   if (!decoded) return null;
   const s = new Service();
   if (s.initCollage(PXTN_MAX_EVENT_NUM) !== PxtnErr.OK) return null;

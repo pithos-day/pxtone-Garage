@@ -1,7 +1,7 @@
 // 再生状態の管理。worklet プレイヤーとの橋渡し
 import { computed, ref, watch } from "vue";
-import { convertOggvToPcm } from "pxtone-ts";
 import { RealtimePlayer } from "../engine/realtime-player";
+import { decodeProjectBytes } from "../engine/oggv";
 import { getService, exportBytes, doc } from "./project";
 
 export const player = new RealtimePlayer({
@@ -59,8 +59,7 @@ export function resetLoaded(): void {
 async function ensureLoaded(bytes: Uint8Array): Promise<void> {
   if (loadedRev === doc.rev) return;
   const pos = positionSample.value;
-  // OGGV 音色は worklet でデコードできないため、PCM 化した一時バイト列を渡す
-  const decoded = await convertOggvToPcm(bytes);
+  const decoded = await decodeProjectBytes(bytes);
   if (!decoded) return;
   const ok = await player.load(decoded, doc.playStart, doc.playEnd);
   if (ok) loadedRev = doc.rev;
@@ -89,8 +88,7 @@ async function refreshWhilePlaying(): Promise<void> {
       revAtStart = doc.rev;
       const bytes = exportBytes();
       if (!bytes) return;
-      // OGGV 音色は worklet でデコードできないため、PCM 化した一時バイト列を渡す
-      const decoded = await convertOggvToPcm(bytes);
+      const decoded = await decodeProjectBytes(bytes);
       if (!decoded) return;
       if (!(await player.load(decoded, doc.playStart, doc.playEnd))) return;
     }
