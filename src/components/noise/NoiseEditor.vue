@@ -394,7 +394,8 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
-  flex: none;
+  /* 全レイヤーで列の高さを埋める (下余白を消す)。縮小はせず、足りない分は列がスクロール */
+  flex: 1 0 auto;
 }
 
 .ne-layer-head {
@@ -425,6 +426,8 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
   display: flex;
   flex-direction: column;
   gap: 1px;
+  /* レイヤー枠の余った高さはグリッド行が吸収して拡大する */
+  flex: 1;
 }
 
 .ne-row {
@@ -432,6 +435,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
   grid-template-columns: 46px 72px 22px 60px 60px 60px;
   align-items: center;
   gap: var(--space-sm);
+  flex: 1;
 }
 
 .ne-head {
@@ -439,6 +443,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
   color: var(--card-foreground);
   border-bottom: 1px dashed var(--border);
   padding-bottom: 1px;
+  flex: none;
 }
 
 .ne-osc-name {
@@ -457,7 +462,8 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
   border: 1px solid var(--border);
   padding: 0 2px;
   width: 100%;
-  height: 17px;
+  /* 行の高さに合わせて入力欄も縦へ拡大する (レイヤー内の余白を消す) */
+  height: 100%;
 }
 
 .ne-row input[type="checkbox"] {
@@ -506,10 +512,12 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
   gap: var(--space-md);
 }
 
-/* 1画面に収めるため波形は小さめに固定 */
+/* 波形は基本 140px。縦スペースが足りないときは 60px まで縮んで履歴リストを優先する */
 .ne-wave {
-  flex: none;
+  flex: 0 1 auto;
   height: 140px;
+  max-height: 140px;
+  min-height: 60px;
   cursor: pointer;
 }
 
