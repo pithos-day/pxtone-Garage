@@ -16,16 +16,21 @@ export function supportsSavePicker(): boolean {
   return typeof window.showSaveFilePicker === "function";
 }
 
+// ファイル保存のオプション。
+// usePicker: 対応ブラウザ (Chromium 系) で「名前を付けて保存」ピッカーを開くか (既定 true)。
+// 通常保存では false を渡して従来どおりダウンロードを発火させる
+export interface SaveOptions {
+  fileName: string;
+  mime?: string;
+  usePicker?: boolean;
+}
+
 // ファイルを保存する。usePicker=true かつ対応ブラウザ (Chromium 系) では
 // 「名前を付けて保存」ピッカーを開き、それ以外は従来どおりダウンロードを発火する。
 // 保存が完了したら実際のファイル名、ユーザーがキャンセルしたら null を返す (書き込み失敗は throw)。
 // ピッカーではファイル名を変更できるため、呼び出し側は戻り値で保存後の名前を把握できる
-export async function downloadBytes(
-  bytes: Uint8Array,
-  fileName: string,
-  mime = "application/octet-stream",
-  usePicker = true,
-): Promise<string | null> {
+export async function downloadBytes(bytes: Uint8Array, options: SaveOptions): Promise<string | null> {
+  const { fileName, mime = "application/octet-stream", usePicker = true } = options;
   const buf = toArrayBuffer(bytes);
   if (usePicker && supportsSavePicker()) {
     // File System Access API — 保存先・ファイル名をユーザーが選択して書き込む
@@ -101,10 +106,10 @@ export function stripFileExt(name: string): string {
 
 // ptcop の保存 (「名前を付けて保存」ピッカー / ダウンロード発火)。
 // 保存したファイル名を返す (キャンセル・失敗時 null)
-export async function downloadProjectFile(fileName: string, usePicker = true): Promise<string | null> {
+export async function downloadProjectFile(fileName: string, options: Pick<SaveOptions, "usePicker"> = {}): Promise<string | null> {
   const bytes = exportBytes();
   if (!bytes) return null;
-  return downloadBytes(bytes, sanitizeFileName(fileName, ".ptcop"), undefined, usePicker);
+  return downloadBytes(bytes, { fileName: sanitizeFileName(fileName, ".ptcop"), ...options });
 }
 
 // pttune 書き出し (bTune=true)。保存したファイル名を返す (キャンセル・失敗時 null)
@@ -114,7 +119,7 @@ export async function exportPttune(bytes: Uint8Array, fileName: string): Promise
   if (s.read(new MemoryIo(bytes)) !== PxtnErr.OK) return null;
   const io = new MemoryIo();
   if (s.write(io, true, EXE_VER) !== PxtnErr.OK) return null;
-  return downloadBytes(io.toUint8Array(), sanitizeFileName(fileName, ".pttune"));
+  return downloadBytes(io.toUint8Array(), { fileName: sanitizeFileName(fileName, ".pttune") });
 }
 
 // WAV 書き出し (オフライン全曲レンダリング)
@@ -136,7 +141,7 @@ export async function exportWav(bytes: Uint8Array, fileName: string, sps = 44100
   }
   const wav = makeWav(pcm, sps, 2, 16);
   try {
-    await downloadBytes(wav, sanitizeFileName(fileName, ".wav"), "audio/wav");
+    await downloadBytes(wav, { fileName: sanitizeFileName(fileName, ".wav"), mime: "audio/wav" });
   } catch {
     return t("error.save");
   }
@@ -155,7 +160,7 @@ export async function exportNoiseWav(noise: Noise, fileName: string, sps = 44100
   const s16 = new Int16Array(buf.buffer, buf.byteOffset, buf.byteLength >> 1);
   const wav = makeWav(s16, sps, 2, 16);
   try {
-    await downloadBytes(wav, sanitizeFileName(fileName, ".wav"), "audio/wav");
+    await downloadBytes(wav, { fileName: sanitizeFileName(fileName, ".wav"), mime: "audio/wav" });
   } catch {
     return t("error.save");
   }
@@ -181,7 +186,7 @@ export async function exportVoiceWav(
   for (let i = 0; i < pcm.length; i++) s16[i] = Math.round(pcm[i]! * 32767);
   const wav = makeWav(s16, sps, 2, 16);
   try {
-    await downloadBytes(wav, sanitizeFileName(fileName, ".wav"), "audio/wav");
+    await downloadBytes(wav, { fileName: sanitizeFileName(fileName, ".wav"), mime: "audio/wav" });
   } catch {
     return t("error.save");
   }

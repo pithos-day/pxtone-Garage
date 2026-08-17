@@ -250,7 +250,7 @@ export function closeProject(id: number): void {
 
 // 通常保存: ダイアログを開かず従来どおりダウンロードを発火する
 export async function saveProject(): Promise<boolean> {
-  return saveProjectFileAs(doc.fileName || "untitled", false);
+  return saveProjectFile(doc.fileName || "untitled", { usePicker: false });
 }
 
 // 名前を付けて保存。
@@ -258,19 +258,19 @@ export async function saveProject(): Promise<boolean> {
 // 非対応ブラウザでは従来どおりファイル名入力を促す
 export async function saveProjectAs(): Promise<boolean> {
   if (supportsSavePicker()) {
-    return saveProjectFileAs(doc.fileName || "untitled", true);
+    return saveProjectFile(doc.fileName || "untitled", { usePicker: true });
   }
   const input = window.prompt(t("prompt.fileName"), doc.fileName || "untitled");
   if (input === null) return false;
-  return saveProjectFileAs(input.trim() || "untitled", false);
+  return saveProjectFile(input.trim() || "untitled", { usePicker: false });
 }
 
-async function saveProjectFileAs(name: string, usePicker: boolean): Promise<boolean> {
+async function saveProjectFile(name: string, options: { usePicker: boolean }): Promise<boolean> {
   const p = currentProject();
   if (!p) return false;
   // ピッカーで名前を変更された場合は、実際に保存されたファイル名を反映する
   // (タブ表示は拡張子なしのため、拡張子を除いて記録する)
-  const saved = await downloadProjectFile(name, usePicker);
+  const saved = await downloadProjectFile(name, options);
   if (!saved) return false;
   const displayName = stripFileExt(saved);
   doc.fileName = displayName;

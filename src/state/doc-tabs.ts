@@ -98,7 +98,7 @@ export function createDocTabs<D extends TabDocBase>(codec: DocCodec<D>) {
       if (!bytes) return false;
       // キャンセル時 (null) はファイル名を更新しない。ピッカーで変更された名前は反映する
       // (タブ表示は拡張子なしのため、拡張子を除いて記録する)
-      const saved = await downloadBytes(bytes, sanitizeFileName(name, ext), undefined, asNew);
+      const saved = await downloadBytes(bytes, { fileName: sanitizeFileName(name, ext), usePicker: asNew });
       if (!saved) return false;
       d.fileName = stripFileExt(saved);
       d.dirty = false;
