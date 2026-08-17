@@ -85,8 +85,8 @@ export function createDocTabs<D extends TabDocBase>(codec: DocCodec<D>) {
     },
 
     // タブをファイルとして保存 (asNew でファイル名入力を促す)。
-// 通常保存 (asNew=false) はダイアログを開かずダウンロードを発火し、
-// 名前を付けて保存 (asNew=true) は対応ブラウザでピッカーを開く
+    // 通常保存 (asNew=false) はダイアログを開かずダウンロードを発火し、
+    // 名前を付けて保存 (asNew=true) は対応ブラウザでピッカーを開く
     async save(d: D, asNew: boolean, ext: string): Promise<boolean> {
       let name = d.fileName || "untitled";
       if (asNew && !supportsSavePicker()) {
