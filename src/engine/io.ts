@@ -85,23 +85,21 @@ export function sanitizeFileName(name: string, ext: string): string {
   return (base || "untitled") + ext;
 }
 
-// ptcop のダウンロード発火 (保存)
-export function downloadProjectFile(fileName: string): Uint8Array | null {
+// ptcop の保存 (「名前を付けて保存」ピッカー / ダウンロード発火)
+export async function downloadProjectFile(fileName: string): Promise<boolean> {
   const bytes = exportBytes();
-  if (!bytes) return null;
-  downloadBytes(bytes, sanitizeFileName(fileName, ".ptcop"));
-  return bytes;
+  if (!bytes) return false;
+  return downloadBytes(bytes, sanitizeFileName(fileName, ".ptcop"));
 }
 
 // pttune 書き出し (bTune=true)
-export function exportPttune(bytes: Uint8Array, fileName: string): boolean {
+export async function exportPttune(bytes: Uint8Array, fileName: string): Promise<boolean> {
   const s = new Service();
   if (s.init() !== PxtnErr.OK) return false;
   if (s.read(new MemoryIo(bytes)) !== PxtnErr.OK) return false;
   const io = new MemoryIo();
   if (s.write(io, true, EXE_VER) !== PxtnErr.OK) return false;
-  downloadBytes(io.toUint8Array(), sanitizeFileName(fileName, ".pttune"));
-  return true;
+  return downloadBytes(io.toUint8Array(), sanitizeFileName(fileName, ".pttune"));
 }
 
 // WAV 書き出し (オフライン全曲レンダリング)
@@ -122,13 +120,17 @@ export async function exportWav(bytes: Uint8Array, fileName: string, sps = 44100
     s.Moo(pcm.subarray(pos * 2), n);
   }
   const wav = makeWav(pcm, sps, 2, 16);
-  downloadBytes(wav, sanitizeFileName(fileName, ".wav"), "audio/wav");
+  try {
+    await downloadBytes(wav, sanitizeFileName(fileName, ".wav"), "audio/wav");
+  } catch {
+    return t("error.save");
+  }
   return null;
 }
 
 // ノイズを WAV として書き出し (本家 ptNoise の .wave 保存相当)。
 // エラーメッセージを返す (成功時 null)
-export function exportNoiseWav(noise: Noise, fileName: string, sps = 44100): string | null {
+export async function exportNoiseWav(noise: Noise, fileName: string, sps = 44100): Promise<string | null> {
   const bldr = new NoiseBuilder();
   if (!bldr.init()) return t("error.engineInit");
   const pcm = bldr.buildNoise(noise, 2, sps, 16);
@@ -137,7 +139,11 @@ export function exportNoiseWav(noise: Noise, fileName: string, sps = 44100): str
   if (!buf) return t("error.noiseBuild");
   const s16 = new Int16Array(buf.buffer, buf.byteOffset, buf.byteLength >> 1);
   const wav = makeWav(s16, sps, 2, 16);
-  downloadBytes(wav, sanitizeFileName(fileName, ".wav"), "audio/wav");
+  try {
+    await downloadBytes(wav, sanitizeFileName(fileName, ".wav"), "audio/wav");
+  } catch {
+    return t("error.save");
+  }
   return null;
 }
 
@@ -159,7 +165,11 @@ export async function exportVoiceWav(
   const s16 = new Int16Array(pcm.length);
   for (let i = 0; i < pcm.length; i++) s16[i] = Math.round(pcm[i]! * 32767);
   const wav = makeWav(s16, sps, 2, 16);
-  downloadBytes(wav, sanitizeFileName(fileName, ".wav"), "audio/wav");
+  try {
+    await downloadBytes(wav, sanitizeFileName(fileName, ".wav"), "audio/wav");
+  } catch {
+    return t("error.save");
+  }
   return null;
 }
 

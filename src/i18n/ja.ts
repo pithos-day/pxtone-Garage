@@ -220,6 +220,7 @@ const ja = {
   "error.tooManyEvents": "イベント数が多すぎます",
   "error.noiseBuild": "ノイズのビルドに失敗しました",
   "error.midi": "MIDIファイルを読み込めませんでした",
+  "error.save": "保存に失敗しました",
 } as const;
 
 export default ja;
