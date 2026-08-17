@@ -85,7 +85,8 @@ export function createDocTabs<D extends TabDocBase>(codec: DocCodec<D>) {
     },
 
     // タブをファイルとして保存 (asNew でファイル名入力を促す)。
-// 対応ブラウザではピッカー側でファイル名を決めるため、事前の名前入力 (prompt) は行わない
+// 通常保存 (asNew=false) はダイアログを開かずダウンロードを発火し、
+// 名前を付けて保存 (asNew=true) は対応ブラウザでピッカーを開く
     async save(d: D, asNew: boolean, ext: string): Promise<boolean> {
       let name = d.fileName || "untitled";
       if (asNew && !supportsSavePicker()) {
@@ -97,7 +98,7 @@ export function createDocTabs<D extends TabDocBase>(codec: DocCodec<D>) {
       if (!bytes) return false;
       // キャンセル時 (null) はファイル名を更新しない。ピッカーで変更された名前は反映する
       // (タブ表示は拡張子なしのため、拡張子を除いて記録する)
-      const saved = await downloadBytes(bytes, sanitizeFileName(name, ext));
+      const saved = await downloadBytes(bytes, sanitizeFileName(name, ext), undefined, asNew);
       if (!saved) return false;
       d.fileName = stripFileExt(saved);
       d.dirty = false;

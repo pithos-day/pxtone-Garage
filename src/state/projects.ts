@@ -249,8 +249,9 @@ export function closeProject(id: number): void {
 }
 
 // 現在のプロジェクトを ptcop として保存 (ファイル名を確認せず既存名で)
+// 保存。通常保存はダイアログを開かず、従来どおりダウンロードを発火する
 export async function saveProject(): Promise<boolean> {
-  return saveProjectFileAs(doc.fileName || "untitled");
+  return saveProjectFileAs(doc.fileName || "untitled", false);
 }
 
 // 名前を付けて保存。
@@ -260,17 +261,17 @@ export async function saveProjectAs(): Promise<boolean> {
   if (!supportsSavePicker()) {
     const input = window.prompt(t("prompt.fileName"), doc.fileName || "untitled");
     if (input === null) return false;
-    return saveProjectFileAs(input.trim() || "untitled");
+    return saveProjectFileAs(input.trim() || "untitled", false);
   }
-  return saveProjectFileAs(doc.fileName || "untitled");
+  return saveProjectFileAs(doc.fileName || "untitled", true);
 }
 
-async function saveProjectFileAs(name: string): Promise<boolean> {
+async function saveProjectFileAs(name: string, usePicker: boolean): Promise<boolean> {
   const p = currentProject();
   if (!p) return false;
   // ピッカーで名前を変更された場合は、実際に保存されたファイル名を反映する
   // (タブ表示は拡張子なしのため、拡張子を除いて記録する)
-  const saved = await downloadProjectFile(name);
+  const saved = await downloadProjectFile(name, usePicker);
   if (!saved) return false;
   const displayName = stripFileExt(saved);
   doc.fileName = displayName;
