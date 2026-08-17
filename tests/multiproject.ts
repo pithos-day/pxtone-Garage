@@ -77,6 +77,7 @@ import { secToEnveX, pctToEnveY, pushHistoryEntry } from "../src/lib/noise";
 import { nearestPoint } from "../src/lib/voice-geometry";
 import { visibleClockWindow, iterVisibleRecords, iterNoteDraws, type NoteDraw } from "../src/lib/records";
 import { woiceSummary } from "../src/lib/woice";
+import { stripFileExt } from "../src/engine/io";
 import { MemoryIo, VoiceType, WaveType, EventKind, type EveRecord } from "pxtone-ts";
 import { Service, PxtnErr, PXTN_MAX_EVENT_NUM } from "pxtone-ts";
 import { defaultOggvDecoder } from "pxtone-ts";
@@ -1320,6 +1321,15 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     // Woice.decodeOggv で直接デコードできる
     checkEq(await w.decodeOggv(defaultOggvDecoder), PxtnErr.OK, "oggv: decodeOggv 成功");
     checkEq(w.isOggvDecoded(), true, "oggv: デコード済みになる");
+  }
+
+  // ---- 28. ファイル名ユーティリティ ----
+  {
+    checkEq(stripFileExt("song.ptcop"), "song", "fileutil: 拡張子を除去");
+    checkEq(stripFileExt("song.tar.gz"), "song.tar", "fileutil: 最後の拡張子のみ除去");
+    checkEq(stripFileExt("song"), "song", "fileutil: 拡張子なしはそのまま");
+    checkEq(stripFileExt(".hidden"), ".hidden", "fileutil: 先頭ドットは除去しない");
+    checkEq(stripFileExt("untitled."), "untitled", "fileutil: 末尾ドットも除去 (先頭以外の最後のドット以降)");
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);
