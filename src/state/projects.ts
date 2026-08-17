@@ -7,7 +7,7 @@ import { setService } from "./service";
 import { setUndoStacks, undoStack, redoStack, type UndoEntry } from "./undo";
 import { doc, sync, title, comment, ensureInit, pxtnErrorMessage } from "./project";
 import { resetLoaded } from "./player";
-import { downloadProjectFile } from "../engine/io";
+import { downloadProjectFile, supportsSavePicker } from "../engine/io";
 import { t } from "../i18n";
 
 export interface ProjectState {
@@ -253,19 +253,26 @@ export async function saveProject(): Promise<boolean> {
   return saveProjectFileAs(doc.fileName || "untitled");
 }
 
-// ファイル名入力を促して保存 (名前を付けて保存)
+// 名前を付けて保存。
+// 対応ブラウザではピッカー側でファイル名を決めるため、事前の名前入力 (prompt) は行わない。
+// 非対応ブラウザでは従来どおりファイル名入力を促す
 export async function saveProjectAs(): Promise<boolean> {
-  const input = window.prompt(t("prompt.fileName"), doc.fileName || "untitled");
-  if (input === null) return false;
-  return saveProjectFileAs(input.trim() || "untitled");
+  if (!supportsSavePicker()) {
+    const input = window.prompt(t("prompt.fileName"), doc.fileName || "untitled");
+    if (input === null) return false;
+    return saveProjectFileAs(input.trim() || "untitled");
+  }
+  return saveProjectFileAs(doc.fileName || "untitled");
 }
 
 async function saveProjectFileAs(name: string): Promise<boolean> {
   const p = currentProject();
   if (!p) return false;
-  if (!(await downloadProjectFile(name))) return false;
-  doc.fileName = name;
-  p.fileName = name;
+  // ピッカーで名前を変更された場合は、実際に保存されたファイル名を反映する
+  const saved = await downloadProjectFile(name);
+  if (!saved) return false;
+  doc.fileName = saved;
+  p.fileName = saved;
   doc.dirty = false;
   p.dirty = false;
   return true;

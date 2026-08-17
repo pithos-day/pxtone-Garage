@@ -3,7 +3,7 @@
 // voice.ts / noise.ts は実体の読み書き (codec) とタブ生成だけを提供する。
 // (本家と同じく、この層はコラージュの projects.ts とはタブ管理方式が異なる)
 import { ref, type Ref } from "vue";
-import { downloadBytes, sanitizeFileName } from "../engine/io";
+import { downloadBytes, sanitizeFileName, supportsSavePicker } from "../engine/io";
 import { t } from "../i18n";
 
 const MAX_UNDO = 100;
@@ -84,19 +84,21 @@ export function createDocTabs<D extends TabDocBase>(codec: DocCodec<D>) {
       return true;
     },
 
-    // タブをファイルとして保存 (asNew でファイル名入力を促す)
+    // タブをファイルとして保存 (asNew でファイル名入力を促す)。
+// 対応ブラウザではピッカー側でファイル名を決めるため、事前の名前入力 (prompt) は行わない
     async save(d: D, asNew: boolean, ext: string): Promise<boolean> {
       let name = d.fileName || "untitled";
-      if (asNew) {
+      if (asNew && !supportsSavePicker()) {
         const input = window.prompt(t("prompt.fileName"), name);
         if (input === null) return false;
         name = input.trim() || "untitled";
       }
       const bytes = codec.snapshot(d);
       if (!bytes) return false;
-      // キャンセル時 (false) はファイル名を更新しない
-      if (!(await downloadBytes(bytes, sanitizeFileName(name, ext)))) return false;
-      d.fileName = name;
+      // キャンセル時 (null) はファイル名を更新しない。ピッカーで変更された名前は反映する
+      const saved = await downloadBytes(bytes, sanitizeFileName(name, ext));
+      if (!saved) return false;
+      d.fileName = saved;
       d.dirty = false;
       return true;
     },
