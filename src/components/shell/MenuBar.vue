@@ -213,8 +213,13 @@ const fileMenu = computed<MenuItem[]>(() => {
               { label: t("menu.file.importMidiSplit"), action: () => onImportMidi(true) },
             ],
           },
-          { label: t("menu.file.exportPttune"), action: onExportPttune },
-          { label: t("menu.file.exportWav"), action: onExportWav },
+          {
+            label: t("menu.file.export"),
+            sub: [
+              { label: t("menu.file.exportPttune"), action: onExportPttune },
+              { label: t("menu.file.exportWav"), action: onExportWav },
+            ],
+          },
           { sep: true },
           { label: t("menu.file.project"), action: () => emit("project") },
           { label: t("menu.file.settings"), action: () => emit("settings") },

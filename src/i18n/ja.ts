@@ -21,6 +21,7 @@ const ja = {
   "menu.file.importMidiSplit": "和音を別ユニットに分割",
   "menu.file.save": "保存",
   "menu.file.saveAs": "別名で保存...",
+  "menu.file.export": "書き出し",
   "menu.file.exportPttune": "書き出し (.pttune)",
   "menu.file.exportWav": "書き出し (WAV)...",
   "menu.file.project": "Project...",
