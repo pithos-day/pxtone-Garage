@@ -11,8 +11,35 @@ export function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
-export function downloadBytes(bytes: Uint8Array, fileName: string, mime = "application/octet-stream"): void {
+// ファイルを保存する。対応ブラウザ (Chromium 系) では「名前を付けて保存」ピッカーを開き、
+// 非対応ブラウザでは従来どおりダウンロードを発火する。
+// 保存が完了したら true、ユーザーがキャンセルしたら false を返す (書き込み失敗は throw)
+export async function downloadBytes(
+  bytes: Uint8Array,
+  fileName: string,
+  mime = "application/octet-stream",
+): Promise<boolean> {
   const buf = toArrayBuffer(bytes);
+  if (typeof window.showSaveFilePicker === "function") {
+    // File System Access API — 保存先・ファイル名をユーザーが選択して書き込む
+    const dot = fileName.lastIndexOf(".");
+    const ext = dot > 0 ? fileName.slice(dot) : "";
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: fileName,
+        types: [{ description: fileName, accept: { [mime]: [ext] } }],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(buf);
+      await writable.close();
+      return true;
+    } catch (e) {
+      // キャンセル (AbortError) は「保存しなかった」として扱う
+      if (e instanceof DOMException && e.name === "AbortError") return false;
+      throw e;
+    }
+  }
+  // フォールバック: 従来どおりダウンロード発火
   const blob = new Blob([buf], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -22,6 +49,7 @@ export function downloadBytes(bytes: Uint8Array, fileName: string, mime = "appli
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return true;
 }
 
 export interface OpenedFile {
