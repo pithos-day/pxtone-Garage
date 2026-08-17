@@ -248,8 +248,7 @@ export function closeProject(id: number): void {
   }
 }
 
-// 現在のプロジェクトを ptcop として保存 (ファイル名を確認せず既存名で)
-// 保存。通常保存はダイアログを開かず、従来どおりダウンロードを発火する
+// 通常保存: ダイアログを開かず従来どおりダウンロードを発火する
 export async function saveProject(): Promise<boolean> {
   return saveProjectFileAs(doc.fileName || "untitled", false);
 }
@@ -258,12 +257,12 @@ export async function saveProject(): Promise<boolean> {
 // 対応ブラウザではピッカー側でファイル名を決めるため、事前の名前入力 (prompt) は行わない。
 // 非対応ブラウザでは従来どおりファイル名入力を促す
 export async function saveProjectAs(): Promise<boolean> {
-  if (!supportsSavePicker()) {
-    const input = window.prompt(t("prompt.fileName"), doc.fileName || "untitled");
-    if (input === null) return false;
-    return saveProjectFileAs(input.trim() || "untitled", false);
+  if (supportsSavePicker()) {
+    return saveProjectFileAs(doc.fileName || "untitled", true);
   }
-  return saveProjectFileAs(doc.fileName || "untitled", true);
+  const input = window.prompt(t("prompt.fileName"), doc.fileName || "untitled");
+  if (input === null) return false;
+  return saveProjectFileAs(input.trim() || "untitled", false);
 }
 
 async function saveProjectFileAs(name: string, usePicker: boolean): Promise<boolean> {
