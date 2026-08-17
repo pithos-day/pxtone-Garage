@@ -5,6 +5,7 @@
 // Coordinate では n 番目の点の y 座標表示として常時表示)、下にエンベロープ。
 // エンベロープは本家 ptuiEnvelope 準拠の「区間長 x + 累積描画」。
 import { computed, ref, watch } from "vue";
+import { Volume2, ArrowLeftRight, Gauge, TrendingDown } from "@lucide/vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { useEditRev } from "../../composables/useEditRev";
 import { useUndoOnce } from "../../composables/useUndo";
@@ -471,22 +472,22 @@ function canvasRect(ref: { value: HTMLCanvasElement | null }): { el: HTMLCanvasE
     </div>
     <div class="vsp-params">
       <div class="vsp-param">
-        <span class="vsp-plabel" :title="t('voice.volume')">V</span>
+        <span class="vsp-plabel" :title="t('voice.volume')"><Volume2 :size="12" /></span>
         <input type="range" class="vsp-prange" min="0" max="64" step="1" v-model.number="volumeModel" @contextmenu.prevent="resetVolume" />
         <span class="vsp-pval">{{ volumeModel }}</span>
       </div>
       <div class="vsp-param">
-        <span class="vsp-plabel" :title="t('voice.pan')">P</span>
+        <span class="vsp-plabel" :title="t('voice.pan')"><ArrowLeftRight :size="12" /></span>
         <input type="range" class="vsp-prange" min="0" max="128" step="1" v-model.number="panModel" @contextmenu.prevent="resetPan" />
         <span class="vsp-pval">{{ panModel }}</span>
       </div>
       <div class="vsp-param">
-        <span class="vsp-plabel" :title="t('voice.correct')">C</span>
+        <span class="vsp-plabel" :title="t('voice.correct')"><Gauge :size="12" /></span>
         <input type="range" class="vsp-prange" min="-128" max="128" step="1" v-model.number="correctModel" @contextmenu.prevent="resetCorrect" />
         <span class="vsp-pval">{{ correctModel }}</span>
       </div>
       <div class="vsp-param">
-        <span class="vsp-plabel" :title="t('voice.release')">R</span>
+        <span class="vsp-plabel" :title="t('voice.release')"><TrendingDown :size="12" /></span>
         <input type="range" class="vsp-prange" min="0" max="100" step="1" v-model.number="releaseModel" @contextmenu.prevent="resetRelease" />
         <span class="vsp-pval">{{ releaseModel }}</span>
       </div>
@@ -587,9 +588,11 @@ function canvasRect(ref: { value: HTMLCanvasElement | null }): { el: HTMLCanvasE
 }
 
 .vsp-plabel {
-  width: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
   flex: none;
-  font-weight: bold;
   color: var(--foreground);
 }
 
