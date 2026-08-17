@@ -16,17 +16,18 @@ export function supportsSavePicker(): boolean {
   return typeof window.showSaveFilePicker === "function";
 }
 
-// ファイルを保存する。対応ブラウザ (Chromium 系) では「名前を付けて保存」ピッカーを開き、
-// 非対応ブラウザでは従来どおりダウンロードを発火する。
+// ファイルを保存する。usePicker=true かつ対応ブラウザ (Chromium 系) では
+// 「名前を付けて保存」ピッカーを開き、それ以外は従来どおりダウンロードを発火する。
 // 保存が完了したら実際のファイル名、ユーザーがキャンセルしたら null を返す (書き込み失敗は throw)。
 // ピッカーではファイル名を変更できるため、呼び出し側は戻り値で保存後の名前を把握できる
 export async function downloadBytes(
   bytes: Uint8Array,
   fileName: string,
   mime = "application/octet-stream",
+  usePicker = true,
 ): Promise<string | null> {
   const buf = toArrayBuffer(bytes);
-  if (supportsSavePicker()) {
+  if (usePicker && supportsSavePicker()) {
     // File System Access API — 保存先・ファイル名をユーザーが選択して書き込む
     const dot = fileName.lastIndexOf(".");
     const ext = dot > 0 ? fileName.slice(dot) : "";
@@ -100,10 +101,10 @@ export function stripFileExt(name: string): string {
 
 // ptcop の保存 (「名前を付けて保存」ピッカー / ダウンロード発火)。
 // 保存したファイル名を返す (キャンセル・失敗時 null)
-export async function downloadProjectFile(fileName: string): Promise<string | null> {
+export async function downloadProjectFile(fileName: string, usePicker = true): Promise<string | null> {
   const bytes = exportBytes();
   if (!bytes) return null;
-  return downloadBytes(bytes, sanitizeFileName(fileName, ".ptcop"));
+  return downloadBytes(bytes, sanitizeFileName(fileName, ".ptcop"), undefined, usePicker);
 }
 
 // pttune 書き出し (bTune=true)。保存したファイル名を返す (キャンセル・失敗時 null)
