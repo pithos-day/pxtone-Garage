@@ -20,6 +20,9 @@ importers:
       '@fontsource/zen-maru-gothic':
         specifier: ^5.3.0
         version: 5.3.0
+      '@lucide/vue':
+        specifier: ^1.31.0
+        version: 1.31.0(vue@3.5.40(typescript@6.0.3))
       pxtone-ts:
         specifier: https://codeberg.org/pithos/pxtone-ts.git
         version: git+https://codeberg.org/pithos/pxtone-ts.git#7102c1ad08e77a24fff2cadfdefeeedb81351f57
@@ -241,6 +244,11 @@ packages:
 
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
+
+  '@lucide/vue@1.31.0':
+    resolution: {integrity: sha512-NtjEHhcAa7umPh40wrRmlESJqNGdnpc7LziBKFnW3fmlrW0g2xMCDpdWU7WeEHRSl3xOpxbqiFTLKxoK3CoVCg==}
+    peerDependencies:
+      vue: '>=3.0.1'
 
   '@oxc-project/types@0.142.0':
     resolution: {integrity: sha512-7W+2q5AKQVU36fkaryontrHn3YDt1RyUYXatw9i5H8ocYe2sPKSFB6eS8WNPeRKiN1qAWWZUPm7gwFzJGrccqQ==}
@@ -734,6 +742,10 @@ snapshots:
   '@fontsource/zen-maru-gothic@5.3.0': {}
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
+
+  '@lucide/vue@1.31.0(vue@3.5.40(typescript@6.0.3))':
+    dependencies:
+      vue: 3.5.40(typescript@6.0.3)
 
   '@oxc-project/types@0.142.0': {}
 
