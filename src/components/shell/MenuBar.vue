@@ -63,6 +63,11 @@ function onNew(): void {
   newProjectInTab();
 }
 
+// 保存系アクション: 書き込み失敗時だけエラー表示 (キャンセルは何もしない)
+function runSave(p: Promise<unknown>): void {
+  void p.catch(() => window.alert(t("error.save")));
+}
+
 function onOpen(): void {
   void openFileDialog(".ptcop,.pttune").then((file) => {
     if (!file) return;
@@ -73,7 +78,7 @@ function onOpen(): void {
 
 function onExportPttune(): void {
   const bytes = exportBytes();
-  if (bytes) exportPttune(bytes, doc.fileName || "untitled");
+  if (bytes) runSave(exportPttune(bytes, doc.fileName || "untitled"));
 }
 
 // MIDI ファイルを選択して ptcop として読み込む (split = 和音を別ユニットに分割)
@@ -150,8 +155,9 @@ function onExportVoiceWav(): void {
 function onExportNoiseWav(): void {
   const d = currentNoise();
   if (!d) return;
-  const err = exportNoiseWav(d.noise, d.fileName || "untitled");
-  if (err) window.alert(err);
+  void exportNoiseWav(d.noise, d.fileName || "untitled").then((err) => {
+    if (err) window.alert(err);
+  });
 }
 
 // ---- モード別メニュー ----
@@ -163,8 +169,8 @@ const modeOps: Record<AppMode, ModeMenuOps> = {
   collage: {
     new: onNew,
     open: onOpen,
-    save: () => saveProject(),
-    saveAs: () => saveProjectAs(),
+    save: () => runSave(saveProject()),
+    saveAs: () => runSave(saveProjectAs()),
     close: onClose,
     undo,
     redo,
@@ -174,8 +180,8 @@ const modeOps: Record<AppMode, ModeMenuOps> = {
   voice: {
     new: () => newVoice(),
     open: onOpenVoice,
-    save: () => saveVoice(false),
-    saveAs: () => saveVoice(true),
+    save: () => runSave(saveVoice(false)),
+    saveAs: () => runSave(saveVoice(true)),
     close: onCloseVoice,
     undo: undoVoice,
     redo: redoVoice,
@@ -185,8 +191,8 @@ const modeOps: Record<AppMode, ModeMenuOps> = {
   noise: {
     new: () => newNoise(),
     open: onOpenNoise,
-    save: () => saveNoise(false),
-    saveAs: () => saveNoise(true),
+    save: () => runSave(saveNoise(false)),
+    saveAs: () => runSave(saveNoise(true)),
     close: onCloseNoise,
     undo: undoNoise,
     redo: redoNoise,
