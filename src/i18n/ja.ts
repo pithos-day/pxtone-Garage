@@ -97,10 +97,6 @@ const ja = {
 
   // ユニット一覧
   "unit.title": "ユニット",
-  "unit.headerPlay": "再生",
-  "unit.headerShow": "表示",
-  "unit.headerPin": "ピン",
-  "unit.headerSolo": "ソロ",
   "unit.headerName": "名前",
   "unit.show": "表示 (ピアノロール)",
   "unit.play": "再生",

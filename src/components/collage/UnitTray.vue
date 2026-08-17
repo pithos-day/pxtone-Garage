@@ -3,6 +3,7 @@
 // 列ヘッダー付きで、ユニット名の下には割り当て音色名を表示する。
 <script setup lang="ts">
 import { ref } from "vue";
+import { Play, Eye, Pin, Headphones } from "@lucide/vue";
 import {
   doc,
   units,
@@ -163,10 +164,10 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
     </div>
     <div class="unit-header bar-header">
       <span class="unit-header-checks">
-        <span :title="t('unit.play')">{{ t("unit.headerPlay") }}</span>
-        <span :title="t('unit.show')">{{ t("unit.headerShow") }}</span>
-        <span :title="t('unit.pin')">{{ t("unit.headerPin") }}</span>
-        <span :title="t('unit.solo')">{{ t("unit.headerSolo") }}</span>
+        <span :title="t('unit.play')"><Play :size="12" /></span>
+        <span :title="t('unit.show')"><Eye :size="12" /></span>
+        <span :title="t('unit.pin')"><Pin :size="12" /></span>
+        <span :title="t('unit.solo')"><Headphones :size="12" /></span>
       </span>
       <span class="unit-header-name">{{ t("unit.headerName") }}</span>
     </div>
@@ -258,10 +259,10 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
 }
 
 .unit-header-checks span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 16px;
-  text-align: center;
-  overflow: hidden;
-  white-space: nowrap;
 }
 
 .unit-header-name {
