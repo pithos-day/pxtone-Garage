@@ -3,7 +3,7 @@
 // 列ヘッダー付きで、ユニット名の下には割り当て音色名を表示する。
 <script setup lang="ts">
 import { ref } from "vue";
-import { Play, Eye, Pin, Headphones } from "@lucide/vue";
+import { Eye, Pin, Headphones } from "@lucide/vue";
 import {
   doc,
   units,
@@ -164,10 +164,10 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
     </div>
     <div class="unit-header bar-header">
       <span class="unit-header-checks">
-        <span :title="t('unit.play')"><Play :size="12" /></span>
+        <span :title="t('unit.play')"><Headphones :size="12" /></span>
         <span :title="t('unit.show')"><Eye :size="12" /></span>
         <span :title="t('unit.pin')"><Pin :size="12" /></span>
-        <span :title="t('unit.solo')"><Headphones :size="12" /></span>
+        <span :title="t('unit.solo')">S</span>
       </span>
       <span class="unit-header-name">{{ t("unit.headerName") }}</span>
     </div>
