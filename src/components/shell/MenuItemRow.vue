@@ -73,7 +73,6 @@ const emit = defineEmits<{
 
 .menu-arrow {
   margin-left: 10px;
-  color: var(--muted-foreground);
   font-size: var(--text-xs);
 }
 
