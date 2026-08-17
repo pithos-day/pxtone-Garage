@@ -11,16 +11,22 @@ export function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
+// 「名前を付けて保存」ピッカー (File System Access API, Chromium 系のみ) が使えるか
+export function supportsSavePicker(): boolean {
+  return typeof window.showSaveFilePicker === "function";
+}
+
 // ファイルを保存する。対応ブラウザ (Chromium 系) では「名前を付けて保存」ピッカーを開き、
 // 非対応ブラウザでは従来どおりダウンロードを発火する。
-// 保存が完了したら true、ユーザーがキャンセルしたら false を返す (書き込み失敗は throw)
+// 保存が完了したら実際のファイル名、ユーザーがキャンセルしたら null を返す (書き込み失敗は throw)。
+// ピッカーではファイル名を変更できるため、呼び出し側は戻り値で保存後の名前を把握できる
 export async function downloadBytes(
   bytes: Uint8Array,
   fileName: string,
   mime = "application/octet-stream",
-): Promise<boolean> {
+): Promise<string | null> {
   const buf = toArrayBuffer(bytes);
-  if (typeof window.showSaveFilePicker === "function") {
+  if (supportsSavePicker()) {
     // File System Access API — 保存先・ファイル名をユーザーが選択して書き込む
     const dot = fileName.lastIndexOf(".");
     const ext = dot > 0 ? fileName.slice(dot) : "";
@@ -32,10 +38,10 @@ export async function downloadBytes(
       const writable = await handle.createWritable();
       await writable.write(buf);
       await writable.close();
-      return true;
+      return handle.name;
     } catch (e) {
       // キャンセル (AbortError) は「保存しなかった」として扱う
-      if (e instanceof DOMException && e.name === "AbortError") return false;
+      if (e instanceof DOMException && e.name === "AbortError") return null;
       throw e;
     }
   }
@@ -49,7 +55,7 @@ export async function downloadBytes(
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-  return true;
+  return fileName;
 }
 
 export interface OpenedFile {
@@ -85,20 +91,21 @@ export function sanitizeFileName(name: string, ext: string): string {
   return (base || "untitled") + ext;
 }
 
-// ptcop の保存 (「名前を付けて保存」ピッカー / ダウンロード発火)
-export async function downloadProjectFile(fileName: string): Promise<boolean> {
+// ptcop の保存 (「名前を付けて保存」ピッカー / ダウンロード発火)。
+// 保存したファイル名を返す (キャンセル・失敗時 null)
+export async function downloadProjectFile(fileName: string): Promise<string | null> {
   const bytes = exportBytes();
-  if (!bytes) return false;
+  if (!bytes) return null;
   return downloadBytes(bytes, sanitizeFileName(fileName, ".ptcop"));
 }
 
-// pttune 書き出し (bTune=true)
-export async function exportPttune(bytes: Uint8Array, fileName: string): Promise<boolean> {
+// pttune 書き出し (bTune=true)。保存したファイル名を返す (キャンセル・失敗時 null)
+export async function exportPttune(bytes: Uint8Array, fileName: string): Promise<string | null> {
   const s = new Service();
-  if (s.init() !== PxtnErr.OK) return false;
-  if (s.read(new MemoryIo(bytes)) !== PxtnErr.OK) return false;
+  if (s.init() !== PxtnErr.OK) return null;
+  if (s.read(new MemoryIo(bytes)) !== PxtnErr.OK) return null;
   const io = new MemoryIo();
-  if (s.write(io, true, EXE_VER) !== PxtnErr.OK) return false;
+  if (s.write(io, true, EXE_VER) !== PxtnErr.OK) return null;
   return downloadBytes(io.toUint8Array(), sanitizeFileName(fileName, ".pttune"));
 }
 
