@@ -7,7 +7,7 @@ import { setService } from "./service";
 import { setUndoStacks, undoStack, redoStack, type UndoEntry } from "./undo";
 import { doc, sync, title, comment, ensureInit, pxtnErrorMessage } from "./project";
 import { resetLoaded } from "./player";
-import { downloadProjectFile, supportsSavePicker } from "../engine/io";
+import { downloadProjectFile, supportsSavePicker, stripFileExt } from "../engine/io";
 import { t } from "../i18n";
 
 export interface ProjectState {
@@ -269,10 +269,12 @@ async function saveProjectFileAs(name: string): Promise<boolean> {
   const p = currentProject();
   if (!p) return false;
   // ピッカーで名前を変更された場合は、実際に保存されたファイル名を反映する
+  // (タブ表示は拡張子なしのため、拡張子を除いて記録する)
   const saved = await downloadProjectFile(name);
   if (!saved) return false;
-  doc.fileName = saved;
-  p.fileName = saved;
+  const displayName = stripFileExt(saved);
+  doc.fileName = displayName;
+  p.fileName = displayName;
   doc.dirty = false;
   p.dirty = false;
   return true;

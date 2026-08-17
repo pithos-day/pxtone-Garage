@@ -3,7 +3,7 @@
 // voice.ts / noise.ts は実体の読み書き (codec) とタブ生成だけを提供する。
 // (本家と同じく、この層はコラージュの projects.ts とはタブ管理方式が異なる)
 import { ref, type Ref } from "vue";
-import { downloadBytes, sanitizeFileName, supportsSavePicker } from "../engine/io";
+import { downloadBytes, sanitizeFileName, stripFileExt, supportsSavePicker } from "../engine/io";
 import { t } from "../i18n";
 
 const MAX_UNDO = 100;
@@ -96,9 +96,10 @@ export function createDocTabs<D extends TabDocBase>(codec: DocCodec<D>) {
       const bytes = codec.snapshot(d);
       if (!bytes) return false;
       // キャンセル時 (null) はファイル名を更新しない。ピッカーで変更された名前は反映する
+      // (タブ表示は拡張子なしのため、拡張子を除いて記録する)
       const saved = await downloadBytes(bytes, sanitizeFileName(name, ext));
       if (!saved) return false;
-      d.fileName = saved;
+      d.fileName = stripFileExt(saved);
       d.dirty = false;
       return true;
     },

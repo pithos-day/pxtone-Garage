@@ -91,6 +91,13 @@ export function sanitizeFileName(name: string, ext: string): string {
   return (base || "untitled") + ext;
 }
 
+// ファイル名から拡張子を除いた表示用ファイル名を返す (例 "song.ptcop" → "song")。
+// 保存ピッカーで変更された実際のファイル名をタブ表示用に戻すために使う
+export function stripFileExt(name: string): string {
+  const dot = name.lastIndexOf(".");
+  return dot > 0 ? name.slice(0, dot) : name;
+}
+
 // ptcop の保存 (「名前を付けて保存」ピッカー / ダウンロード発火)。
 // 保存したファイル名を返す (キャンセル・失敗時 null)
 export async function downloadProjectFile(fileName: string): Promise<string | null> {
