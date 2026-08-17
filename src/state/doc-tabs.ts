@@ -85,7 +85,7 @@ export function createDocTabs<D extends TabDocBase>(codec: DocCodec<D>) {
     },
 
     // タブをファイルとして保存 (asNew でファイル名入力を促す)
-    save(d: D, asNew: boolean, ext: string): boolean {
+    async save(d: D, asNew: boolean, ext: string): Promise<boolean> {
       let name = d.fileName || "untitled";
       if (asNew) {
         const input = window.prompt(t("prompt.fileName"), name);
@@ -94,7 +94,8 @@ export function createDocTabs<D extends TabDocBase>(codec: DocCodec<D>) {
       }
       const bytes = codec.snapshot(d);
       if (!bytes) return false;
-      downloadBytes(bytes, sanitizeFileName(name, ext));
+      // キャンセル時 (false) はファイル名を更新しない
+      if (!(await downloadBytes(bytes, sanitizeFileName(name, ext)))) return false;
       d.fileName = name;
       d.dirty = false;
       return true;

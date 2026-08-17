@@ -400,7 +400,7 @@ export function switchVoice(id: number): void {
 }
 
 // 現在の音声を .ptvoice として保存 (asNew でファイル名入力を促す)
-export function saveVoice(asNew: boolean): boolean {
+export async function saveVoice(asNew: boolean): Promise<boolean> {
   const v = currentVoice();
   if (!v) return false;
   return tabs.save(v, asNew, ".ptvoice");

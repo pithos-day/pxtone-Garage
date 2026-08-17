@@ -91,7 +91,7 @@ export function switchNoise(id: number): void {
 }
 
 // 現在のノイズを .ptnoise として保存 (asNew でファイル名入力を促す)
-export function saveNoise(asNew: boolean): boolean {
+export async function saveNoise(asNew: boolean): Promise<boolean> {
   const d = currentNoise();
   if (!d) return false;
   return tabs.save(d, asNew, ".ptnoise");

@@ -249,21 +249,21 @@ export function closeProject(id: number): void {
 }
 
 // 現在のプロジェクトを ptcop として保存 (ファイル名を確認せず既存名で)
-export function saveProject(): boolean {
+export async function saveProject(): Promise<boolean> {
   return saveProjectFileAs(doc.fileName || "untitled");
 }
 
 // ファイル名入力を促して保存 (名前を付けて保存)
-export function saveProjectAs(): boolean {
+export async function saveProjectAs(): Promise<boolean> {
   const input = window.prompt(t("prompt.fileName"), doc.fileName || "untitled");
   if (input === null) return false;
   return saveProjectFileAs(input.trim() || "untitled");
 }
 
-function saveProjectFileAs(name: string): boolean {
+async function saveProjectFileAs(name: string): Promise<boolean> {
   const p = currentProject();
   if (!p) return false;
-  if (!downloadProjectFile(name)) return false;
+  if (!(await downloadProjectFile(name))) return false;
   doc.fileName = name;
   p.fileName = name;
   doc.dirty = false;
