@@ -158,8 +158,8 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
     <div class="tray-title bar-header">
       {{ t("unit.title") }} ({{ units.length }})
       <span class="tray-tools">
-        <button class="btn btn-sm" :class="{ on: doc.tool === 'pen' }" :title="t('unit.pen')" @click="doc.tool = 'pen'"><Pencil :size="12" /></button>
-        <button class="btn btn-sm" :class="{ on: doc.tool === 'hand' }" :title="t('unit.hand')" @click="doc.tool = 'hand'"><Pointer :size="12" /></button>
+        <button class="btn btn-sm" :class="{ on: doc.tool === 'pen' }" :title="t('unit.pen')" @click="doc.tool = 'pen'"><Pencil :size="14" /></button>
+        <button class="btn btn-sm" :class="{ on: doc.tool === 'hand' }" :title="t('unit.hand')" @click="doc.tool = 'hand'"><Pointer :size="14" /></button>
       </span>
     </div>
     <div class="unit-header bar-header">
