@@ -3,6 +3,7 @@
 // 右: モード別ドロップダウンメニュー (collage = File/Edit/View、voice/noise = File)
 <script setup lang="ts">
 import { computed } from "vue";
+import { FileUp, FileDown, Music, ListMusic, FileMusic, AudioLines, SlidersHorizontal, Settings, SquareStack, CircleGauge, Copy } from "@lucide/vue";
 import { doc, setAllUnitsVisible, exportBytes } from "../../state/project";
 import {
   newProjectInTab,
@@ -203,38 +204,41 @@ const modeOps: Record<AppMode, ModeMenuOps> = {
 
 const fileMenu = computed<MenuItem[]>(() => {
   const ops = modeOps[mode.value];
-  const extra: MenuItem[] =
+const extra: MenuItem[] =
     mode.value === "collage"
       ? [
           {
             label: t("menu.file.importMidi"),
+            icon: FileUp,
             sub: [
-              { label: t("menu.file.importMidiNormal"), action: () => onImportMidi(false) },
-              { label: t("menu.file.importMidiSplit"), action: () => onImportMidi(true) },
+              { label: t("menu.file.importMidiNormal"), icon: Music, action: () => onImportMidi(false) },
+              { label: t("menu.file.importMidiSplit"), icon: ListMusic, action: () => onImportMidi(true) },
             ],
           },
           {
             label: t("menu.file.export"),
+            icon: FileDown,
             sub: [
-              { label: t("menu.file.exportPttune"), action: onExportPttune },
-              { label: t("menu.file.exportWav"), action: onExportWav },
+              { label: t("menu.file.exportPttune"), icon: FileMusic, action: onExportPttune },
+              { label: t("menu.file.exportWav"), icon: AudioLines, action: onExportWav },
             ],
           },
           { sep: true },
-          { label: t("menu.file.project"), action: () => emit("project") },
-          { label: t("menu.file.settings"), action: () => emit("settings") },
+          { label: t("menu.file.project"), icon: SlidersHorizontal, action: () => emit("project") },
+          { label: t("menu.file.settings"), icon: Settings, action: () => emit("settings") },
           { sep: true },
         ]
       : [
           // voice: 現在の音色を単音レンダリングして WAV 化 / noise: 現在のノイズを WAV 化。
           // ファイル未オープン (タブ0件) では書き出せないため disabled
           {
-            label: t("menu.file.export"),
+            label: t("menu.file.exportWav"),
+            icon: AudioLines,
             action: mode.value === "voice" ? onExportVoiceWav : onExportNoiseWav,
             disabled: mode.value === "voice" ? !currentVoice() : !currentNoise(),
           },
           { sep: true },
-          { label: t("menu.file.settings"), action: () => emit("settings") },
+          { label: t("menu.file.settings"), icon: Settings, action: () => emit("settings") },
           { sep: true },
         ];
   return buildFileMenu(ops, extra);
@@ -246,18 +250,17 @@ const editMenu = computed<MenuItem[]>(() => {
     mode.value === "voice"
       ? [
           { sep: true },
-          { label: t("menu.edit.copyAtoB"), action: () => emit("voiceCopyAB") },
-          { label: t("menu.edit.copyBtoA"), action: () => emit("voiceCopyBA") },
+          { label: t("menu.edit.copyAtoB"), icon: Copy, action: () => emit("voiceCopyAB") },
+          { label: t("menu.edit.copyBtoA"), icon: Copy, action: () => emit("voiceCopyBA") },
         ]
       : mode.value === "collage"
         ? [
             { sep: true },
-            { label: t("menu.edit.copyMeas"), action: () => emit("copyMeas") },
-            { sep: true },
-            { label: t("menu.edit.velocity"), action: () => emit("eventVolume", "velocity") },
-            { label: t("menu.edit.pantime"), action: () => emit("eventVolume", "pantime") },
-            { label: t("menu.edit.panvolume"), action: () => emit("eventVolume", "panvolume") },
-            { label: t("menu.edit.volume"), action: () => emit("eventVolume", "volume") },
+            { label: t("menu.edit.copyMeas"), icon: SquareStack, action: () => emit("copyMeas") },
+            { label: t("menu.edit.velocity"), icon: CircleGauge, action: () => emit("eventVolume", "velocity") },
+            { label: t("menu.edit.pantime"), icon: CircleGauge, action: () => emit("eventVolume", "pantime") },
+            { label: t("menu.edit.panvolume"), icon: CircleGauge, action: () => emit("eventVolume", "panvolume") },
+            { label: t("menu.edit.volume"), icon: CircleGauge, action: () => emit("eventVolume", "volume") },
           ]
         : [];
   return buildEditMenu(ops, extra);

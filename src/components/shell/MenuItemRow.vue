@@ -19,7 +19,10 @@ const emit = defineEmits<{
     @click="emit('select', item)"
     @mouseenter="emit('hover')"
   >
-    <span class="menu-check">{{ item.checked ? "✓" : "" }}</span>
+    <span class="menu-check">
+      <template v-if="item.checked">✓</template>
+      <component v-else-if="item.icon" :is="item.icon" :size="14" />
+    </span>
     <span class="menu-text">{{ item.label }}</span>
     <span v-if="item.sub" class="menu-arrow">▸</span>
     <div v-if="item.sub && subOpen" class="menu-sub popup">
@@ -61,6 +64,9 @@ const emit = defineEmits<{
 }
 
 .menu-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 16px;
   color: var(--primary);
   font-size: var(--text-sm);

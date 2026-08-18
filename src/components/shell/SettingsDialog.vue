@@ -2,6 +2,7 @@
 // テーマ (リストボックス + インポート)・ライト/ダーク・言語・フォントを設定する。
 <script setup lang="ts">
 import { ref } from "vue";
+import { Sun, Moon } from "@lucide/vue";
 import {
   BUILTIN_THEMES,
   theme,
@@ -62,11 +63,11 @@ async function onLoadLocalFonts(): Promise<void> {
       <div class="radios">
         <label class="radio-item">
           <input type="radio" name="settings-dark" :checked="!theme.dark" @change="setDark(false)" />
-          {{ t("settings.light") }}
+          <Sun :size="14" /> {{ t("settings.light") }}
         </label>
         <label class="radio-item">
           <input type="radio" name="settings-dark" :checked="theme.dark" @change="setDark(true)" />
-          {{ t("settings.dark") }}
+          <Moon :size="14" /> {{ t("settings.dark") }}
         </label>
       </div>
     </div>
