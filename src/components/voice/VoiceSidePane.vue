@@ -5,7 +5,7 @@
 // Coordinate では n 番目の点の y 座標表示として常時表示)、下にエンベロープ。
 // エンベロープは本家 ptuiEnvelope 準拠の「区間長 x + 累積描画」。
 import { computed, ref, watch } from "vue";
-import { Volume2, ArrowLeftRight, CircleGauge, SlidersVertical, MoveDownRight } from "@lucide/vue";
+import { Volume2, CircleGauge, SlidersVertical, MoveDownRight } from "@lucide/vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { useEditRev } from "../../composables/useEditRev";
 import { useUndoOnce } from "../../composables/useUndo";
