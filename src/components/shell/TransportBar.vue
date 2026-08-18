@@ -1,6 +1,7 @@
 // 再生コントロールバー。Player パネルから移設した再生・停止・リピート・音量・位置表示と、
 // Effector/Copier パネルのトグル (右揃え)。
 <script setup lang="ts">
+import { Play, Pause, Square, Repeat } from "@lucide/vue";
 import { isPlaying, togglePlay, stop, loop, setLoop, masterVolume, setMasterVolume, positionSample, player, currentClock } from "../../state/player";
 import { getService, clockContext } from "../../state/project";
 import { panels, PANEL_DEFS as PANELS } from "../../state/panels";
@@ -20,10 +21,10 @@ function timeLabel(): string {
 <template>
   <div class="transport">
     <button class="btn btn-accent play-btn" @click="togglePlay" :title="isPlaying ? t('transport.pause') : t('transport.play')">
-      {{ isPlaying ? "⏸" : "▶" }}
+      <Pause v-if="isPlaying" :size="16" /><Play v-else :size="16" />
     </button>
-    <button class="btn" @click="stop" :title="t('transport.stop')">⏹</button>
-    <button class="btn" :class="{ on: loop }" @click="setLoop(!loop)" :title="t('transport.loop')">⟳</button>
+    <button class="btn" @click="stop" :title="t('transport.stop')"><Square :size="14" /></button>
+    <button class="btn" :class="{ on: loop }" @click="setLoop(!loop)" :title="t('transport.loop')"><Repeat :size="14" /></button>
     <span class="sep" />
     <label class="vol-label">{{ t("transport.volume") }}</label>
     <input
@@ -63,6 +64,13 @@ function timeLabel(): string {
   border-bottom: 1px solid var(--border);
   user-select: none;
   z-index: 20;
+}
+
+/* アイコンボタンの中央配置 (テキストボタンにも影響なし) */
+.transport .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .play-btn {
