@@ -3,7 +3,7 @@
 // 列ヘッダー付きで、ユニット名の下には割り当て音色名を表示する。
 <script setup lang="ts">
 import { ref } from "vue";
-import { Eye, Pin, Headphones } from "@lucide/vue";
+import { Eye, Pin, Headphones, Pencil, Pointer } from "@lucide/vue";
 import {
   doc,
   units,
@@ -158,8 +158,8 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
     <div class="tray-title bar-header">
       {{ t("unit.title") }} ({{ units.length }})
       <span class="tray-tools">
-        <button class="btn btn-sm" :class="{ on: doc.tool === 'pen' }" :title="t('unit.pen')" @click="doc.tool = 'pen'">ペン</button>
-        <button class="btn btn-sm" :class="{ on: doc.tool === 'hand' }" :title="t('unit.hand')" @click="doc.tool = 'hand'">キー</button>
+        <button class="btn btn-sm" :class="{ on: doc.tool === 'pen' }" :title="t('unit.pen')" @click="doc.tool = 'pen'"><Pencil :size="12" /></button>
+        <button class="btn btn-sm" :class="{ on: doc.tool === 'hand' }" :title="t('unit.hand')" @click="doc.tool = 'hand'"><Pointer :size="12" /></button>
       </span>
     </div>
     <div class="unit-header bar-header">

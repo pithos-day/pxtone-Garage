@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // モード切替 (W/U) + ツールボタン
 import { ref } from "vue";
+import { Plus, Music2, Piano } from "@lucide/vue";
 import { doc, addWoice, WoiceType } from "../../state/project";
 import AddUnitDialog from "./AddUnitDialog.vue";
 import { openFileDialog } from "../../engine/io";
@@ -29,16 +30,16 @@ async function onAddWoice(): Promise<void> {
 <template>
   <div class="toolpanel">
     <div class="tool-mode">
-      <button class="btn btn-sm" :class="{ on: doc.mode === 'W' }" :title="t('tool.woiceManage')" @click="doc.mode = 'W'">W</button>
-      <button class="btn btn-sm" :class="{ on: doc.mode === 'U' }" :title="t('tool.unitManage')" @click="doc.mode = 'U'">U</button>
+      <button class="btn btn-sm" :class="{ on: doc.mode === 'W' }" :title="t('tool.woiceManage')" @click="doc.mode = 'W'"><Music2 :size="16" /></button>
+      <button class="btn btn-sm" :class="{ on: doc.mode === 'U' }" :title="t('tool.unitManage')" @click="doc.mode = 'U'"><Piano :size="16" /></button>
     </div>
     <div class="tool-buttons">
       <template v-if="doc.mode === 'W'">
-        <button class="btn btn-sm" @click="onAddWoice">{{ t("tool.addWoice") }}</button>
+        <button class="btn btn-sm" @click="onAddWoice"><Plus :size="16" /></button>
         <span v-if="errorMsg" class="tool-err">{{ errorMsg }}</span>
       </template>
       <template v-else>
-        <button class="btn btn-sm" @click="showAddUnit = true">{{ t("tool.addUnit") }}</button>
+        <button class="btn btn-sm" @click="showAddUnit = true"><Plus :size="16" /></button>
       </template>
     </div>
     <AddUnitDialog v-if="showAddUnit" @close="showAddUnit = false" />

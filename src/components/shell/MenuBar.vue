@@ -229,7 +229,7 @@ const fileMenu = computed<MenuItem[]>(() => {
           // voice: 現在の音色を単音レンダリングして WAV 化 / noise: 現在のノイズを WAV 化。
           // ファイル未オープン (タブ0件) では書き出せないため disabled
           {
-            label: t("menu.file.exportWav"),
+            label: t("menu.file.export"),
             action: mode.value === "voice" ? onExportVoiceWav : onExportNoiseWav,
             disabled: mode.value === "voice" ? !currentVoice() : !currentNoise(),
           },
@@ -253,6 +253,7 @@ const editMenu = computed<MenuItem[]>(() => {
         ? [
             { sep: true },
             { label: t("menu.edit.copyMeas"), action: () => emit("copyMeas") },
+            { sep: true },
             { label: t("menu.edit.velocity"), action: () => emit("eventVolume", "velocity") },
             { label: t("menu.edit.pantime"), action: () => emit("eventVolume", "pantime") },
             { label: t("menu.edit.panvolume"), action: () => emit("eventVolume", "panvolume") },

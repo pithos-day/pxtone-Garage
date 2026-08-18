@@ -47,6 +47,7 @@ export function buildFileMenu(ops: ModeMenuOps, extra: MenuItem[]): MenuItem[] {
   return [
     { label: t("menu.file.new"), action: ops.new },
     { label: t("menu.file.open"), action: ops.open },
+    { sep: true },
     { label: t("menu.file.save"), action: ops.save },
     { label: t("menu.file.saveAs"), action: ops.saveAs },
     { sep: true },
