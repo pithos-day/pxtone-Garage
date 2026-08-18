@@ -68,7 +68,6 @@ const emit = defineEmits<{
   align-items: center;
   justify-content: center;
   width: 16px;
-  color: var(--primary);
   font-size: var(--text-sm);
   flex: none;
 }
