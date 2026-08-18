@@ -317,7 +317,7 @@ const openItems = computed<MenuItem[]>(() => {
 .menu-bar {
   display: flex;
   align-items: stretch;
-  height: 36px;
+  height: 40px;
   z-index: 30;
 }
 
@@ -354,7 +354,7 @@ const openItems = computed<MenuItem[]>(() => {
   border: none;
   background: transparent;
   color: var(--muted-foreground);
-  font-size: var(--text-base);
+  font-size: var(--text-lg);
   cursor: pointer;
 }
 
