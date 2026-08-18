@@ -21,7 +21,7 @@ const emit = defineEmits<{
   >
     <span class="menu-check">
       <template v-if="item.checked">✓</template>
-      <component v-else-if="item.icon" :is="item.icon" :size="14" />
+      <component v-else-if="item.icon" :is="item.icon" :size="16" />
     </span>
     <span class="menu-text">{{ item.label }}</span>
     <span v-if="item.sub" class="menu-arrow">▸</span>
@@ -41,8 +41,8 @@ const emit = defineEmits<{
 .menu-item {
   display: flex;
   align-items: center;
-  padding: 5px 12px;
-  font-size: var(--text-md);
+  padding: 6px 12px;
+  font-size: var(--text-lg);
   color: var(--card-foreground);
   cursor: pointer;
   position: relative;
@@ -67,7 +67,7 @@ const emit = defineEmits<{
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
+  width: 18px;
   font-size: var(--text-sm);
   flex: none;
 }
@@ -78,7 +78,7 @@ const emit = defineEmits<{
 
 .menu-arrow {
   margin-left: 10px;
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
 }
 
 .menu-sep {
