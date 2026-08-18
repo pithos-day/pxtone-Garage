@@ -41,6 +41,7 @@ const emit = defineEmits<{
 .menu-item {
   display: flex;
   align-items: center;
+  gap: 6px;
   padding: 6px 12px;
   font-size: var(--text-lg);
   color: var(--card-foreground);
@@ -77,7 +78,6 @@ const emit = defineEmits<{
 }
 
 .menu-arrow {
-  margin-left: 10px;
   font-size: var(--text-sm);
 }
 
