@@ -1,5 +1,6 @@
 // エフェクトパネル (Delay / OverDrive) — フローティング
 <script setup lang="ts">
+import { Plus, X } from "@lucide/vue";
 import { computed, ref } from "vue";
 import PanelBox from "./PanelBox.vue";
 import { t } from "../../i18n";
@@ -81,7 +82,7 @@ function onRemoveOverdrive(idx: number): void {
       <div class="eff-section">
         <div class="eff-head">
           <span>{{ t("effector.delay") }} ({{ delays.length }}/{{ delayMax }})</span>
-          <button class="btn btn-sm" :disabled="delays.length >= delayMax" @click="onAddDelay">＋</button>
+          <button class="btn btn-sm" :disabled="delays.length >= delayMax" @click="onAddDelay"><Plus :size="12" /></button>
         </div>
         <div v-for="d in delays" :key="'d' + d.index" class="eff-row" @dblclick="onEditDelay(d.index)">
           <span>{{ DELAY_UNITS[d.unit] ?? d.unit }}</span>
@@ -89,21 +90,21 @@ function onRemoveOverdrive(idx: number): void {
           <span>{{ d.rate.toFixed(0) }}%</span>
           <span>G{{ d.group }}</span>
           <button class="btn btn-sm" @click="onEditDelay(d.index)">{{ t("common.edit") }}</button>
-          <button class="btn btn-sm btn-danger" @click="onRemoveDelay(d.index)">✕</button>
+          <button class="btn btn-sm btn-danger" @click="onRemoveDelay(d.index)"><X :size="12" /></button>
         </div>
         <div v-if="delays.length === 0" class="eff-empty">{{ t("effector.none") }}</div>
       </div>
       <div class="eff-section">
         <div class="eff-head">
           <span>{{ t("effector.overdrive") }} ({{ overdrives.length }}/{{ overdriveMax }})</span>
-          <button class="btn btn-sm" :disabled="overdrives.length >= overdriveMax" @click="onAddOverdrive">＋</button>
+          <button class="btn btn-sm" :disabled="overdrives.length >= overdriveMax" @click="onAddOverdrive"><Plus :size="12" /></button>
         </div>
         <div v-for="o in overdrives" :key="'o' + o.index" class="eff-row" @dblclick="onEditOverdrive(o.index)">
           <span>cut {{ o.cut }}%</span>
           <span>amp {{ o.amp.toFixed(2) }}</span>
           <span>G{{ o.group }}</span>
           <button class="btn btn-sm" @click="onEditOverdrive(o.index)">{{ t("common.edit") }}</button>
-          <button class="btn btn-sm btn-danger" @click="onRemoveOverdrive(o.index)">✕</button>
+          <button class="btn btn-sm btn-danger" @click="onRemoveOverdrive(o.index)"><X :size="12" /></button>
         </div>
         <div v-if="overdrives.length === 0" class="eff-empty">{{ t("effector.none") }}</div>
       </div>

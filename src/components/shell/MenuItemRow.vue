@@ -1,6 +1,7 @@
 // メニュー項目1行。サブメニューを持つ項目は内部で再帰的に描画する。
 // クリック時は選択された項目を "select" で親へ渡す
 <script setup lang="ts">
+import { Check, ChevronRight } from "@lucide/vue";
 import type { MenuItem } from "../../lib/menuItems";
 
 defineProps<{ item: MenuItem; subOpen: boolean }>();
@@ -20,11 +21,11 @@ const emit = defineEmits<{
     @mouseenter="emit('hover')"
   >
     <span class="menu-check">
-      <template v-if="item.checked">✓</template>
+      <Check v-if="item.checked" :size="14" />
       <component v-else-if="item.icon" :is="item.icon" :size="16" />
     </span>
     <span class="menu-text">{{ item.label }}</span>
-    <span v-if="item.sub" class="menu-arrow">▸</span>
+    <span v-if="item.sub" class="menu-arrow"><ChevronRight :size="14" /></span>
     <div v-if="item.sub && subOpen" class="menu-sub popup">
       <MenuItemRow
         v-for="(sub, j) in item.sub"

@@ -2,7 +2,7 @@
 // テーマ (リストボックス + インポート)・ライト/ダーク・言語・フォントを設定する。
 <script setup lang="ts">
 import { ref } from "vue";
-import { Sun, Moon } from "@lucide/vue";
+import { Sun, Moon, X } from "@lucide/vue";
 import {
   BUILTIN_THEMES,
   theme,
@@ -55,7 +55,7 @@ async function onLoadLocalFonts(): Promise<void> {
           <option v-for="u in userThemes" :key="u.id" :value="u.id">{{ u.name }}</option>
         </optgroup>
       </select>
-      <button v-if="isUserTheme(theme.name)" class="btn btn-sm" :title="t('settings.deleteTheme')" @click="onDeleteTheme">✕</button>
+      <button v-if="isUserTheme(theme.name)" class="btn btn-sm" :title="t('settings.deleteTheme')" @click="onDeleteTheme"><X :size="12" /></button>
     </div>
     <ThemeImportSection />
     <div class="row">

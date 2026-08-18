@@ -1,6 +1,7 @@
 // ファイルタブバー。モード (collage/voice/noise) に応じて対応するコレクションを表示する。
 // collage = ptcop プロジェクト、voice = .ptvoice、noise = .ptnoise。
 <script setup lang="ts">
+import { X, Plus } from "@lucide/vue";
 import type { AppMode } from "../../lib/modes";
 import { computed } from "vue";
 import {
@@ -93,9 +94,9 @@ function onClose(id: number): void {
         v-if="tabs.length > 1"
         class="tab-close"
         @click.stop="onClose(p.id)"
-      >×</span>
+      ><X :size="12" /></span>
     </button>
-    <button class="tab-new" :title="t('common.newProject')" @click="onNew">＋</button>
+    <button class="tab-new" :title="t('common.newProject')" @click="onNew"><Plus :size="14" /></button>
   </div>
 </template>
 
@@ -150,8 +151,10 @@ function onClose(id: number): void {
 }
 
 .tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: var(--muted-foreground);
-  font-size: var(--text-base);
   padding: 0 3px;
   border-radius: 2px;
   flex: none;
@@ -163,12 +166,14 @@ function onClose(id: number): void {
 }
 
 .tab-new {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 0 12px;
   border: none;
   border-right: 1px solid var(--border);
   background: transparent;
   color: var(--muted-foreground);
-  font-size: var(--text-lg);
   cursor: pointer;
 }
 

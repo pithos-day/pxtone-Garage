@@ -3,6 +3,7 @@
 // ピン留めユニットのレーンは上部に固定表示される。
 <script setup lang="ts">
 import { computed } from "vue";
+import { ChevronDown, ChevronRight } from "@lucide/vue";
 import { doc, units, ensureInit, pinnedUnits, VOLUME_MODES } from "../../state/project";
 import { KEY_HEIGHT, KEYNUM } from "../../lib/clock";
 import { RULER_H, STRIP_W, LEFT_W, NAME_W } from "../../lib/layout";
@@ -94,7 +95,7 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
           <WoiceTray v-if="doc.mode === 'W'" />
           <button class="volume-toggle bar-header" :class="{ on: doc.volumeVisible }" :title="t('common.volumeToggle')" @click="doc.volumeVisible = !doc.volumeVisible">
             <span class="vt-label">Volume</span>
-            <span class="vt-arrow">{{ doc.volumeVisible ? "▾" : "▸" }}</span>
+            <span class="vt-arrow"><ChevronDown v-if="doc.volumeVisible" :size="12" /><ChevronRight v-else :size="12" /></span>
           </button>
         </div>
         <!-- フィールド列: ルーラー (トラック直上) + トラック -->
@@ -213,7 +214,9 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
 }
 
 .vt-arrow {
-  font-size: var(--text-2xs);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* フィールド列 (ルーラー + トラック) */

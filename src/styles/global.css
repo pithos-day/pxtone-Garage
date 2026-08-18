@@ -67,6 +67,10 @@ body {
 
 /* ---- ボタン ---- */
 .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   background: var(--background);
   border: 1px solid var(--border);
   color: var(--foreground);

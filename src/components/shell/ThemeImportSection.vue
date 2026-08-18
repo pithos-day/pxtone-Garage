@@ -2,6 +2,7 @@
 // 状態はこのコンポーネント内で完結させる (専用 composable に切り出すまでもない)
 <script setup lang="ts">
 import { reactive } from "vue";
+import { ChevronDown, ChevronRight } from "@lucide/vue";
 import { addUserTheme, setThemeName } from "../../state/theme";
 import { t } from "../../i18n";
 
@@ -52,7 +53,7 @@ function onImport(): void {
 
 <template>
   <button class="disclosure" @click="toggleImport">
-    <span class="disclosure-arrow">{{ importState.open ? "▾" : "▸" }}</span>
+    <span class="disclosure-arrow"><ChevronDown v-if="importState.open" :size="12" /><ChevronRight v-else :size="12" /></span>
     {{ t("settings.importTheme") }}
   </button>
   <div v-if="importState.open" class="import-box">
@@ -86,7 +87,9 @@ function onImport(): void {
 }
 
 .disclosure-arrow {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 12px;
 }
 

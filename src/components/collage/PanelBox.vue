@@ -1,5 +1,6 @@
 // サイドバーに埋め込むパネル (タイトル + 閉じる + ボディ)
 <script setup lang="ts">
+import { X } from "@lucide/vue";
 import { t } from "../../i18n";
 
 defineProps<{
@@ -12,7 +13,7 @@ const emit = defineEmits<{ close: [] }>();
   <section class="panelbox">
     <header class="panelbox-head">
       <span>{{ title }}</span>
-      <button class="panelbox-close" :title="t('common.close')" @click="emit('close')">✕</button>
+      <button class="panelbox-close" :title="t('common.close')" @click="emit('close')"><X :size="14" /></button>
     </header>
     <div class="panelbox-body">
       <slot />
@@ -43,11 +44,13 @@ const emit = defineEmits<{ close: [] }>();
 }
 
 .panelbox-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: none;
   background: transparent;
   color: var(--foreground);
   cursor: pointer;
-  font-size: var(--text-md);
   padding: 0 4px;
 }
 
