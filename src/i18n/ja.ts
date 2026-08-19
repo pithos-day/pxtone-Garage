@@ -86,6 +86,7 @@ const ja = {
   "transport.pause": "一時停止 (Space)",
   "transport.stop": "停止",
   "transport.loop": "リピート",
+  "transport.followPlayback": "再生位置に画面を追従",
   "transport.volume": "音量",
   "transport.panels": "パネル",
 

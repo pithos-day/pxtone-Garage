@@ -1,8 +1,8 @@
 // 再生コントロールバー。Player パネルから移設した再生・停止・リピート・音量・位置表示と、
 // Effector/Copier パネルのトグル (右揃え)。
 <script setup lang="ts">
-import { Play, Pause, Square, Repeat } from "@lucide/vue";
-import { isPlaying, togglePlay, stopAndRewind, loop, setLoop, masterVolume, setMasterVolume, positionSample, player, currentClock } from "../../state/player";
+import { Play, Pause, Square, Repeat, ArrowBigRightDash } from "@lucide/vue";
+import { isPlaying, togglePlay, stopAndRewind, loop, setLoop, masterVolume, setMasterVolume, positionSample, player, currentClock, followPlayback } from "../../state/player";
 import { getService, clockContext } from "../../state/project";
 import { panels, PANEL_DEFS as PANELS } from "../../state/panels";
 import { formatClock, formatTime } from "../../lib/clock";
@@ -25,6 +25,7 @@ function timeLabel(): string {
     </button>
     <button class="btn" @click="stopAndRewind" :title="t('transport.stop')"><Square :size="14" /></button>
     <button class="btn" :class="{ on: loop }" @click="setLoop(!loop)" :title="t('transport.loop')"><Repeat :size="14" /></button>
+    <button class="btn" :class="{ on: followPlayback }" @click="followPlayback = !followPlayback" :title="t('transport.followPlayback')"><ArrowBigRightDash :size="14" /></button>
     <span class="sep" />
     <label class="vol-label">{{ t("transport.volume") }}</label>
     <input
