@@ -659,13 +659,6 @@ export async function replaceWoiceFile(idx: number, bytes: Uint8Array, type: Woi
   return readWoiceFileInto(idx, bytes, type, name);
 }
 
-export function replaceWoice(oldPlace: number, newPlace: number): void {
-  if (oldPlace === newPlace) return;
-  mutate(() => {
-    service.woiceReplace(oldPlace, newPlace);
-  });
-}
-
 // 再生・プレビューは VOICENO イベントから音色を決定するため、
 // ユニットの全 VOICENO イベントを新しい音色に書き換える (無ければ clock 0 に追加)。
 function applyWoiceToUnitEvents(unitIdx: number, woiceIdx: number): void {
