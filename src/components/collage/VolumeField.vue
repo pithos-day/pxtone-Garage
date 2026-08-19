@@ -27,21 +27,6 @@ const H = 128; // 値の最大 (0..128)。canvas の高さは親 (collage-vol) �
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const tuningInput = ref<{ x: number; y: number; clock: number; value: string } | null>(null);
 
-useCanvas(
-  canvasRef,
-  (ctx, w, h) => draw(ctx, w, h),
-  [
-    () => doc.rev,
-    () => doc.scrollX,
-    () => doc.zoom,
-    () => doc.volumeMode,
-    () => doc.focusUnit,
-    () => currentClock.value,
-    () => woices.value.length,
-    () => drag.value,
-  ],
-);
-
 function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   const s = getService();
   if (!s) return;
@@ -266,6 +251,22 @@ const { onPointerDown, onPointerMove, onPointerUp, drag } = useCanvasDrag<Canvas
     applyDragAt(d, pt.y, e);
   },
 });
+
+// useCanvas は drag が初期化されてから登録する (依存配列で drag を参照するため)
+useCanvas(
+  canvasRef,
+  (ctx, w, h) => draw(ctx, w, h),
+  [
+    () => doc.rev,
+    () => doc.scrollX,
+    () => doc.zoom,
+    () => doc.volumeMode,
+    () => doc.focusUnit,
+    () => currentClock.value,
+    () => woices.value.length,
+    () => drag.value,
+  ],
+);
 
 const tuningUndo = useDragUndo();
 function commitTuning(): void {
