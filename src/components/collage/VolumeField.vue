@@ -198,7 +198,9 @@ function clockAt(x: number): number {
 
 function valueAt(y: number, grid = 2): number {
   const fTop = RULER_H;
-  const fH = H - RULER_H;
+  // draw と同じく canvas の実高さで 0..128 をスケールする (固定 H だと追従しない)
+  const canvasH = canvasRef.value?.clientHeight ?? H;
+  const fH = canvasH - RULER_H;
   const v = Math.round((fTop + fH - y) / grid) * grid;
   return Math.max(0, Math.min(128, v));
 }
