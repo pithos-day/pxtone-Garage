@@ -18,7 +18,6 @@ import {
   getService,
   clockContext,
   projectWriteOps,
-  setScope,
   VOLUME_MODES,
   woices,
 } from "../../state/project";
@@ -186,11 +185,8 @@ function applyDragAt(d: CanvasDragState, y: number, e: PointerEvent): void {
   if (u < 0) return;
   const c1 = Math.min(d.clock1, d.clock2);
   const c2 = Math.max(d.clock1, d.clock2);
-  if (c2 <= c1) {
-    setScope(c1, c1 + Math.max(1, doc.divi));
-    return;
-  }
-  setScope(c1, c2);
+  // クリックのみ (範囲なし) は書き込まない
+  if (c2 <= c1) return;
   const mode = doc.volumeMode;
   const grid = e.ctrlKey ? 8 : 2;
   const value = valueAt(y, grid);
@@ -233,7 +229,6 @@ const { onPointerDown, onPointerMove, onPointerUp } = useCanvasDrag<CanvasDragSt
         return null;
       }
       const d: CanvasDragState = { button: 0, clock1: clock, clock2: clock };
-      setScope(clock, clock + Math.max(1, doc.divi));
       applyDragAt(d, pt.y, e); // 押下時に即書き込む
       return d;
     }
