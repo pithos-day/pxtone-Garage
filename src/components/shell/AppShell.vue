@@ -16,8 +16,10 @@ import VoiceTab from "../voice/VoiceEditor.vue";
 import NoiseTab from "../noise/NoiseEditor.vue";
 import VoiceCopyDialog from "../voice/VoiceCopyDialog.vue";
 import { ensureInitialProject } from "../../state/projects";
+import { openProjectInTab } from "../../state/projects";
 import { initLanguage } from "../../i18n";
-import { copyVoiceSide } from "../../state/voice";
+import { copyVoiceSide, openVoice } from "../../state/voice";
+import { openNoise } from "../../state/noise";
 
 const activeTab = ref<AppMode>("collage");
 const projectDialogOpen = ref(false);
@@ -60,10 +62,32 @@ onBeforeUnmount(() => {
   window.removeEventListener("contextmenu", onAppContextMenu, true);
   window.removeEventListener("pointerdown", onAppPointerDown, true);
 });
+
+// モード別にファイルをドロップで開く。現在のモードに対応する拡張子のみ受け付ける
+function onDragOver(e: DragEvent): void {
+  e.preventDefault();
+}
+
+async function onDrop(e: DragEvent): Promise<void> {
+  const file = e.dataTransfer?.files?.[0];
+  if (!file) return;
+  const ext = file.name.split(".").pop()?.toLowerCase();
+  const name = file.name.replace(/\.(ptcop|pttune|ptvoice|ptnoise)$/i, "");
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let err: string | null = null;
+  if (activeTab.value === "collage" && (ext === "ptcop" || ext === "pttune")) {
+    err = openProjectInTab(bytes, name);
+  } else if (activeTab.value === "voice" && ext === "ptvoice") {
+    err = openVoice(bytes, name);
+  } else if (activeTab.value === "noise" && ext === "ptnoise") {
+    err = openNoise(bytes, name);
+  }
+  if (err) window.alert(err);
+}
 </script>
 
 <template>
-  <div class="app-shell">
+  <div class="app-shell" @dragover.prevent="onDragOver" @drop.prevent="onDrop">
     <MenuBar
       v-model="activeTab"
       @project="projectDialogOpen = true"
