@@ -13,7 +13,7 @@ import {
 } from "../../state/project";
 import { previewWoiceHold } from "../../engine/preview";
 import { woiceTypeColor } from "../../lib/theme";
-import { woiceSummary as formatWoiceSummary } from "../../lib/woice";
+import { woiceSummary as formatWoiceSummary, WOICE_FILE_ACCEPT, WOICE_FILE_EXT_RE } from "../../lib/woice";
 import { useCtxMenuClose } from "../../composables/useCtxMenu";
 import { useHoldPreview } from "../../composables/useHoldPreview";
 import { openFileDialog } from "../../engine/io";
@@ -55,7 +55,7 @@ function onMenuAction(action: "remove" | "replace"): void {
 
 // ファイル選択ダイアログで選んだ別の音色で、指定 index の音色を置き換える
 async function replaceByDialog(idx: number): Promise<void> {
-  const file = await openFileDialog(".ptvoice,.ptnoise,.wav,.ogg", /\.(ptvoice|ptnoise|wav|ogg)$/i);
+  const file = await openFileDialog(WOICE_FILE_ACCEPT, WOICE_FILE_EXT_RE);
   if (!file) return;
   const err = await replaceWoiceFile(idx, file.bytes, detectWoiceType(file.bytes), file.name);
   if (err) console.error(err);
@@ -67,7 +67,7 @@ async function onDrop(e: DragEvent): Promise<void> {
   if (!file) return;
   const buf = await file.arrayBuffer();
   const bytes = new Uint8Array(buf);
-  const name = file.name.replace(/\.(ptvoice|ptnoise|wav|ogg)$/i, "");
+  const name = file.name.replace(WOICE_FILE_EXT_RE, "");
   const err = await addWoice(bytes, detectWoiceType(bytes), name);
   if (err) console.error(err);
 }

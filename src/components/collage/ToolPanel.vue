@@ -3,6 +3,7 @@
 import { ref } from "vue";
 import { Plus, Music2, Piano } from "@lucide/vue";
 import { doc, addWoice, detectWoiceType } from "../../state/project";
+import { WOICE_FILE_ACCEPT, WOICE_FILE_EXT_RE } from "../../lib/woice";
 import AddUnitDialog from "./AddUnitDialog.vue";
 import { openFileDialog } from "../../engine/io";
 import { t } from "../../i18n";
@@ -11,7 +12,7 @@ const errorMsg = ref("");
 const showAddUnit = ref(false);
 
 async function onAddWoice(): Promise<void> {
-  const file = await openFileDialog(".ptvoice,.ptnoise,.wav,.ogg", /\.(ptvoice|ptnoise|wav|ogg)$/i);
+  const file = await openFileDialog(WOICE_FILE_ACCEPT, WOICE_FILE_EXT_RE);
   if (!file) return;
   const err = await addWoice(file.bytes, detectWoiceType(file.bytes), file.name);
   if (err) {

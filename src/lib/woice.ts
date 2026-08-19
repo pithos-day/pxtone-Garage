@@ -2,6 +2,10 @@
 import { WoiceType, VoiceType, type Woice } from "pxtone-ts";
 import { t } from "../i18n";
 
+// 音色ファイルの選択・ドロップで使う accept と拡張子除去 (ToolPanel / WoiceTray で共通)
+export const WOICE_FILE_ACCEPT = ".ptvoice,.ptnoise,.wav,.ogg";
+export const WOICE_FILE_EXT_RE = /\.(ptvoice|ptnoise|wav|ogg)$/i;
+
 export function woiceSummary(w: Woice): string {
   const vc = w.getVoice(0);
   if (!vc) return "";
