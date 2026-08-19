@@ -613,16 +613,20 @@ async function oggBytesToMateChunk(bytes: Uint8Array): Promise<Uint8Array | null
 }
 
 // PTV/PTN/PCM/OGGV ファイルバイト列を音色として追加。エラーメッセージを返す (成功時 null)。
-// OGGV は生 OGG のまま保持するため、保存時は本家と同一の mateOGGV チャンクになる
-export async function addWoice(bytes: Uint8Array, type: WoiceType): Promise<string | null> {
+// OGGV は生 OGG のまま保持するため、保存時は本家と同一の mateOGGV チャンクになる。
+// name はファイル名 (拡張子なし) で、音色名として設定する (省略時は名前なし)
+export async function addWoice(bytes: Uint8Array, type: WoiceType, name?: string): Promise<string | null> {
   if (!doc.ready) return t("error.notReady");
   // OGGV のみ mateOGGV チャンク形式へ変換する (他はそのまま)
   const chunk = type === WoiceType.OGGV ? await oggBytesToMateChunk(bytes) : bytes;
   if (!chunk) return t("error.ogg");
   return (
     mutate(() => {
-      const res = service.woiceRead(service.woiceNum, new MemoryIo(chunk), type);
+      const idx = service.woiceNum;
+      const res = service.woiceRead(idx, new MemoryIo(chunk), type);
       if (res !== PxtnErr.OK) return pxtnErrorMessage(res);
+      // 名前は本家形式 (ShiftJIS・最大 16 バイト) で設定する
+      if (name) service.woiceGet(idx)?.setNameBuf(encodeShiftJis(name), 16);
       return null;
     }) ?? null
   );
