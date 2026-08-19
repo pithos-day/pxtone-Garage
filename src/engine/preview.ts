@@ -273,9 +273,8 @@ function woiceReleaseSec(woice: Woice | null): number {
 // レンダリング済みバッファをループ再生で開始する
 function startHold(work: Float32Array, ctx: AudioContext, releaseSec = 0): void {
   if (work.length < 2) return;
-  // リリース減衰中の前の音を即座に消す (本家: 新しいプレビューで前の音は消える)
-  stopFadingSource();
-  stopPreview();
+  // 新しいプレビューで前の音は消える (本家準拠。Release 減衰は鳴らさない)
+  stopHoldForNewPreview();
   if (ctx.state === "suspended") void ctx.resume();
 
   // ループ点のクリック軽減: 先頭/末尾 10ms フェード
@@ -353,6 +352,9 @@ export function previewWoiceObjectHold(woice: Woice, key: number, velocity: numb
   if (!ctx) return;
   const k = `${key}-${velocity}-${durSec}`;
   if (voicePreviewKey !== k) {
+    // キーが変わったら、レンダリングを待たずに前の音を即座に止める
+    // (レンダリング中も前の音の Release 減衰が鳴り続けてしまうため)
+    stopHoldForNewPreview();
     voicePreviewKey = k;
     try {
       voicePreviewWork = renderWoice(woice, key, velocity, durSec, ctx.sampleRate);
@@ -376,13 +378,11 @@ export function playPcmOnce(pcm: Float32Array): void {
   playBuffer(pcm, ctx.sampleRate);
 }
 
-// 押下中サステインを停止する。音色の Release 区間があればその区間で減衰し、
-// なければ最小フェードのみで停止する (ポップ防止)
-export function stopPreview(): void {
+// 現在のホールド音を指定リリースで停止し、フェード中の音として追跡する
+function stopHold(releaseSec: number): void {
   const src = holdSource;
   const g = holdGain;
   const ctx = holdCtx;
-  const releaseSec = holdReleaseSec;
   holdSource = null;
   holdGain = null;
   holdCtx = null;
@@ -393,7 +393,7 @@ export function stopPreview(): void {
       const t = ctx.currentTime;
       g.gain.cancelScheduledValues(t);
       g.gain.setValueAtTime(g.gain.value, t);
-      // 音色の Release 区間で減衰する (tail なしは最小フェードのみ)
+      // 押下解除時は音色の Release 区間で減衰、新しいプレビューへの切替時は最小フェードのみ
       const dur = Math.max(RELEASE_SEC, releaseSec);
       g.gain.linearRampToValueAtTime(0, t + dur);
       src.stop(t + dur + 0.01);
@@ -414,4 +414,18 @@ export function stopPreview(): void {
       fadingCtx = null;
     }
   };
+}
+
+// 押下中サステインを停止する。音色の Release 区間があればその区間で減衰し、
+// なければ最小フェードのみで停止する (ポップ防止)
+export function stopPreview(): void {
+  stopHold(holdReleaseSec);
+}
+
+// 新しいプレビュー開始時の後始末。リリース減衰中の音を切ってから、現在の
+// ホールドを最小フェードのみで停止する (音色の Release は押下解除時のみ適用)。
+// キー変更時はレンダリングを待たずにこれを実行し、前の音を即座に止める
+function stopHoldForNewPreview(): void {
+  stopFadingSource();
+  stopHold(0);
 }
