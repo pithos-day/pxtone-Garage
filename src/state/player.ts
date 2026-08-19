@@ -3,7 +3,9 @@ import { computed, ref, watch } from "vue";
 import { RealtimePlayer } from "../engine/realtime-player";
 import { decodeProjectBytes } from "../engine/oggv";
 import { EXE_VER } from "./service";
-import { getService, exportBytes, doc } from "./project";
+import { getService, exportBytes, doc, clockContext } from "./project";
+import { xToClock } from "../lib/clock";
+import { LEFT_W } from "../lib/layout";
 
 export const player = new RealtimePlayer({
   onPosition: (sample) => {
@@ -19,6 +21,8 @@ export const isPlaying = ref(false);
 export const positionSample = ref(0);
 export const loop = ref(true);
 export const masterVolume = ref(1.0);
+// 再生位置が画面外に出たら画面を追従する (TransportBar のトグルで切替、既定オン)
+export const followPlayback = ref(true);
 
 // ミュート/ソロ切替を再生中も worklet へ即時反映する。
 // getter が毎回プレーン配列を生成するため postMessage にも安全。
@@ -126,7 +130,23 @@ let rafId = 0;
 function tick(): void {
   if (isPlaying.value) {
     positionSample.value = player.getCurrentSample();
+    followPage();
     rafId = requestAnimationFrame(tick);
+  }
+}
+
+// 再生位置が表示範囲の終端を超えたら、1 ページ (フィールド幅) ずつスクロール追従する。
+// 追従は再生中 (tick) のみ行う
+function followPage(): void {
+  if (!followPlayback.value) return;
+  const s = getService();
+  if (!s) return;
+  const view = clockContext();
+  // フィールド幅 = ウィンドウ幅 - 左パネル幅 (フィールドは左パネルの右から始まる)
+  const pageWidthPx = Math.max(100, window.innerWidth - LEFT_W);
+  const endClock = xToClock(view, doc.scrollX + pageWidthPx);
+  if (currentClock.value > endClock) {
+    doc.scrollX = Math.max(0, doc.scrollX + pageWidthPx);
   }
 }
 
