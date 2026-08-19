@@ -317,12 +317,11 @@ function onWheel(e: WheelEvent): void {
 }
 
 /* canvas を absolute にして、コンテンツ高が親 (collage-vol) の高さ決定に影響しないようにする。
-   これで volfield は左の volpanel と同じ高さまで下方向に伸びる */
+   これで volfield は左の volpanel と同じ高さまで下方向に伸びる。
+   幅・高さは global の .field-canvas (100%) と inset:0 で決まる */
 .volfield .field-canvas {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
 }
 
 .tuning-input {
