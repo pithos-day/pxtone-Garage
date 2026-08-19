@@ -147,6 +147,7 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
   min-height: 0;
   display: flex;
   flex-direction: column;
+  border-bottom: 1px solid var(--border);
 }
 
 /* ピン留めユニットのレーン (上部固定) */
@@ -169,7 +170,6 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
 
 .collage-vol {
   display: flex;
-  border-top: 1px solid var(--border);
   background: var(--background);
 }
 
@@ -293,7 +293,6 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
 
 .collage-hscroll {
   display: flex;
-  border-top: 1px solid var(--border);
   background: var(--background);
 }
 
