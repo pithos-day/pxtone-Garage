@@ -613,6 +613,15 @@ async function oggBytesToMateChunk(bytes: Uint8Array): Promise<Uint8Array | null
 }
 
 // PTV/PTN/PCM/OGGV ファイルバイト列を音色として追加。エラーメッセージを返す (成功時 null)。
+// マジックバイトで音色タイプを判別する (PTV/PTN/OGG はヘッダ、それ以外は PCM)
+export function detectWoiceType(bytes: Uint8Array): WoiceType {
+  const head = String.fromCharCode(...bytes.subarray(0, 8));
+  if (head === "PTVOICE-") return WoiceType.PTV;
+  if (head === "PTNOISE-") return WoiceType.PTN;
+  if (head.startsWith("OggS")) return WoiceType.OGGV;
+  return WoiceType.PCM;
+}
+
 // OGGV は生 OGG のまま保持するため、保存時は本家と同一の mateOGGV チャンクになる。
 // name はファイル名 (拡張子なし) で、音色名として設定する (省略時は名前なし)
 export async function addWoice(bytes: Uint8Array, type: WoiceType, name?: string): Promise<string | null> {

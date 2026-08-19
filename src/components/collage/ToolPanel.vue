@@ -2,7 +2,7 @@
 // モード切替 (W/U) + ツールボタン
 import { ref } from "vue";
 import { Plus, Music2, Piano } from "@lucide/vue";
-import { doc, addWoice, WoiceType } from "../../state/project";
+import { doc, addWoice, detectWoiceType } from "../../state/project";
 import AddUnitDialog from "./AddUnitDialog.vue";
 import { openFileDialog } from "../../engine/io";
 import { t } from "../../i18n";
@@ -13,13 +13,7 @@ const showAddUnit = ref(false);
 async function onAddWoice(): Promise<void> {
   const file = await openFileDialog(".ptvoice,.ptnoise,.wav,.ogg", /\.(ptvoice|ptnoise|wav|ogg)$/i);
   if (!file) return;
-  // マジックバイト (先頭8バイト) で音色タイプを判別する。OGG は先頭4バイトが "OggS"
-  const head = String.fromCharCode(...file.bytes.subarray(0, 8));
-  let type = WoiceType.PCM;
-  if (head === "PTVOICE-") type = WoiceType.PTV;
-  else if (head === "PTNOISE-") type = WoiceType.PTN;
-  else if (head.startsWith("OggS")) type = WoiceType.OGGV;
-  const err = await addWoice(file.bytes, type, file.name);
+  const err = await addWoice(file.bytes, detectWoiceType(file.bytes), file.name);
   if (err) {
     errorMsg.value = err;
     setTimeout(() => (errorMsg.value = ""), 4000);

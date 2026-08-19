@@ -5,6 +5,8 @@ import {
   woices,
   getService,
   removeWoice,
+  addWoice,
+  detectWoiceType,
   EVENTDEFAULT_KEY,
   EVENTDEFAULT_VELOCITY,
 } from "../../state/project";
@@ -48,6 +50,17 @@ function onMenuAction(action: "remove"): void {
   if (action === "remove") removeWoice(w);
 }
 
+// 音色ファイルのドラッグ&ドロップ追加。拡張子は除いて音色名にする
+async function onDrop(e: DragEvent): Promise<void> {
+  const file = e.dataTransfer?.files?.[0];
+  if (!file) return;
+  const buf = await file.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  const name = file.name.replace(/\.(ptvoice|ptnoise|wav|ogg)$/i, "");
+  const err = await addWoice(bytes, detectWoiceType(bytes), name);
+  if (err) console.error(err);
+}
+
 // 音色の型別サマリ (フォーマット本体は lib/woice.ts)
 function woiceSummary(idx: number): string {
   const s = getService();
@@ -60,7 +73,7 @@ function woiceSummary(idx: number): string {
 <template>
   <div class="tray">
     <div class="tray-title">{{ t("woice.title") }} ({{ woices.length }})</div>
-    <div class="tray-list" @contextmenu.prevent @pointerup="onPointerUp">
+    <div class="tray-list" @contextmenu.prevent @pointerup="onPointerUp" @dragover.prevent @drop.prevent="onDrop">
       <div
         v-for="w in woices"
         :key="w.index"
