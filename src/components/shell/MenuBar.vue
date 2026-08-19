@@ -3,7 +3,8 @@
 // 右: モード別ドロップダウンメニュー (collage = File/Edit/View、voice/noise = File)
 <script setup lang="ts">
 import { computed } from "vue";
-import { FileUp, FileDown, Music, ListMusic, FileMusic, AudioLines, SlidersHorizontal, Settings, SquareStack, CircleGauge, Copy } from "@lucide/vue";
+import { FileUp, FileDown, Music, ListMusic, FileMusic, AudioLines, SlidersHorizontal, Settings, SquareStack, CircleGauge, Copy, Columns4 } from "@lucide/vue";
+import { DIVI_TABLE } from "../../lib/clock";
 import { doc, setAllUnitsVisible, exportBytes } from "../../state/project";
 import {
   newProjectInTab,
@@ -256,6 +257,15 @@ const editMenu = computed<MenuItem[]>(() => {
       : mode.value === "collage"
         ? [
             { sep: true },
+            {
+              label: t("menu.edit.gridSnap"),
+              icon: Columns4,
+              sub: DIVI_TABLE.map((d) => ({
+                label: d === 1 ? "1" : `1/${d}`,
+                action: () => (doc.divi = d),
+                checked: doc.divi === d,
+              })),
+            },
             { label: t("menu.edit.copyMeas"), icon: SquareStack, action: () => emit("copyMeas") },
             { sep: true},
             { label: t("menu.edit.velocity"), icon: CircleGauge, action: () => emit("eventVolume", "velocity") },
@@ -271,10 +281,8 @@ const viewMenu = computed<MenuItem[]>(() =>
   buildViewMenu({
     allVisible: allVisible.value,
     zoom: doc.zoom,
-    divi: doc.divi,
     onToggleAll: () => setAllUnitsVisible(!allVisible.value),
     onZoom: (z) => (doc.zoom = z),
-    onDivi: (d) => (doc.divi = d),
   }),
 );
 

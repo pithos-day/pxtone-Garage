@@ -1,8 +1,8 @@
 // メニューバー (MenuBar.vue) のメニュー項目組み立て。
 // モード別メニュー定義の構築ロジックを SFC から分離する
-import { FilePlus2, FileSearch2, Save, SavePlus, SquareX, Undo, Redo, ZoomIn, Columns4 } from "@lucide/vue";
+import { FilePlus2, FileSearch2, Save, SavePlus, SquareX, Undo, Redo, ZoomIn } from "@lucide/vue";
 import type { Component } from "vue";
-import { ZOOM_TABLE, DIVI_TABLE } from "./clock";
+import { ZOOM_TABLE } from "./clock";
 import { t } from "../i18n";
 import type { AppMode } from "./modes";
 
@@ -72,10 +72,8 @@ export function buildEditMenu(ops: ModeMenuOps, extra: MenuItem[]): MenuItem[] {
 export function buildViewMenu(args: {
   allVisible: boolean;
   zoom: number;
-  divi: number;
   onToggleAll: () => void;
   onZoom: (z: number) => void;
-  onDivi: (d: number) => void;
 }): MenuItem[] {
   return [
     { label: t("menu.view.showAllUnits"), action: args.onToggleAll, checked: args.allVisible },
@@ -84,11 +82,6 @@ export function buildViewMenu(args: {
       label: t("menu.view.zoom"),
       icon: ZoomIn,
       sub: ZOOM_TABLE.map((z) => ({ label: `${z}px`, action: () => args.onZoom(z), checked: args.zoom === z })),
-    },
-    {
-      label: t("menu.view.division"),
-      icon: Columns4,
-      sub: DIVI_TABLE.map((d) => ({ label: `${d}`, action: () => args.onDivi(d), checked: args.divi === d })),
     },
   ];
 }

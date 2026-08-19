@@ -34,6 +34,7 @@ const ja = {
   "menu.edit.copyAtoB": "A を B にコピー",
   "menu.edit.copyBtoA": "B を A にコピー",
   "menu.edit.copyMeas": "小節コピー",
+  "menu.edit.gridSnap": "グリッドスナップ",
   "menu.edit.velocity": "ベロシティ",
   "menu.edit.pantime": "パン (時間差)",
   "menu.edit.panvolume": "パン (音量)",
@@ -54,7 +55,6 @@ const ja = {
   // メニュー: View
   "menu.view.showAllUnits": "全ユニット表示",
   "menu.view.zoom": "ズーム",
-  "menu.view.division": "分割",
 
   // 環境設定
   "settings.title": "環境設定",
