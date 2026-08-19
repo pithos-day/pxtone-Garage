@@ -149,6 +149,13 @@ export function stop(): void {
   cancelAnimationFrame(rafId);
 }
 
+// 停止して曲頭 (0 秒) に戻す (TransportBar の停止ボタン用)。
+// 一時停止 (togglePlay) は位置を維持するため stop() をそのまま使う
+export function stopAndRewind(): void {
+  stop();
+  seekToClock(0);
+}
+
 export function togglePlay(): void {
   if (isPlaying.value) stop();
   else void play();

@@ -2,7 +2,7 @@
 // Effector/Copier パネルのトグル (右揃え)。
 <script setup lang="ts">
 import { Play, Pause, Square, Repeat } from "@lucide/vue";
-import { isPlaying, togglePlay, stop, loop, setLoop, masterVolume, setMasterVolume, positionSample, player, currentClock } from "../../state/player";
+import { isPlaying, togglePlay, stopAndRewind, loop, setLoop, masterVolume, setMasterVolume, positionSample, player, currentClock } from "../../state/player";
 import { getService, clockContext } from "../../state/project";
 import { panels, PANEL_DEFS as PANELS } from "../../state/panels";
 import { formatClock, formatTime } from "../../lib/clock";
@@ -23,7 +23,7 @@ function timeLabel(): string {
     <button class="btn btn-accent play-btn" @click="togglePlay" :title="isPlaying ? t('transport.pause') : t('transport.play')">
       <Pause v-if="isPlaying" :size="16" /><Play v-else :size="16" />
     </button>
-    <button class="btn" @click="stop" :title="t('transport.stop')"><Square :size="14" /></button>
+    <button class="btn" @click="stopAndRewind" :title="t('transport.stop')"><Square :size="14" /></button>
     <button class="btn" :class="{ on: loop }" @click="setLoop(!loop)" :title="t('transport.loop')"><Repeat :size="14" /></button>
     <span class="sep" />
     <label class="vol-label">{{ t("transport.volume") }}</label>
