@@ -28,6 +28,7 @@ import { previewUnitHold } from "../../engine/preview";
 import { useCtxMenuClose } from "../../composables/useCtxMenu";
 import { useDragUndo } from "../../composables/useUndo";
 import { useHoldPreview } from "../../composables/useHoldPreview";
+import { capturePointer, releasePointerCapture } from "../../lib/field";
 import { t } from "../../i18n";
 import ChangeUnitDialog from "./ChangeUnitDialog.vue";
 
@@ -70,9 +71,11 @@ function onPointerDown(e: PointerEvent, idx: number): void {
     clearSelection();
   }
 
-  // 押下中サステインで試聴
+  // 押下中サステインで試聴 (pointerup まで鳴り続ける)。
+  // ポインタがリスト外でリリースされても pointerup を拾えるよう capture する
   const u = s.unitGet(idx);
   if (u?.woice) {
+    capturePointer(trayRef.value, e);
     hold.onPress();
     previewUnitHold(idx, EVENTDEFAULT_KEY, EVENTDEFAULT_VOLUME);
   }
@@ -111,8 +114,9 @@ function startDragReorder(tray: HTMLElement, idx: number): void {
 }
 
 const hold = useHoldPreview();
-function onPointerUp(): void {
+function onPointerUp(e: PointerEvent): void {
   hold.onRelease();
+  releasePointerCapture(trayRef.value, e);
 }
 
 // ソロのラジオ操作。
@@ -171,7 +175,7 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
       </span>
       <span class="unit-header-name">{{ t("unit.headerName") }}</span>
     </div>
-    <div ref="trayRef" class="tray-list" @contextmenu.prevent @pointerup="onPointerUp">
+    <div ref="trayRef" class="tray-list" @contextmenu.prevent @pointerup="onPointerUp" @pointercancel="onPointerUp">
       <div
         v-for="u in units"
         :key="u.index"
