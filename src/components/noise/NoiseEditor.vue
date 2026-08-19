@@ -329,7 +329,6 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
             {{ t("noise.history") }}
             <span class="ne-hint">{{ t("noise.historyHint") }}</span>
           </div>
-          <div v-if="history.length === 0" class="ne-hint">{{ t("noise.buildHint") }}</div>
           <button
             v-for="(h, i) in history"
             :key="i"

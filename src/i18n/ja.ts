@@ -174,7 +174,6 @@ const ja = {
   "noise.title": "ptnoise ノイズエディタ",
   "noise.empty": "ptnoiseファイルが開かれていません。",
   "noise.layer": "レイヤー",
-  "noise.buildHint": "テーブルから波形を生成します (History に記録)",
   "noise.enable": "有効",
   "noise.pan": "パン",
   "noise.main": "Main",
