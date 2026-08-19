@@ -38,6 +38,7 @@ useCanvas(
     () => doc.focusUnit,
     () => currentClock.value,
     () => woices.value.length,
+    () => drag.value,
   ],
 );
 
@@ -160,6 +161,22 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   if (isPlayingNow.value) {
     drawPlayhead(ctx, clockToX(view, currentClock.value) - doc.scrollX, w, h);
   }
+
+  // ドラッグ中の範囲 (本家同様、範囲の両端に縦線を表示)
+  const d = drag.value;
+  if (d && d.clock2 > d.clock1) {
+    const c1 = Math.min(d.clock1, d.clock2);
+    const c2 = Math.max(d.clock1, d.clock2);
+    ctx.strokeStyle = COLORS.accent;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (const c of [c1, c2]) {
+      const x = clockToX(view, c) - doc.scrollX;
+      ctx.moveTo(x, fTop);
+      ctx.lineTo(x, h);
+    }
+    ctx.stroke();
+  }
 }
 
 // ---- ポインタ ----
@@ -207,7 +224,7 @@ function applyDragAt(d: CanvasDragState, y: number, e: PointerEvent): void {
   doc.rev++;
 }
 
-const { onPointerDown, onPointerMove, onPointerUp } = useCanvasDrag<CanvasDragState>({
+const { onPointerDown, onPointerMove, onPointerUp, drag } = useCanvasDrag<CanvasDragState>({
   canvasRef,
   clockAt,
   undoOnDown: true,

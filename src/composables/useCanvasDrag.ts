@@ -35,6 +35,7 @@ export function useCanvasDrag<T extends CanvasDragState>(options: CanvasDragOpti
   onPointerDown: (e: PointerEvent) => void;
   onPointerMove: (e: PointerEvent) => void;
   onPointerUp: (e: PointerEvent) => void;
+  drag: Ref<CanvasDragState | null>;
 } {
   const drag = ref<T | null>(null);
   const dragUndo = useDragUndo();
@@ -72,5 +73,5 @@ export function useCanvasDrag<T extends CanvasDragState>(options: CanvasDragOpti
     options.onClick?.(d, e);
   }
 
-  return { onPointerDown, onPointerMove, onPointerUp };
+  return { onPointerDown, onPointerMove, onPointerUp, drag };
 }
