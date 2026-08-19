@@ -229,18 +229,33 @@ let holdReleaseSec = 0;
 // 押下解除時の最小フェード時間 (秒) — 停止時のポップ (クリックノイズ) を避ける
 const RELEASE_SEC = 0.03;
 
-// リリース減衰中のソース (新しいプレビューで即時中断するため追跡)
+// リリース減衰中のソースとそのゲイン (新しいプレビューで即時中断するため追跡)
 let fadingSource: AudioBufferSourceNode | null = null;
+let fadingGain: GainNode | null = null;
+let fadingCtx: AudioContext | null = null;
 
-// リリース減衰中の音を即座に止める
+// リリース減衰中の音を即座に止める。
+// 減衰中のソースには stop(when) がスケジュール済みのため、再 stop() は
+// InvalidStateError を投げて catch で無視され、音が鳴り続けてしまう。
+// ゲインを 0 にすればスケジュール済みのフェードに関係なく確実に消せる
 function stopFadingSource(): void {
-  if (!fadingSource) return;
+  const src = fadingSource;
+  const g = fadingGain;
+  const ctx = fadingCtx;
+  fadingSource = null;
+  fadingGain = null;
+  fadingCtx = null;
+  if (!src) return;
+  if (g && ctx) {
+    const t = ctx.currentTime;
+    g.gain.cancelScheduledValues(t);
+    g.gain.setValueAtTime(0, t);
+  }
   try {
-    fadingSource.stop();
+    src.stop();
   } catch {
     /* noop */
   }
-  fadingSource = null;
 }
 
 // 音色のリリース区間 (秒) を返す。tail なし・fps 不正・区間 0 は 0 (即時カットオフ)
@@ -390,7 +405,13 @@ export function stopPreview(): void {
   }
   // フェード中のソースを追跡する (新しいプレビューで中断できるように)
   fadingSource = src;
+  fadingGain = g;
+  fadingCtx = ctx;
   src.onended = () => {
-    if (fadingSource === src) fadingSource = null;
+    if (fadingSource === src) {
+      fadingSource = null;
+      fadingGain = null;
+      fadingCtx = null;
+    }
   };
 }
