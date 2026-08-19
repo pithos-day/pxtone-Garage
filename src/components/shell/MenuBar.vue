@@ -257,6 +257,7 @@ const editMenu = computed<MenuItem[]>(() => {
         ? [
             { sep: true },
             { label: t("menu.edit.copyMeas"), icon: SquareStack, action: () => emit("copyMeas") },
+            { sep: true},
             { label: t("menu.edit.velocity"), icon: CircleGauge, action: () => emit("eventVolume", "velocity") },
             { label: t("menu.edit.pantime"), icon: CircleGauge, action: () => emit("eventVolume", "pantime") },
             { label: t("menu.edit.panvolume"), icon: CircleGauge, action: () => emit("eventVolume", "panvolume") },
