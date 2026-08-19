@@ -96,6 +96,36 @@ export function drawScopeBand(ctx: CanvasRenderingContext2D, x1: number, x2: num
   fillRect(ctx, x1, top, Math.max(0, x2 - x1), h, color);
 }
 
+// Play アイコン (三角形 ▶) を描画。本家 ptCollage の Velocity 表示 (rcNote) 相当
+export function fillPlayIcon(ctx: CanvasRenderingContext2D, x: number, y: number, color: string): void {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x - 3, y - 6);
+  ctx.lineTo(x - 3, y + 6);
+  ctx.lineTo(x + 4, y);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// ドラッグ範囲の両端に縦線を描画する (範囲選択中の可視化)
+export function drawDragRange(
+  ctx: CanvasRenderingContext2D,
+  x1: number,
+  x2: number,
+  top: number,
+  bottom: number,
+  color: string,
+): void {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (const x of [x1, x2]) {
+    ctx.moveTo(x, top);
+    ctx.lineTo(x, bottom);
+  }
+  ctx.stroke();
+}
+
 export function fillText(
   ctx: CanvasRenderingContext2D,
   text: string,

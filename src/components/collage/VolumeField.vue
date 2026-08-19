@@ -6,7 +6,7 @@ import { useCanvas } from "../../composables/useCanvas";
 import { useCanvasDrag, type CanvasDragState } from "../../composables/useCanvasDrag";
 import { useDragUndo } from "../../composables/useUndo";
 import { COLORS } from "../../lib/theme";
-import { drawGrid, fillRect, fillText, drawPlayhead } from "../../lib/draw";
+import { drawGrid, fillRect, fillText, drawPlayhead, fillPlayIcon, drawDragRange } from "../../lib/draw";
 import { clockAtX, zoomOrPan } from "../../lib/field";
 import { clockToX, xToClock } from "../../lib/clock";
 import { RULER_H } from "../../lib/layout";
@@ -70,18 +70,11 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
           }
         }
         if (mode === 0) {
-          // Velocity: Play アイコン (三角形) — 本家の rcNote 相当
-          ctx.fillStyle = COLORS.accent;
+          // Velocity: Play アイコン (本家の rcNote 相当)
           for (const p of points) {
             const x = clockToX(view, p.clock) - doc.scrollX;
             if (x < 0 || x > w) continue;
-            const y = valueY(p.value);
-            ctx.beginPath();
-            ctx.moveTo(x - 3, y - 6);
-            ctx.lineTo(x - 3, y + 6);
-            ctx.lineTo(x + 4, y);
-            ctx.closePath();
-            ctx.fill();
+            fillPlayIcon(ctx, x, valueY(p.value), COLORS.accent);
           }
         } else {
           // 階段状ライン
@@ -158,17 +151,14 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   // ドラッグ中の範囲 (本家同様、範囲の両端に縦線を表示)
   const d = drag.value;
   if (d && d.clock2 > d.clock1) {
-    const c1 = Math.min(d.clock1, d.clock2);
-    const c2 = Math.max(d.clock1, d.clock2);
-    ctx.strokeStyle = COLORS.accent;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (const c of [c1, c2]) {
-      const x = clockToX(view, c) - doc.scrollX;
-      ctx.moveTo(x, fTop);
-      ctx.lineTo(x, h);
-    }
-    ctx.stroke();
+    drawDragRange(
+      ctx,
+      clockToX(view, Math.min(d.clock1, d.clock2)) - doc.scrollX,
+      clockToX(view, Math.max(d.clock1, d.clock2)) - doc.scrollX,
+      fTop,
+      h,
+      COLORS.accent,
+    );
   }
 }
 
