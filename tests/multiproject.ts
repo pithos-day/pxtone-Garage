@@ -18,6 +18,7 @@ import {
   toggleUnitMute,
   removeUnit,
   addWoice,
+  detectWoiceType,
   WoiceType,
   copyMeas,
   changeEventValue,
@@ -1330,6 +1331,15 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(stripFileExt("song"), "song", "fileutil: 拡張子なしはそのまま");
     checkEq(stripFileExt(".hidden"), ".hidden", "fileutil: 先頭ドットは除去しない");
     checkEq(stripFileExt("untitled."), "untitled", "fileutil: 末尾ドットも除去 (先頭以外の最後のドット以降)");
+  }
+
+  // ---- 29. 音色タイプ判別 (マジックバイト) ----
+  {
+    const enc = (s: string): Uint8Array => new Uint8Array([...new TextEncoder().encode(s), 0, 0, 0, 0]);
+    checkEq(detectWoiceType(enc("PTVOICE-")), WoiceType.PTV, "woicetype: PTV を判別");
+    checkEq(detectWoiceType(enc("PTNOISE-")), WoiceType.PTN, "woicetype: PTN を判別");
+    checkEq(detectWoiceType(enc("OggS")), WoiceType.OGGV, "woicetype: OGG を判別");
+    checkEq(detectWoiceType(enc("RIFF")), WoiceType.PCM, "woicetype: 不明なヘッダは PCM");
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);
