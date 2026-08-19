@@ -230,6 +230,7 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
 .collage-field-col {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
@@ -262,6 +263,7 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
 .collage-field-wrap {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   position: relative;
   display: flex;
 }
