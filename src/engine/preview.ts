@@ -190,9 +190,17 @@ async function preview(target: PreviewTarget, key: number, velocity: number, dur
   if (!bytes) return;
   const ctx = getCtx();
   if (!ctx) return;
+  // 音色のリリース区間 (秒)。hold 解除時に Release を適用するため事前に取得
+  const woice =
+    target.woiceIdx !== null
+      ? svc.woiceGet(target.woiceIdx)
+      : target.unitNo !== null
+        ? svc.unitGet(target.unitNo)?.woice ?? null
+        : null;
+  const releaseSec = woiceReleaseSec(woice);
   const work = await renderPreview(bytes, target, key, velocity, durSec, ctx.sampleRate);
   if (!work) return;
-  if (hold) startHold(work, ctx);
+  if (hold) startHold(work, ctx, releaseSec);
   else playBuffer(work, ctx.sampleRate);
 }
 
@@ -215,12 +223,26 @@ export async function previewWoiceHold(woiceIdx: number, key: number, velocity: 
 let holdSource: AudioBufferSourceNode | null = null;
 let holdGain: GainNode | null = null;
 let holdCtx: AudioContext | null = null;
+// 押下解除時に適用する音色の Release 区間 (秒)
+let holdReleaseSec = 0;
 
-// 押下解除時のリリースフェード時間 (秒) — 停止時のポップ (クリックノイズ) を避ける
+// 押下解除時の最小フェード時間 (秒) — 停止時のポップ (クリックノイズ) を避ける
 const RELEASE_SEC = 0.03;
 
+// 音色のリリース区間 (秒) を返す。tail なし・fps 不正・区間 0 は 0 (即時カットオフ)
+function woiceReleaseSec(woice: Woice | null): number {
+  if (!woice) return 0;
+  const vc = woice.getVoice(0);
+  if (!vc) return 0;
+  const e = vc.envelope;
+  if (e.tailNum <= 0 || e.fps <= 0) return 0;
+  const hc = e.headNum + e.bodyNum;
+  const x = e.points[hc]?.x ?? 0;
+  return x > 0 ? x / e.fps : 0;
+}
+
 // レンダリング済みバッファをループ再生で開始する
-function startHold(work: Float32Array, ctx: AudioContext): void {
+function startHold(work: Float32Array, ctx: AudioContext, releaseSec = 0): void {
   if (work.length < 2) return;
   stopPreview();
   if (ctx.state === "suspended") void ctx.resume();
@@ -232,6 +254,7 @@ function startHold(work: Float32Array, ctx: AudioContext): void {
   holdSource = src;
   holdGain = g;
   holdCtx = ctx;
+  holdReleaseSec = releaseSec;
   src.onended = () => {
     if (holdSource === src) holdSource = null;
   };
@@ -312,7 +335,7 @@ export function previewWoiceObjectHold(woice: Woice, key: number, velocity: numb
     voicePreviewWork = null;
     return;
   }
-  startHold(voicePreviewWork, ctx);
+  startHold(voicePreviewWork, ctx, woiceReleaseSec(woice));
 }
 
 // レンダリング済み PCM を単発再生する (ノイズのクリック再生用。ループしない)
@@ -322,22 +345,27 @@ export function playPcmOnce(pcm: Float32Array): void {
   playBuffer(pcm, ctx.sampleRate);
 }
 
-// 押下中サステインを停止する (短いフェードをかけてから停止し、ポップを防ぐ)
+// 押下中サステインを停止する。音色の Release 区間があればその区間で減衰し、
+// なければ最小フェードのみで停止する (ポップ防止)
 export function stopPreview(): void {
   const src = holdSource;
   const g = holdGain;
   const ctx = holdCtx;
+  const releaseSec = holdReleaseSec;
   holdSource = null;
   holdGain = null;
   holdCtx = null;
+  holdReleaseSec = 0;
   if (!src) return;
   try {
     if (g && ctx) {
       const t = ctx.currentTime;
       g.gain.cancelScheduledValues(t);
       g.gain.setValueAtTime(g.gain.value, t);
-      g.gain.linearRampToValueAtTime(0, t + RELEASE_SEC);
-      src.stop(t + RELEASE_SEC + 0.01);
+      // 音色の Release 区間で減衰する (tail なしは最小フェードのみ)
+      const dur = Math.max(RELEASE_SEC, releaseSec);
+      g.gain.linearRampToValueAtTime(0, t + dur);
+      src.stop(t + dur + 0.01);
     } else {
       src.stop();
     }
