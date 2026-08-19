@@ -6,6 +6,7 @@ import {
   getService,
   removeWoice,
   addWoice,
+  replaceWoiceFile,
   detectWoiceType,
   EVENTDEFAULT_KEY,
   EVENTDEFAULT_VELOCITY,
@@ -15,6 +16,7 @@ import { woiceTypeColor } from "../../lib/theme";
 import { woiceSummary as formatWoiceSummary } from "../../lib/woice";
 import { useCtxMenuClose } from "../../composables/useCtxMenu";
 import { useHoldPreview } from "../../composables/useHoldPreview";
+import { openFileDialog } from "../../engine/io";
 import { t } from "../../i18n";
 
 const menu = ref<{ x: number; y: number; w: number } | null>(null);
@@ -43,11 +45,20 @@ function onPointerUp(): void {
   hold.onRelease();
 }
 
-function onMenuAction(action: "remove"): void {
+function onMenuAction(action: "remove" | "replace"): void {
   const w = menu.value?.w;
   menu.value = null;
   if (w === undefined) return;
   if (action === "remove") removeWoice(w);
+  else if (action === "replace") void replaceByDialog(w);
+}
+
+// ファイル選択ダイアログで選んだ別の音色で、指定 index の音色を置き換える
+async function replaceByDialog(idx: number): Promise<void> {
+  const file = await openFileDialog(".ptvoice,.ptnoise,.wav,.ogg", /\.(ptvoice|ptnoise|wav|ogg)$/i);
+  if (!file) return;
+  const err = await replaceWoiceFile(idx, file.bytes, detectWoiceType(file.bytes), file.name);
+  if (err) console.error(err);
 }
 
 // 音色ファイルのドラッグ&ドロップ追加。拡張子は除いて音色名にする
@@ -90,6 +101,7 @@ function woiceSummary(idx: number): string {
       </div>
     </div>
     <div v-if="menu" class="ctxmenu popup" :style="{ left: menu.x + 'px', top: menu.y + 'px' }">
+      <button @click="onMenuAction('replace')">{{ t("woice.replace") }}</button>
       <button class="danger" @click="onMenuAction('remove')">{{ t("common.delete") }}</button>
     </div>
   </div>

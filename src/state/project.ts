@@ -647,6 +647,24 @@ export function removeWoice(idx: number): void {
   });
 }
 
+// 既存の音色 index を別の音色ファイルで置き換える。ユニットは音色を index 参照するため、
+// 同じ index に woiceRead で読み込めば、使用中のユニットも自動的に新しい音色を指す
+export async function replaceWoiceFile(idx: number, bytes: Uint8Array, type: WoiceType, name?: string): Promise<string | null> {
+  if (!doc.ready) return t("error.notReady");
+  if (idx < 0 || idx >= service.woiceNum) return t("error.notReady");
+  // OGGV のみ mateOGGV チャンク形式へ変換する (他はそのまま)
+  const chunk = type === WoiceType.OGGV ? await oggBytesToMateChunk(bytes) : bytes;
+  if (!chunk) return t("error.ogg");
+  return (
+    mutate(() => {
+      const res = service.woiceRead(idx, new MemoryIo(chunk), type);
+      if (res !== PxtnErr.OK) return pxtnErrorMessage(res);
+      if (name) service.woiceGet(idx)?.setNameBuf(encodeShiftJis(name), 16);
+      return null;
+    }) ?? null
+  );
+}
+
 export function replaceWoice(oldPlace: number, newPlace: number): void {
   if (oldPlace === newPlace) return;
   mutate(() => {
