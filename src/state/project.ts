@@ -622,16 +622,14 @@ export function detectWoiceType(bytes: Uint8Array): WoiceType {
   return WoiceType.PCM;
 }
 
-// OGGV は生 OGG のまま保持するため、保存時は本家と同一の mateOGGV チャンクになる。
-// name はファイル名 (拡張子なし) で、音色名として設定する (省略時は名前なし)
-export async function addWoice(bytes: Uint8Array, type: WoiceType, name?: string): Promise<string | null> {
-  if (!doc.ready) return t("error.notReady");
+// 指定 index に音色ファイルを読み込み、名前を設定する。エラー文字列を返す (成功時 null)。
+// addWoice (追加) と replaceWoiceFile (置き換え) の共通処理
+async function readWoiceFileInto(idx: number, bytes: Uint8Array, type: WoiceType, name?: string): Promise<string | null> {
   // OGGV のみ mateOGGV チャンク形式へ変換する (他はそのまま)
   const chunk = type === WoiceType.OGGV ? await oggBytesToMateChunk(bytes) : bytes;
   if (!chunk) return t("error.ogg");
   return (
     mutate(() => {
-      const idx = service.woiceNum;
       const res = service.woiceRead(idx, new MemoryIo(chunk), type);
       if (res !== PxtnErr.OK) return pxtnErrorMessage(res);
       // 名前は本家形式 (ShiftJIS・最大 16 バイト) で設定する
@@ -641,6 +639,12 @@ export async function addWoice(bytes: Uint8Array, type: WoiceType, name?: string
   );
 }
 
+// 音色ファイルを末尾に追加。name はファイル名 (拡張子なし) で音色名にする
+export async function addWoice(bytes: Uint8Array, type: WoiceType, name?: string): Promise<string | null> {
+  if (!doc.ready) return t("error.notReady");
+  return readWoiceFileInto(service.woiceNum, bytes, type, name);
+}
+
 export function removeWoice(idx: number): void {
   mutate(() => {
     service.woiceRemove(idx);
@@ -648,21 +652,11 @@ export function removeWoice(idx: number): void {
 }
 
 // 既存の音色 index を別の音色ファイルで置き換える。ユニットは音色を index 参照するため、
-// 同じ index に woiceRead で読み込めば、使用中のユニットも自動的に新しい音色を指す
+// 同じ index に読み込めば、使用中のユニットも自動的に新しい音色を指す
 export async function replaceWoiceFile(idx: number, bytes: Uint8Array, type: WoiceType, name?: string): Promise<string | null> {
   if (!doc.ready) return t("error.notReady");
   if (idx < 0 || idx >= service.woiceNum) return t("error.notReady");
-  // OGGV のみ mateOGGV チャンク形式へ変換する (他はそのまま)
-  const chunk = type === WoiceType.OGGV ? await oggBytesToMateChunk(bytes) : bytes;
-  if (!chunk) return t("error.ogg");
-  return (
-    mutate(() => {
-      const res = service.woiceRead(idx, new MemoryIo(chunk), type);
-      if (res !== PxtnErr.OK) return pxtnErrorMessage(res);
-      if (name) service.woiceGet(idx)?.setNameBuf(encodeShiftJis(name), 16);
-      return null;
-    }) ?? null
-  );
+  return readWoiceFileInto(idx, bytes, type, name);
 }
 
 export function replaceWoice(oldPlace: number, newPlace: number): void {
