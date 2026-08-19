@@ -113,7 +113,7 @@ const correctModel = makeSliderModel(
 );
 
 // リリース区間長 (本家 ptuiReleaseTime 準拠)。
-// スライダー表示 0..100 ↔ データ 0..1000 (×10)。スライダー 0 はリリース点削除 (tail なし)
+// スライダー表示 0..100 ↔ データ 1..1000 (×10)。スライダー 0 はデータ 1 にクランプ (tail は維持)
 function enveHeadCount(c: NonNullable<ReturnType<typeof currentVoiceUnit>>): number {
   return c.envelope.headNum + c.envelope.bodyNum;
 }
@@ -127,15 +127,10 @@ const releaseModel = makeSliderModel(
   (v) =>
     setVoiceUnit((c) => {
       const hc = c.envelope.headNum + c.envelope.bodyNum;
-      if (Math.round(v) <= 0) {
-        // スライダー 0 = リリース区間なし (本家: 0 で保存すると tail が無くなる)
-        c.envelope.tailNum = 0;
-        return;
-      }
-      // リリース点を復活させつつデータ 0..1000 にスケール
+      // 本家 ptuiReleaseTime 準拠: スライダー 0..100 ↔ データ 1..1000 (0 は 1 にクランプ、tail は維持)
       c.envelope.tailNum = Math.max(1, c.envelope.tailNum);
       const p = c.envelope.points[hc] ?? (c.envelope.points[hc] = { x: 0, y: 0 });
-      p.x = Math.max(0, Math.min(1000, Math.round(v) * 10));
+      p.x = Math.max(1, Math.min(1000, Math.round(v) * 10));
     }),
 );
 
