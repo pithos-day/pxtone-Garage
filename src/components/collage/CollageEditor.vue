@@ -88,15 +88,11 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
         <PinnedLanes />
       </div>
       <div class="collage-main">
-        <!-- 左パネル (ツール + W/U リスト + Volume トグル) -->
+        <!-- 左パネル (ツール + W/U リスト) -->
         <div class="collage-tray">
           <ToolPanel />
           <UnitTray v-if="doc.mode === 'U'" />
           <WoiceTray v-if="doc.mode === 'W'" />
-          <button class="volume-toggle bar-header" :class="{ on: doc.volumeVisible }" :title="t('common.volumeToggle')" @click="doc.volumeVisible = !doc.volumeVisible">
-            <span class="vt-label">Volume</span>
-            <span class="vt-arrow"><ChevronDown v-if="doc.volumeVisible" :size="12" /><ChevronRight v-else :size="12" /></span>
-          </button>
         </div>
         <!-- フィールド列: ルーラー (トラック直上) + トラック -->
         <div class="collage-field-col">
@@ -121,6 +117,16 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
         </div>
       </div>
     </div>
+    <!-- Volume 展開ボタン。幅は左パネル + 鍵盤 (NAME_W) で本家の VolumeSwitch 相当 -->
+    <button
+      class="volume-toggle bar-header"
+      :class="{ on: doc.volumeVisible }"
+      :title="t('common.volumeToggle')"
+      @click="doc.volumeVisible = !doc.volumeVisible"
+    >
+      <span class="vt-label">Volume</span>
+      <span class="vt-arrow"><ChevronDown v-if="doc.volumeVisible" :size="12" /><ChevronRight v-else :size="12" /></span>
+    </button>
     <div v-if="doc.volumeVisible" class="collage-vol">
       <VolumePanel :modes="volumeModeLabels" />
       <VolumeField />
@@ -183,9 +189,10 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
   overflow: hidden;
 }
 
-/* Volume トグル (左パネル最下部)。枠は上罫のみ (bar-header の下罫は border:none で打ち消す) */
+/* Volume 展開ボタン。幅は左パネル + 鍵盤 (NAME_W) で本家の VolumeSwitch 相当 */
 .volume-toggle {
   flex: none;
+  width: var(--name-w);
   display: flex;
   align-items: center;
   justify-content: space-between;

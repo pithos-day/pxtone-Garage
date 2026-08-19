@@ -25,10 +25,11 @@ defineProps<{ modes: string[] }>();
 
 <style scoped>
 .volpanel {
-  width: 144px;
+  width: var(--name-w);
   flex: none;
   display: flex;
   flex-direction: column;
+  align-items: flex-end; /* モードボタンを右揃え (右端 = VolumeField の左端 = NAME_W) */
   gap: var(--space-2xs);
   padding: 4px;
   border-right: 1px solid var(--border);
