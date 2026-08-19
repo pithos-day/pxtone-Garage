@@ -24,7 +24,7 @@ import {
 } from "../../state/project";
 import { currentClock, isPlaying as isPlayingNow } from "../../state/player";
 
-const H = 128; // フィールド高 (CSS の --volfield-h と同期)
+const H = 128; // 値の最大 (0..128)。canvas の高さは親 (collage-vol) に stretch される
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const tuningInput = ref<{ x: number; y: number; clock: number; value: string } | null>(null);
 
@@ -269,7 +269,7 @@ function onWheel(e: WheelEvent): void {
 </script>
 
 <template>
-  <div class="volfield" :style="{ '--volfield-h': H + 'px' }">
+  <div class="volfield">
     <canvas
       ref="canvasRef"
       class="field-canvas"
@@ -300,8 +300,16 @@ function onWheel(e: WheelEvent): void {
 .volfield {
   flex: 1;
   min-width: 0;
-  height: var(--volfield-h);
   position: relative;
+}
+
+/* canvas を absolute にして、コンテンツ高が親 (collage-vol) の高さ決定に影響しないようにする。
+   これで volfield は左の volpanel と同じ高さまで下方向に伸びる */
+.volfield .field-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
 .tuning-input {
