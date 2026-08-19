@@ -229,6 +229,20 @@ let holdReleaseSec = 0;
 // 押下解除時の最小フェード時間 (秒) — 停止時のポップ (クリックノイズ) を避ける
 const RELEASE_SEC = 0.03;
 
+// リリース減衰中のソース (新しいプレビューで即時中断するため追跡)
+let fadingSource: AudioBufferSourceNode | null = null;
+
+// リリース減衰中の音を即座に止める
+function stopFadingSource(): void {
+  if (!fadingSource) return;
+  try {
+    fadingSource.stop();
+  } catch {
+    /* noop */
+  }
+  fadingSource = null;
+}
+
 // 音色のリリース区間 (秒) を返す。tail なし・fps 不正・区間 0 は 0 (即時カットオフ)
 function woiceReleaseSec(woice: Woice | null): number {
   if (!woice) return 0;
@@ -244,6 +258,8 @@ function woiceReleaseSec(woice: Woice | null): number {
 // レンダリング済みバッファをループ再生で開始する
 function startHold(work: Float32Array, ctx: AudioContext, releaseSec = 0): void {
   if (work.length < 2) return;
+  // リリース減衰中の前の音を即座に消す (本家: 新しいプレビューで前の音は消える)
+  stopFadingSource();
   stopPreview();
   if (ctx.state === "suspended") void ctx.resume();
 
@@ -372,4 +388,9 @@ export function stopPreview(): void {
   } catch {
     /* noop */
   }
+  // フェード中のソースを追跡する (新しいプレビューで中断できるように)
+  fadingSource = src;
+  src.onended = () => {
+    if (fadingSource === src) fadingSource = null;
+  };
 }
