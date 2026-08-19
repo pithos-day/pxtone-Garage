@@ -85,10 +85,18 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
           }
         }
         if (mode === 0) {
+          // Velocity: Play アイコン (三角形) — 本家の rcNote 相当
+          ctx.fillStyle = COLORS.accent;
           for (const p of points) {
             const x = clockToX(view, p.clock) - doc.scrollX;
             if (x < 0 || x > w) continue;
-            fillRect(ctx, x - 1, valueY(p.value) - 1, 3, 3, COLORS.accent);
+            const y = valueY(p.value);
+            ctx.beginPath();
+            ctx.moveTo(x - 3, y - 6);
+            ctx.lineTo(x - 3, y + 6);
+            ctx.lineTo(x + 4, y);
+            ctx.closePath();
+            ctx.fill();
           }
         } else {
           // 階段状ライン
