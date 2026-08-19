@@ -16,10 +16,12 @@ import { woiceTypeColor } from "../../lib/theme";
 import { woiceSummary as formatWoiceSummary, WOICE_FILE_ACCEPT, WOICE_FILE_EXT_RE } from "../../lib/woice";
 import { useCtxMenuClose } from "../../composables/useCtxMenu";
 import { useHoldPreview } from "../../composables/useHoldPreview";
+import { capturePointer, releasePointerCapture } from "../../lib/field";
 import { openFileDialog } from "../../engine/io";
 import { t } from "../../i18n";
 
 const menu = ref<{ x: number; y: number; w: number } | null>(null);
+const trayListRef = ref<HTMLElement | null>(null);
 
 useCtxMenuClose(menu);
 
@@ -32,17 +34,20 @@ function onPointerDown(e: PointerEvent, idx: number): void {
     return;
   }
   if (e.button !== 0) return;
-  // 押下中サステインで試聴 (pointerup まで鳴り続ける)
+  // 押下中サステインで試聴 (pointerup まで鳴り続ける)。
+  // ポインタがリスト外でリリースされても pointerup を拾えるよう capture する
   const w = s.woiceGet(idx);
   if (w) {
+    capturePointer(trayListRef.value, e);
     hold.onPress();
     previewWoiceHold(idx, EVENTDEFAULT_KEY, EVENTDEFAULT_VELOCITY);
   }
 }
 
 const hold = useHoldPreview();
-function onPointerUp(): void {
+function onPointerUp(e: PointerEvent): void {
   hold.onRelease();
+  releasePointerCapture(trayListRef.value, e);
 }
 
 function onMenuAction(action: "remove" | "replace"): void {
@@ -84,7 +89,7 @@ function woiceSummary(idx: number): string {
 <template>
   <div class="tray">
     <div class="tray-title">{{ t("woice.title") }} ({{ woices.length }})</div>
-    <div class="tray-list" @contextmenu.prevent @pointerup="onPointerUp" @dragover.prevent @drop.prevent="onDrop">
+    <div ref="trayListRef" class="tray-list" @contextmenu.prevent @pointerup="onPointerUp" @pointercancel="onPointerUp" @dragover.prevent @drop.prevent="onDrop">
       <div
         v-for="w in woices"
         :key="w.index"
