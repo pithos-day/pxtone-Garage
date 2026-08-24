@@ -1,11 +1,12 @@
 // MIDI (SMF) ファイルを ptcop に変換する。
-// SMF のサブセット (MThd/MTrk・可変長数量・ランニングステータス・ノート/テンポ/拍子) を
+// SMF のサブセット (MThd/MTrk・可変長数量・ランニングステータス・ノート/テンポ/拍子/プログラムチェンジ) を
 // 自前でパースし、チャンネル単位でユニット化して ptcop バイト列を組み立てる。
-// 対応外: SMPTE タイムコード・ピッチベンド・コントローラ・プログラムチェンジ
+// 対応外: SMPTE タイムコード・ピッチベンド・コントローラ
 // (テンポ/拍子の途中変更は最初の値のみ使用。ptcop は曲全体で固定のため)
 import { Service, PxtnErr, MemoryIo, SEEK_SET, EventKind, WoiceType, PXTN_MAX_EVENT_NUM } from "pxtone-ts";
 import { EXE_VER } from "../state/service";
 import { createDefaultWoice } from "../state/voice";
+import { encodeShiftJis } from "../lib/sjis";
 
 // クロック/拍 (ptcop は beatClock=480 固定)
 const CLOCK_PER_BEAT = 480;
@@ -16,6 +17,43 @@ const MICROS_PER_MINUTE = 60000000;
 // SMF メタイベントのタイプ
 const META_TEMPO = 0x51;
 const META_TIME_SIGNATURE = 0x58;
+
+// General MIDI 1 楽器名 (プログラム番号 0..127)
+const GM_INSTRUMENTS: readonly string[] = [
+  "Acoustic Grand Piano", "Bright Acoustic Piano", "Electric Grand Piano",
+  "Honky-tonk Piano", "Electric Piano 1", "Electric Piano 2",
+  "Harpsichord", "Clavinet", "Celesta", "Glockenspiel",
+  "Music Box", "Vibraphone", "Marimba", "Xylophone",
+  "Tubular Bells", "Dulcimer", "Drawbar Organ", "Percussive Organ",
+  "Rock Organ", "Church Organ", "Reed Organ", "Accordion",
+  "Harmonica", "Tango Accordion", "Acoustic Guitar (nylon)", "Acoustic Guitar (steel)",
+  "Electric Guitar (jazz)", "Electric Guitar (clean)", "Electric Guitar (muted)", "Overdriven Guitar",
+  "Distortion Guitar", "Guitar Harmonics", "Acoustic Bass", "Electric Bass (finger)",
+  "Electric Bass (pick)", "Fretless Bass", "Slap Bass 1", "Slap Bass 2",
+  "Synth Bass 1", "Synth Bass 2", "Violin", "Viola",
+  "Cello", "Contrabass", "Tremolo Strings", "Pizzicato Strings",
+  "Orchestral Harp", "Timpani", "String Ensemble 1", "String Ensemble 2",
+  "Synth Strings 1", "Synth Strings 2", "Choir Aahs", "Voice Oohs",
+  "Synth Voice", "Orchestra Hit", "Trumpet", "Trombone",
+  "Tuba", "Muted Trumpet", "French Horn", "Brass Section",
+  "Synth Brass 1", "Synth Brass 2", "Soprano Sax", "Alto Sax",
+  "Tenor Sax", "Baritone Sax", "Oboe", "English Horn",
+  "Bassoon", "Clarinet", "Piccolo", "Flute",
+  "Recorder", "Pan Flute", "Blown Bottle", "Shakuhachi",
+  "Whistle", "Ocarina", "Lead 1 (square)", "Lead 2 (sawtooth)",
+  "Lead 3 (calliope)", "Lead 4 (chiff)", "Lead 5 (charang)", "Lead 6 (voice)",
+  "Lead 7 (fifths)", "Lead 8 (bass + lead)", "Pad 1 (new age)", "Pad 2 (warm)",
+  "Pad 3 (polysynth)", "Pad 4 (choir)", "Pad 5 (bowed)", "Pad 6 (metallic)",
+  "Pad 7 (halo)", "Pad 8 (sweep)", "FX 1 (rain)", "FX 2 (soundtrack)",
+  "FX 3 (crystal)", "FX 4 (atmosphere)", "FX 5 (brightness)", "FX 6 (goblins)",
+  "FX 7 (echoes)", "FX 8 (sci-fi)", "Sitar", "Banjo",
+  "Shamisen", "Koto", "Kalimba", "Bagpipe",
+  "Fiddle", "Shanai", "Tinkle Bell", "Agogo",
+  "Steel Drums", "Woodblock", "Taiko Drum", "Melodic Tom",
+  "Synth Drum", "Reverse Cymbal", "Guitar Fret Noise", "Breath Noise",
+  "Seashore", "Bird Tweet", "Telephone Ring", "Helicopter",
+  "Applause", "Gunshot",
+];
 
 export interface MidiNote {
   channel: number; // MIDI チャンネル (0..15)
@@ -30,6 +68,8 @@ export interface MidiSong {
   beatNum: number;
   notes: MidiNote[];
   maxClock: number;
+  // チャンネルごとのプログラム番号 (Program Change が無ければ 0)
+  programByChannel: Map<number, number>;
 }
 
 // 可変長数量 (VLQ) の読み取り
@@ -69,6 +109,8 @@ export function parseMidi(bytes: Uint8Array): MidiSong | null {
   const notes: MidiNote[] = [];
   // 発音中のノート (チャンネル → ノート番号 → オン情報)
   const pendingNotes = new Map<number, Map<number, { clock: number; velocity: number }>>();
+  // チャンネルごとのプログラム番号 (Program Change で設定)
+  const programByChannel = new Map<number, number>();
   let tempo = 120;
   let beatNum = 4;
   let tempoSet = false;
@@ -154,8 +196,13 @@ export function parseMidi(bytes: Uint8Array): MidiSong | null {
           eventPos = len.pos + len.value;
           runningStatus = 0;
         }
+      } else if (type === 0xc) {
+        // プログラムチェンジ (データ1バイト: プログラム番号)
+        const program = bytes[eventPos]!;
+        programByChannel.set(ch, program);
+        eventPos += 1;
       } else {
-        // ポリプレッシャー/CC/プログラムチェンジ/チャンネルプレッシャー/ピッチベンド
+        // ポリプレッシャー/CC/チャンネルプレッシャー/ピッチベンド
         eventPos += channelMessageDataLen(type);
       }
     }
@@ -171,7 +218,7 @@ export function parseMidi(bytes: Uint8Array): MidiSong | null {
     }
   }
 
-  return { tempo, beatNum, notes, maxClock };
+  return { tempo, beatNum, notes, maxClock, programByChannel };
 }
 
 // MIDI ノート番号 → pxtone KEY 値
@@ -267,23 +314,43 @@ export function convertMidiToPtcop(bytes: Uint8Array, options: MidiConvertOption
   const s = new Service();
   if (s.initCollage(PXTN_MAX_EVENT_NUM) !== PxtnErr.OK) return null;
 
-  // デフォルト音声 (ptVoice の初期音声) を音色 0 に注入して無音を回避する
-  const w = createDefaultWoice();
-  const wio = new MemoryIo();
-  if (w.ptvWrite(wio) < 0) return null;
-  if (!wio.seek(SEEK_SET, 0)) return null;
-  if (s.woiceRead(0, wio, WoiceType.PTV) !== PxtnErr.OK) return null;
-
   // ノートをユニットへ割り当て (和音の分割可否でユニット数が変わる)
   const { unitNames, assigned } = assignUnits(song.notes, splitChords);
+
+  // 使用チャンネルを収集して、チャンネルごとにデフォルト音色を作成
+  const usedChannels = [...new Set(assigned.map((a) => a.note.channel))].sort((a, b) => a - b);
+  // チャンネル番号 → woice スロット番号のマッピング
+  const channelToWoiceIdx = new Map<number, number>();
+  for (let i = 0; i < usedChannels.length; i++) {
+    const ch = usedChannels[i]!;
+    const program = song.programByChannel.get(ch) ?? 0;
+    const instrumentName = ch === 9 ? "GM Drums" : (GM_INSTRUMENTS[program] ?? "Unknown");
+    const woiceName = `${String(ch).padStart(3, "0")}-${instrumentName}`;
+    const w = createDefaultWoice();
+    w.setNameBuf(encodeShiftJis(woiceName), 16);
+    const wio = new MemoryIo();
+    if (w.ptvWrite(wio) < 0) return null;
+    if (!wio.seek(SEEK_SET, 0)) return null;
+    if (s.woiceRead(i, wio, WoiceType.PTV) !== PxtnErr.OK) return null;
+    channelToWoiceIdx.set(ch, i);
+  }
 
   for (let u = 0; u < unitNames.length; u++) {
     if (!s.unitAddNew()) return null;
   }
   unitNames.forEach((name, u) => s.unitGet(u)?.setNameBuf(name));
 
-  // VOICENO (デフォルト音声) → ノート
-  for (let u = 0; u < unitNames.length; u++) s.evels.recordAddI(0, u, EventKind.VOICENO, 0);
+  // 各ユニットの VOICENO を、ユニットに含まれるノートのチャンネルに対応する音色に設定
+  // (全ノートが同一チャンネルである前提で、最初のノートのチャンネルから woice idx を引く)
+  const unitChannel = new Map<number, number>();
+  for (const { note, unit } of assigned) {
+    if (!unitChannel.has(unit)) unitChannel.set(unit, note.channel);
+  }
+  for (let u = 0; u < unitNames.length; u++) {
+    const ch = unitChannel.get(u) ?? 0;
+    const wIdx = channelToWoiceIdx.get(ch) ?? 0;
+    s.evels.recordAddI(0, u, EventKind.VOICENO, wIdx);
+  }
   for (const { note, unit } of assigned) {
     s.evels.recordAddI(note.clock, unit, EventKind.KEY, note.key);
     s.evels.recordAddI(note.clock, unit, EventKind.VELOCITY, note.velocity);

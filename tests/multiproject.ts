@@ -1157,7 +1157,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
         checkEq(svc.master.beatNum, 4, "midi: ptcop 拍子 4");
         checkEq(svc.master.beatClock, 480, "midi: ptcop beatClock 480");
         checkEq(svc.unitNum, 2, "midi: ユニットはノートのあるチャンネル数のみ");
-        checkEq(svc.woiceNum, 1, "midi: デフォルト音色が1つ");
+        checkEq(svc.woiceNum, 2, "midi: チャンネルごとに音色が作成される");
         const notes = svc.evels.records.filter((e) => e.kind === EventKind.ON);
         checkEq(notes.length, 3, "midi: ON イベント3つ");
         const keys = svc.evels.records.filter((e) => e.kind === EventKind.KEY);
