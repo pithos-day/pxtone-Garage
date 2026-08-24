@@ -174,28 +174,69 @@ function playBuffer(work: Float32Array, sps: number): void {
   src.start();
 }
 
-// ユニットの音色で単音をプレビュー。
-// 音色は read 直後の unit には未設定 (VOICENO イベントで決まる) ため、
-// renderPreview 側で VOICENO から割り当てる。ここではユニット存在のみ確認
-// (hold = false なら 1 回だけ再生、true なら pointerup までループ再生)
-async function preview(target: PreviewTarget, key: number, velocity: number, durSec: number, hold: boolean): Promise<void> {
+// ユニットの音色を event の VOICENO から解決する。
+// unit.woice は setWoice で明示的に設定されない限り null のため、
+// evels の最後の VOICENO イベントから音色を引く
+function resolveUnitWoice(svc: Service, unitNo: number): Woice | null {
+  const unit = svc.unitGet(unitNo);
+  if (!unit) return null;
+  if (unit.woice) return unit.woice;
+  let voiceNo = 0;
+  for (const e of svc.evels.records) {
+    if (e.kind === EventKind.VOICENO && e.unitNo === unitNo) voiceNo = e.value;
+  }
+  return svc.woiceGet(voiceNo);
+}
+
+// ユニットの音色で単発再生。renderWoice を直接使い、フルプロジェクトの
+// シリアライズ + パースをスキップして低レイテンシを実現する
+export function previewUnit(unitNo: number, key: number, velocity: number = EVENTDEFAULT_VELOCITY, durSec = PREVIEW_SEC): void {
   const svc = getService();
   if (!svc) return;
-  if (target.unitNo !== null) {
-    if (!svc.unitGet(target.unitNo)) return;
-  } else if (target.woiceIdx === null || !svc.woiceGet(target.woiceIdx)) {
-    return;
-  }
-  const bytes = exportBytes();
-  if (!bytes) return;
   const ctx = getCtx();
   if (!ctx) return;
-  // 音色のリリース区間 (秒)。hold 解除時に Release を適用するため事前に取得
+  const woice = resolveUnitWoice(svc, unitNo);
+  if (!woice) return;
+  const work = renderWoice(woice, key, velocity, durSec, ctx.sampleRate);
+  if (!work || work.length < 2) return;
+  playBuffer(work, ctx.sampleRate);
+}
+
+// ユニットの音色をループ再生で開始する。pointerup まで鳴り続ける。
+// renderWoice による高速パスを試み、失敗時はプロジェクト全体のシリアライズ
+// パスにフォールバックする (PCM 音色など ptvWrite が使えない場合に対応)
+export async function previewUnitHold(unitNo: number, key: number, velocity: number = EVENTDEFAULT_VELOCITY, durSec = PREVIEW_SEC): Promise<void> {
+  const svc = getService();
+  if (!svc) return;
+  const ctx = getCtx();
+  if (!ctx) return;
+  const woice = resolveUnitWoice(svc, unitNo);
+  if (!woice) return;
+  let work: Float32Array | null = null;
+  try {
+    work = renderWoice(woice, key, velocity, durSec, ctx.sampleRate);
+  } catch {
+    // ptvWrite が使えない音色 (PCM 等) では例外になることがある
+  }
+  if (work && work.length >= 2) {
+    startHold(work, ctx, woiceReleaseSec(woice));
+    return;
+  }
+  // フォールバック: プロジェクト全体をシリアライズしてレンダリング
+  await previewFallback({ unitNo, woiceIdx: null }, key, velocity, durSec, ctx, true);
+}
+
+// previewUnitHold のフォールバック用 (旧 preview() パイプライン)
+async function previewFallback(target: PreviewTarget, key: number, velocity: number, durSec: number, ctx: AudioContext, hold: boolean): Promise<void> {
+  const svc = getService();
+  if (!svc) return;
+  const bytes = exportBytes();
+  if (!bytes) return;
   const woice =
     target.woiceIdx !== null
       ? svc.woiceGet(target.woiceIdx)
       : target.unitNo !== null
-        ? svc.unitGet(target.unitNo)?.woice ?? null
+        ? resolveUnitWoice(svc, target.unitNo)
         : null;
   const releaseSec = woiceReleaseSec(woice);
   const work = await renderPreview(bytes, target, key, velocity, durSec, ctx.sampleRate);
@@ -204,18 +245,26 @@ async function preview(target: PreviewTarget, key: number, velocity: number, dur
   else playBuffer(work, ctx.sampleRate);
 }
 
-export async function previewUnit(unitNo: number, key: number, velocity: number = EVENTDEFAULT_VELOCITY, durSec = PREVIEW_SEC): Promise<void> {
-  await preview({ unitNo, woiceIdx: null }, key, velocity, durSec, false);
-}
-
-// ユニットの音色をループ再生で開始する。pointerup まで鳴り続ける
-export async function previewUnitHold(unitNo: number, key: number, velocity: number = EVENTDEFAULT_VELOCITY, durSec = PREVIEW_SEC): Promise<void> {
-  await preview({ unitNo, woiceIdx: null }, key, velocity, durSec, true);
-}
-
 // 音色単体をループ再生で開始する。pointerup まで鳴り続ける
 export async function previewWoiceHold(woiceIdx: number, key: number, velocity: number = EVENTDEFAULT_VELOCITY, durSec = PREVIEW_SEC): Promise<void> {
-  await preview({ unitNo: null, woiceIdx }, key, velocity, durSec, true);
+  const svc = getService();
+  if (!svc) return;
+  const woice = svc.woiceGet(woiceIdx);
+  if (!woice) return;
+  const ctx = getCtx();
+  if (!ctx) return;
+  let work: Float32Array | null = null;
+  try {
+    work = renderWoice(woice, key, velocity, durSec, ctx.sampleRate);
+  } catch {
+    // ptvWrite が使えない音色 (PCM 等) では例外になることがある
+  }
+  if (work && work.length >= 2) {
+    startHold(work, ctx, woiceReleaseSec(woice));
+    return;
+  }
+  // フォールバック: プロジェクト全体をシリアライズしてレンダリング
+  await previewFallback({ unitNo: null, woiceIdx }, key, velocity, durSec, ctx, true);
 }
 
 // ---- 押下中サステイン (押している間ループ再生) ----
@@ -298,7 +347,20 @@ watch(masterVolume, (v) => {
 
 // 単体 Woice をオフライン短レンダリングして Float32Array (ステレオインターリーブ) を得る。
 // renderPreview と同一の手法で、音色スロット 0 に ptvWrite バイト列を注入してから
-// VOICENO/KEY/VELOCITY/ON イベントを置いてレンダリングする
+// VOICENO/KEY/VELOCITY/ON イベントを置いてレンダリングする。
+// read() が clear() するため 1 個の Service を使い回す (毎回の initCollage を省略)
+let renderSvc: Service | null = null;
+
+function getRenderService(): Service | null {
+  if (renderSvc) return renderSvc;
+  renderSvc = new Service();
+  if (renderSvc.initCollage(PXTN_MAX_EVENT_NUM) !== PxtnErr.OK) {
+    renderSvc = null;
+    return null;
+  }
+  return renderSvc;
+}
+
 export function renderWoice(
   woice: Woice,
   key: number,
@@ -306,8 +368,10 @@ export function renderWoice(
   durSec: number,
   sps: number,
 ): Float32Array | null {
-  const s = new Service();
-  if (s.initCollage(PXTN_MAX_EVENT_NUM) !== PxtnErr.OK) return null;
+  const s = getRenderService();
+  if (!s) return null;
+  // 前回の read で 1 ユニットが残っているため削除してから注入する
+  if (s.unitNum > 0) s.unitRemove(0);
   const io = new MemoryIo();
   if (woice.ptvWrite(io) < 0) return null;
   // ptvWrite は位置を末尾へ進めるため、読み込み前に先頭へ戻す
@@ -319,10 +383,8 @@ export function renderWoice(
   // bTune=false は ptcop 形式 — pttune 書き出しの io.ts exportPttune とは別経路)
   const out = new MemoryIo();
   if (s.write(out, false, EXE_VER) !== PxtnErr.OK) return null;
-  const s2 = new Service();
-  if (s2.initCollage(PXTN_MAX_EVENT_NUM) !== PxtnErr.OK) return null;
-  if (s2.read(new MemoryIo(out.toUint8Array())) !== PxtnErr.OK) return null;
-  return renderEvents(s2, 0, key, velocity, durSec, sps);
+  if (s.read(new MemoryIo(out.toUint8Array())) !== PxtnErr.OK) return null;
+  return renderEvents(s, 0, key, velocity, durSec, sps);
 }
 
 // ノイズを NoiseBuilder で波形化して Float32Array (ステレオインターリーブ) を得る
@@ -336,39 +398,102 @@ export function renderNoise(noise: Noise, sps: number): Float32Array | null {
   return int16ToFloat32(new Int16Array(buf.buffer, buf.byteOffset, buf.byteLength >> 1));
 }
 
-// 音声単体 (コラージュ外の Woice オブジェクト) を押下中サステインで試聴開始する。
-// レンダリングは (key, velocity) 単位でキャッシュし、再計算を避ける
+// ---- Voice 側: 音声単体プレビュー (LRU キャッシュ + 非同期集約レンダリング) ----
+// レンダリングは (key, velocity, durSec) 単位でキャッシュし、再計算を避ける
 // (音色を編集した場合は clearWoicePreviewCache() で破棄する)
-let voicePreviewKey = "";
-let voicePreviewWork: Float32Array | null = null;
+
+const VOICE_PREVIEW_CACHE_MAX = 8;
+const voicePreviewCache = new Map<string, Float32Array>();
+
+// LRU キャッシュ: 使用時に末尾へ移動、上限超過で最古を破棄
+function cacheGet(k: string): Float32Array | null {
+  const w = voicePreviewCache.get(k);
+  if (w) {
+    voicePreviewCache.delete(k);
+    voicePreviewCache.set(k, w);
+  }
+  return w ?? null;
+}
+
+function cacheSet(k: string, w: Float32Array): void {
+  voicePreviewCache.delete(k);
+  voicePreviewCache.set(k, w);
+  while (voicePreviewCache.size > VOICE_PREVIEW_CACHE_MAX) {
+    const oldest = voicePreviewCache.keys().next().value;
+    if (oldest === undefined) break;
+    voicePreviewCache.delete(oldest);
+  }
+}
 
 export function clearWoicePreviewCache(): void {
-  voicePreviewKey = "";
-  voicePreviewWork = null;
+  voicePreviewCache.clear();
+  // 非同期レンダリングが保留中の場合、完了時に再生しないよう無効化する
+  pendingWoice = null;
+  pendingKey = -1;
 }
+
+// テスト用: キャッシュされた AudioContext を破棄し、次回 getCtx() で新規作成させる
+export function resetPreviewContext(): void {
+  previewCtx = null;
+}
+
+// 非同期集約レンダリング: キー変更時は最新キーのみを 1 回レンダリングする。
+// 複数のキー変更がイベントループ内で积み上がった場合、最後のキーだけを処理する
+let pendingWoice: Woice | null = null;
+let pendingKey = -1;
+let pendingVelocity = EVENTDEFAULT_VELOCITY;
+let pendingDurSec = PREVIEW_SEC;
+let renderTimer: ReturnType<typeof setTimeout> | null = null;
+// リリース後にレンダリング完了した場合、startHold 直後に停止するフラグ
+let pendingStopAfterStart = false;
+let pendingStopReleaseSec = 0;
 
 export function previewWoiceObjectHold(woice: Woice, key: number, velocity: number = EVENTDEFAULT_VELOCITY, durSec = PREVIEW_SEC): void {
   const ctx = getCtx();
   if (!ctx) return;
   const k = `${key}-${velocity}-${durSec}`;
-  if (voicePreviewKey !== k) {
-    // キーが変わったら、レンダリングを待たずに前の音を即座に止める
-    // (レンダリング中も前の音の Release 減衰が鳴り続けてしまうため)
-    stopHoldForNewPreview();
-    voicePreviewKey = k;
-    try {
-      voicePreviewWork = renderWoice(woice, key, velocity, durSec, ctx.sampleRate);
-    } catch {
-      voicePreviewWork = null;
-    }
-  }
-  if (!voicePreviewWork || voicePreviewWork.length < 2) {
-    // レンダリング失敗時はキャッシュを破棄して次回再試行する
-    voicePreviewKey = "";
-    voicePreviewWork = null;
+  // キャッシュヒット: レンダリング不要で即時再生
+  const work = cacheGet(k);
+  if (work && work.length >= 2) {
+    pendingStopAfterStart = false;
+    startHold(work, ctx, woiceReleaseSec(woice));
     return;
   }
-  startHold(voicePreviewWork, ctx, woiceReleaseSec(woice));
+  // キャッシュミス: 前の音を即座に止め、最新キーのレンダリングを非同期でスケジュールする
+  stopHoldForNewPreview();
+  pendingStopAfterStart = false;
+  pendingWoice = woice;
+  pendingKey = key;
+  pendingVelocity = velocity;
+  pendingDurSec = durSec;
+  if (!renderTimer) {
+    renderTimer = setTimeout(() => {
+      renderTimer = null;
+      const w = pendingWoice;
+      const key2 = pendingKey;
+      if (!w || key2 < 0) return;
+      const vel = pendingVelocity;
+      const dur = pendingDurSec;
+      pendingWoice = null;
+      pendingKey = -1;
+      let work2: Float32Array | null = null;
+      try {
+        work2 = renderWoice(w, key2, vel, dur, ctx.sampleRate);
+      } catch {
+        work2 = null;
+      }
+      if (work2 && work2.length >= 2) {
+        cacheSet(`${key2}-${vel}-${dur}`, work2);
+        startHold(work2, ctx, woiceReleaseSec(w));
+        // リリース後にレンダリング完了した場合: startHold 直後に停止して
+        // タップ音 (短い攻撃 + リリース) が鳴るようにする
+        if (pendingStopAfterStart) {
+          pendingStopAfterStart = false;
+          stopHold(pendingStopReleaseSec);
+        }
+      }
+    }, 0);
+  }
 }
 
 // レンダリング済み PCM を単発再生する (ノイズのクリック再生用。ループしない)
@@ -417,8 +542,14 @@ function stopHold(releaseSec: number): void {
 }
 
 // 押下中サステインを停止する。音色の Release 区間があればその区間で減衰し、
-// なければ最小フェードのみで停止する (ポップ防止)
+// なければ最小フェードのみで停止する (ポップ防止)。
+// 非同期レンダリングが保留中の場合、完了後に startHold → 即 stopHold し、
+// タップ音 (短い攻撃 + リリース) が鳴るようにする
 export function stopPreview(): void {
+  if (pendingKey >= 0 && pendingWoice) {
+    pendingStopAfterStart = true;
+    pendingStopReleaseSec = woiceReleaseSec(pendingWoice);
+  }
   stopHold(holdReleaseSec);
 }
 

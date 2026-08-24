@@ -1,7 +1,7 @@
 // プレビュー音声制御 (preview.ts) のシミュレーションテスト。
 // AudioContext をモックして、キー変更時の「前の音の停止」を検証する。
 import type { Woice } from "pxtone-ts";
-import { previewWoiceObjectHold, stopPreview, renderWoice } from "../src/engine/preview";
+import { previewWoiceObjectHold, stopPreview, renderWoice, clearWoicePreviewCache, resetPreviewContext } from "../src/engine/preview";
 import { createDefaultWoice } from "../src/state/voice";
 
 // ---- モック AudioContext ----
@@ -101,48 +101,112 @@ function longReleaseWoice(): Woice {
   return w;
 }
 
-// 1. キー A → B → C と変更したとき、前の音が Release を鳴らさず即座に切られること
-{
-  const w = longReleaseWoice();
-  previewWoiceObjectHold(w, 60, 104);
-  assert(lastCtx!.sources.length === 1, "A: 1 ソース生成");
-  assert(lastCtx!.sources[0]!.started, "A: start 済み");
-
-  previewWoiceObjectHold(w, 64, 104);
-  const srcA = lastCtx!.sources[0]!;
-  const gA = lastCtx!.params[0]!;
-  // A はスケジュール済み stop のため 2 回目の stop は失敗するが、ゲイン 0 で確実に消える
-  assert(srcA.stopCalls === 2, "B: A への stop はスケジュール + 即時カット試行の 2 回");
-  assert(gA.events.some((e) => e.type === "set" && e.value === 0), "B: A のゲインが即座に 0 にされる");
-  assert(!gA.events.some((e) => e.type === "ramp" && e.time >= 10), "B: A に 10 秒の Release 減衰は設定されない");
-
-  previewWoiceObjectHold(w, 67, 104);
-  const srcB = lastCtx!.sources[1]!;
-  const gB = lastCtx!.params[1]!;
-  assert(srcB.stopCalls === 2, "C: B への stop は 2 回 (1 回目はスケジュール)");
-  assert(gB.events.some((e) => e.type === "set" && e.value === 0), "C: B のゲインが即座に 0 にされる");
-
-  // 2. 押下解除: 音色の Release 区間 (10 秒) で減衰すること
-  stopPreview();
-  const srcC = lastCtx!.sources[2]!;
-  const gC = lastCtx!.params[2]!;
-  const rampC = gC.events.filter((e) => e.type === "ramp");
-  assert(rampC.length === 1 && rampC[0]!.time >= 10, "押下解除: Release 区間 (10 秒) で減衰");
-  assert(srcC.stopCalls === 1, "押下解除: C に stop(when) が 1 回");
-
-  // 3. 減衰中に新しいキーを押すと、減衰中の音が即時カットされること
-  previewWoiceObjectHold(w, 72, 104);
-  assert(gC.events.some((e) => e.type === "set" && e.value === 0), "減衰中の新しいプレビュー: ゲイン 0 で即時カット");
+// 非同期レンダリング完了を待つ (previewWoiceObjectHold は setTimeout(0) でスケジュール)
+function flush(): Promise<void> {
+  return new Promise((r) => setTimeout(r, 0));
 }
 
-// 4. renderWoice の実測 (1 回のレンダリングがどの程度ブロックするか)
-{
-  const w = createDefaultWoice();
-  const t0 = performance.now();
-  const work = renderWoice(w, 60, 104, 2.5, 44100);
-  const ms = performance.now() - t0;
-  assert(work !== null && work.length >= 2, "renderWoice: 結果あり");
-  console.log(`renderWoice: ${ms.toFixed(1)}ms (len=${work?.length})`);
-}
+void (async () => {
+  // ---- renderWoice の Service 使い回し: 同一キーで 2 回レンダリング → 同一結果 ----
+  {
+    const w = createDefaultWoice();
+    const work1 = renderWoice(w, 60, 104, 1.0, 44100);
+    const work2 = renderWoice(w, 60, 104, 1.0, 44100);
+    assert(work1 !== null && work2 !== null && work1!.length === work2!.length, "Service 再利用: 同一キーで長さ一致");
+    let eq = true;
+    for (let i = 0; i < work1!.length; i++) {
+      if (work1![i] !== work2![i]) { eq = false; break; }
+    }
+    assert(eq, "Service 再利用: 同一キーで内容一致");
+    console.log(`renderWoice: ${work1!.length} samples`);
+  }
 
-console.log(`ALL PASS (${pass} assertions)`);
+  // ---- 非同期集約レンダリング: 連続キー変更で最新キーのみレンダリング ----
+  {
+    clearWoicePreviewCache();
+    resetPreviewContext();
+    const w = longReleaseWoice();
+    lastCtx = new FakeContext() as unknown as FakeContext;
+    previewWoiceObjectHold(w, 60, 104);
+    assert(lastCtx.sources.length === 0, "coalesce: 即座にはソース生成されない");
+    previewWoiceObjectHold(w, 64, 104);
+    previewWoiceObjectHold(w, 67, 104);
+    assert(lastCtx.sources.length === 0, "coalesce: 複数キー変更後もソースなし");
+    await flush();
+    assert(lastCtx.sources.length === 1, "coalesce: タイマー後に 1 ソース生成");
+    assert(lastCtx.sources[0]!.started, "coalesce: 最終キー (67) が再生開始");
+  }
+
+  // ---- キャッシュヒット: 同じキー 2 回目は即時再生 (レンダリングなし) ----
+  {
+    clearWoicePreviewCache();
+    resetPreviewContext();
+    const w = longReleaseWoice();
+    lastCtx = new FakeContext() as unknown as FakeContext;
+    previewWoiceObjectHold(w, 60, 104);
+    await flush();
+    assert(lastCtx.sources.length === 1, "cache: 1 回目でソース生成");
+    previewWoiceObjectHold(w, 60, 104);
+    assert(lastCtx.sources.length >= 2, "cache: 2 回目で追加ソース生成 (即時再生)");
+  }
+
+  // ---- キー A → B → C: 前の音が Release を鳴らさず即座に切られること ----
+  {
+    clearWoicePreviewCache();
+    resetPreviewContext();
+    const w = longReleaseWoice();
+    lastCtx = new FakeContext() as unknown as FakeContext;
+    previewWoiceObjectHold(w, 60, 104);
+    await flush();
+    assert(lastCtx.sources.length === 1, "A: 1 ソース生成");
+    assert(lastCtx.sources[0]!.started, "A: start 済み");
+
+    previewWoiceObjectHold(w, 64, 104);
+    await flush();
+    const srcA = lastCtx.sources[0]!;
+    const gA = lastCtx.params[0]!;
+    assert(srcA.stopCalls >= 2, "B: A への stop はスケジュール + 即時カット試行");
+    assert(gA.events.some((e) => e.type === "set" && e.value === 0), "B: A のゲインが即座に 0 にされる");
+    assert(!gA.events.some((e) => e.type === "ramp" && e.time >= 10), "B: A に 10 秒の Release 減衰は設定されない");
+
+    previewWoiceObjectHold(w, 67, 104);
+    await flush();
+    const srcB = lastCtx.sources[1]!;
+    const gB = lastCtx.params[1]!;
+    assert(srcB.stopCalls >= 2, "C: B への stop は 2 回以上");
+    assert(gB.events.some((e) => e.type === "set" && e.value === 0), "C: B のゲインが即座に 0 にされる");
+
+    stopPreview();
+    const srcC = lastCtx.sources[2]!;
+    const gC = lastCtx.params[2]!;
+    const rampC = gC.events.filter((e) => e.type === "ramp");
+    assert(rampC.length === 1 && rampC[0]!.time >= 10, "押下解除: Release 区間 (10 秒) で減衰");
+    assert(srcC.stopCalls === 1, "押下解除: C に stop(when) が 1 回");
+  }
+
+  // ---- stopAfterStart: リリース後にレンダリング完了 → startHold 直後に停止 ----
+  {
+    clearWoicePreviewCache();
+    resetPreviewContext();
+    const w = longReleaseWoice();
+    lastCtx = new FakeContext() as unknown as FakeContext;
+    previewWoiceObjectHold(w, 60, 104);
+    stopPreview();
+    await flush();
+    assert(lastCtx.sources.length >= 1, "stopAfterStart: startHold でソース生成");
+    const srcD = lastCtx.sources[lastCtx.sources.length - 1]!;
+    assert(srcD.stopCalls >= 1, "stopAfterStart: startHold 直後に stop が呼ばれる");
+  }
+
+  // ---- renderWoice の実測 (1 回のレンダリングがどの程度ブロックするか) ----
+  {
+    const w = createDefaultWoice();
+    const t0 = performance.now();
+    const work = renderWoice(w, 60, 104, 2.5, 44100);
+    const ms = performance.now() - t0;
+    assert(work !== null && work.length >= 2, "renderWoice: 結果あり");
+    console.log(`renderWoice: ${ms.toFixed(1)}ms (len=${work?.length})`);
+  }
+
+  console.log(`ALL PASS (${pass} assertions)`);
+})();
