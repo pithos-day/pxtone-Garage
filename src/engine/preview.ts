@@ -283,10 +283,10 @@ let fadingSource: AudioBufferSourceNode | null = null;
 let fadingGain: GainNode | null = null;
 let fadingCtx: AudioContext | null = null;
 
-// リリース減衰中の音を即座に止める。
+// リリース減衰中の音を止める。
 // 減衰中のソースには stop(when) がスケジュール済みのため、再 stop() は
 // InvalidStateError を投げて catch で無視され、音が鳴り続けてしまう。
-// ゲインを 0 にすればスケジュール済みのフェードに関係なく確実に消せる
+// ゲインを 0 にフェードアウトしてから stop() をスケジュールする
 function stopFadingSource(): void {
   const src = fadingSource;
   const g = fadingGain;
@@ -298,7 +298,10 @@ function stopFadingSource(): void {
   if (g && ctx) {
     const t = ctx.currentTime;
     g.gain.cancelScheduledValues(t);
-    g.gain.setValueAtTime(0, t);
+    g.gain.setValueAtTime(g.gain.value, t);
+    // 即時カット (gain=0) だとプツッというクリックノイズが発生するため、
+    // 最小フェード時間で滑らかに消す
+    g.gain.linearRampToValueAtTime(0, t + RELEASE_SEC);
   }
   try {
     src.stop();
