@@ -327,11 +327,13 @@ export function convertMidiToPtcop(bytes: Uint8Array, options: MidiConvertOption
     const instrumentName = ch === 9 ? "GM Drums" : (GM_INSTRUMENTS[program] ?? "Unknown");
     const woiceName = `${String(ch).padStart(3, "0")}-${instrumentName}`;
     const w = createDefaultWoice();
-    w.setNameBuf(encodeShiftJis(woiceName), 16);
     const wio = new MemoryIo();
     if (w.ptvWrite(wio) < 0) return null;
     if (!wio.seek(SEEK_SET, 0)) return null;
     if (s.woiceRead(i, wio, WoiceType.PTV) !== PxtnErr.OK) return null;
+    // 名前は woiceRead 後に service 側の woice に設定する
+    // (ptvWrite には名前が含まれず、woiceRead が新しい Woice を作成するため)
+    s.woiceGet(i)?.setNameBuf(encodeShiftJis(woiceName), 16);
     channelToWoiceIdx.set(ch, i);
   }
 
