@@ -18,41 +18,42 @@ const MICROS_PER_MINUTE = 60000000;
 const META_TEMPO = 0x51;
 const META_TIME_SIGNATURE = 0x58;
 
-// General MIDI 1 楽器名 (プログラム番号 0..127)
+// General MIDI 1 楽器名 (プログラム番号 0..127)。
+// woice 名は "{チャンネル3桁}-{楽器名}" の16バイト制限のため、12文字以内に短縮
 const GM_INSTRUMENTS: readonly string[] = [
-  "Acoustic Grand Piano", "Bright Acoustic Piano", "Electric Grand Piano",
-  "Honky-tonk Piano", "Electric Piano 1", "Electric Piano 2",
-  "Harpsichord", "Clavinet", "Celesta", "Glockenspiel",
-  "Music Box", "Vibraphone", "Marimba", "Xylophone",
-  "Tubular Bells", "Dulcimer", "Drawbar Organ", "Percussive Organ",
-  "Rock Organ", "Church Organ", "Reed Organ", "Accordion",
-  "Harmonica", "Tango Accordion", "Acoustic Guitar (nylon)", "Acoustic Guitar (steel)",
-  "Electric Guitar (jazz)", "Electric Guitar (clean)", "Electric Guitar (muted)", "Overdriven Guitar",
-  "Distortion Guitar", "Guitar Harmonics", "Acoustic Bass", "Electric Bass (finger)",
-  "Electric Bass (pick)", "Fretless Bass", "Slap Bass 1", "Slap Bass 2",
-  "Synth Bass 1", "Synth Bass 2", "Violin", "Viola",
-  "Cello", "Contrabass", "Tremolo Strings", "Pizzicato Strings",
-  "Orchestral Harp", "Timpani", "String Ensemble 1", "String Ensemble 2",
-  "Synth Strings 1", "Synth Strings 2", "Choir Aahs", "Voice Oohs",
-  "Synth Voice", "Orchestra Hit", "Trumpet", "Trombone",
-  "Tuba", "Muted Trumpet", "French Horn", "Brass Section",
-  "Synth Brass 1", "Synth Brass 2", "Soprano Sax", "Alto Sax",
-  "Tenor Sax", "Baritone Sax", "Oboe", "English Horn",
-  "Bassoon", "Clarinet", "Piccolo", "Flute",
-  "Recorder", "Pan Flute", "Blown Bottle", "Shakuhachi",
-  "Whistle", "Ocarina", "Lead 1 (square)", "Lead 2 (sawtooth)",
-  "Lead 3 (calliope)", "Lead 4 (chiff)", "Lead 5 (charang)", "Lead 6 (voice)",
-  "Lead 7 (fifths)", "Lead 8 (bass + lead)", "Pad 1 (new age)", "Pad 2 (warm)",
-  "Pad 3 (polysynth)", "Pad 4 (choir)", "Pad 5 (bowed)", "Pad 6 (metallic)",
-  "Pad 7 (halo)", "Pad 8 (sweep)", "FX 1 (rain)", "FX 2 (soundtrack)",
-  "FX 3 (crystal)", "FX 4 (atmosphere)", "FX 5 (brightness)", "FX 6 (goblins)",
-  "FX 7 (echoes)", "FX 8 (sci-fi)", "Sitar", "Banjo",
-  "Shamisen", "Koto", "Kalimba", "Bagpipe",
-  "Fiddle", "Shanai", "Tinkle Bell", "Agogo",
-  "Steel Drums", "Woodblock", "Taiko Drum", "Melodic Tom",
-  "Synth Drum", "Reverse Cymbal", "Guitar Fret Noise", "Breath Noise",
-  "Seashore", "Bird Tweet", "Telephone Ring", "Helicopter",
-  "Applause", "Gunshot",
+  "AcouGrandPno", "BriAcouPno", "ElecGrandPno", // 0-2
+  "HonkyPno", "EPiano1", "EPiano2", // 3-5
+  "Harpsichord", "Clavinet", "Celesta", "Glockenspiel", // 6-9
+  "MusicBox", "Vibraphone", "Marimba", "Xylophone", // 10-13
+  "TublBells", "Dulcimer", "DrawOrgan", "PercOrgan", // 14-17
+  "RockOrgan", "ChurchOrgan", "ReedOrgan", "Accordion", // 18-21
+  "Harmonica", "TangoAccord", "AGuitar(n)", "AGuitar(s)", // 22-25
+  "EGuitar(j)", "EGuitar(c)", "EGuitar(m)", "OverdriveGtr", // 26-29
+  "DistortGtr", "GuitarHarm", "AcouBass", "ElecBass(f)", // 30-33
+  "ElecBass(p)", "FretlessBas", "SlapBass1", "SlapBass2", // 34-37
+  "SynthBass1", "SynthBass2", "Violin", "Viola", // 38-41
+  "Cello", "Contrabass", "TremoloStr", "PizzcatoStr", // 42-45
+  "OrchesHarp", "Timpani", "StrEnsemble1", "StrEnsemble2", // 46-49
+  "SynthStr1", "SynthStr2", "ChoirAahs", "VoiceOohs", // 50-53
+  "SynthVoice", "OrchesHit", "Trumpet", "Trombone", // 54-57
+  "Tuba", "MutedTrump", "FrenchHorn", "BrassSection", // 58-61
+  "SynthBrass1", "SynthBrass2", "SopranoSax", "AltoSax", // 62-65
+  "TenorSax", "BaritoneSax", "Oboe", "EnglishHorn", // 66-69
+  "Bassoon", "Clarinet", "Piccolo", "Flute", // 70-73
+  "Recorder", "PanFlute", "BlownBottle", "Shakuhachi", // 74-77
+  "Whistle", "Ocarina", "Lead1(sq)", "Lead2(saw)", // 78-81
+  "Lead3(calli)", "Lead4(chiff)", "Lead5(char)", "Lead6(voice)", // 82-85
+  "Lead7(5th)", "Lead8(B+L)", "Pad1(newage)", "Pad2(warm)", // 86-89
+  "Pad3(polysy)", "Pad4(choir)", "Pad5(bowed)", "Pad6(metal)", // 90-93
+  "Pad7(halo)", "Pad8(sweep)", "FX1(rain)", "FX2(soundt)", // 94-97
+  "FX3(crystal)", "FX4(atmos)", "FX5(bright)", "FX6(goblins)", // 98-101
+  "FX7(echoes)", "FX8(scifi)", "Sitar", "Banjo", // 102-105
+  "Shamisen", "Koto", "Kalimba", "Bagpipe", // 106-109
+  "Fiddle", "Shanai", "TinkleBell", "Agogo", // 110-113
+  "SteelDrums", "Woodblock", "TaikoDrum", "MelodicTom", // 114-117
+  "SynthDrum", "RevCymbal", "GtrFretNoise", "BreathNoise", // 118-121
+  "Seashore", "BirdTweet", "TelRing", "Helicopter", // 122-125
+  "Applause", "Gunshot", // 126-127
 ];
 
 export interface MidiNote {
@@ -324,7 +325,7 @@ export function convertMidiToPtcop(bytes: Uint8Array, options: MidiConvertOption
   for (let i = 0; i < usedChannels.length; i++) {
     const ch = usedChannels[i]!;
     const program = song.programByChannel.get(ch) ?? 0;
-    const instrumentName = ch === 9 ? "GM Drums" : (GM_INSTRUMENTS[program] ?? "Unknown");
+    const instrumentName = ch === 9 ? "GMDrums" : (GM_INSTRUMENTS[program] ?? "Unknown");
     const woiceName = `${String(ch).padStart(3, "0")}-${instrumentName}`;
     const w = createDefaultWoice();
     const wio = new MemoryIo();
