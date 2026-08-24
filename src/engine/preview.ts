@@ -284,9 +284,9 @@ let fadingGain: GainNode | null = null;
 let fadingCtx: AudioContext | null = null;
 
 // リリース減衰中の音を止める。
-// 減衰中のソースには stop(when) がスケジュール済みのため、再 stop() は
-// InvalidStateError を投げて catch で無視され、音が鳴り続けてしまう。
-// ゲインを 0 にフェードアウトしてから stop() をスケジュールする
+// stopHold がスケジュール済みの src.stop(when) に任せるため、
+// src.stop() は呼ばない (呼ぶとランプ完了前にソースが停止しプツッの原因になる)。
+// gain ランプを再設定して滑らかに消す
 function stopFadingSource(): void {
   const src = fadingSource;
   const g = fadingGain;
@@ -300,13 +300,8 @@ function stopFadingSource(): void {
     g.gain.cancelScheduledValues(t);
     g.gain.setValueAtTime(g.gain.value, t);
     // 即時カット (gain=0) だとプツッというクリックノイズが発生するため、
-    // 最小フェード時間で滑らかに消す
+    // 最小フェード時間で滑らかに消す。stop() は stopHold のスケジュールに任せる
     g.gain.linearRampToValueAtTime(0, t + RELEASE_SEC);
-  }
-  try {
-    src.stop();
-  } catch {
-    /* noop */
   }
 }
 

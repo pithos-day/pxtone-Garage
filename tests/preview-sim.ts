@@ -165,7 +165,7 @@ void (async () => {
     await flush();
     const srcA = lastCtx.sources[0]!;
     const gA = lastCtx.params[0]!;
-    assert(srcA.stopCalls >= 2, "B: A への stop はスケジュール + 即時カット試行");
+    assert(srcA.stopCalls >= 1, "B: A への stop がスケジュールされる");
     // stopFadingSource は即時 gain=0 ではなく短いフェードで消す (プツッ防止)
     const rampA = gA.events.filter((e) => e.type === "ramp");
     assert(rampA.length >= 1 && rampA.at(-1)!.value === 0, "B: A のゲインがフェードアウトで 0 になる");
@@ -175,7 +175,7 @@ void (async () => {
     await flush();
     const srcB = lastCtx.sources[1]!;
     const gB = lastCtx.params[1]!;
-    assert(srcB.stopCalls >= 2, "C: B への stop は 2 回以上");
+    assert(srcB.stopCalls >= 1, "C: B への stop がスケジュールされる");
     const rampB = gB.events.filter((e) => e.type === "ramp");
     assert(rampB.length >= 1 && rampB.at(-1)!.value === 0, "C: B のゲインがフェードアウトで 0 になる");
 
