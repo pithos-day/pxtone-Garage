@@ -160,6 +160,7 @@ function restore(p: Project): void {
   applyState(p.state);
   title.value = p.title;
   comment.value = p.comment;
+  doc.readOnly = p.kind === "tune";
   sync();
   doc.rev++;
   resetLoaded();
@@ -174,11 +175,13 @@ export function switchProject(id: number): void {
   restore(p);
 }
 
-// 空のプロジェクトを新規タブに追加して切り替える
-export function newProjectInTab(): Project {
+// 空のプロジェクトを新規タブに追加して切り替える。
+// kind=tune の場合は非編集 Service (init) で作る (beatClock 制限なし・再生専用)
+export function newProjectInTab(kind: "ptcop" | "tune" = "ptcop"): Project {
   ensureInit();
   const svc = new Service();
-  if (svc.initCollage(PXTN_MAX_EVENT_NUM) !== PxtnErr.OK) throw new Error("engine init failed");
+  const err = kind === "tune" ? svc.init() : svc.initCollage(PXTN_MAX_EVENT_NUM);
+  if (err !== PxtnErr.OK) throw new Error("engine init failed");
   const p: Project = {
     id: nextId++,
     fileName: "",
@@ -189,7 +192,7 @@ export function newProjectInTab(): Project {
     title: "",
     comment: "",
     initial: false,
-    kind: "ptcop",
+    kind,
     tuneBytes: null,
   };
   services.set(p.id, svc);
@@ -200,7 +203,9 @@ export function newProjectInTab(): Project {
 
 // 現在のプロジェクトの内容を UI に再同期する (読み込み後の反映などに使う)
 export function refreshCurrent(): void {
-  if (!currentProject()) return;
+  const p = currentProject();
+  if (!p) return;
+  doc.readOnly = p.kind === "tune";
   sync();
   doc.rev++;
   resetLoaded();
@@ -222,21 +227,17 @@ function replaceInitialProjectIfPossible(): void {
 export function openProjectInTab(bytes: Uint8Array, name?: string): string | null {
   replaceInitialProjectIfPossible();
   const isTune = isTuneFormat(bytes);
-  const p = newProjectInTab();
+  // tune は非編集 Service でタブを作る (initCollage 済み Service への init() 再呼び出しは不可のため)
+  const p = newProjectInTab(isTune ? "tune" : "ptcop");
   const svc = services.get(p.id)!;
 
   if (isTune) {
-    // pttune: 非編集 Service (init) で読み込む。beatClock≠480 でも DENY にならない
-    if (svc.init() !== PxtnErr.OK) {
-      closeProject(p.id);
-      return t("error.engineInit");
-    }
+    // pttune: beatClock≠480 でも DENY にならない
     const res = svc.read(new MemoryIo(bytes));
     if (res !== PxtnErr.OK) {
       closeProject(p.id);
       return pxtnErrorMessage(res);
     }
-    p.kind = "tune";
     p.tuneBytes = toArrayBuffer(bytes);
   } else {
     const res = svc.read(new MemoryIo(bytes));
@@ -295,6 +296,8 @@ export async function saveProjectAs(): Promise<boolean> {
 async function saveProjectFile(name: string, options: { usePicker: boolean }): Promise<boolean> {
   const p = currentProject();
   if (!p) return false;
+  // tune 再生専用タブは保存不可 (非編集 Service の再シリアライズは壊れた ptcop になるため)
+  if (p.kind === "tune") return false;
   // ピッカーで名前を変更された場合は、実際に保存されたファイル名を反映する
   // (タブ表示は拡張子なしのため、拡張子を除いて記録する)
   const saved = await downloadProjectFile(name, options);

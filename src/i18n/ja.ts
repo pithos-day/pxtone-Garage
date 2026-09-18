@@ -211,7 +211,7 @@ const ja = {
   "error.noiseBuild": "ノイズのビルドに失敗しました",
   "error.midi": "MIDIファイルを読み込めませんでした",
   "error.save": "保存に失敗しました",
-  "tune.readonly": "pttune 形式は再生尢用です (編集不可)",
+  "tune.readonly": "pttune 形式は再生専用です (編集不可)",
 } as const;
 
 export default ja;

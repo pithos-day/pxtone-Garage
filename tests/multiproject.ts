@@ -2,10 +2,12 @@
 import {
   projects,
   currentProjectId,
+  currentProject,
   newProjectInTab,
   switchProject,
   closeProject,
   openProjectInTab,
+  isTuneProject,
 } from "../src/state/projects";
 import {
   doc,
@@ -192,6 +194,27 @@ checkEq(
 );
 checkEq(serviceMod.service.master.beatTempo, 120, "テンポ復元 (120)");
 checkEq(projects.value.length, 3, "タブ数 3");
+
+// ---- 6b. pttune は再生専用タブとして開く (DENY_BEATCLOCK にならない) ----
+const tuneSvc = new Service();
+checkEq(tuneSvc.init(), PxtnErr.OK, "tune: 非編集 Service 初期化");
+checkEq(tuneSvc.read(new MemoryIo(bytes!)), PxtnErr.OK, "tune: ptcop 読み込み");
+const tuneIo = new MemoryIo();
+checkEq(tuneSvc.write(tuneIo, true, serviceMod.EXE_VER), PxtnErr.OK, "tune: pttune 書き出し");
+const tuneErr = openProjectInTab(tuneIo.toUint8Array(), "my-tune");
+checkEq(tuneErr, null, "tune: open でエラーなし");
+checkEq(currentProject()?.kind, "tune", "tune: kind が tune");
+checkEq(doc.readOnly, true, "tune: doc.readOnly が立つ");
+checkEq(isTuneProject(), true, "tune: isTuneProject が真");
+const tuneUnits = units.value.length;
+checkEq(addUnit("X"), false, "tune: 編集は無効 (addUnit が false)");
+checkEq(units.value.length, tuneUnits, "tune: ユニット数は変わらない");
+const tuneId = currentProjectId.value;
+closeProject(tuneId);
+checkEq(projects.value.length, 3, "tune: タブを閉じると元に戻る");
+switchProject(p3Id);
+checkEq(doc.readOnly, false, "tune: ptcop タブに戻すと readOnly 解除");
+checkEq(isTuneProject(), false, "tune: ptcop タブでは isTuneProject が偽");
 
 // ---- 7. タブごとの undo 独立 (追加分) ----
 switchProject(p1Id);

@@ -12,6 +12,7 @@ import {
   closeProject,
   saveProject,
   saveProjectAs,
+  isTuneProject,
   currentProjectId,
 } from "../../state/projects";
 import { newVoice, openVoice, saveVoice, closeVoice, undoVoice, redoVoice, currentVoice, currentVoiceId } from "../../state/voice";
@@ -51,6 +52,9 @@ const { openMenu, openSubIndex, toggleMenu, hoverMenu, close } = useDropdownMenu
 // モード別のトップメニュー (表示ラベルと順序は lib/menuItems で定義)
 const menuNames = computed<MenuName[]>(() => menuNamesFor(mode.value));
 
+// pttune 再生専用タブでは保存系・編集系を無効化する
+const tuneReadOnly = computed(() => mode.value === "collage" && isTuneProject());
+
 function runMenuItem(item: MenuItem): void {
   if (item.disabled) return;
   if (item.sub) return;
@@ -79,6 +83,8 @@ function onOpen(): void {
 }
 
 function onExportPttune(): void {
+  // tune タブからの再書き出しは二重量子化で壊れるため禁止 (メニュー側でも disabled)
+  if (isTuneProject()) return;
   const bytes = exportBytes();
   if (bytes) runSave(exportPttune(bytes, doc.fileName || "untitled"));
 }
@@ -178,6 +184,7 @@ const modeOps: Record<AppMode, ModeMenuOps> = {
     redo,
     canUndo: () => canUndo.value,
     canRedo: () => canRedo.value,
+    canSave: () => !tuneReadOnly.value,
   },
   voice: {
     new: () => newVoice(),
@@ -220,7 +227,7 @@ const extra: MenuItem[] =
             label: t("menu.file.export"),
             icon: FileDown,
             sub: [
-              { label: t("menu.file.exportPttune"), icon: FileMusic, action: onExportPttune },
+              { label: t("menu.file.exportPttune"), icon: FileMusic, action: onExportPttune, disabled: tuneReadOnly.value },
               { label: t("menu.file.exportWav"), icon: AudioLines, action: onExportWav },
             ],
           },
@@ -260,18 +267,19 @@ const editMenu = computed<MenuItem[]>(() => {
             {
               label: t("menu.edit.gridSnap"),
               icon: Columns4,
+              disabled: tuneReadOnly.value,
               sub: DIVI_TABLE.map((d) => ({
                 label: d === 1 ? "1" : `1/${d}`,
                 action: () => (doc.divi = d),
                 checked: doc.divi === d,
               })),
             },
-            { label: t("menu.edit.copyMeas"), icon: SquareStack, action: () => emit("copyMeas") },
+            { label: t("menu.edit.copyMeas"), icon: SquareStack, action: () => emit("copyMeas"), disabled: tuneReadOnly.value },
             { sep: true},
-            { label: t("menu.edit.velocity"), icon: CircleGauge, action: () => emit("eventVolume", "velocity") },
-            { label: t("menu.edit.pantime"), icon: CircleGauge, action: () => emit("eventVolume", "pantime") },
-            { label: t("menu.edit.panvolume"), icon: CircleGauge, action: () => emit("eventVolume", "panvolume") },
-            { label: t("menu.edit.volume"), icon: CircleGauge, action: () => emit("eventVolume", "volume") },
+            { label: t("menu.edit.velocity"), icon: CircleGauge, action: () => emit("eventVolume", "velocity"), disabled: tuneReadOnly.value },
+            { label: t("menu.edit.pantime"), icon: CircleGauge, action: () => emit("eventVolume", "pantime"), disabled: tuneReadOnly.value },
+            { label: t("menu.edit.panvolume"), icon: CircleGauge, action: () => emit("eventVolume", "panvolume"), disabled: tuneReadOnly.value },
+            { label: t("menu.edit.volume"), icon: CircleGauge, action: () => emit("eventVolume", "volume"), disabled: tuneReadOnly.value },
           ]
         : [];
   return buildEditMenu(ops, extra);

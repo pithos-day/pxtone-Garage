@@ -29,7 +29,6 @@ import {
 import { encodeShiftJis } from "../lib/sjis";
 import type { EventWriteOps } from "../lib/editing";
 import { service, ensureService } from "./service";
-import { currentProject } from "./projects";
 import { pushUndo, clearUndo, snapshotProject } from "./undo";
 import { t } from "../i18n";
 
@@ -123,10 +122,11 @@ export function ensureInit(): boolean {
   return true;
 }
 
-// サービスからミラーへ同期
+// サービスからミラーへ同期。
+// doc.readOnly はタブ種別由来のためここでは触らない (projects.ts の
+// restore/refreshCurrent が設定する。循環 import 回避のため)
 export function sync(): void {
   if (!doc.ready) return;
-  doc.readOnly = currentProject()?.kind === "tune";
   syncUnits();
   syncWoiceList();
   syncEffects();
