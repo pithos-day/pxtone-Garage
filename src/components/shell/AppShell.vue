@@ -18,8 +18,8 @@ import VoiceCopyDialog from "../voice/VoiceCopyDialog.vue";
 import { ensureInitialProject } from "../../state/projects";
 import { openProjectInTab } from "../../state/projects";
 import { initLanguage } from "../../i18n";
-import { copyVoiceSide, openVoice } from "../../state/voice";
-import { openNoise } from "../../state/noise";
+import { copyVoiceSide, openVoice, ensureInitialVoice } from "../../state/voice";
+import { openNoise, ensureInitialNoise } from "../../state/noise";
 
 const activeTab = ref<AppMode>("collage");
 const projectDialogOpen = ref(false);
@@ -38,6 +38,8 @@ function onVoiceCopyYes(): void {
 // マウント前に初期プロジェクトと言語設定を済ませておく
 // (テンプレートの初期描画が空の doc/service を参照しないようにするため)
 ensureInitialProject();
+ensureInitialVoice();
+ensureInitialNoise();
 initLanguage();
 
 // ブラウザのコンテキストメニューをアプリ全体で無効化

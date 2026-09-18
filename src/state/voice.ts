@@ -382,11 +382,19 @@ export function newVoice(): VoiceDoc {
   return tabs.add({ fileName: "", dirty: false, woice: markRaw(createDefaultWoice()), undoStack: [], redoStack: [] });
 }
 
+// アプリ起動時に1つ目のデフォルト音声を作る (既にタブがある場合は何もしない)
+export function ensureInitialVoice(): void {
+  if (voices.value.length === 0) {
+    newVoice();
+  }
+}
+
 // .ptvoice バイト列から新規タブを開く。エラーメッセージを返す (成功時 null)
 export function openVoice(bytes: Uint8Array, name: string): string | null {
   const w = new Woice();
   const res = w.read(new MemoryIo(bytes), WoiceType.PTV);
   if (res !== PxtnErr.OK) return pxtnErrorMessage(res);
+  tabs.replaceInitialIfPossible();
   tabs.add({ fileName: name, dirty: false, woice: markRaw(w), undoStack: [], redoStack: [] });
   return null;
 }

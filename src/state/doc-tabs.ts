@@ -84,6 +84,18 @@ export function createDocTabs<D extends TabDocBase>(codec: DocCodec<D>) {
       return true;
     },
 
+    // 起動時に自動生成された初期タブ (未編集・無題) だけが存在する場合は、
+    // タブを増やさずそのタブを閉じて開き直す (Collage の replaceInitialProjectIfPossible と同等)
+    replaceInitialIfPossible(): void {
+      if (docs.value.length === 1) {
+        const cur = this.current();
+        if (cur && !cur.dirty && !cur.fileName) {
+          docs.value = [];
+          currentId.value = -1;
+        }
+      }
+    },
+
     // タブをファイルとして保存 (asNew でファイル名入力を促す)。
     // 通常保存 (asNew=false) はダイアログを開かずダウンロードを発火し、
     // 名前を付けて保存 (asNew=true) は対応ブラウザでピッカーを開く

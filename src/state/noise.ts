@@ -73,11 +73,19 @@ export function newNoise(): NoiseDoc {
   return tabs.add({ fileName: "", dirty: false, noise: markRaw(createDefaultNoise()), undoStack: [], redoStack: [] });
 }
 
+// アプリ起動時に1つ目のデフォルトノイズを作る (既にタブがある場合は何もしない)
+export function ensureInitialNoise(): void {
+  if (noises.value.length === 0) {
+    newNoise();
+  }
+}
+
 // .ptnoise バイト列から新規タブを開く。エラーメッセージを返す (成功時 null)
 export function openNoise(bytes: Uint8Array, name: string): string | null {
   const n = new Noise();
   const res = n.read(new MemoryIo(bytes));
   if (res !== PxtnErr.OK) return pxtnErrorMessage(res);
+  tabs.replaceInitialIfPossible();
   tabs.add({ fileName: name, dirty: false, noise: markRaw(n), undoStack: [], redoStack: [] });
   return null;
 }
