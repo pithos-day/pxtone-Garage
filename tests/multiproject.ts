@@ -27,6 +27,9 @@ import {
   addUnitWithWoice,
   setUnitNameAndWoice,
   getAllEvents,
+  addEvent,
+  deleteEvents,
+  setEventValue,
   sync,
   setPlayStart,
   setPlayEnd,
@@ -209,6 +212,12 @@ checkEq(isTuneProject(), true, "tune: isTuneProject が真");
 const tuneUnits = units.value.length;
 checkEq(addUnit("X"), false, "tune: 編集は無効 (addUnit が false)");
 checkEq(units.value.length, tuneUnits, "tune: ユニット数は変わらない");
+// 直接書き込み API も無効 (ドラッグ経路の二重防御)
+const tuneEveCount = serviceMod.service.evels.count;
+addEvent(0, 0, EventKind.KEY, 0x6000);
+deleteEvents(0, 480, 0);
+setEventValue(0, 480, 0, EventKind.VELOCITY, 100);
+checkEq(serviceMod.service.evels.count, tuneEveCount, "tune: 直接書き込みでイベント数は変わらない");
 const tuneId = currentProjectId.value;
 closeProject(tuneId);
 checkEq(projects.value.length, 3, "tune: タブを閉じると元に戻る");

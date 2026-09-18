@@ -30,11 +30,11 @@ async function onAddWoice(): Promise<void> {
     </div>
     <div class="tool-buttons">
       <template v-if="doc.mode === 'W'">
-        <button class="btn btn-sm" @click="onAddWoice"><Plus :size="16" /></button>
+        <button class="btn btn-sm" :disabled="doc.readOnly" @click="onAddWoice"><Plus :size="16" /></button>
         <span v-if="errorMsg" class="tool-err">{{ errorMsg }}</span>
       </template>
       <template v-else>
-        <button class="btn btn-sm" @click="showAddUnit = true"><Plus :size="16" /></button>
+        <button class="btn btn-sm" :disabled="doc.readOnly" @click="showAddUnit = true"><Plus :size="16" /></button>
       </template>
     </div>
     <AddUnitDialog v-if="showAddUnit" @close="showAddUnit = false" />

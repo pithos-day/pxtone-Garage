@@ -82,8 +82,6 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
 <template>
   <!-- レイアウト幅は lib/layout から CSS 変数として注入 (px の手動同期を排除) -->
   <div class="collage" :style="{ '--left-w': LEFT_W + 'px', '--strip-w': STRIP_W + 'px', '--name-w': NAME_W + 'px' }">
-    <!-- pttune 読み取り専用バナー -->
-    <div v-if="doc.readOnly" class="readonly-banner">{{ t("tune.readonly") }}</div>
     <div class="collage-body">
       <!-- ピン留めユニットのレーン (上部固定) -->
       <div v-if="pinned.length > 0" class="collage-pinned" :style="{ height: (RULER_H + pinned.length * KEY_HEIGHT) + 'px' }">
@@ -113,7 +111,8 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
           </div>
         </div>
         <!-- フローティングパネル (Effector / Copier を編集画面上にポップアップ表示) -->
-        <div class="panel-popups">
+        <!-- 読み取り専用タブでは開かない -->
+        <div v-if="!doc.readOnly" class="panel-popups">
           <EffectorPanel v-if="panels.effector.open" class="panel-popup" @close="panels.effector.open = false" />
           <CopierPanel v-if="panels.copier.open" class="panel-popup" @close="panels.copier.open = false" />
         </div>
@@ -137,6 +136,8 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
       <div class="collage-hscroll-spacer" />
       <ScrollBar class="hscroll" :vertical="false" />
     </div>
+    <!-- 読み取り専用タブのグレーアウト (表示のみ。操作は各コンポーネント側で無効化) -->
+    <div v-if="doc.readOnly" class="readonly-veil" />
   </div>
 </template>
 
@@ -150,14 +151,14 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
   background: var(--background);
 }
 
-.readonly-banner {
-  flex: none;
-  background: var(--muted, #333);
-  color: var(--muted-foreground, #aaa);
-  text-align: center;
-  padding: 4px 0;
-  font-size: var(--text-sm);
-  border-bottom: 1px solid var(--border);
+/* 読み取り専用タブのグレーアウト。pointer-events:none のため
+   ソロ/ミュート/スクロール/再生操作はそのまま使える */
+.readonly-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  background: rgb(127 127 127 / 0.35);
+  pointer-events: none;
 }
 
 .collage-body {

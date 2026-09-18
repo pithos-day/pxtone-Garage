@@ -1,7 +1,7 @@
 // ファイルタブバー。モード (collage/voice/noise) に応じて対応するコレクションを表示する。
 // collage = ptcop プロジェクト、voice = .ptvoice、noise = .ptnoise。
 <script setup lang="ts">
-import { X, Plus } from "@lucide/vue";
+import { X, Plus, Eye } from "@lucide/vue";
 import type { AppMode } from "../../lib/modes";
 import { computed } from "vue";
 import {
@@ -36,6 +36,7 @@ const tabs = computed(() => {
       id: v.id,
       title: v.fileName || t("common.untitled"),
       dirty: v.dirty,
+      readonly: false,
       active: v.id === currentVoiceId.value,
       select: () => switchVoice(v.id),
       close: () => closeVoice(v.id),
@@ -46,6 +47,7 @@ const tabs = computed(() => {
       id: n.id,
       title: n.fileName || t("common.untitled"),
       dirty: n.dirty,
+      readonly: false,
       active: n.id === currentNoiseId.value,
       select: () => switchNoise(n.id),
       close: () => closeNoise(n.id),
@@ -55,6 +57,8 @@ const tabs = computed(() => {
     id: p.id,
     title: p.fileName || t("common.untitled"),
     dirty: p.dirty,
+    // pttune 再生専用タブは eye アイコンを表示する
+    readonly: p.kind === "tune",
     active: p.id === currentProjectId.value,
     select: () => switchProject(p.id),
     close: () => closeProject(p.id),
@@ -88,6 +92,7 @@ function onClose(id: number): void {
       :title="p.title"
       @click="p.select"
     >
+      <Eye v-if="p.readonly" :size="12" class="tab-ro-icon" />
       <span v-if="p.dirty" class="dirty-dot" />
       <span class="tab-name">{{ p.title }}</span>
       <span
@@ -140,6 +145,11 @@ function onClose(id: number): void {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.tab-ro-icon {
+  flex: none;
+  color: var(--muted-foreground);
 }
 
 .dirty-dot {

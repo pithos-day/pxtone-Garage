@@ -3,7 +3,7 @@
 <script setup lang="ts">
 import { Play, Pause, Square, Repeat, ArrowBigRightDash } from "@lucide/vue";
 import { isPlaying, togglePlay, stopAndRewind, loop, setLoop, masterVolume, setMasterVolume, positionSample, player, currentClock, followPlayback } from "../../state/player";
-import { getService, clockContext } from "../../state/project";
+import { doc, getService, clockContext } from "../../state/project";
 import { panels, PANEL_DEFS as PANELS } from "../../state/panels";
 import { formatClock, formatTime } from "../../lib/clock";
 import { t } from "../../i18n";
@@ -47,6 +47,7 @@ function timeLabel(): string {
       :key="p.id"
       class="btn btn-sm"
       :class="{ on: panels[p.id].open }"
+      :disabled="doc.readOnly"
       @click="panels[p.id].open = !panels[p.id].open"
     >
       {{ p.label }}

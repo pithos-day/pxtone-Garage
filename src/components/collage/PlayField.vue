@@ -91,6 +91,8 @@ function onPointerDown(e: PointerEvent): void {
     return;
   }
   if (e.button === 2) {
+    // 読み取り専用タブではコンテキストメニューを出さない
+    if (doc.readOnly) return;
     const x = e.clientX - r.left;
     const view = clockContext();
     const clock = xToClock(view, doc.scrollX + x);

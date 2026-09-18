@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import {
+  doc,
   woices,
   getService,
   removeWoice,
@@ -29,6 +30,8 @@ function onPointerDown(e: PointerEvent, idx: number): void {
   const s = getService();
   if (!s) return;
   if (e.button === 2) {
+    // 読み取り専用タブではコンテキストメニューを出さない
+    if (doc.readOnly) return;
     menu.value = { x: e.clientX, y: e.clientY, w: idx };
     e.preventDefault();
     return;
@@ -68,6 +71,8 @@ async function replaceByDialog(idx: number): Promise<void> {
 
 // 音色ファイルのドラッグ&ドロップ追加。拡張子は除いて音色名にする
 async function onDrop(e: DragEvent): Promise<void> {
+  // 読み取り専用タブでは追加不可
+  if (doc.readOnly) return;
   const file = e.dataTransfer?.files?.[0];
   if (!file) return;
   const buf = await file.arrayBuffer();

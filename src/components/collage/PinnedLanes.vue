@@ -190,6 +190,8 @@ function previewAt(x: number, y: number): void {
 }
 
 function applyDrag(d: LanesDrag): void {
+  // 読み取り専用タブでは書き込まない (シーク用の onClick のみ有効)
+  if (doc.readOnly) return;
   const s = getService();
   if (!s) return;
   const c1 = Math.min(d.clock1, d.clock2);
@@ -222,11 +224,19 @@ const { onPointerDown, onPointerMove, onPointerUp } = useCanvasDrag<LanesDrag>({
     if (!s || u < 0) return null;
     const clock = clockAt(pt.x);
     if (e.button === 0) {
+      if (doc.readOnly) {
+        // 読み取り専用: 試聴のみ行い、クリック時はシークする (書き換えなし)
+        previewAt(pt.x, pt.y);
+        return { button: 0, clock1: clock, clock2: clock, unit: u };
+      }
       setScope(clock, clock + Math.max(1, doc.divi));
       previewAt(pt.x, pt.y);
       return { button: 0, clock1: clock, clock2: clock, unit: u };
     }
-    if (e.button === 2) return { button: 2, clock1: clock, clock2: clock, unit: u };
+    if (e.button === 2) {
+      if (doc.readOnly) return null;
+      return { button: 2, clock1: clock, clock2: clock, unit: u };
+    }
     return null;
   },
   applyDrag,

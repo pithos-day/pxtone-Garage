@@ -214,6 +214,8 @@ const { onPointerDown, onPointerMove, onPointerUp, drag } = useCanvasDrag<Canvas
   clockAt,
   undoOnDown: true,
   beginDrag(e, pt) {
+    // 読み取り専用タブでは操作不可 (ルーラー帯も含めて何もしない)
+    if (doc.readOnly) return null;
     if (pt.y < RULER_H) return null; // ルーラー帯は操作なし
     const s = getService();
     if (!s || doc.focusUnit < 0 || !s.unitGet(doc.focusUnit)) return null;
@@ -263,6 +265,7 @@ function commitTuning(): void {
   const t = tuningInput.value;
   tuningInput.value = null;
   if (!t) return;
+  if (doc.readOnly) return;
   const v = parseFloat(t.value);
   if (!Number.isFinite(v) || v <= 0) return;
   const s = getService();

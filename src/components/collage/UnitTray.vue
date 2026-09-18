@@ -54,6 +54,8 @@ function onPointerDown(e: PointerEvent, idx: number): void {
   if (x < CHECKS_W + ROW_PAD_L) return;
 
   if (e.button === 2) {
+    // 読み取り専用タブではコンテキストメニューを出さない
+    if (doc.readOnly) return;
     setFocusUnit(idx);
     menu.value = { x: e.clientX, y: e.clientY, unit: idx };
     e.preventDefault();
@@ -80,8 +82,8 @@ function onPointerDown(e: PointerEvent, idx: number): void {
     previewUnitHold(idx, EVENTDEFAULT_KEY, EVENTDEFAULT_VOLUME);
   }
 
-  // ドラッグ並べ替え (ctrl/shift 選択中は無効)
-  if (!e.ctrlKey && !e.shiftKey && tray) {
+  // ドラッグ並べ替え (ctrl/shift 選択中・読み取り専用タブでは無効)
+  if (!e.ctrlKey && !e.shiftKey && !doc.readOnly && tray) {
     startDragReorder(tray, idx);
   }
 }
@@ -133,6 +135,8 @@ function onSoloClick(idx: number): void {
 }
 
 function startEditName(idx: number): void {
+  // 読み取り専用タブでは名前編集不可
+  if (doc.readOnly) return;
   editing.value = idx;
   editText.value = units.value[idx]?.name ?? "";
   menu.value = null;

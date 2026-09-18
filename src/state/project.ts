@@ -441,8 +441,10 @@ export function replaceUnit(oldPlace: number, newPlace: number): void {
   });
 }
 
-// ドラッグ中など、undo を自前で管理する場合の生操作
+// ドラッグ中など、undo を自前で管理する場合の生操作。
+// 読み取り専用タブでは何もしない (呼び出し側のガード漏れに対する二重防御)
 export function replaceUnitRaw(oldPlace: number, newPlace: number): void {
+  if (doc.readOnly) return;
   // ユニット番号の移動に合わせて UI 状態も移動させる
   const move = <T>(a: T[]): T[] => {
     if (oldPlace >= a.length) return a;
@@ -783,10 +785,12 @@ export function getAllEvents(): EveRecord[] {
 }
 
 export function addEvent(clock: number, unitNo: number, kind: number, value: number): void {
+  if (doc.readOnly) return;
   service.evels.recordAddI(clock, unitNo, kind, value);
 }
 
 export function deleteEvents(clock1: number, clock2: number, unitNo: number, kind?: number): void {
+  if (doc.readOnly) return;
   if (kind !== undefined) {
     service.evels.recordDelete(clock1, clock2, unitNo, kind);
     return;
@@ -795,6 +799,7 @@ export function deleteEvents(clock1: number, clock2: number, unitNo: number, kin
 }
 
 export function setEventValue(clock1: number, clock2: number, unitNo: number, kind: number, value: number): void {
+  if (doc.readOnly) return;
   service.evels.recordValueSet(clock1, clock2, unitNo, kind, value);
 }
 
