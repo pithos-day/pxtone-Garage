@@ -136,8 +136,6 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
       <div class="collage-hscroll-spacer" />
       <ScrollBar class="hscroll" :vertical="false" />
     </div>
-    <!-- 読み取り専用タブのグレーアウト (表示のみ。操作は各コンポーネント側で無効化) -->
-    <div v-if="doc.readOnly" class="readonly-veil" />
   </div>
 </template>
 
@@ -149,16 +147,6 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
   flex-direction: column;
   position: relative;
   background: var(--background);
-}
-
-/* 読み取り専用タブのグレーアウト。pointer-events:none のため
-   ソロ/ミュート/スクロール/再生操作はそのまま使える */
-.readonly-veil {
-  position: absolute;
-  inset: 0;
-  z-index: 40;
-  background: rgb(127 127 127 / 0.35);
-  pointer-events: none;
 }
 
 .collage-body {
