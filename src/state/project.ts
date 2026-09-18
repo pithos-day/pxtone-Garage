@@ -29,6 +29,7 @@ import {
 import { encodeShiftJis } from "../lib/sjis";
 import type { EventWriteOps } from "../lib/editing";
 import { service, ensureService } from "./service";
+import { currentProject } from "./projects";
 import { pushUndo, clearUndo, snapshotProject } from "./undo";
 import { t } from "../i18n";
 
@@ -71,6 +72,7 @@ export interface OverdriveInfo {
 
 export const doc = reactive({
   ready: false,
+  readOnly: false, // pttune 形式 (再生専用) のとき true
   fileName: "",
   dirty: false,
   mode: "U" as ToolMode,
@@ -124,6 +126,7 @@ export function ensureInit(): boolean {
 // サービスからミラーへ同期
 export function sync(): void {
   if (!doc.ready) return;
+  doc.readOnly = currentProject()?.kind === "tune";
   syncUnits();
   syncWoiceList();
   syncEffects();
@@ -281,10 +284,12 @@ function markDirty(): void {
 
 // 1回のドラッグ操作などは beginEdit() → 編集 → commitEdit()
 export function beginEdit(): void {
+  if (doc.readOnly) return;
   pushUndo();
 }
 
 export function commitEdit(): void {
+  if (doc.readOnly) return;
   service.adjustMeasNum();
   sync();
   markDirty();
@@ -292,6 +297,7 @@ export function commitEdit(): void {
 
 // 単発操作。fn の戻り値をそのまま返す (失敗判定をクロージャ経由で持ち出さない)
 export function mutate<T>(fn: () => T): T | undefined {
+  if (doc.readOnly) return undefined;
   pushUndo();
   const ret = fn();
   commitEdit();

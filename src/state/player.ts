@@ -26,8 +26,9 @@ export const followPlayback = ref(true);
 
 // ミュート/ソロ切替を再生中も worklet へ即時反映する。
 // getter が毎回プレーン配列を生成するため postMessage にも安全。
+// doc は循環 import のためモジュール読込時に未初期化の場合があるためガードする
 watch(
-  () => [...doc.muted],
+  () => (doc ? [...doc.muted] : []),
   (muted) => {
     if (isPlaying.value) player.setMutedUnits(muted);
   },
@@ -60,6 +61,15 @@ export function resetLoaded(): void {
   positionSample.value = 0;
 }
 
+// プロジェクトのバイト列を取得 (tune は元バイト列、ptcop はサービスから再エクスポート)
+// 循環 import を避けるため currentProject は遅延 import する
+async function projectBytes(): Promise<Uint8Array | null> {
+  const { currentProject } = await import("./projects");
+  const p = currentProject();
+  if (p?.kind === "tune" && p.tuneBytes) return new Uint8Array(p.tuneBytes);
+  return exportBytes();
+}
+
 // リビジョンが変わっていればバイト列をロードし直し、再生位置を引き継ぐ
 async function ensureLoaded(bytes: Uint8Array): Promise<void> {
   if (loadedRev === doc.rev) return;
@@ -75,7 +85,7 @@ async function ensureLoaded(bytes: Uint8Array): Promise<void> {
 // 再生位置を維持して変更を即時反映する (音色変更・イベント編集など)
 let refreshing = false;
 watch(
-  () => doc.rev,
+  () => (doc ? doc.rev : 0),
   () => {
     if (isPlaying.value) void refreshWhilePlaying();
   },
@@ -91,7 +101,7 @@ async function refreshWhilePlaying(): Promise<void> {
     while (revAtStart !== doc.rev) {
       if (!getService()) return;
       revAtStart = doc.rev;
-      const bytes = exportBytes();
+      const bytes = await projectBytes();
       if (!bytes) return;
       const decoded = await decodeProjectBytes(bytes, EXE_VER);
       if (!decoded) return;
@@ -153,7 +163,7 @@ function followPage(): void {
 export async function play(): Promise<void> {
   const s = getService();
   if (!s) return;
-  const bytes = exportBytes();
+  const bytes = await projectBytes();
   if (!bytes) return;
   await ensureLoaded(bytes);
   clampToPlayStart(s);

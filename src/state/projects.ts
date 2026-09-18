@@ -7,7 +7,7 @@ import { setService } from "./service";
 import { setUndoStacks, undoStack, redoStack, type UndoEntry } from "./undo";
 import { doc, sync, title, comment, ensureInit, pxtnErrorMessage } from "./project";
 import { resetLoaded } from "./player";
-import { downloadProjectFile, supportsSavePicker, stripFileExt } from "../engine/io";
+import { downloadProjectFile, supportsSavePicker, stripFileExt, isTuneFormat, toArrayBuffer } from "../engine/io";
 import { t } from "../i18n";
 
 export interface ProjectState {
@@ -45,6 +45,8 @@ export interface Project {
   title: string;
   comment: string;
   initial: boolean; // 起動時に自動生成された初期プロジェクトか
+  kind: "ptcop" | "tune"; // ファイル形式 (ptcop=編集可、tune=再生専用)
+  tuneBytes: ArrayBuffer | null; // tune 形式の元バイト列 (再生用)
 }
 
 // doc ↔ ProjectState で保存/復元するフィールド一覧
@@ -187,6 +189,8 @@ export function newProjectInTab(): Project {
     title: "",
     comment: "",
     initial: false,
+    kind: "ptcop",
+    tuneBytes: null,
   };
   services.set(p.id, svc);
   projects.value.push(p);
@@ -217,13 +221,31 @@ function replaceInitialProjectIfPossible(): void {
 // name はタブ表示用のファイル名 (拡張子なし) で、空の場合は無題のまま
 export function openProjectInTab(bytes: Uint8Array, name?: string): string | null {
   replaceInitialProjectIfPossible();
+  const isTune = isTuneFormat(bytes);
   const p = newProjectInTab();
   const svc = services.get(p.id)!;
-  const res = svc.read(new MemoryIo(bytes));
-  if (res !== PxtnErr.OK) {
-    closeProject(p.id);
-    return pxtnErrorMessage(res);
+
+  if (isTune) {
+    // pttune: 非編集 Service (init) で読み込む。beatClock≠480 でも DENY にならない
+    if (svc.init() !== PxtnErr.OK) {
+      closeProject(p.id);
+      return t("error.engineInit");
+    }
+    const res = svc.read(new MemoryIo(bytes));
+    if (res !== PxtnErr.OK) {
+      closeProject(p.id);
+      return pxtnErrorMessage(res);
+    }
+    p.kind = "tune";
+    p.tuneBytes = toArrayBuffer(bytes);
+  } else {
+    const res = svc.read(new MemoryIo(bytes));
+    if (res !== PxtnErr.OK) {
+      closeProject(p.id);
+      return pxtnErrorMessage(res);
+    }
   }
+
   if (name) {
     p.fileName = name;
     doc.fileName = name;
@@ -246,6 +268,11 @@ export function closeProject(id: number): void {
     currentProjectId.value = next.id;
     restore(next);
   }
+}
+
+// 現在のプロジェクトが pttune 形式 (再生専用) か
+export function isTuneProject(): boolean {
+  return currentProject()?.kind === "tune";
 }
 
 // 通常保存: ダイアログを開かず従来どおりダウンロードを発火する

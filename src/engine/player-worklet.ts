@@ -82,10 +82,11 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
     }
   }
 
-  // Service の初期化・読み込み・準備を行う (失敗時は null)
+  // Service の初期化・読み込み・準備を行う (失敗時は null)。
+  // init() は非編集モードで、ptcop/tune 両方の読み込みに対応 (beatClock 制限なし)
   private loadService(bytes: ArrayBuffer, sps: number): Service | null {
     const svc = new Service();
-    if (svc.initCollage(500000) !== PxtnErr.OK) return null;
+    if (svc.init() !== PxtnErr.OK) return null;
     const io = new MemoryIo(new Uint8Array(bytes));
     if (svc.read(io) !== PxtnErr.OK) return null;
     if (svc.tonesReady() !== PxtnErr.OK) return null;

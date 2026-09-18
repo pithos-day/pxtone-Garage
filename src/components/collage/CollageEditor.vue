@@ -82,6 +82,8 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
 <template>
   <!-- レイアウト幅は lib/layout から CSS 変数として注入 (px の手動同期を排除) -->
   <div class="collage" :style="{ '--left-w': LEFT_W + 'px', '--strip-w': STRIP_W + 'px', '--name-w': NAME_W + 'px' }">
+    <!-- pttune 読み取り専用バナー -->
+    <div v-if="doc.readOnly" class="readonly-banner">{{ t("tune.readonly") }}</div>
     <div class="collage-body">
       <!-- ピン留めユニットのレーン (上部固定) -->
       <div v-if="pinned.length > 0" class="collage-pinned" :style="{ height: (RULER_H + pinned.length * KEY_HEIGHT) + 'px' }">
@@ -146,6 +148,16 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
   flex-direction: column;
   position: relative;
   background: var(--background);
+}
+
+.readonly-banner {
+  flex: none;
+  background: var(--muted, #333);
+  color: var(--muted-foreground, #aaa);
+  text-align: center;
+  padding: 4px 0;
+  font-size: var(--text-sm);
+  border-bottom: 1px solid var(--border);
 }
 
 .collage-body {

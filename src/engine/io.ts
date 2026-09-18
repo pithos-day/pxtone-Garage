@@ -6,6 +6,14 @@ import { exportBytes } from "../state/project";
 import { decodeProjectBytes } from "./oggv";
 import { t } from "../i18n";
 
+// バイト列が pttune 形式かを判定する (先頭 16byte のタグで判断)
+const TUNE_TAGS = ["PTTUNE--20050608", "PTTUNE--20060115", "PTTUNE--20060930", "PTTUNE--20071119"];
+export function isTuneFormat(bytes: Uint8Array): boolean {
+  if (bytes.length < 16) return false;
+  const tag = new TextDecoder("ascii").decode(bytes.subarray(0, 16));
+  return TUNE_TAGS.includes(tag);
+}
+
 // Uint8Array が ArrayBuffer の部分ビューでも Blob/postMessage に渡せる ArrayBuffer へ
 export function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
