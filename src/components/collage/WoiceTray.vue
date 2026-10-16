@@ -17,6 +17,7 @@ import {
 import { previewWoiceHold } from "../../engine/preview";
 import { openWoiceAsVoice } from "../../state/voice";
 import { openPtnAsNoise } from "../../state/noise";
+import { currentProjectId } from "../../state/projects";
 import { woiceTypeColor } from "../../lib/theme";
 import { woiceSummary as formatWoiceSummary, WOICE_FILE_ACCEPT, WOICE_FILE_EXT_RE } from "../../lib/woice";
 import { useCtxMenuClose } from "../../composables/useCtxMenu";
@@ -77,18 +78,20 @@ function onMenuAction(action: "remove" | "replace" | "edit"): void {
 }
 
 // 音色を ptvoice/ptnoise エディタで開き、そちらのモードタブへ移動する。
-// 開くのはコピーで、元の Collage の音色は変化しない (書き戻しは「Collageに追加」)
+// 開くのはコピーで、元の Collage の音色は変化しない (File メニューの「変更を適用」で書き戻す)
 function onEditWoice(idx: number): void {
   const w = getService()?.woiceGet(idx);
   if (!w) return;
   const name = woiceNameRaw(w);
+  // 書き戻し先 (元の Collage プロジェクトの音色) をタブに持たせる
+  const link = { projectId: currentProjectId.value, woiceIndex: idx };
   if (w.type === WoiceType.PTV) {
-    if (openWoiceAsVoice(w, name)) emit("open-editor", "voice");
+    if (openWoiceAsVoice(w, name, link)) emit("open-editor", "voice");
     return;
   }
   if (w.type === WoiceType.PTN) {
     const ptn = w.getVoice(0)?.ptn;
-    if (ptn && openPtnAsNoise(ptn, name)) emit("open-editor", "noise");
+    if (ptn && openPtnAsNoise(ptn, name, link)) emit("open-editor", "noise");
   }
 }
 

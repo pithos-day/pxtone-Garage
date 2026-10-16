@@ -49,6 +49,13 @@ export interface Project {
   tuneBytes: ArrayBuffer | null; // tune 形式の元バイト列 (再生用)
 }
 
+// 「音色を編集」で開いた Voice/Noise タブと、元の Collage 音色の対応。
+// 適用 (変更を適用) 時にこの情報で書き戻し先を決める
+export interface WoiceLink {
+  projectId: number; // 元の Collage プロジェクト (Project.id)
+  woiceIndex: number; // 元の音色 index
+}
+
 // doc ↔ ProjectState で保存/復元するフィールド一覧
 // (saveCurrent/restore の両方がこのリストを使う)
 // 注意: フィールド追加時は ProjectState 型・doc (project.ts)・defaultState() の

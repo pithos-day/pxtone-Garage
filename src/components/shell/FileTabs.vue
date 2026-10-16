@@ -1,7 +1,7 @@
 // ファイルタブバー。モード (collage/voice/noise) に応じて対応するコレクションを表示する。
 // collage = ptcop プロジェクト、voice = .ptvoice、noise = .ptnoise。
 <script setup lang="ts">
-import { X, Plus, Eye } from "@lucide/vue";
+import { X, Plus, Eye, Link2 } from "@lucide/vue";
 import type { AppMode } from "../../lib/modes";
 import { computed } from "vue";
 import {
@@ -29,13 +29,15 @@ import { t } from "../../i18n";
 
 const props = defineProps<{ mode: AppMode }>();
 
-// モード別のタブ一覧 (id / title / dirty / active / select / close)
+// モード別のタブ一覧 (id / title / dirty / linked / readonly / active / select / close)
 const tabs = computed(() => {
   if (props.mode === "voice") {
     return voices.value.map((v) => ({
       id: v.id,
       title: v.fileName || t("common.untitled"),
       dirty: v.dirty,
+      // 「音色を編集」で開いたタブは link アイコンを表示する (元の Collage 音色と対応)
+      linked: v.link !== undefined,
       readonly: false,
       active: v.id === currentVoiceId.value,
       select: () => switchVoice(v.id),
@@ -47,6 +49,8 @@ const tabs = computed(() => {
       id: n.id,
       title: n.fileName || t("common.untitled"),
       dirty: n.dirty,
+      // 「音色を編集」で開いたタブは link アイコンを表示する (元の Collage 音色と対応)
+      linked: n.link !== undefined,
       readonly: false,
       active: n.id === currentNoiseId.value,
       select: () => switchNoise(n.id),
@@ -57,6 +61,7 @@ const tabs = computed(() => {
     id: p.id,
     title: p.fileName || t("common.untitled"),
     dirty: p.dirty,
+    linked: false,
     // pttune 再生専用タブは eye アイコンを表示する
     readonly: p.kind === "tune",
     active: p.id === currentProjectId.value,
@@ -93,6 +98,7 @@ function onClose(id: number): void {
       @click="p.select"
     >
       <Eye v-if="p.readonly" :size="12" class="tab-ro-icon" />
+      <Link2 v-if="p.linked" :size="12" class="tab-link-icon" :class="{ dirty: p.dirty }" />
       <span v-if="p.dirty" class="dirty-dot" />
       <span class="tab-name">{{ p.title }}</span>
       <span
@@ -150,6 +156,16 @@ function onClose(id: number): void {
 .tab-ro-icon {
   flex: none;
   color: var(--muted-foreground);
+}
+
+/* 「音色を編集」で開いたタブ。dirty になると色が変わる */
+.tab-link-icon {
+  flex: none;
+  color: var(--muted-foreground);
+}
+
+.tab-link-icon.dirty {
+  color: var(--primary);
 }
 
 .dirty-dot {

@@ -1445,8 +1445,12 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(ptnW.type, WoiceType.PTN, "woiceedit: 対象の PTN を取得");
     checkEq(woiceNameRaw(ptvW), "AddA", "woiceedit: 名前をそのまま取り出せる (raw)");
 
-    check("woiceedit: PTV を ptvoice エディタで開く", openWoiceAsVoice(ptvW, woiceNameRaw(ptvW)));
+    // 書き戻し先 (リンク) を付けて開く
+    const link = { projectId: currentProjectId.value, woiceIndex: s.woiceNum - 2 };
+    check("woiceedit: PTV を ptvoice エディタで開く", openWoiceAsVoice(ptvW, woiceNameRaw(ptvW), link));
     checkEq(currentVoice()?.fileName, "AddA", "woiceedit: ptvoice タブ名が音色名になる");
+    checkEq(currentVoice()?.link?.projectId, link.projectId, "woiceedit: ptvoice の書き戻し先 projectId (reactive)");
+    checkEq(currentVoice()?.link?.woiceIndex, link.woiceIndex, "woiceedit: ptvoice の書き戻し先 woiceIndex (reactive)");
     checkEq(
       currentVoice()?.woice.getVoice(0)?.wave.num,
       ptvW.getVoice(0)?.wave.num,
@@ -1454,13 +1458,20 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     );
 
     const ptn = ptnW.getVoice(0)!.ptn;
-    check("woiceedit: PTN を ptnoise エディタで開く", openPtnAsNoise(ptn, woiceNameRaw(ptnW)));
+    const ptnLink = { projectId: currentProjectId.value, woiceIndex: s.woiceNum - 1 };
+    check("woiceedit: PTN を ptnoise エディタで開く", openPtnAsNoise(ptn, woiceNameRaw(ptnW), ptnLink));
     checkEq(currentNoise()?.fileName, "AddB", "woiceedit: ptnoise タブ名が音色名になる");
+    checkEq(currentNoise()?.link?.projectId, ptnLink.projectId, "woiceedit: ptnoise の書き戻し先 projectId (reactive)");
+    checkEq(currentNoise()?.link?.woiceIndex, ptnLink.woiceIndex, "woiceedit: ptnoise の書き戻し先 woiceIndex (reactive)");
     checkEq(
       currentNoise()?.noise.getUnit(0)?.main.freq,
       ptn.getUnit(0)?.main.freq,
       "woiceedit: ノイズ内容が引き継がれる",
     );
+
+    // リンクなし (通常のファイルオープン) では書き戻し先を持たない
+    checkEq(newVoice().link, undefined, "woiceedit: 新規タブはリンクなし");
+    checkEq(newNoise().link, undefined, "woiceedit: 新規ノイズタブはリンクなし");
 
     // 名前なしの音色は空文字列 ("(no name)" は表示用のみ)
     const anon = new Woice();

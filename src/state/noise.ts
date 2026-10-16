@@ -4,6 +4,7 @@
 import { markRaw } from "vue";
 import { Noise, WaveType, MemoryIo, PxtnErr } from "pxtone-ts";
 import { pxtnErrorMessage } from "./project";
+import type { WoiceLink } from "./projects";
 import { createDocTabs, type TabDocBase } from "./doc-tabs";
 
 export const NOISE_UNIT_NUM = 4; // 本家 MAX_NOISEEDITUNITNUM
@@ -11,6 +12,8 @@ export const NOISE_ENVE_NUM = 3; // 本家 MAX_NOISEEDITENVELOPENUM
 
 export interface NoiseDoc extends TabDocBase {
   noise: Noise;
+  // 「音色を編集」で開いた場合の書き戻し先 (通常のファイルオープンでは undefined)
+  link?: WoiceLink;
 }
 
 const tabs = createDocTabs<NoiseDoc>({
@@ -83,22 +86,24 @@ export function ensureInitialNoise(): void {
   }
 }
 
-// .ptnoise バイト列から新規タブを開く。エラーメッセージを返す (成功時 null)
-export function openNoise(bytes: Uint8Array, name: string): string | null {
+// .ptnoise バイト列から新規タブを開く。エラーメッセージを返す (成功時 null)。
+// link は「音色を編集」で開いた場合の元 Collage 音色 (適用先)
+export function openNoise(bytes: Uint8Array, name: string, link?: WoiceLink): string | null {
   const n = new Noise();
   const res = n.read(new MemoryIo(bytes));
   if (res !== PxtnErr.OK) return pxtnErrorMessage(res);
   tabs.replaceInitialIfPossible();
-  tabs.add({ fileName: name, dirty: false, noise: markRaw(n), undoStack: [], redoStack: [] });
+  tabs.add({ fileName: name, dirty: false, noise: markRaw(n), undoStack: [], redoStack: [], link });
   return null;
 }
 
 // Collage の音色 (PTN) 内のノイズを ptnoise バイト列化して新規タブで開く ("音色を編集" 用)。
 // 成功時 true。編集内容はコピーであり、元の Collage の音色には影響しない
-export function openPtnAsNoise(n: Noise, name: string): boolean {
+// (変更を適用するまで。適用先は link で保持する)
+export function openPtnAsNoise(n: Noise, name: string, link?: WoiceLink): boolean {
   const io = new MemoryIo();
   if (!n.write(io)) return false;
-  return openNoise(io.toUint8Array(), name) === null;
+  return openNoise(io.toUint8Array(), name, link) === null;
 }
 
 export function closeNoise(id: number): void {

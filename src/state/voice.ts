@@ -15,6 +15,7 @@ import {
 } from "pxtone-ts";
 import type { VoiceUnit } from "pxtone-ts";
 import { pxtnErrorMessage } from "./project";
+import type { WoiceLink } from "./projects";
 import { createDocTabs, type TabDocBase } from "./doc-tabs";
 
 const WAVE_RESO = 256; // 本家 ptvCOODINATERESOLUTION
@@ -22,6 +23,8 @@ const MAX_ENVE_POINT = 31; // 本家 ptvMAX_ENVELOPEPOINT
 
 export interface VoiceDoc extends TabDocBase {
   woice: Woice;
+  // 「音色を編集」で開いた場合の書き戻し先 (通常のファイルオープンでは undefined)
+  link?: WoiceLink;
 }
 
 const tabs = createDocTabs<VoiceDoc>({
@@ -389,22 +392,24 @@ export function ensureInitialVoice(): void {
   }
 }
 
-// .ptvoice バイト列から新規タブを開く。エラーメッセージを返す (成功時 null)
-export function openVoice(bytes: Uint8Array, name: string): string | null {
+// .ptvoice バイト列から新規タブを開く。エラーメッセージを返す (成功時 null)。
+// link は「音色を編集」で開いた場合の元 Collage 音色 (適用先)
+export function openVoice(bytes: Uint8Array, name: string, link?: WoiceLink): string | null {
   const w = new Woice();
   const res = w.read(new MemoryIo(bytes), WoiceType.PTV);
   if (res !== PxtnErr.OK) return pxtnErrorMessage(res);
   tabs.replaceInitialIfPossible();
-  tabs.add({ fileName: name, dirty: false, woice: markRaw(w), undoStack: [], redoStack: [] });
+  tabs.add({ fileName: name, dirty: false, woice: markRaw(w), undoStack: [], redoStack: [], link });
   return null;
 }
 
 // Collage の音色 (PTV) を ptvoice バイト列化して新規タブで開く ("音色を編集" 用)。
 // 成功時 true。編集内容はコピーであり、元の Collage の音色には影響しない
-export function openWoiceAsVoice(w: Woice, name: string): boolean {
+// (変更を適用するまで。適用先は link で保持する)
+export function openWoiceAsVoice(w: Woice, name: string, link?: WoiceLink): boolean {
   const io = new MemoryIo();
   if (w.ptvWrite(io) < 0) return false;
-  return openVoice(io.toUint8Array(), name) === null;
+  return openVoice(io.toUint8Array(), name, link) === null;
 }
 
 export function closeVoice(id: number): void {
