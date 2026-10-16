@@ -16,7 +16,7 @@
     "@fontsource/noto-sans-jp": "^5.3.0",
     "@fontsource/zen-maru-gothic": "^5.3.0",
     "@lucide/vue": "^1.31.0",
-    "pxtone-ts": "https://codeberg.org/pithos/pxtone-ts.git",
+    "pxtone-ts": "https://github.com/pithos-day/pxtone-ts.git",
     "vue": "^3.5.40"
   },
   "devDependencies": {
