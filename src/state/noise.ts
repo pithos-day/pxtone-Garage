@@ -6,14 +6,26 @@ import { Noise, WaveType, MemoryIo, PxtnErr, type NoiseUnit } from "pxtone-ts";
 import { pxtnErrorMessage } from "./project";
 import type { WoiceLink } from "./projects";
 import { createDocTabs, type TabDocBase } from "./doc-tabs";
+import { pushHistoryEntry } from "../lib/noise";
 
 export const NOISE_UNIT_NUM = 4; // 本家 MAX_NOISEEDITUNITNUM
 export const NOISE_ENVE_NUM = 3; // 本家 MAX_NOISEEDITENVELOPENUM
+
+// ビルド履歴の1件。label は表示用の時刻、bytes はエディタへ戻す際のノイズデータ、
+// pcm はクリック時の再生用 (デバウンス後の波形)
+export interface NoiseHistoryEntry {
+  label: string;
+  bytes: Uint8Array;
+  pcm: Float32Array;
+}
 
 export interface NoiseDoc extends TabDocBase {
   noise: Noise;
   // 「音色を編集」で開いた場合の書き戻し先 (通常のファイルオープンでは undefined)
   link?: WoiceLink;
+  // ビルド履歴。タブ (ファイル) ごとに独立させ、別ファイルの履歴と混ざらないようにする
+  history: NoiseHistoryEntry[];
+  historyAtMs: number; // 直前エントリの記録時刻 (連続編集のまとめ用)
 }
 
 // 読み込んだノイズを 4 レイヤー分 (本家 MAX_NOISETABLEUNIT) に広げる。
@@ -104,6 +116,17 @@ export function markNoiseClean(): void {
   if (d) tabs.markClean(d);
 }
 
+// ビルド履歴を現在のタブへ1件追加する (連続編集は直前のエントリを置き換える)。
+// 履歴はタブごとに独立しているため、別ファイルの履歴は混ざらない
+export function pushNoiseHistory(pcm: Float32Array, label: string): void {
+  const d = currentNoise();
+  if (!d) return;
+  const io = new MemoryIo();
+  if (!d.noise.write(io)) return;
+  const entry: NoiseHistoryEntry = { label, bytes: io.toUint8Array(), pcm };
+  d.historyAtMs = pushHistoryEntry(d.history, d.historyAtMs, Date.now(), entry);
+}
+
 export function undoNoise(): boolean {
   const d = currentNoise();
   return d ? tabs.restoreFrom(d, d.undoStack, d.redoStack) : false;
@@ -116,7 +139,15 @@ export function redoNoise(): boolean {
 
 // 新規タブを追加して切り替える
 export function newNoise(): NoiseDoc {
-  return tabs.add({ fileName: "", dirty: false, noise: markRaw(createDefaultNoise()), undoStack: [], redoStack: [] });
+  return tabs.add({
+    fileName: "",
+    dirty: false,
+    noise: markRaw(createDefaultNoise()),
+    undoStack: [],
+    redoStack: [],
+    history: [],
+    historyAtMs: 0,
+  });
 }
 
 // アプリ起動時に1つ目のデフォルトノイズを作る (既にタブがある場合は何もしない)
@@ -133,7 +164,16 @@ export function openNoise(bytes: Uint8Array, name: string, link?: WoiceLink): st
   const res = readNoiseBytes(n, bytes);
   if (res !== PxtnErr.OK) return pxtnErrorMessage(res);
   tabs.replaceInitialIfPossible();
-  tabs.add({ fileName: name, dirty: false, noise: markRaw(n), undoStack: [], redoStack: [], link });
+  tabs.add({
+    fileName: name,
+    dirty: false,
+    noise: markRaw(n),
+    undoStack: [],
+    redoStack: [],
+    history: [],
+    historyAtMs: 0,
+    link,
+  });
   return null;
 }
 

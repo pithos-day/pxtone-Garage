@@ -81,6 +81,7 @@ import {
   snapshotNoise,
   openPtnAsNoise,
   markNoiseClean,
+  pushNoiseHistory,
   NOISE_UNIT_NUM,
   NOISE_ENVE_NUM,
 } from "../src/state/noise";
@@ -1727,6 +1728,33 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(d3.noise.unitNum, NOISE_UNIT_NUM, "layers: 3ユニットでも4レイヤー表示");
     check("layers: 4レイヤー目だけ無効", d3.noise.getUnit(2)!.bEnable && !d3.noise.getUnit(3)!.bEnable);
     checkBytes(snapshotNoise(d3)!, bytes3, "layers: 3ユニットでも保存バイト列は元と同じ");
+  }
+
+  // ---- 36. ビルド履歴はタブごとに独立する ----
+  {
+    const a = newNoise();
+    pushNoiseHistory(new Float32Array([0, 0]), "A1");
+    checkEq(a.history.length, 1, "history: タブAに1件積まれる");
+    checkEq(a.history[0]!.label, "A1", "history: ラベルが入る");
+
+    // 別タブでは履歴が空 (履歴がファイルを跨がない)
+    const b = newNoise();
+    checkEq(b.history.length, 0, "history: 別タブの履歴は空");
+    pushNoiseHistory(new Float32Array([0, 0]), "B1");
+    checkEq(b.history.length, 1, "history: タブBに1件積まれる");
+
+    // タブを行き来しても互いの履歴が混ざらない
+    switchNoise(a.id);
+    checkEq(currentNoise()!.history.length, 1, "history: タブAへ戻ると1件のまま");
+    checkEq(currentNoise()!.history[0]!.label, "A1", "history: タブAの内容が残っている");
+
+    // 連続ビルド (2秒以内) は直前のエントリを置き換える
+    pushNoiseHistory(new Float32Array([0, 0]), "A2");
+    checkEq(a.history.length, 1, "history: 連続ビルドは置き換え");
+    checkEq(a.history[0]!.label, "A2", "history: 置き換え後のラベル");
+
+    switchNoise(b.id);
+    checkEq(currentNoise()!.history[0]!.label, "B1", "history: タブBの履歴は影響を受けない");
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);

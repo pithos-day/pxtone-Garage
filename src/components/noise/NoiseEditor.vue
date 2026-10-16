@@ -4,7 +4,7 @@
 // ビルドボタンは廃止し、編集が 250ms デバウンスでリアルタイムに波形へ反映される。
 // 波形クリック / Space で単発再生 (ループしない。本家 PcmTable_BuildAndPlay 準拠)。
 // History リスト、WAV 書き出しを提供する。
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { useEditRev } from "../../composables/useEditRev";
 import { useGlobalKeys } from "../../composables/useGlobalKeys";
@@ -12,8 +12,8 @@ import { useDebounced } from "../../composables/useDebounced";
 import { useUndoOnce } from "../../composables/useUndo";
 import { COLORS } from "../../lib/theme";
 import { fillRect, fillText } from "../../lib/draw";
-import { MemoryIo, WaveType } from "pxtone-ts";
-import { currentNoise, newNoise, editNoise, NOISE_UNIT_NUM } from "../../state/noise";
+import { WaveType } from "pxtone-ts";
+import { currentNoise, newNoise, editNoise, readNoiseBytes, pushNoiseHistory, NOISE_UNIT_NUM } from "../../state/noise";
 import { renderNoise, playPcmOnce } from "../../engine/preview";
 import { t } from "../../i18n";
 
@@ -24,13 +24,7 @@ const noise = computed(() => currentNoise());
 // 編集リビジョン。undo/redo 後はリアルタイム反映のため再ビルドを予約する
 const { rev, touch } = useEditRev(() => noise.value, undefined, () => scheduleRebuild());
 
-import {
-  NOISE_WAVE_TYPE_NAMES as WAVE_TYPE_NAMES,
-  NOISE_BUILT_SPS,
-  secToEnveX,
-  pctToEnveY,
-  pushHistoryEntry,
-} from "../../lib/noise";
+import { NOISE_WAVE_TYPE_NAMES as WAVE_TYPE_NAMES, NOISE_BUILT_SPS, secToEnveX, pctToEnveY } from "../../lib/noise";
 const OSC_IDS = ["main", "freq", "volu"] as const;
 
 // 全レイヤーを縦に並べる (read 直後は有効ユニット数ぶん)
@@ -111,18 +105,17 @@ function setEnvePct(u: number, i: number, raw: string): void {
 
 
 // ---- リアルタイムビルド (250ms デバウンス) ----
+// 波形とビルド履歴はタブごとの内容を表示する (履歴の実体は doc 側が持つ)
 const builtPcm = ref<Float32Array | null>(null);
-
-interface HistoryEntry {
-  label: string;
-  bytes: Uint8Array;
-  pcm: Float32Array;
-}
-const history = ref<HistoryEntry[]>([]);
-let lastHistoryAt = 0;
 
 // 編集をデバウンスして波形へ反映する
 const scheduleRebuild = useDebounced(() => rebuild()).run;
+
+// タブを切り替えたら、前のファイルの波形を残さず新しいタブの波形を作り直す
+watch(noise, () => {
+  builtPcm.value = null;
+  scheduleRebuild();
+});
 
 function rebuild(): void {
   const d = noise.value;
@@ -130,20 +123,9 @@ function rebuild(): void {
   const pcm = renderNoise(d.noise, NOISE_BUILT_SPS);
   if (!pcm) return;
   builtPcm.value = pcm;
-  pushHistory();
+  // 履歴は現在のタブへ積む (連続編集を1件にまとめるルールは lib/noise)
+  pushNoiseHistory(pcm, new Date().toLocaleTimeString("ja-JP", { hour12: false }));
   touch();
-}
-
-// History 記録。連続編集 (2 秒以内の再ビルド) は直前のエントリを置き換える
-// (追加ルールは lib/noise の pushHistoryEntry)
-function pushHistory(): void {
-  const d = noise.value;
-  if (!d || !builtPcm.value) return;
-  const io = new MemoryIo();
-  d.noise.write(io);
-  const label = new Date().toLocaleTimeString("ja-JP", { hour12: false });
-  const entry: HistoryEntry = { label, bytes: io.toUint8Array(), pcm: builtPcm.value };
-  lastHistoryAt = pushHistoryEntry(history.value, lastHistoryAt, Date.now(), entry);
 }
 
 // 波形クリック = 単発再生 (ループしない。本家準拠)
@@ -152,17 +134,17 @@ function onPcmClick(): void {
 }
 
 function playHistory(i: number): void {
-  const e = history.value[i];
+  const e = noise.value?.history[i];
   if (e) playPcmOnce(e.pcm);
 }
 
 // ダブルクリックでエディタに反映 (undo 1エントリ + 再ビルド)
 function applyHistory(i: number): void {
   const d = noise.value;
-  const e = history.value[i];
+  const e = d?.history[i];
   if (!d || !e) return;
   editNoise(() => {
-    d.noise.read(new MemoryIo(e.bytes));
+    readNoiseBytes(d.noise, e.bytes);
   });
   touch();
   scheduleRebuild();
@@ -330,7 +312,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
             <span class="ne-hint">{{ t("noise.historyHint") }}</span>
           </div>
           <button
-            v-for="(h, i) in history"
+            v-for="(h, i) in noise.history"
             :key="i"
             class="ne-history-item"
             :title="t('noise.historyHint')"
