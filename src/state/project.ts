@@ -926,6 +926,28 @@ export function setPlayEnd(meas: number): void {
   doc.rev++;
 }
 
+// Start/End (小節番号) の正規化: 順序の入れ替え・クランプ・1小節以上の保証。
+// ドラッグ中のプレビューと確定で同じ結果にするため、状態側の純関数として置く
+export function normalizePlayRange(
+  startMeas: number,
+  endMeas: number,
+  measNum: number,
+): { start: number; end: number } {
+  const lo = Math.min(startMeas, endMeas);
+  const hi = Math.max(startMeas, endMeas);
+  const start = Math.max(0, Math.min(lo, measNum - 1));
+  const end = Math.min(Math.max(hi, start + 1), measNum);
+  return { start, end };
+}
+
+// Start/End をまとめて設定 (ドラッグ操作用)。同値でも解除せず、start < end を保証する
+export function setPlayRange(startMeas: number, endMeas: number): void {
+  const { start, end } = normalizePlayRange(startMeas, endMeas, service.master.measNum);
+  doc.playStart = start;
+  doc.playEnd = end;
+  doc.rev++;
+}
+
 // ボリュームオートメーションのモード定義 (doc.volumeMode 0..7 と対応)。
 // 書き込み対象のイベント種別・デフォルト値・表示名を1つのテーブルで管理する
 // (VolumeField の描画/編集と CollageEditor のモードボタンで共用)

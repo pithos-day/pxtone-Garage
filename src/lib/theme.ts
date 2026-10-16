@@ -45,8 +45,10 @@ export const COLORS = reactive({
   headerBg: "",
   octaveText: "",
   noteHead: "",
-  repeatMark: "",
-  lastMark: "",
+  marker: "",
+  markerText: "",
+  markerPreview: "",
+  markerPreviewText: "",
 });
 
 // <html> の data-theme / .dark に対応する CSS 変数を COLORS へ取り込む
@@ -101,8 +103,10 @@ export function syncThemeColors(): void {
   COLORS.headerBg = v("--canvas-ruler-bg");
   COLORS.octaveText = v("--canvas-octave-text");
   COLORS.noteHead = v("--canvas-note-head");
-  COLORS.repeatMark = destructive;
-  COLORS.lastMark = primary;
+  COLORS.marker = v("--canvas-marker");
+  COLORS.markerText = v("--canvas-marker-text");
+  COLORS.markerPreview = v("--canvas-marker-preview");
+  COLORS.markerPreviewText = v("--canvas-marker-preview-text");
 }
 
 // ユニット7色 (ptweb colors.js の note/key 3色) — アイデンティティ色のためテーマ非依存

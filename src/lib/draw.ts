@@ -96,6 +96,61 @@ export function drawScopeBand(ctx: CanvasRenderingContext2D, x1: number, x2: num
   fillRect(ctx, x1, top, Math.max(0, x2 - x1), h, color);
 }
 
+// マーカータグの文字サイズ (タグの高さから決まる)
+export function markerTagFontSize(h: number): number {
+  return Math.max(8, h - 4);
+}
+
+// マーカータグ用フォント (ラベルは太字)
+function markerFont(size: number): string {
+  return `bold ${size}px ${canvasFontStack()}`;
+}
+
+// タグの文字領域の幅。全ラベルで幅を揃えるため、最も広いラベルを基準にする
+// (短いラベルは中央揃えで余白が広がる)
+export function markerTagContentW(ctx: CanvasRenderingContext2D, size: number, labels: string[]): number {
+  ctx.font = markerFont(size);
+  return Math.ceil(Math.max(...labels.map((l) => ctx.measureText(l).width)));
+}
+
+// マーカータグ (横向き五角形 + ラベル文字)。anchorX 側が平らな端 (マーカー位置)、
+// 先端は dir 方向 (範囲の内側) を向く。
+// 例: 範囲の開始 (|START▶) は dir="right"、終了 (◀END|) は dir="left"
+// contentW を渡すと文字領域の幅を固定し、文字はその中央に描画する (全ラベルで幅を統一)
+export function drawMarkerTag(
+  ctx: CanvasRenderingContext2D,
+  anchorX: number,
+  centerY: number,
+  h: number,
+  dir: "right" | "left",
+  text: string,
+  fill: string,
+  textColor: string,
+  contentW = 0,
+): void {
+  const size = markerTagFontSize(h);
+  const tip = Math.round(h / 2);
+  const padX = 4;
+  ctx.font = markerFont(size);
+  const textW = Math.max(Math.ceil(ctx.measureText(text).width), contentW);
+  const w = tip + padX * 2 + textW;
+  const s = dir === "right" ? 1 : -1;
+  // 五角形: 平らな端 (anchorX) → 上辺 → 先端 → 下辺
+  ctx.beginPath();
+  ctx.moveTo(anchorX, centerY - h / 2);
+  ctx.lineTo(anchorX + s * (w - tip), centerY - h / 2);
+  ctx.lineTo(anchorX + s * w, centerY);
+  ctx.lineTo(anchorX + s * (w - tip), centerY + h / 2);
+  ctx.lineTo(anchorX, centerY + h / 2);
+  ctx.closePath();
+  ctx.fillStyle = fill;
+  ctx.fill();
+  ctx.fillStyle = textColor;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, anchorX + s * (padX + textW / 2), centerY);
+}
+
 // Play アイコン (三角形 ▶) を描画。本家 ptCollage の Velocity 表示 (rcNote) 相当
 export function fillPlayIcon(ctx: CanvasRenderingContext2D, x: number, y: number, color: string): void {
   ctx.fillStyle = color;

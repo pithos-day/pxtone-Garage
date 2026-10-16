@@ -1,12 +1,15 @@
 // ルーラーマーカー帯。小節番号は MeasNoField (別ストリップ) が表示する。
+// マーカーは横向き五角形のタグ (REPEAT/LAST/START/END) で表示する。
+// タグの幅は全ラベルで統一し、文字は太字で中央揃えに描画する。
 // 上段 = Repeat/Last、下段 = Start/End (編集用再生範囲) に分離し、
 // 重なりを防ぐ。右クリックメニューは上段で Repeat/Last、下段で Start/End を操作。
-// 左クリック = シーク、左ドラッグ (下段) = Start/End の設定。
+// 左クリック = シーク、左ドラッグ = 押した位置を Start、離した位置を End に設定。
+// Start/End は線で繋ぎ、ドラッグ中は設定される Start/End を白黒タグでプレビューする。
 <script setup lang="ts">
 import { ref } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { COLORS } from "../../lib/theme";
-import { drawGrid, fillRect, fillText, drawPlayhead } from "../../lib/draw";
+import { drawGrid, fillRect, drawMarkerTag, drawPlayhead, markerTagContentW, markerTagFontSize } from "../../lib/draw";
 import { clockAtX, capturePointer, releasePointerCapture } from "../../lib/field";
 import { clockToX, measOfClock, xToClock, measStartClock } from "../../lib/clock";
 import {
@@ -17,6 +20,8 @@ import {
   setLastMeas,
   setPlayStart,
   setPlayEnd,
+  setPlayRange,
+  normalizePlayRange,
 } from "../../state/project";
 import { currentClock, seekToClock, isPlaying as isPlayingNow } from "../../state/player";
 import { useCtxMenuClose } from "../../composables/useCtxMenu";
@@ -25,13 +30,24 @@ import { t } from "../../i18n";
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 // zone: "repeat" = 上段 (Repeat/Last), "range" = 下段 (Start/End)
 const menu = ref<{ x: number; y: number; meas: number; zone: "repeat" | "range" } | null>(null);
+// 左ドラッグ (Start/End 設定)。x0/y0 = 押下位置、x/y = 現在位置 (すべて canvas 座標 px)
+const drag = ref<{ x0: number; y0: number; x: number; y: number; moved: boolean } | null>(null);
+// タグの幅を揃えるための全ラベル (最も広いラベルが基準幅になる)
+const MARKER_LABELS = ["REPEAT", "LAST", "START", "END"];
 
 useCtxMenuClose(menu);
 
 useCanvas(
   canvasRef,
   (ctx, w, h) => draw(ctx, w, h),
-  [() => doc.rev, () => doc.scrollX, () => doc.zoom, () => currentClock.value],
+  [
+    () => doc.rev,
+    () => doc.scrollX,
+    () => doc.zoom,
+    () => currentClock.value,
+    () => drag.value?.x ?? -1, // ドラッグ中プレビューの再描画
+    () => drag.value?.moved ?? false,
+  ],
 );
 
 function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
@@ -44,30 +60,47 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   drawGrid(ctx, { w, h, scrollX: doc.scrollX, view, top: 0, bottom: h, showNumber: false, fillBackground: false });
 
   const band = h / 2; // 上段 = Repeat/Last、下段 = Start/End
+  const tagH = band - 2; // タグ (横向き五角形) の高さ
+  // タグの幅は全ラベルで統一する (最も広い REPEAT に合わせ、文字は中央揃え)
+  const tagTextW = markerTagContentW(ctx, markerTagFontSize(tagH), MARKER_LABELS);
+  const topY = band / 2; // 上段のタグ中心
+  const bottomY = band + band / 2; // 下段のタグ中心
   const lastX = clockToX(view, measStartClock(view, s.master.lastMeas)) - doc.scrollX;
+  const startX = doc.playStart >= 0 ? clockToX(view, measStartClock(view, doc.playStart)) - doc.scrollX : 0;
+  const endX = doc.playEnd > 0 ? clockToX(view, measStartClock(view, doc.playEnd)) - doc.scrollX : 0;
 
-  // 上段: Repeat / Last
+  // Start/End を線で繋ぐ (両方設定時)
+  if (doc.playStart >= 0 && doc.playEnd > 0) {
+    fillRect(ctx, startX, bottomY - 1, endX - startX, 2, COLORS.marker);
+  }
+
+  // 上段: Repeat / Last (境界線側が平らな端、先端は範囲の内側を向く)
   if (doc.repeatMeas > 0) {
     // Repeat は 1-based (エンジン/ファイルは 0-based) なので (repeatMeas - 1) 小節目の開始位置に描画
     const repeatX = clockToX(view, measStartClock(view, doc.repeatMeas - 1)) - doc.scrollX;
-    fillRect(ctx, repeatX, 2, 2, band - 4, COLORS.repeatMark);
-    fillText(ctx, "R", repeatX + 3, band - 4, COLORS.repeatMark, 9);
+    drawMarkerTag(ctx, repeatX, topY, tagH, "right", "REPEAT", COLORS.marker, COLORS.markerText, tagTextW);
   }
   if (s.master.lastMeas > 0) {
-    fillRect(ctx, lastX, 2, 2, band - 4, COLORS.lastMark);
-    fillText(ctx, "L", lastX - 3, band - 4, COLORS.lastMark, 9, "right");
+    drawMarkerTag(ctx, lastX, topY, tagH, "left", "LAST", COLORS.marker, COLORS.markerText, tagTextW);
   }
 
   // 下段: Start / End (編集用再生範囲)
   if (doc.playStart >= 0) {
-    const sx = clockToX(view, measStartClock(view, doc.playStart)) - doc.scrollX;
-    fillRect(ctx, sx, band + 2, 2, h - band - 4, COLORS.playhead);
-    fillText(ctx, "S", sx + 3, h - 6, COLORS.playhead, 9);
+    drawMarkerTag(ctx, startX, bottomY, tagH, "right", "START", COLORS.marker, COLORS.markerText, tagTextW);
   }
   if (doc.playEnd > 0) {
-    const ex = clockToX(view, measStartClock(view, doc.playEnd)) - doc.scrollX;
-    fillRect(ctx, ex, band + 2, 2, h - band - 4, COLORS.playhead);
-    fillText(ctx, "E", ex - 3, h - 6, COLORS.playhead, 9, "right");
+    drawMarkerTag(ctx, endX, bottomY, tagH, "left", "END", COLORS.marker, COLORS.markerText, tagTextW);
+  }
+
+  // ドラッグ中のプレビュー (離したときに設定される Start/End を白黒タグで表示)
+  const d = drag.value;
+  if (d?.moved) {
+    const { start, end } = dragRange(d.x0, d.x);
+    const sx = clockToX(view, measStartClock(view, start)) - doc.scrollX;
+    const ex = clockToX(view, measStartClock(view, end)) - doc.scrollX;
+    fillRect(ctx, sx, bottomY - 1, ex - sx, 2, COLORS.markerPreview);
+    drawMarkerTag(ctx, sx, bottomY, tagH, "right", "START", COLORS.markerPreview, COLORS.markerPreviewText, tagTextW);
+    drawMarkerTag(ctx, ex, bottomY, tagH, "left", "END", COLORS.markerPreview, COLORS.markerPreviewText, tagTextW);
   }
 
   // プレイヘッド (上下段を貫通)
@@ -81,14 +114,33 @@ function clockAt(x: number): number {
 }
 
 // ---- ポインタ操作 ----
-const drag = ref<{ x0: number; y0: number; moved: boolean } | null>(null);
+
+// カーソル位置 (canvas 座標 px) を最寄りの小節境界 (小節番号) にスナップする
+// (本家準拠: 小節の前半 = その小節の開始、後半 = 次の小節の開始)
+function boundaryAt(x: number): number {
+  const view = clockContext();
+  const clock = xToClock(view, doc.scrollX + x);
+  const measW = view.beatNum * view.beatClock;
+  const fMeas = clock / measW;
+  const meas = Math.floor(fMeas);
+  return fMeas - meas < 0.5 ? meas : meas + 1;
+}
+
+// ドラッグ範囲 (押下位置 x0 → 現在位置 x1) から設定される Start/End (小節) を求める。
+// プレビューと確定で共用し、逆方向のドラッグや同値 (1小節未満) も同じ結果に正規化する
+function dragRange(x0: number, x1: number): { start: number; end: number } {
+  const measNum = getService()?.master.measNum ?? 1;
+  return normalizePlayRange(boundaryAt(x0), boundaryAt(x1), measNum);
+}
 
 function onPointerDown(e: PointerEvent): void {
   const c = canvasRef.value;
   if (!c) return;
   const r = c.getBoundingClientRect();
   if (e.button === 0) {
-    drag.value = { x0: e.clientX, y0: e.clientY, moved: false };
+    const x = e.clientX - r.left;
+    const y = e.clientY - r.top;
+    drag.value = { x0: x, y0: y, x, y, moved: false };
     capturePointer(c, e);
     return;
   }
@@ -109,7 +161,12 @@ function onPointerDown(e: PointerEvent): void {
 function onPointerMove(e: PointerEvent): void {
   const d = drag.value;
   if (!d) return;
-  if (Math.abs(e.clientX - d.x0) > 4 || Math.abs(e.clientY - d.y0) > 4) d.moved = true;
+  const c = canvasRef.value;
+  if (!c) return;
+  const r = c.getBoundingClientRect();
+  d.x = e.clientX - r.left;
+  d.y = e.clientY - r.top;
+  if (Math.abs(d.x - d.x0) > 4 || Math.abs(d.y - d.y0) > 4) d.moved = true;
 }
 
 function onPointerUp(e: PointerEvent): void {
@@ -117,22 +174,15 @@ function onPointerUp(e: PointerEvent): void {
   releasePointerCapture(c, e);
   const d = drag.value;
   drag.value = null;
-  if (!d) return;
-  const r = c!.getBoundingClientRect();
+  if (!d || !c) return;
   if (!d.moved) {
     // クリック = シーク
-    seekToClock(clockAt(d.x0 - r.left));
+    seekToClock(clockAt(d.x0));
     return;
   }
-  // ドラッグ = Start/End 設定 (本家準拠: 小節の前半=Start、後半=End)
-  const view = clockContext();
-  const x = d.x0 - r.left;
-  const clock = xToClock(view, doc.scrollX + x);
-  const measW = view.beatNum * view.beatClock;
-  const fMeas = clock / measW;
-  const meas = Math.floor(fMeas);
-  if (fMeas - meas < 0.5) setPlayStart(meas);
-  else setPlayEnd(meas + 1);
+  // ドラッグ = Start/End をまとめて設定 (押した位置が Start、離した位置が End)
+  const { start, end } = dragRange(d.x0, e.clientX - c.getBoundingClientRect().left);
+  setPlayRange(start, end);
 }
 
 function onMenuAction(action: "setRepeat" | "setLast" | "clearRepeat" | "clearLast" | "setStart" | "setEnd" | "clearStart" | "clearEnd"): void {
@@ -202,7 +252,7 @@ function onMenuAction(action: "setRepeat" | "setLast" | "clearRepeat" | "clearLa
 
 <style scoped>
 .playfield {
-  height: 32px;
+  height: 36px;
   position: relative;
   border-bottom: 1px solid var(--border);
   cursor: pointer;

@@ -15,6 +15,12 @@
   --canvas-measure-box: oklch(0.8 0 0);
   --canvas-measure-text: oklch(0.574 0.143 154.5);
   --canvas-playhead: oklch(0.2 0 0);
+  /* マーカー (Start/End/Repeat/Last) のタグ: 明るい赤 */
+  --canvas-marker: oklch(0.6708 0.2165 25.1926);
+  --canvas-marker-text: oklch(1 0 0);
+  /* ドラッグ中のプレビューは白黒 (確定前と分かるように) */
+  --canvas-marker-preview: oklch(0.35 0 0);
+  --canvas-marker-preview-text: oklch(1 0 0);
   /* 選択範囲 (スコープ) 帯: 中央・縁とも同じ色で塗る */
   --canvas-scope: oklch(0.574 0.143 154.5);
   --canvas-white-key: oklch(0.93 0 0);
@@ -45,6 +51,12 @@
   --canvas-measure-box: oklch(0.489 0 0);
   --canvas-measure-text: oklch(0.972 0.015 294.5);
   --canvas-playhead: oklch(0.6 0.245 28);
+  /* マーカー (Start/End/Repeat/Last) のタグ: 明るい赤 */
+  --canvas-marker: oklch(0.72 0.21 25);
+  --canvas-marker-text: oklch(1 0 0);
+  /* ドラッグ中のプレビューは白黒 (確定前と分かるように) */
+  --canvas-marker-preview: oklch(0.85 0 0);
+  --canvas-marker-preview-text: oklch(0.15 0 0);
   /* 選択範囲 (スコープ) 帯: 中央・縁とも同じ色で塗る */
   --canvas-scope: oklch(0.765 0.218 148.6);
   --canvas-white-key: oklch(0.371 0 0);

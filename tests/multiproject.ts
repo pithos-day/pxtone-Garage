@@ -36,6 +36,7 @@ import {
   sync,
   setPlayStart,
   setPlayEnd,
+  setPlayRange,
   setRepeatMeas,
 } from "../src/state/project";
 import * as serviceMod from "../src/state/service";
@@ -652,6 +653,24 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     setPlayEnd(8);
     setPlayStart(4); // 同値で解除
     checkEq(doc.playStart, -1, "setPlayStart 同値で解除 (2回目)");
+
+    // ドラッグ操作用の一括設定 (setPlayRange / normalizePlayRange)
+    setPlayRange(6, 3); // 逆順は入れ替え
+    checkEq(doc.playStart, 3, "setPlayRange: 逆順は開始側に正規化");
+    checkEq(doc.playEnd, 6, "setPlayRange: 逆順は終了側に正規化");
+    setPlayRange(3, 3); // 同値でも解除せず、1小節分を確保
+    checkEq(doc.playStart, 3, "setPlayRange: 同値でも解除しない");
+    checkEq(doc.playEnd, 4, "setPlayRange: 同値は start+1 に");
+    setPlayRange(20, 20); // measNum=16 → 開始は measNum-1 にクランプ
+    checkEq(doc.playStart, 15, "setPlayRange: 開始は measNum-1 にクランプ");
+    checkEq(doc.playEnd, 16, "setPlayRange: 終了は measNum まで");
+    setPlayRange(5, 99);
+    checkEq(doc.playEnd, 16, "setPlayRange: 終了は measNum にクランプ");
+    setPlayRange(-5, 2);
+    checkEq(doc.playStart, 0, "setPlayRange: 開始は 0 にクランプ");
+    checkEq(doc.playEnd, 2, "setPlayRange: 正規化後の終了");
+    setPlayStart(-1);
+    setPlayEnd(-1);
     checkEq(loop.value, true, "REPEAT がデフォルトで ON");
   }
 
