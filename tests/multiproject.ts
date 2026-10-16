@@ -38,7 +38,7 @@ import {
 import * as serviceMod from "../src/state/service";
 import { undo, redo, canUndo, canRedo } from "../src/state/undo";
 import { player, isPlaying, masterVolume, loop } from "../src/state/player";
-import { parseThemeCss, mergeTokens, buildThemeCss } from "../src/lib/themeParse";
+import { parseThemeCss, mergeTokens, buildThemeCss, buildStandaloneThemeCss } from "../src/lib/themeParse";
 import {
   voices,
   currentVoiceId,
@@ -495,6 +495,29 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     const css = buildThemeCss("test-x", merged);
     check("注入CSS: ライトスコープ", css.includes(':root[data-theme="test-x"]') && css.includes("--background: oklch(1 0 0);"));
     check("注入CSS: ダークスコープ", css.includes('.dark[data-theme="test-x"]') && css.includes("--background: oklch(0.148 0 0);"));
+
+    // エクスポート CSS 生成 (単体 :root/.dark) → 再インポートの往復
+    const standalone = buildStandaloneThemeCss("My Theme", merged);
+    check("エクスポートCSS: テーマ名コメント", standalone.includes("/* pxtone-garage theme: My Theme */"));
+    const reimported = parseThemeCss(standalone);
+    check(
+      "エクスポートCSS: 再インポートで light トークン一致",
+      reimported !== null &&
+        JSON.stringify(reimported.light) === JSON.stringify(merged.light),
+    );
+    check(
+      "エクスポートCSS: 再インポートで dark トークン一致",
+      reimported !== null &&
+        JSON.stringify(reimported.dark) === JSON.stringify(merged.dark),
+    );
+    // 名前中の "*/" はコメントを壊さないよう除去される
+    const evilName = buildStandaloneThemeCss("a*/ :root { --x: red; } /*", merged);
+    checkEq(parseThemeCss(evilName)?.light["--background"], "oklch(1 0 0)", "エクスポートCSS: 名前の */ を除去");
+
+    // 片側が空ならブロックごと省略される
+    const lightOnly = buildStandaloneThemeCss("Light", { light: { "--background": "red" }, dark: {} });
+    check("エクスポートCSS: dark が空ならブロック省略", !lightOnly.includes(".dark"));
+    check("エクスポートCSS: light が空ならブロック省略", !buildStandaloneThemeCss("Dark", { light: {}, dark: { "--background": "black" } }).includes(":root"));
   }
 
   // ---- 16. 小節コピー / イベント音量 / ユニット追加 ----

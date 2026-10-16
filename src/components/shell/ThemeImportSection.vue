@@ -1,9 +1,11 @@
 // テーマインポートの展開ブロック (SettingsDialog から分割)。
+// インポート (展開ボックス + ファイル読込) と、現在のテーマのエクスポートを行う。
 // 状態はこのコンポーネント内で完結させる (専用 composable に切り出すまでもない)
 <script setup lang="ts">
 import { reactive } from "vue";
 import { ChevronDown, ChevronRight } from "@lucide/vue";
-import { addUserTheme, setThemeName } from "../../state/theme";
+import { addUserTheme, currentThemeForExport, setThemeName } from "../../state/theme";
+import { downloadBytes, sanitizeFileName } from "../../engine/io";
 import { t } from "../../i18n";
 
 const importState = reactive({
@@ -49,13 +51,31 @@ function onImport(): void {
   closeImport();
   resetImport();
 }
+
+// 現在のテーマを <テーマ名>.css として直接ダウンロードする (ピッカーは開かない)
+async function onExport(): Promise<void> {
+  const th = currentThemeForExport();
+  if (!th) return;
+  try {
+    await downloadBytes(new TextEncoder().encode(th.css), {
+      fileName: sanitizeFileName(th.name, ".css"),
+      mime: "text/css",
+      usePicker: false,
+    });
+  } catch {
+    window.alert(t("error.save"));
+  }
+}
 </script>
 
 <template>
-  <button class="disclosure" @click="toggleImport">
-    <span class="disclosure-arrow"><ChevronDown v-if="importState.open" :size="12" /><ChevronRight v-else :size="12" /></span>
-    {{ t("settings.importTheme") }}
-  </button>
+  <div class="row">
+    <button class="disclosure grow" @click="toggleImport">
+      <span class="disclosure-arrow"><ChevronDown v-if="importState.open" :size="12" /><ChevronRight v-else :size="12" /></span>
+      {{ t("settings.importTheme") }}
+    </button>
+    <button class="btn btn-sm" @click="onExport">{{ t("settings.exportTheme") }}</button>
+  </div>
   <div v-if="importState.open" class="import-box">
     <div class="row">
       <label>{{ t("settings.importThemeName") }}</label>

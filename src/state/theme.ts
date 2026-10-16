@@ -5,7 +5,13 @@
 // 初期のダーク/ライトは環境の prefers-color-scheme から決定する。
 import { reactive, ref } from "vue";
 import { syncThemeColors } from "../lib/theme";
-import { parseThemeCss, mergeTokens, buildThemeCss, type ThemeTokens } from "../lib/themeParse";
+import {
+  parseThemeCss,
+  mergeTokens,
+  buildThemeCss,
+  buildStandaloneThemeCss,
+  type ThemeTokens,
+} from "../lib/themeParse";
 import { readStorage, writeStorage } from "../lib/storage";
 import { doc } from "./project";
 
@@ -172,6 +178,17 @@ export function removeUserTheme(id: string): void {
   persistUserThemes();
   injectThemes();
   if (theme.name === id) setThemeName(DEFAULT_THEME);
+}
+
+// 現在のテーマを再インポート可能な CSS として取り出す (エクスポート用)。
+// 適用結果と同じ見た目になるよう、未定義トークンはベース (pxtone) の値で補完する
+export function currentThemeForExport(): { name: string; css: string } | null {
+  const def = registry.get(theme.name);
+  if (!def) return null;
+  const base = ensureParsed(DEFAULT_THEME);
+  const tokens = ensureParsed(def.id);
+  if (!base || !tokens) return null;
+  return { name: def.name, css: buildStandaloneThemeCss(def.name, mergeTokens(base, tokens)) };
 }
 
 // ---- 初期化 ----

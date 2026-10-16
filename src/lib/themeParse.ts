@@ -132,16 +132,31 @@ export function mergeTokens(
   };
 }
 
+// トークンマップを CSS ブロック本文 (インデント済みの宣言行) にする
+function tokenLines(tokens: Record<string, string>): string {
+  return Object.entries(tokens)
+    .map(([k, v]) => `  ${k}: ${v};`)
+    .join("\n");
+}
+
 /**
  * トークンマップからスコープ付き CSS を生成する。
  * セレクタ: :root[data-theme="id"] (ライト) / .dark[data-theme="id"] (ダーク)
  */
 export function buildThemeCss(id: string, tokens: ThemeTokens): string {
-  const lightBlock = Object.entries(tokens.light)
-    .map(([k, v]) => `  ${k}: ${v};`)
-    .join("\n");
-  const darkBlock = Object.entries(tokens.dark)
-    .map(([k, v]) => `  ${k}: ${v};`)
-    .join("\n");
-  return `:root[data-theme="${id}"] {\n${lightBlock}\n}\n.dark[data-theme="${id}"] {\n${darkBlock}\n}`;
+  return `:root[data-theme="${id}"] {\n${tokenLines(tokens.light)}\n}\n.dark[data-theme="${id}"] {\n${tokenLines(tokens.dark)}\n}`;
+}
+
+/**
+ * 単体で読み込めるテーマ CSS (:root / .dark の素の形) を生成する。
+ * エクスポート用で、そのままインポートし直せる (parseThemeCss が解釈する形)。
+ * 空のトークン側はブロックごと省略する
+ */
+export function buildStandaloneThemeCss(name: string, tokens: ThemeTokens): string {
+  // コメントを壊す "*/" は名前から除去する (パース時にスキップされる)
+  const safeName = name.replace(/\*\//g, "");
+  const parts = [`/* pxtone-garage theme: ${safeName} */`];
+  if (Object.keys(tokens.light).length > 0) parts.push(`:root {\n${tokenLines(tokens.light)}\n}`);
+  if (Object.keys(tokens.dark).length > 0) parts.push(`.dark {\n${tokenLines(tokens.dark)}\n}`);
+  return `${parts.join("\n\n")}\n`;
 }

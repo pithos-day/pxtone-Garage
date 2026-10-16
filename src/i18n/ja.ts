@@ -62,6 +62,7 @@ const ja = {
   "settings.builtinThemes": "内蔵テーマ",
   "settings.myThemes": "インポートされたテーマ",
   "settings.importTheme": "テーマをインポート",
+  "settings.exportTheme": "テーマをエクスポート",
   "settings.importThemeName": "テーマ名",
   "settings.importThemeCss": "CSSをここに貼り付け",
   "settings.import": "インポート",
