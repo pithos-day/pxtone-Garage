@@ -99,7 +99,8 @@ function onClose(id: number): void {
     >
       <Eye v-if="p.readonly" :size="12" class="tab-ro-icon" />
       <Link2 v-if="p.linked" :size="12" class="tab-link-icon" :class="{ dirty: p.dirty }" />
-      <span v-if="p.dirty" class="dirty-dot" />
+      <!-- link アイコン付きタブはアイコン自体の色で dirty を示すため ● は出さない -->
+      <span v-if="p.dirty && !p.linked" class="dirty-dot" />
       <span class="tab-name">{{ p.title }}</span>
       <span
         v-if="tabs.length > 1"
