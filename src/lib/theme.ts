@@ -25,7 +25,6 @@ export const COLORS = reactive({
   measureBox: "",
   measureText: "",
   scope: "",
-  scopeBorder: "",
   scopeFaint: "",
   fieldBg: "",
   unitRowBg: "",
@@ -41,6 +40,8 @@ export const COLORS = reactive({
   focusRow: "",
   muted: "",
   rulerBg: "",
+  playfieldBg: "",
+  scopefieldBg: "",
   headerBg: "",
   octaveText: "",
   noteHead: "",
@@ -81,7 +82,6 @@ export function syncThemeColors(): void {
   COLORS.measureBox = v("--canvas-measure-box");
   COLORS.measureText = v("--canvas-measure-text");
   COLORS.scope = v("--canvas-scope");
-  COLORS.scopeBorder = v("--canvas-scope-border");
   COLORS.scopeFaint = v("--canvas-scope-faint");
   COLORS.fieldBg = v("--canvas-field-bg");
   COLORS.rowWhite = v("--canvas-row-white");
@@ -96,6 +96,8 @@ export function syncThemeColors(): void {
   COLORS.focusRow = alpha(primary, 15);
   COLORS.muted = v("--canvas-muted");
   COLORS.rulerBg = v("--canvas-ruler-bg");
+  COLORS.playfieldBg = v("--canvas-playfield-bg");
+  COLORS.scopefieldBg = v("--canvas-scopefield-bg");
   COLORS.headerBg = v("--canvas-ruler-bg");
   COLORS.octaveText = v("--canvas-octave-text");
   COLORS.noteHead = v("--canvas-note-head");

@@ -18,14 +18,15 @@ useCanvas(
 
 function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   const view = clockContext();
-  fillRect(ctx, 0, 0, w, h, COLORS.rulerBg);
-  drawGrid(ctx, { w, h, scrollX: doc.scrollX, view, top: 0, bottom: h, showNumber: false });
+  // 帯色は半透明のため fieldBg の上に重ねる (canvas 下の --background が透けないように)
+  fillRect(ctx, 0, 0, w, h, COLORS.fieldBg);
+  fillRect(ctx, 0, 0, w, h, COLORS.scopefieldBg);
+  drawGrid(ctx, { w, h, scrollX: doc.scrollX, view, top: 0, bottom: h, showNumber: false, fillBackground: false });
   if (doc.scope2 > doc.scope1) {
     const x1 = clockToX(view, doc.scope1) - doc.scrollX;
     const x2 = clockToX(view, doc.scope2) - doc.scrollX;
-    drawScopeBand(ctx, x1, x2, 1, h - 2, COLORS.scope);
-    fillRect(ctx, x1, 0, 1, h, COLORS.scopeBorder);
-    fillRect(ctx, x2, 0, 1, h, COLORS.scopeBorder);
+    // 中央と縁で明暗が分かれないよう、帯全体を同じ色で塗る
+    drawScopeBand(ctx, x1, x2, 0, h, COLORS.scope);
   }
   // プレイヘッド (再生バー)
   if (isPlayingNow.value) {
@@ -42,7 +43,8 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 
 <style scoped>
 .scopefield {
-  height: 10px;
+  /* 音階1個分 (KEY_HEIGHT) と同じ高さ */
+  height: var(--key-h);
   position: relative;
   border-bottom: 1px solid var(--border);
 }

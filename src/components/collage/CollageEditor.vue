@@ -84,7 +84,7 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
 
 <template>
   <!-- レイアウト幅は lib/layout から CSS 変数として注入 (px の手動同期を排除) -->
-  <div class="collage" :style="{ '--left-w': LEFT_W + 'px', '--strip-w': STRIP_W + 'px', '--name-w': NAME_W + 'px' }">
+  <div class="collage" :style="{ '--left-w': LEFT_W + 'px', '--strip-w': STRIP_W + 'px', '--name-w': NAME_W + 'px', '--key-h': KEY_HEIGHT + 'px' }">
     <div class="collage-body">
       <!-- ピン留めユニットのレーン (上部固定) -->
       <div v-if="pinned.length > 0" class="collage-pinned" :style="{ height: (RULER_H + pinned.length * KEY_HEIGHT) + 'px' }">

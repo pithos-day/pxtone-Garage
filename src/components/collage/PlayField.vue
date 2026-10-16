@@ -38,8 +38,10 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   const s = getService();
   if (!s) return;
   const view = clockContext();
-  fillRect(ctx, 0, 0, w, h, COLORS.rulerBg);
-  drawGrid(ctx, { w, h, scrollX: doc.scrollX, view, top: 0, bottom: h, showNumber: false });
+  // 帯色は半透明のため fieldBg の上に重ねる (canvas 下の --background が透けないように)
+  fillRect(ctx, 0, 0, w, h, COLORS.fieldBg);
+  fillRect(ctx, 0, 0, w, h, COLORS.playfieldBg);
+  drawGrid(ctx, { w, h, scrollX: doc.scrollX, view, top: 0, bottom: h, showNumber: false, fillBackground: false });
 
   const band = h / 2; // 上段 = Repeat/Last、下段 = Start/End
   const lastX = clockToX(view, measStartClock(view, s.master.lastMeas)) - doc.scrollX;

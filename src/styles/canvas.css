@@ -6,14 +6,17 @@
 :root {
   --canvas-field-bg: oklch(0.976 0.007 97.4);
   --canvas-ruler-bg: oklch(0.955 0 0);
+  /* ルーラー帯の帯色 (fieldBg に重ねる半透明の艶): PlayField は赤系、ScopeField は緑系 */
+  --canvas-playfield-bg: oklch(0.955 0.028 29.2 / 45%);
+  --canvas-scopefield-bg: oklch(0.955 0.028 154.5 / 45%);
   --canvas-measure-line: oklch(0.3 0 0 / 35%);
   --canvas-beat-line: oklch(0.3 0 0 / 16%);
   --canvas-divi-line: oklch(0.3 0 0 / 7%);
   --canvas-measure-box: oklch(0.8 0 0);
   --canvas-measure-text: oklch(0.574 0.143 154.5);
   --canvas-playhead: oklch(0.2 0 0);
-  --canvas-scope: oklch(0.687 0.173 154 / 35%);
-  --canvas-scope-border: oklch(0.574 0.143 154.5);
+  /* 選択範囲 (スコープ) 帯: 中央・縁とも同じ色で塗る */
+  --canvas-scope: oklch(0.574 0.143 154.5);
   --canvas-white-key: oklch(0.93 0 0);
   --canvas-black-key: oklch(0.6 0 0);
   --canvas-key-edge: oklch(0.3 0 0);
@@ -33,14 +36,17 @@
   /* 本家の実パレット (colors.png) 準拠 */
   --canvas-field-bg: oklch(0.078 0.054 264.1);
   --canvas-ruler-bg: oklch(0.377 0.155 29.2);
+  /* ダークは fieldBg に薄く重ねる: PlayField は赤系、ScopeField は緑系 */
+  --canvas-playfield-bg: oklch(0.4 0.13 29.2 / 50%);
+  --canvas-scopefield-bg: oklch(0.326 0.082 154.2 / 50%);
   --canvas-measure-line: oklch(0.931 0.005 145.5);
   --canvas-beat-line: oklch(0.602 0 0);
   --canvas-divi-line: oklch(0.489 0 0);
   --canvas-measure-box: oklch(0.489 0 0);
   --canvas-measure-text: oklch(0.972 0.015 294.5);
   --canvas-playhead: oklch(0.6 0.245 28);
-  --canvas-scope: oklch(0.326 0.082 154.2);
-  --canvas-scope-border: oklch(0.765 0.218 148.6);
+  /* 選択範囲 (スコープ) 帯: 中央・縁とも同じ色で塗る */
+  --canvas-scope: oklch(0.765 0.218 148.6);
   --canvas-white-key: oklch(0.371 0 0);
   --canvas-black-key: oklch(0.244 0 0);
   --canvas-key-edge: oklch(0 0 0);
