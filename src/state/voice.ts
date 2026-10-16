@@ -389,13 +389,14 @@ export function redoVoice(): boolean {
 
 // 新規タブを追加して切り替える
 export function newVoice(): VoiceDoc {
-  return tabs.add({ fileName: "", dirty: false, woice: markRaw(createDefaultWoice()), undoStack: [], redoStack: [] });
+  return tabs.add({ fileName: "", dirty: false, initial: false, woice: markRaw(createDefaultWoice()), undoStack: [], redoStack: [] });
 }
 
 // アプリ起動時に1つ目のデフォルト音声を作る (既にタブがある場合は何もしない)
 export function ensureInitialVoice(): void {
   if (voices.value.length === 0) {
-    newVoice();
+    // 初期タブはファイルを開くときに置き換えてよい (無題のファイルを開いたタブとは別扱い)
+    newVoice().initial = true;
   }
 }
 
@@ -406,7 +407,7 @@ export function openVoice(bytes: Uint8Array, name: string, link?: WoiceLink): st
   const res = w.read(new MemoryIo(bytes), WoiceType.PTV);
   if (res !== PxtnErr.OK) return pxtnErrorMessage(res);
   tabs.replaceInitialIfPossible();
-  tabs.add({ fileName: name, dirty: false, woice: markRaw(w), undoStack: [], redoStack: [], link });
+  tabs.add({ fileName: name, dirty: false, initial: false, woice: markRaw(w), undoStack: [], redoStack: [], link });
   return null;
 }
 

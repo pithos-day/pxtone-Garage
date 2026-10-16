@@ -65,6 +65,7 @@ import {
   snapshotVoice,
   openWoiceAsVoice,
   markVoiceClean,
+  ensureInitialVoice,
 } from "../src/state/voice";
 import {
   noises,
@@ -84,6 +85,7 @@ import {
   pushNoiseHistory,
   NOISE_UNIT_NUM,
   NOISE_ENVE_NUM,
+  ensureInitialNoise,
 } from "../src/state/noise";
 import { renderWoice, renderNoise } from "../src/engine/preview";
 import { parseMidi, convertMidiToPtcop } from "../src/engine/midi";
@@ -1772,6 +1774,43 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     // link 付きで開けば書き戻し先を持つ (ptcop の「音色を編集」)
     check("open: リンク付きでも開ける", openWoiceAsVoice(w, "Linked", { projectId: 1, woiceIndex: 0 }));
     checkEq(currentVoice()!.link?.woiceIndex, 0, "open: link を持てる");
+  }
+
+  // ---- 38. 初期タブの置き換え (無題の音色を開いたタブは置き換えない) ----
+  {
+    // 起動直後 (初期タブだけ) の状態にする
+    for (const v of [...voices.value]) closeVoice(v.id);
+    checkEq(voices.value.length, 0, "replace: voice のタブを空にする");
+    ensureInitialVoice();
+    checkEq(voices.value.length, 1, "replace: 初期タブが1つできる");
+    check("replace: 初期タブに印が付く", voices.value[0]!.initial);
+
+    // 名前の無い ptvoice を開くと初期タブを置き換える
+    const dw = createDefaultWoice();
+    const io = new MemoryIo();
+    check("replace: 無題の ptvoice を用意", dw.ptvWrite(io) >= 0);
+    const unnamedVoice = io.toUint8Array();
+    checkEq(openVoice(unnamedVoice, ""), null, "replace: 無題の ptvoice を開く");
+    checkEq(voices.value.length, 1, "replace: 初期タブが置き換わる");
+    check("replace: 置き換えたタブは初期タブではない", !voices.value[0]!.initial);
+
+    // 無題のまま続けて開いても、置き換えずにタブが増える
+    checkEq(openVoice(unnamedVoice, ""), null, "replace: 2つ目の無題 ptvoice を開く");
+    checkEq(voices.value.length, 2, "replace: 2つ目は新しいタブになる");
+    check("replace: 1つ目のタブが残っている", voices.value[0]!.fileName === "" && voices.value[0]!.woice !== undefined);
+
+    // noise も同じ扱い
+    for (const n of [...noises.value]) closeNoise(n.id);
+    ensureInitialNoise();
+    checkEq(noises.value.length, 1, "replace: noise の初期タブが1つできる");
+    check("replace: noise の初期タブに印が付く", noises.value[0]!.initial);
+    const io2 = new MemoryIo();
+    check("replace: 無題の ptnoise を用意", createDefaultNoise().write(io2));
+    const unnamedNoise = io2.toUint8Array();
+    checkEq(openNoise(unnamedNoise, ""), null, "replace: 無題の ptnoise を開く");
+    checkEq(noises.value.length, 1, "replace: noise の初期タブが置き換わる");
+    checkEq(openNoise(unnamedNoise, ""), null, "replace: 2つ目の無題 ptnoise を開く");
+    checkEq(noises.value.length, 2, "replace: noise も2つ目は新しいタブになる");
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);

@@ -142,6 +142,7 @@ export function newNoise(): NoiseDoc {
   return tabs.add({
     fileName: "",
     dirty: false,
+    initial: false,
     noise: markRaw(createDefaultNoise()),
     undoStack: [],
     redoStack: [],
@@ -153,7 +154,8 @@ export function newNoise(): NoiseDoc {
 // アプリ起動時に1つ目のデフォルトノイズを作る (既にタブがある場合は何もしない)
 export function ensureInitialNoise(): void {
   if (noises.value.length === 0) {
-    newNoise();
+    // 初期タブはファイルを開くときに置き換えてよい (無題のファイルを開いたタブとは別扱い)
+    newNoise().initial = true;
   }
 }
 
@@ -167,6 +169,7 @@ export function openNoise(bytes: Uint8Array, name: string, link?: WoiceLink): st
   tabs.add({
     fileName: name,
     dirty: false,
+    initial: false,
     noise: markRaw(n),
     undoStack: [],
     redoStack: [],

@@ -12,6 +12,9 @@ export interface TabDocBase {
   id: number;
   fileName: string;
   dirty: boolean;
+  // 起動時に自動生成された初期タブか。ファイルを開くときに置き換えてよい印
+  // (無題のまま開いた音色と区別するため、fileName ではなくこの印で判定する)
+  initial: boolean;
   undoStack: Uint8Array[];
   redoStack: Uint8Array[];
 }
@@ -89,12 +92,12 @@ export function createDocTabs<D extends TabDocBase>(codec: DocCodec<D>) {
       return true;
     },
 
-    // 起動時に自動生成された初期タブ (未編集・無題) だけが存在する場合は、
+    // 起動時に自動生成された初期タブ (initial) だけが未編集・無題で存在する場合は、
     // タブを増やさずそのタブを閉じて開き直す (Collage の replaceInitialProjectIfPossible と同等)
     replaceInitialIfPossible(): void {
       if (docs.value.length === 1) {
         const cur = this.current();
-        if (cur && !cur.dirty && !cur.fileName) {
+        if (cur?.initial && !cur.dirty && !cur.fileName) {
           docs.value = [];
           currentId.value = -1;
         }
