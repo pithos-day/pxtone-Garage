@@ -64,6 +64,7 @@ import {
   copyVoiceSide,
   snapshotVoice,
   openWoiceAsVoice,
+  markVoiceClean,
 } from "../src/state/voice";
 import {
   noises,
@@ -79,6 +80,7 @@ import {
   createDefaultNoise,
   snapshotNoise,
   openPtnAsNoise,
+  markNoiseClean,
 } from "../src/state/noise";
 import { renderWoice, renderNoise } from "../src/engine/preview";
 import { parseMidi, convertMidiToPtcop } from "../src/engine/midi";
@@ -1538,6 +1540,19 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       660,
       "apply: ノイズ内容が更新される",
     );
+
+    // 変更を適用するとタブの dirty が解除される (タブの link アイコンの色が戻る)
+    editVoice(() => {});
+    check("apply: 編集でタブが dirty になる", currentVoice()!.dirty);
+    const vUndoLen = currentVoice()!.undoStack.length;
+    markVoiceClean();
+    check("apply: 適用で dirty が解除される", !currentVoice()!.dirty);
+    checkEq(currentVoice()!.undoStack.length, vUndoLen, "apply: 解除しても undo スタックは残る");
+
+    editNoise(() => {});
+    check("apply: ノイズも編集で dirty になる", currentNoise()!.dirty);
+    markNoiseClean();
+    check("apply: ノイズも適用で dirty が解除される", !currentNoise()!.dirty);
 
     // エラー系: 対象の音色を壊さない
     check(

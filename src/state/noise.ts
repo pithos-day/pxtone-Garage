@@ -64,6 +64,13 @@ export function editNoise(fn: () => void): void {
   tabs.edit(d, fn);
 }
 
+// 現在のタブを未編集の状態に戻す (Collage へ変更を適用したときなど)。
+// link アイコンの色 (dirty 表示) も通常色に戻る。undo スタックはそのまま残す
+export function markNoiseClean(): void {
+  const d = currentNoise();
+  if (d) tabs.markClean(d);
+}
+
 export function undoNoise(): boolean {
   const d = currentNoise();
   return d ? tabs.restoreFrom(d, d.undoStack, d.redoStack) : false;

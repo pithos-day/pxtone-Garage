@@ -212,6 +212,13 @@ export function editVoice(fn: () => void): void {
   tabs.edit(v, fn);
 }
 
+// 現在のタブを未編集の状態に戻す (Collage へ変更を適用したときなど)。
+// link アイコンの色 (dirty 表示) も通常色に戻る。undo スタックはそのまま残す
+export function markVoiceClean(): void {
+  const v = currentVoice();
+  if (v) tabs.markClean(v);
+}
+
 // ---- 波形プリセット (本家 ptuiWavePreset.cpp 準拠) ----
 export type WavePreset = 0 | 1 | 2 | 3 | 4 | 5;
 export const WAVE_PRESET_LABELS = ["Sine", "Tri", "Saw", "Rect", "Rnd", "Rev"] as const;

@@ -16,8 +16,8 @@ import {
   currentProjectId,
   applyWoiceLink,
 } from "../../state/projects";
-import { newVoice, openVoice, saveVoice, closeVoice, undoVoice, redoVoice, currentVoice, currentVoiceId, snapshotVoice } from "../../state/voice";
-import { newNoise, openNoise, saveNoise, closeNoise, undoNoise, redoNoise, currentNoise, currentNoiseId, snapshotNoise } from "../../state/noise";
+import { newVoice, openVoice, saveVoice, closeVoice, undoVoice, redoVoice, currentVoice, currentVoiceId, snapshotVoice, markVoiceClean } from "../../state/voice";
+import { newNoise, openNoise, saveNoise, closeNoise, undoNoise, redoNoise, currentNoise, currentNoiseId, snapshotNoise, markNoiseClean } from "../../state/noise";
 import { exportPttune, exportWav, exportVoiceWav, exportNoiseWav, openFileDialog } from "../../engine/io";
 import { convertMidiToPtcop } from "../../engine/midi";
 import { undo, redo, canUndo, canRedo } from "../../state/undo";
@@ -197,20 +197,29 @@ function onAddNoiseToCollage(): void {
 // 「音色を編集」で開いたタブの書き戻し先 (通常のオープンでは undefined)
 const currentLink = computed(() => (mode.value === "voice" ? currentVoice()?.link : currentNoise()?.link));
 
-// 編集した音色を、元の Collage プロジェクトの音色 index へ書き戻す
+// 編集した音色を、元の Collage プロジェクトの音色 index へ書き戻す。
+// 適用できたらタブの dirty を解除する (タブの link アイコンも通常色に戻る)
 function onApplyLink(): void {
   if (mode.value === "voice") {
     const v = currentVoice();
     const bytes = v ? snapshotVoice(v) : null;
     if (!v?.link || !bytes) return;
     const err = applyWoiceLink(v.link, bytes, WoiceType.PTV);
-    if (err) window.alert(err);
+    if (err) {
+      window.alert(err);
+      return;
+    }
+    markVoiceClean();
   } else if (mode.value === "noise") {
     const d = currentNoise();
     const bytes = d ? snapshotNoise(d) : null;
     if (!d?.link || !bytes) return;
     const err = applyWoiceLink(d.link, bytes, WoiceType.PTN);
-    if (err) window.alert(err);
+    if (err) {
+      window.alert(err);
+      return;
+    }
+    markNoiseClean();
   }
 }
 

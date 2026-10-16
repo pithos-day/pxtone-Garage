@@ -73,6 +73,11 @@ export function createDocTabs<D extends TabDocBase>(codec: DocCodec<D>) {
       d.dirty = true;
     },
 
+    // 変更を適用済みにする (dirty の解除)。undo スタックはそのまま残す
+    markClean(d: D): void {
+      d.dirty = false;
+    },
+
     // stack から pop したスナップショットへ戻し、現在状態を pushTo へ積む (undo/redo 共通)
     restoreFrom(d: D, stack: Uint8Array[], pushTo: Uint8Array[]): boolean {
       const b = stack.pop();
