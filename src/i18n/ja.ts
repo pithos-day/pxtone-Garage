@@ -117,6 +117,7 @@ const ja = {
 
   // 音色一覧
   "woice.title": "音色",
+  "woice.edit": "音色を編集",
   "woice.replace": "置き換え",
   "woice.empty": "音色がありません。",
   "woice.summaryCoord": "座標波形 ({n}点)",

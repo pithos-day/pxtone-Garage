@@ -30,6 +30,9 @@ import { t } from "../../i18n";
 // (Voice/Noise モードでは各エディタが Space をプレビュー再生に使う)
 const props = defineProps<{ active: boolean }>();
 
+// 音色トレイの「音色を編集」で、開いた先のエディタモードへタブを移動する
+const emit = defineEmits<{ (e: "open-editor", mode: "voice" | "noise"): void }>();
+
 ensureInit();
 
 const pinned = computed(() => pinnedUnits());
@@ -92,7 +95,7 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
         <div class="collage-tray">
           <ToolPanel />
           <UnitTray v-if="doc.mode === 'U'" />
-          <WoiceTray v-if="doc.mode === 'W'" />
+          <WoiceTray v-if="doc.mode === 'W'" @open-editor="emit('open-editor', $event)" />
         </div>
         <!-- フィールド列: ルーラー (トラック直上) + トラック -->
         <div class="collage-field-col">

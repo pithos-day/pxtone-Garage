@@ -102,7 +102,7 @@ async function onDrop(e: DragEvent): Promise<void> {
     <FileTabs :mode="activeTab" />
     <TransportBar v-if="activeTab === 'collage'" />
     <main class="app-main">
-      <CollageTab v-show="activeTab === 'collage'" :active="activeTab === 'collage'" />
+      <CollageTab v-show="activeTab === 'collage'" :active="activeTab === 'collage'" @open-editor="activeTab = $event" />
       <VoiceTab v-show="activeTab === 'voice'" :active="activeTab === 'voice'" />
       <NoiseTab v-show="activeTab === 'noise'" :active="activeTab === 'noise'" />
     </main>

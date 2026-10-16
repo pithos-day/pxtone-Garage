@@ -1,6 +1,6 @@
 // 音色リスト (W モード)。型別色分け、選択、削除、並べ替え
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import {
   doc,
   woices,
@@ -9,10 +9,14 @@ import {
   addWoice,
   replaceWoiceFile,
   detectWoiceType,
+  woiceNameRaw,
+  WoiceType,
   EVENTDEFAULT_KEY,
   EVENTDEFAULT_VELOCITY,
 } from "../../state/project";
 import { previewWoiceHold } from "../../engine/preview";
+import { openWoiceAsVoice } from "../../state/voice";
+import { openPtnAsNoise } from "../../state/noise";
 import { woiceTypeColor } from "../../lib/theme";
 import { woiceSummary as formatWoiceSummary, WOICE_FILE_ACCEPT, WOICE_FILE_EXT_RE } from "../../lib/woice";
 import { useCtxMenuClose } from "../../composables/useCtxMenu";
@@ -21,10 +25,20 @@ import { capturePointer, releasePointerCapture } from "../../lib/field";
 import { openFileDialog } from "../../engine/io";
 import { t } from "../../i18n";
 
+const emit = defineEmits<{ (e: "open-editor", mode: "voice" | "noise"): void }>();
+
 const menu = ref<{ x: number; y: number; w: number } | null>(null);
 const trayListRef = ref<HTMLElement | null>(null);
 
 useCtxMenuClose(menu);
+
+// "音色を編集" を出せるのは編集エディタを持つ PTV/PTN のみ (PCM/OGGV は対象外)
+const menuCanEdit = computed(() => {
+  const idx = menu.value?.w;
+  if (idx === undefined) return false;
+  const w = woices.value.find((x) => x.index === idx);
+  return w?.type === WoiceType.PTV || w?.type === WoiceType.PTN;
+});
 
 function onPointerDown(e: PointerEvent, idx: number): void {
   const s = getService();
@@ -53,12 +67,29 @@ function onPointerUp(e: PointerEvent): void {
   releasePointerCapture(trayListRef.value, e);
 }
 
-function onMenuAction(action: "remove" | "replace"): void {
+function onMenuAction(action: "remove" | "replace" | "edit"): void {
   const w = menu.value?.w;
   menu.value = null;
   if (w === undefined) return;
   if (action === "remove") removeWoice(w);
   else if (action === "replace") void replaceByDialog(w);
+  else if (action === "edit") onEditWoice(w);
+}
+
+// 音色を ptvoice/ptnoise エディタで開き、そちらのモードタブへ移動する。
+// 開くのはコピーで、元の Collage の音色は変化しない (書き戻しは「Collageに追加」)
+function onEditWoice(idx: number): void {
+  const w = getService()?.woiceGet(idx);
+  if (!w) return;
+  const name = woiceNameRaw(w);
+  if (w.type === WoiceType.PTV) {
+    if (openWoiceAsVoice(w, name)) emit("open-editor", "voice");
+    return;
+  }
+  if (w.type === WoiceType.PTN) {
+    const ptn = w.getVoice(0)?.ptn;
+    if (ptn && openPtnAsNoise(ptn, name)) emit("open-editor", "noise");
+  }
 }
 
 // ファイル選択ダイアログで選んだ別の音色で、指定 index の音色を置き換える
@@ -111,6 +142,7 @@ function woiceSummary(idx: number): string {
       </div>
     </div>
     <div v-if="menu" class="ctxmenu popup" :style="{ left: menu.x + 'px', top: menu.y + 'px' }">
+      <button v-if="menuCanEdit" @click="onMenuAction('edit')">{{ t("woice.edit") }}</button>
       <button @click="onMenuAction('replace')">{{ t("woice.replace") }}</button>
       <button class="danger" @click="onMenuAction('remove')">{{ t("common.delete") }}</button>
     </div>

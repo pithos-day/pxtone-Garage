@@ -399,6 +399,14 @@ export function openVoice(bytes: Uint8Array, name: string): string | null {
   return null;
 }
 
+// Collage の音色 (PTV) を ptvoice バイト列化して新規タブで開く ("音色を編集" 用)。
+// 成功時 true。編集内容はコピーであり、元の Collage の音色には影響しない
+export function openWoiceAsVoice(w: Woice, name: string): boolean {
+  const io = new MemoryIo();
+  if (w.ptvWrite(io) < 0) return false;
+  return openVoice(io.toUint8Array(), name) === null;
+}
+
 export function closeVoice(id: number): void {
   tabs.close(id);
 }

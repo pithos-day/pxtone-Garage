@@ -23,6 +23,7 @@ import {
   detectWoiceType,
   WoiceType,
   woiceName,
+  woiceNameRaw,
   copyMeas,
   changeEventValue,
   addUnitWithWoice,
@@ -61,6 +62,7 @@ import {
   applyWavePreset,
   copyVoiceSide,
   snapshotVoice,
+  openWoiceAsVoice,
 } from "../src/state/voice";
 import {
   noises,
@@ -75,6 +77,7 @@ import {
   redoNoise,
   createDefaultNoise,
   snapshotNoise,
+  openPtnAsNoise,
 } from "../src/state/noise";
 import { renderWoice, renderNoise } from "../src/engine/preview";
 import { parseMidi, convertMidiToPtcop } from "../src/engine/midi";
@@ -88,7 +91,7 @@ import { visibleClockWindow, iterVisibleRecords, iterNoteDraws, type NoteDraw } 
 import { woiceSummary } from "../src/lib/woice";
 import { stripFileExt } from "../src/engine/io";
 import { MemoryIo, VoiceType, WaveType, EventKind, type EveRecord } from "pxtone-ts";
-import { Service, PxtnErr, PXTN_MAX_EVENT_NUM } from "pxtone-ts";
+import { Service, PxtnErr, PXTN_MAX_EVENT_NUM, Woice } from "pxtone-ts";
 import { defaultOggvDecoder } from "pxtone-ts";
 import { decodeProjectBytes } from "../src/engine/oggv";
 import { readFileSync } from "node:fs";
@@ -1430,6 +1433,40 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     svc.initCollage(PXTN_MAX_EVENT_NUM);
     checkEq(svc.read(new MemoryIo(projBytes!)), PxtnErr.OK, "collageadd: 書き出した ptcop を読み戻せる");
     checkEq(svc.woiceNum, woiceNum0 + 2, "collageadd: 読み戻した ptcop に追加した音色が残る");
+  }
+
+  // ---- 31. 音色を編集 (Collage の PTV/PTN をエディタで開く) ----
+  {
+    const s = serviceMod.service;
+    // 30. で追加した PTV/PTN を対象にする (末尾2つ)
+    const ptvW = s.woiceGet(s.woiceNum - 2)!;
+    const ptnW = s.woiceGet(s.woiceNum - 1)!;
+    checkEq(ptvW.type, WoiceType.PTV, "woiceedit: 対象の PTV を取得");
+    checkEq(ptnW.type, WoiceType.PTN, "woiceedit: 対象の PTN を取得");
+    checkEq(woiceNameRaw(ptvW), "AddA", "woiceedit: 名前をそのまま取り出せる (raw)");
+
+    check("woiceedit: PTV を ptvoice エディタで開く", openWoiceAsVoice(ptvW, woiceNameRaw(ptvW)));
+    checkEq(currentVoice()?.fileName, "AddA", "woiceedit: ptvoice タブ名が音色名になる");
+    checkEq(
+      currentVoice()?.woice.getVoice(0)?.wave.num,
+      ptvW.getVoice(0)?.wave.num,
+      "woiceedit: 波形データが引き継がれる",
+    );
+
+    const ptn = ptnW.getVoice(0)!.ptn;
+    check("woiceedit: PTN を ptnoise エディタで開く", openPtnAsNoise(ptn, woiceNameRaw(ptnW)));
+    checkEq(currentNoise()?.fileName, "AddB", "woiceedit: ptnoise タブ名が音色名になる");
+    checkEq(
+      currentNoise()?.noise.getUnit(0)?.main.freq,
+      ptn.getUnit(0)?.main.freq,
+      "woiceedit: ノイズ内容が引き継がれる",
+    );
+
+    // 名前なしの音色は空文字列 ("(no name)" は表示用のみ)
+    const anon = new Woice();
+    anon.voiceAllocate(1);
+    checkEq(woiceNameRaw(anon), "", "woiceedit: 名前なしは空文字列 (raw)");
+    checkEq(woiceName(anon), "(no name)", "woiceedit: 名前なしは表示用に (no name)");
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);

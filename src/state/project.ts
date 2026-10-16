@@ -252,12 +252,17 @@ function cleanupSelection(): void {
   }
 }
 
-// 音色名を表示用にデコード (本家同様、最初の NUL で終端する C 文字列扱い)
-export function woiceName(w: { getNameBuf(): Uint8Array }): string {
+// 音色名の生文字列 (名前なしは空文字列)。woiceName との違いは "(no name)" を付けないこと
+export function woiceNameRaw(w: { getNameBuf(): Uint8Array }): string {
   const buf = w.getNameBuf();
   let end = buf.indexOf(0);
   if (end < 0) end = buf.length;
-  return shiftJisToString(buf.subarray(0, end)) || "(no name)";
+  return shiftJisToString(buf.subarray(0, end));
+}
+
+// 音色名を表示用にデコード (本家同様、最初の NUL で終端する C 文字列扱い)
+export function woiceName(w: { getNameBuf(): Uint8Array }): string {
+  return woiceNameRaw(w) || "(no name)";
 }
 
 export function woiceTypeName(type: WoiceType): string {

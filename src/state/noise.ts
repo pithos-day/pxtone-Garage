@@ -93,6 +93,14 @@ export function openNoise(bytes: Uint8Array, name: string): string | null {
   return null;
 }
 
+// Collage の音色 (PTN) 内のノイズを ptnoise バイト列化して新規タブで開く ("音色を編集" 用)。
+// 成功時 true。編集内容はコピーであり、元の Collage の音色には影響しない
+export function openPtnAsNoise(n: Noise, name: string): boolean {
+  const io = new MemoryIo();
+  if (!n.write(io)) return false;
+  return openNoise(io.toUint8Array(), name) === null;
+}
+
 export function closeNoise(id: number): void {
   tabs.close(id);
 }
