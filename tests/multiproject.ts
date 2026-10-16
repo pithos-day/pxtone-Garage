@@ -40,7 +40,7 @@ import {
 } from "../src/state/project";
 import * as serviceMod from "../src/state/service";
 import { undo, redo, canUndo, canRedo } from "../src/state/undo";
-import { player, isPlaying, masterVolume, loop } from "../src/state/player";
+import { player, isPlaying, masterVolume, loop, initMasterVolume, setMasterVolume } from "../src/state/player";
 import { parseThemeCss, mergeTokens, buildThemeCss, buildStandaloneThemeCss } from "../src/lib/themeParse";
 import {
   voices,
@@ -1595,6 +1595,44 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       "filemenu: extra は保存系の後ろ",
       labels2.indexOf("EXTRA") > labels2.indexOf(t("menu.file.saveAs")),
     );
+  }
+
+  // ---- 34. 音量スライダーの永続化 (localStorage) ----
+  {
+    // localStorage をスタブして往復させる (node には localStorage がないため)
+    const store = new Map<string, string>();
+    (globalThis as { localStorage?: unknown }).localStorage = {
+      getItem: (k: string): string | null => store.get(k) ?? null,
+      setItem: (k: string, v: string): void => void store.set(k, v),
+    };
+    const VOLUME_KEY = "pxtone-garage-master-volume";
+
+    setMasterVolume(0.25);
+    checkEq(store.get(VOLUME_KEY), "0.25", "volume: 変更でブラウザに保存される");
+
+    // 別セッション相当 (保存値だけが残った状態) からの復元
+    masterVolume.value = 1.0;
+    initMasterVolume();
+    checkEq(masterVolume.value, 0.25, "volume: 起動時に保存値が復元される");
+
+    store.set(VOLUME_KEY, "abc");
+    initMasterVolume();
+    checkEq(masterVolume.value, 1.0, "volume: 不正値は既定 1.0");
+
+    store.set(VOLUME_KEY, "5");
+    initMasterVolume();
+    checkEq(masterVolume.value, 1.0, "volume: 範囲外はクランプ (上限)");
+
+    store.set(VOLUME_KEY, "-1");
+    initMasterVolume();
+    checkEq(masterVolume.value, 0.0, "volume: 範囲外はクランプ (下限)");
+
+    store.delete(VOLUME_KEY);
+    masterVolume.value = 0.5;
+    initMasterVolume();
+    checkEq(masterVolume.value, 1.0, "volume: 未保存は既定 1.0");
+
+    delete (globalThis as { localStorage?: unknown }).localStorage;
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);

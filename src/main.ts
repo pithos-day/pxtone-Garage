@@ -17,7 +17,7 @@ import {
   setTextName,
   EVENTDEFAULT_VELOCITY,
 } from "./state/project";
-import { play, stop, seekToClock, player } from "./state/player";
+import { play, stop, seekToClock, player, initMasterVolume } from "./state/player";
 import { undo, redo, pushUndo } from "./state/undo";
 import { renderPreview, previewUnit, previewUnitHold, previewWoiceHold, stopPreview } from "./engine/preview";
 import { MemoryIo } from "pxtone-ts";
@@ -48,6 +48,7 @@ initTheme({
   rose: roseTheme,
 });
 initFonts();
+initMasterVolume();
 createApp(App).mount("#app");
 
 // 開発・テスト用フック

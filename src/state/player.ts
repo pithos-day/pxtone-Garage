@@ -6,6 +6,7 @@ import { EXE_VER } from "./service";
 import { getService, exportBytes, doc, clockContext } from "./project";
 import { xToClock } from "../lib/clock";
 import { LEFT_W } from "../lib/layout";
+import { readStorage, writeStorage } from "../lib/storage";
 
 export const player = new RealtimePlayer({
   onPosition: (sample) => {
@@ -21,6 +22,8 @@ export const isPlaying = ref(false);
 export const positionSample = ref(0);
 export const loop = ref(true);
 export const masterVolume = ref(1.0);
+// 音量はブラウザに保存する (環境設定などと同じ localStorage 永続化)
+const STORAGE_VOLUME = "pxtone-garage-master-volume";
 // 再生位置が画面外に出たら画面を追従する (TransportBar のトグルで切替、既定オン)
 export const followPlayback = ref(true);
 
@@ -222,7 +225,22 @@ export function setLoop(b: boolean): void {
   player.setLoop(b);
 }
 
+// 保存された音量 (0..1) を読み戻す。未保存・不正値は既定の 1.0
+function storedMasterVolume(): number {
+  const raw = readStorage(STORAGE_VOLUME);
+  if (raw === null) return 1.0;
+  const v = Number(raw);
+  if (!Number.isFinite(v)) return 1.0;
+  return Math.min(1, Math.max(0, v));
+}
+
+// 起動時に呼ぶ。保存された音量をスライダーとプレイヤーへ適用する
+export function initMasterVolume(): void {
+  setMasterVolume(storedMasterVolume());
+}
+
 export function setMasterVolume(v: number): void {
   masterVolume.value = v;
   player.setMasterVolume(v);
+  writeStorage(STORAGE_VOLUME, String(v));
 }
