@@ -2,7 +2,7 @@
 // タブ管理・undo スタックは doc-tabs.ts の共通実装を使い、
 // ここでは実体 (Noise) の読み書きとデフォルト生成だけを提供する。
 import { markRaw } from "vue";
-import { Noise, WaveType, MemoryIo, PxtnErr } from "pxtone-ts";
+import { Noise, WaveType, MemoryIo, PxtnErr, type NoiseUnit } from "pxtone-ts";
 import { pxtnErrorMessage } from "./project";
 import type { WoiceLink } from "./projects";
 import { createDocTabs, type TabDocBase } from "./doc-tabs";
@@ -16,9 +16,42 @@ export interface NoiseDoc extends TabDocBase {
   link?: WoiceLink;
 }
 
+// 読み込んだノイズを 4 レイヤー分 (本家 MAX_NOISETABLEUNIT) に広げる。
+// バイト列に無いレイヤーは無効な空レイヤーとして追加され、常に 4 レイヤー表示になる
+// (本家 dlg_Noise_Design::_Load_Design の Allocate + NoiseTable_CopyUnit と同じ)。
+// 無効レイヤーは write が書き出さないため、バイト列は元のまま
+function padNoiseUnits(n: Noise): void {
+  const unitNum = n.unitNum;
+  if (unitNum >= NOISE_UNIT_NUM) return;
+  const units: NoiseUnit[] = [];
+  for (let u = 0; u < unitNum; u++) units.push(n.getUnit(u)!);
+  n.allocate(NOISE_UNIT_NUM, NOISE_ENVE_NUM);
+  for (let u = 0; u < unitNum; u++) {
+    // 退避したユニットは他から参照されないため、フィールドの代入でコピーする
+    const dst = n.getUnit(u)!;
+    const src = units[u]!;
+    dst.bEnable = src.bEnable;
+    dst.pan = src.pan;
+    dst.main = src.main;
+    dst.freq = src.freq;
+    dst.volu = src.volu;
+    dst.enveNum = src.enveNum;
+    dst.enves = src.enves;
+  }
+}
+
+// ノイズのバイト列を読み込む (タブを開く / undo 復元 / History の反映で共用)。
+// 読み込んだ後はレイヤー数が NOISE_UNIT_NUM になる
+export function readNoiseBytes(n: Noise, bytes: Uint8Array): PxtnErr {
+  const res = n.read(new MemoryIo(bytes));
+  if (res !== PxtnErr.OK) return res;
+  padNoiseUnits(n);
+  return PxtnErr.OK;
+}
+
 const tabs = createDocTabs<NoiseDoc>({
   snapshot: snapshotNoise,
-  restore: (d, bytes) => d.noise.read(new MemoryIo(bytes)) === PxtnErr.OK,
+  restore: (d, bytes) => readNoiseBytes(d.noise, bytes) === PxtnErr.OK,
 });
 
 // ノイズのバイト列スナップショット (undo / Collage への追加で共用)
@@ -97,7 +130,7 @@ export function ensureInitialNoise(): void {
 // link は「音色を編集」で開いた場合の元 Collage 音色 (適用先)
 export function openNoise(bytes: Uint8Array, name: string, link?: WoiceLink): string | null {
   const n = new Noise();
-  const res = n.read(new MemoryIo(bytes));
+  const res = readNoiseBytes(n, bytes);
   if (res !== PxtnErr.OK) return pxtnErrorMessage(res);
   tabs.replaceInitialIfPossible();
   tabs.add({ fileName: name, dirty: false, noise: markRaw(n), undoStack: [], redoStack: [], link });

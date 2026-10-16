@@ -81,6 +81,8 @@ import {
   snapshotNoise,
   openPtnAsNoise,
   markNoiseClean,
+  NOISE_UNIT_NUM,
+  NOISE_ENVE_NUM,
 } from "../src/state/noise";
 import { renderWoice, renderNoise } from "../src/engine/preview";
 import { parseMidi, convertMidiToPtcop } from "../src/engine/midi";
@@ -95,7 +97,7 @@ import { visibleClockWindow, iterVisibleRecords, iterNoteDraws, type NoteDraw } 
 import { woiceSummary } from "../src/lib/woice";
 import { stripFileExt } from "../src/engine/io";
 import { MemoryIo, VoiceType, WaveType, EventKind, type EveRecord } from "pxtone-ts";
-import { Service, PxtnErr, PXTN_MAX_EVENT_NUM, Woice } from "pxtone-ts";
+import { Service, PxtnErr, PXTN_MAX_EVENT_NUM, Woice, Noise } from "pxtone-ts";
 import { defaultOggvDecoder } from "pxtone-ts";
 import { decodeProjectBytes } from "../src/engine/oggv";
 import { readFileSync } from "node:fs";
@@ -117,6 +119,21 @@ function check(name: string, cond: boolean, detail = ""): void {
 function checkEq<T>(actual: T, expected: T, name: string): void {
   if (actual === expected) console.log(`ok   ${name}`);
   else fail(name, `expected=${JSON.stringify(expected)} actual=${JSON.stringify(actual)}`);
+}
+
+// バイト列の等価チェック (失敗時は長さか最初の相違位置を表示する)
+function checkBytes(actual: Uint8Array, expected: Uint8Array, name: string): void {
+  if (actual.length !== expected.length) {
+    fail(name, `length expected=${expected.length} actual=${actual.length}`);
+    return;
+  }
+  for (let i = 0; i < actual.length; i++) {
+    if (actual[i] !== expected[i]) {
+      fail(name, `differs at ${i} expected=${expected[i]} actual=${actual[i]}`);
+      return;
+    }
+  }
+  console.log(`ok   ${name}`);
 }
 
 // 有効な PCM 音色 (WAV 形式) を手組みして生成する
@@ -719,12 +736,16 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     // .ptnoise ラウンドトリップ
     const io = new MemoryIo();
     check("noise: write 成功", n.write(io));
-    const err = openNoise(io.toUint8Array(), "n1");
+    const roundBytes = io.toUint8Array();
+    const err = openNoise(roundBytes, "n1");
     checkEq(err, null, "noise: openNoise 成功 (エラーなし)");
     checkEq(noises.value.length, 2, "noise: 2タブ目が開く");
     checkEq(currentNoise()!.noise.getUnit(0)!.main.freq, 880, "noise: ラウンドトリップで値が保持");
-    // 無効ユニットはファイルに書かれない (read 後のユニット数)
-    checkEq(currentNoise()!.noise.unitNum, 1, "noise: 無効ユニットは保存されない");
+    // 無効ユニットはファイルに書かれない (ファイル上のユニット数)
+    // 読込後のタブは 4 レイヤー表示のため無効ユニットを足して保持する (35 節)
+    const raw = new Noise();
+    checkEq(raw.read(new MemoryIo(roundBytes)), PxtnErr.OK, "noise: 書き出したバイト列を読める");
+    checkEq(raw.unitNum, 1, "noise: 無効ユニットは保存されない");
 
     // タブ切替で各タブの状態が独立していること
     editNoise(() => {
@@ -1648,6 +1669,64 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(masterVolume.value, 1.0, "volume: 未保存は既定 1.0");
 
     delete (globalThis as { localStorage?: unknown }).localStorage;
+  }
+
+  // ---- 35. ptnoise のレイヤー数 (ファイルに無いレイヤーも 4 つ表示する) ----
+  {
+    // 1 ユニットだけの ptnoise を手組みする (本家 ptNoise で保存したファイル相当)
+    const one = new Noise();
+    one.allocate(1, NOISE_ENVE_NUM);
+    one.setSmpNum44k(44100);
+    const u0 = one.getUnit(0)!;
+    u0.bEnable = true;
+    u0.pan = -30;
+    u0.enveNum = 2;
+    u0.enves = [
+      { x: 0, y: 100 },
+      { x: 500, y: 0 },
+    ];
+    u0.main = { type: WaveType.Sine, freq: 440, volume: 50, offset: 0, bRev: false };
+    const io1 = new MemoryIo();
+    check("layers: 1ユニットの ptnoise を書き出せる", one.write(io1));
+    const bytes1 = io1.toUint8Array();
+
+    checkEq(openNoise(bytes1, "One"), null, "layers: 1ユニットの ptnoise を開く");
+    const d1 = currentNoise()!;
+    checkEq(d1.noise.unitNum, NOISE_UNIT_NUM, "layers: 開いた直後から4レイヤーある");
+    check(
+      "layers: ファイルのレイヤーは内容を保つ",
+      d1.noise.getUnit(0)!.bEnable && d1.noise.getUnit(0)!.pan === -30 && d1.noise.getUnit(0)!.enveNum === 2,
+    );
+    check("layers: 追加されたレイヤーは無効", !d1.noise.getUnit(1)!.bEnable && !d1.noise.getUnit(3)!.bEnable);
+    checkEq(d1.noise.getUnit(3)!.enveNum, NOISE_ENVE_NUM, "layers: 追加レイヤーのエンベロープ数");
+    // 無効レイヤーは書き出されないため、保存バイト列は元のまま
+    checkBytes(snapshotNoise(d1)!, bytes1, "layers: 保存バイト列は元と同じ");
+
+    // undo (バイト列からの復元) でも 4 レイヤーのまま
+    editNoise(() => {
+      d1.noise.getUnit(0)!.pan = 10;
+    });
+    check("layers: undo できる", undoNoise());
+    checkEq(d1.noise.unitNum, NOISE_UNIT_NUM, "layers: undo 後も4レイヤーある");
+    checkEq(d1.noise.getUnit(0)!.pan, -30, "layers: undo で内容が戻る");
+
+    // 3 ユニットの ptnoise も 4 レイヤー表示になる
+    const three = new Noise();
+    three.allocate(3, NOISE_ENVE_NUM);
+    three.setSmpNum44k(44100);
+    for (let u = 0; u < 3; u++) {
+      const unit = three.getUnit(u)!;
+      unit.bEnable = true;
+      unit.main = { type: WaveType.Sine, freq: 220 * (u + 1), volume: 50, offset: 0, bRev: false };
+    }
+    const io3 = new MemoryIo();
+    check("layers: 3ユニットの ptnoise を書き出せる", three.write(io3));
+    const bytes3 = io3.toUint8Array();
+    checkEq(openNoise(bytes3, "Three"), null, "layers: 3ユニットの ptnoise を開く");
+    const d3 = currentNoise()!;
+    checkEq(d3.noise.unitNum, NOISE_UNIT_NUM, "layers: 3ユニットでも4レイヤー表示");
+    check("layers: 4レイヤー目だけ無効", d3.noise.getUnit(2)!.bEnable && !d3.noise.getUnit(3)!.bEnable);
+    checkBytes(snapshotNoise(d3)!, bytes3, "layers: 3ユニットでも保存バイト列は元と同じ");
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);
