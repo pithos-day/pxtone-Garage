@@ -24,6 +24,7 @@ const ja = {
   "menu.file.export": "書き出し",
   "menu.file.exportPttune": "pttuneを書き出し",
   "menu.file.exportWav": "WAVを書き出し",
+  "menu.file.addToCollage": "Collageに追加",
   "menu.file.project": "プロジェクト設定",
   "menu.file.settings": "環境設定",
   "menu.file.close": "閉じる",

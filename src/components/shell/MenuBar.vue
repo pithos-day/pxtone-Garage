@@ -3,9 +3,9 @@
 // 右: モード別ドロップダウンメニュー (collage = File/Edit/View、voice/noise = File)
 <script setup lang="ts">
 import { computed } from "vue";
-import { FileUp, FileDown, Music, ListMusic, FileMusic, AudioLines, SlidersHorizontal, Settings, SquareStack, CircleGauge, Copy, Columns4 } from "@lucide/vue";
+import { FileUp, FileDown, Music, ListMusic, FileMusic, AudioLines, SlidersHorizontal, Settings, SquareStack, CircleGauge, Copy, Columns4, PackagePlus } from "@lucide/vue";
 import { DIVI_TABLE } from "../../lib/clock";
-import { doc, setAllUnitsVisible, exportBytes } from "../../state/project";
+import { doc, setAllUnitsVisible, exportBytes, addWoice, WoiceType } from "../../state/project";
 import {
   newProjectInTab,
   openProjectInTab,
@@ -15,8 +15,8 @@ import {
   isTuneProject,
   currentProjectId,
 } from "../../state/projects";
-import { newVoice, openVoice, saveVoice, closeVoice, undoVoice, redoVoice, currentVoice, currentVoiceId } from "../../state/voice";
-import { newNoise, openNoise, saveNoise, closeNoise, undoNoise, redoNoise, currentNoise, currentNoiseId } from "../../state/noise";
+import { newVoice, openVoice, saveVoice, closeVoice, undoVoice, redoVoice, currentVoice, currentVoiceId, snapshotVoice } from "../../state/voice";
+import { newNoise, openNoise, saveNoise, closeNoise, undoNoise, redoNoise, currentNoise, currentNoiseId, snapshotNoise } from "../../state/noise";
 import { exportPttune, exportWav, exportVoiceWav, exportNoiseWav, openFileDialog } from "../../engine/io";
 import { convertMidiToPtcop } from "../../engine/midi";
 import { undo, redo, canUndo, canRedo } from "../../state/undo";
@@ -168,6 +168,29 @@ function onExportNoiseWav(): void {
   });
 }
 
+// ---- Collage への追加 (voice/noise) ----
+
+// 編集中の音色を、現在アクティブな Collage タブのファイルへ音色として追加する。
+// pttune (再生専用) ではメニュー側で disabled にしているが、二重防御でここでも弾く
+function addToCollage(bytes: Uint8Array | null, type: WoiceType, name: string): void {
+  if (!bytes || isTuneProject()) return;
+  void addWoice(bytes, type, name || undefined).then((err) => {
+    if (err) window.alert(err);
+  });
+}
+
+function onAddVoiceToCollage(): void {
+  const v = currentVoice();
+  if (!v) return;
+  addToCollage(snapshotVoice(v), WoiceType.PTV, v.fileName);
+}
+
+function onAddNoiseToCollage(): void {
+  const d = currentNoise();
+  if (!d) return;
+  addToCollage(snapshotNoise(d), WoiceType.PTN, d.fileName);
+}
+
 // ---- モード別メニュー ----
 
 const allVisible = computed(() => doc.unitVisible.length > 0 && doc.unitVisible.every(Boolean));
@@ -244,6 +267,14 @@ const extra: MenuItem[] =
             icon: AudioLines,
             action: mode.value === "voice" ? onExportVoiceWav : onExportNoiseWav,
             disabled: mode.value === "voice" ? !currentVoice() : !currentNoise(),
+          },
+          // 編集中の音色を、現在アクティブな Collage タブへ追加する。
+          // pttune (再生専用) タブでは追加できないためグレーアウトする
+          {
+            label: t("menu.file.addToCollage"),
+            icon: PackagePlus,
+            action: mode.value === "voice" ? onAddVoiceToCollage : onAddNoiseToCollage,
+            disabled: isTuneProject() || (mode.value === "voice" ? !currentVoice() : !currentNoise()),
           },
           { sep: true },
           { label: t("menu.file.settings"), icon: Settings, action: () => emit("settings") },

@@ -14,13 +14,16 @@ export interface NoiseDoc extends TabDocBase {
 }
 
 const tabs = createDocTabs<NoiseDoc>({
-  snapshot: (d) => {
-    const io = new MemoryIo();
-    if (!d.noise.write(io)) return null;
-    return io.toUint8Array();
-  },
+  snapshot: snapshotNoise,
   restore: (d, bytes) => d.noise.read(new MemoryIo(bytes)) === PxtnErr.OK,
 });
+
+// ノイズのバイト列スナップショット (undo / Collage への追加で共用)
+export function snapshotNoise(d: NoiseDoc): Uint8Array | null {
+  const io = new MemoryIo();
+  if (!d.noise.write(io)) return null;
+  return io.toUint8Array();
+}
 
 export const noises = tabs.docs;
 export const currentNoiseId = tabs.currentId;

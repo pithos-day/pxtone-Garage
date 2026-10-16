@@ -22,6 +22,7 @@ import {
   addWoice,
   detectWoiceType,
   WoiceType,
+  woiceName,
   copyMeas,
   changeEventValue,
   addUnitWithWoice,
@@ -59,6 +60,7 @@ import {
   enveSetHeadPointX,
   applyWavePreset,
   copyVoiceSide,
+  snapshotVoice,
 } from "../src/state/voice";
 import {
   noises,
@@ -72,6 +74,7 @@ import {
   undoNoise,
   redoNoise,
   createDefaultNoise,
+  snapshotNoise,
 } from "../src/state/noise";
 import { renderWoice, renderNoise } from "../src/engine/preview";
 import { parseMidi, convertMidiToPtcop } from "../src/engine/midi";
@@ -1395,6 +1398,38 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(detectWoiceType(enc("PTNOISE-")), WoiceType.PTN, "woicetype: PTN を判別");
     checkEq(detectWoiceType(enc("OggS")), WoiceType.OGGV, "woicetype: OGG を判別");
     checkEq(detectWoiceType(enc("RIFF")), WoiceType.PCM, "woicetype: 不明なヘッダは PCM");
+  }
+
+  // ---- 30. Collage への音色追加 (編集中の ptvoice / ptnoise) ----
+  {
+    // 追加先は編集可能な Collage タブ (読み取り専用の pttune タブでは追加されない)
+    newProjectInTab();
+
+    const v = newVoice();
+    const vBytes = snapshotVoice(v);
+    check("collageadd: 編集中の ptvoice をバイト列化", vBytes !== null);
+    const woiceNum0 = serviceMod.service.woiceNum;
+    checkEq(await addWoice(vBytes!, WoiceType.PTV, "AddA"), null, "collageadd: ptvoice を追加");
+    checkEq(serviceMod.service.woiceNum, woiceNum0 + 1, "collageadd: 音色数が1増える");
+    const wv = serviceMod.service.woiceGet(woiceNum0)!;
+    checkEq(wv.type, WoiceType.PTV, "collageadd: 追加した音色は PTV");
+    checkEq(woiceName(wv), "AddA", "collageadd: ファイル名が音色名になる");
+
+    const n = newNoise();
+    const nBytes = snapshotNoise(n);
+    check("collageadd: 編集中の ptnoise をバイト列化", nBytes !== null);
+    checkEq(await addWoice(nBytes!, WoiceType.PTN, "AddB"), null, "collageadd: ptnoise を追加");
+    const wn = serviceMod.service.woiceGet(woiceNum0 + 1)!;
+    checkEq(wn.type, WoiceType.PTN, "collageadd: 追加した音色は PTN");
+    checkEq(woiceName(wn), "AddB", "collageadd: ファイル名が音色名になる");
+
+    // 追加した音色は ptcop に保存され、読み戻しても残る
+    const projBytes = exportBytes();
+    check("collageadd: ptcop を書き出し", projBytes !== null);
+    const svc = new Service();
+    svc.initCollage(PXTN_MAX_EVENT_NUM);
+    checkEq(svc.read(new MemoryIo(projBytes!)), PxtnErr.OK, "collageadd: 書き出した ptcop を読み戻せる");
+    checkEq(svc.woiceNum, woiceNum0 + 2, "collageadd: 読み戻した ptcop に追加した音色が残る");
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);
