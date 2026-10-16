@@ -22,7 +22,7 @@ const props = defineProps<{ active: boolean }>();
 
 const noise = computed(() => currentNoise());
 // 編集リビジョン。undo/redo 後はリアルタイム反映のため再ビルドを予約する
-const { rev, touch } = useEditRev(() => noise.value, undefined, () => scheduleRebuild());
+const { rev, touch } = useEditRev(() => noise.value, undefined, () => scheduleEditBuild());
 
 import { NOISE_WAVE_TYPE_NAMES as WAVE_TYPE_NAMES, NOISE_BUILT_SPS, secToEnveX, pctToEnveY } from "../../lib/noise";
 const OSC_IDS = ["main", "freq", "volu"] as const;
@@ -57,7 +57,7 @@ function onFieldChange(): void {
     d.noise.fix();
   }
   touch();
-  scheduleRebuild();
+  scheduleEditBuild();
 }
 
 // オシレータの値を直接書き換え (undo はフォーカス時に1エントリ)。
@@ -82,7 +82,7 @@ function onEnveNumChange(u: number, v: number): void {
     unit.enves.length = target;
   });
   touch();
-  scheduleRebuild();
+  scheduleEditBuild();
 }
 
 // エンベロープ: 秒 (x/1000) と % (y)。変換と範囲クランプは lib/noise が担当
@@ -108,23 +108,40 @@ function setEnvePct(u: number, i: number, raw: string): void {
 // 波形とビルド履歴はタブごとの内容を表示する (履歴の実体は doc 側が持つ)
 const builtPcm = ref<Float32Array | null>(null);
 
-// 編集をデバウンスして波形へ反映する
-const scheduleRebuild = useDebounced(() => rebuild()).run;
+// 直近の依頼が履歴を積むかどうか (デバウンス実行時に参照する)
+let recordNextBuild = true;
 
-// タブを切り替えたら、前のファイルの波形を残さず新しいタブの波形を作り直す
+// 編集をデバウンスして波形へ反映する
+const scheduleRebuild = useDebounced(() => rebuild(recordNextBuild)).run;
+
+// 編集後の再ビルド (履歴に積む)
+function scheduleEditBuild(): void {
+  recordNextBuild = true;
+  scheduleRebuild();
+}
+
+// 表示だけの再ビルド (タブ切替・起動直後。履歴に積まない)
+function schedulePreview(): void {
+  recordNextBuild = false;
+  scheduleRebuild();
+}
+
+// タブを切り替えたら、前のファイルの波形を残さず新しいタブの波形を描き直す。
+// 切替は編集ではないため履歴には積まない (保留中の編集ビルドも切替後の内容で塗り替える)
 watch(noise, () => {
   builtPcm.value = null;
-  scheduleRebuild();
+  schedulePreview();
 });
 
-function rebuild(): void {
+// record=true のときだけビルドを履歴へ積む
+function rebuild(record: boolean): void {
   const d = noise.value;
   if (!d) return;
   const pcm = renderNoise(d.noise, NOISE_BUILT_SPS);
   if (!pcm) return;
   builtPcm.value = pcm;
   // 履歴は現在のタブへ積む (連続編集を1件にまとめるルールは lib/noise)
-  pushNoiseHistory(pcm, new Date().toLocaleTimeString("ja-JP", { hour12: false }));
+  if (record) pushNoiseHistory(pcm, new Date().toLocaleTimeString("ja-JP", { hour12: false }));
   touch();
 }
 
@@ -147,7 +164,7 @@ function applyHistory(i: number): void {
     readNoiseBytes(d.noise, e.bytes);
   });
   touch();
-  scheduleRebuild();
+  scheduleEditBuild();
 }
 
 // WAV 書き出しは File メニュー (menu.file.exportWav) から行うため、ボタンは廃止した
@@ -157,14 +174,14 @@ function onKeydown(e: KeyboardEvent): void {
   if (e.code !== "Space") return;
   e.preventDefault();
   if (e.repeat) return;
-  if (!builtPcm.value) rebuild();
+  if (!builtPcm.value) rebuild(false);
   if (builtPcm.value) playPcmOnce(builtPcm.value);
 }
 
 useGlobalKeys(() => props.active, { keydown: onKeydown });
 onMounted(() => {
-  // 開いた直後にも波形を表示する
-  scheduleRebuild();
+  // 開いた直後にも波形を表示する (表示だけ。履歴には積まない)
+  schedulePreview();
 });
 
 // ---- 波形プレビュー描画 ----
