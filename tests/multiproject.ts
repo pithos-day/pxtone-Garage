@@ -1757,6 +1757,23 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(currentNoise()!.history[0]!.label, "B1", "history: タブBの履歴は影響を受けない");
   }
 
+  // ---- 37. リンクなしで音色を開く (pttune の「音色を開く」) ----
+  {
+    // PTV 音色を用意して、リンクなしで開く (「変更を適用」の対象を持たない)
+    const src = newVoice();
+    const w = new Woice();
+    checkEq(w.read(new MemoryIo(snapshotVoice(src)!), WoiceType.PTV), PxtnErr.OK, "open: 元の PTV を用意");
+    const tabNum = voices.value.length;
+    check("open: リンクなしで音色を開ける", openWoiceAsVoice(w, "Copy"));
+    checkEq(voices.value.length, tabNum + 1, "open: 新しいタブが増える");
+    checkEq(currentVoice()!.fileName, "Copy", "open: ファイル名が入る");
+    checkEq(currentVoice()!.link, undefined, "open: link を持たない (書き戻し先なし)");
+
+    // link 付きで開けば書き戻し先を持つ (ptcop の「音色を編集」)
+    check("open: リンク付きでも開ける", openWoiceAsVoice(w, "Linked", { projectId: 1, woiceIndex: 0 }));
+    checkEq(currentVoice()!.link?.woiceIndex, 0, "open: link を持てる");
+  }
+
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);
   process.exit(failed === 0 ? 0 : 1);
 })();

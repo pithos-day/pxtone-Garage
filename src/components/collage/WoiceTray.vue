@@ -17,7 +17,7 @@ import {
 import { previewWoiceHold } from "../../engine/preview";
 import { openWoiceAsVoice } from "../../state/voice";
 import { openPtnAsNoise } from "../../state/noise";
-import { currentProjectId } from "../../state/projects";
+import { currentProjectId, type WoiceLink } from "../../state/projects";
 import { woiceTypeColor } from "../../lib/theme";
 import { woiceSummary as formatWoiceSummary, WOICE_FILE_ACCEPT, WOICE_FILE_EXT_RE } from "../../lib/woice";
 import { useCtxMenuClose } from "../../composables/useCtxMenu";
@@ -33,20 +33,21 @@ const trayListRef = ref<HTMLElement | null>(null);
 
 useCtxMenuClose(menu);
 
-// "音色を編集" を出せるのは編集エディタを持つ PTV/PTN のみ (PCM/OGGV は対象外)
-const menuCanEdit = computed(() => {
-  const idx = menu.value?.w;
-  if (idx === undefined) return false;
+// 音色が編集エディタ (ptvoice/ptnoise) で開ける型か (PCM/OGGV は対象外)
+function hasEditorType(idx: number): boolean {
   const w = woices.value.find((x) => x.index === idx);
   return w?.type === WoiceType.PTV || w?.type === WoiceType.PTN;
-});
+}
+
+// "音色を編集" / "音色を開く" を出せるか
+const menuHasEditor = computed(() => (menu.value ? hasEditorType(menu.value.w) : false));
 
 function onPointerDown(e: PointerEvent, idx: number): void {
   const s = getService();
   if (!s) return;
   if (e.button === 2) {
-    // 読み取り専用タブではコンテキストメニューを出さない
-    if (doc.readOnly) return;
+    // 読み取り専用タブでも「音色を開く」だけは出せる (置き換え・削除は出さない)
+    if (doc.readOnly && !hasEditorType(idx)) return;
     menu.value = { x: e.clientX, y: e.clientY, w: idx };
     e.preventDefault();
     return;
@@ -68,23 +69,25 @@ function onPointerUp(e: PointerEvent): void {
   releasePointerCapture(trayListRef.value, e);
 }
 
-function onMenuAction(action: "remove" | "replace" | "edit"): void {
+function onMenuAction(action: "remove" | "replace" | "edit" | "open"): void {
   const w = menu.value?.w;
   menu.value = null;
   if (w === undefined) return;
   if (action === "remove") removeWoice(w);
   else if (action === "replace") void replaceByDialog(w);
-  else if (action === "edit") onEditWoice(w);
+  // 編集 (ptcop): 書き戻し先 (元の Collage プロジェクトの音色) をタブに持たせる
+  else if (action === "edit") openWoiceInEditor(w, { projectId: currentProjectId.value, woiceIndex: w });
+  // 開くだけ (pttune などの読み取り専用タブ): link なしなので書き戻せない
+  else if (action === "open") openWoiceInEditor(w, undefined);
 }
 
 // 音色を ptvoice/ptnoise エディタで開き、そちらのモードタブへ移動する。
-// 開くのはコピーで、元の Collage の音色は変化しない (File メニューの「変更を適用」で書き戻す)
-function onEditWoice(idx: number): void {
+// 開くのはコピーで、元の Collage の音色は変化しない。
+// link を渡した場合のみ、File メニューの「変更を適用」で元の音色へ書き戻せる
+function openWoiceInEditor(idx: number, link: WoiceLink | undefined): void {
   const w = getService()?.woiceGet(idx);
   if (!w) return;
   const name = woiceNameRaw(w);
-  // 書き戻し先 (元の Collage プロジェクトの音色) をタブに持たせる
-  const link = { projectId: currentProjectId.value, woiceIndex: idx };
   if (w.type === WoiceType.PTV) {
     if (openWoiceAsVoice(w, name, link)) emit("open-editor", "voice");
     return;
@@ -145,9 +148,12 @@ function woiceSummary(idx: number): string {
       </div>
     </div>
     <div v-if="menu" class="ctxmenu popup" :style="{ left: menu.x + 'px', top: menu.y + 'px' }">
-      <button v-if="menuCanEdit" @click="onMenuAction('edit')">{{ t("woice.edit") }}</button>
-      <button @click="onMenuAction('replace')">{{ t("woice.replace") }}</button>
-      <button class="danger" @click="onMenuAction('remove')">{{ t("common.delete") }}</button>
+      <button v-if="doc.readOnly && menuHasEditor" @click="onMenuAction('open')">{{ t("woice.open") }}</button>
+      <template v-if="!doc.readOnly">
+        <button v-if="menuHasEditor" @click="onMenuAction('edit')">{{ t("woice.edit") }}</button>
+        <button @click="onMenuAction('replace')">{{ t("woice.replace") }}</button>
+        <button class="danger" @click="onMenuAction('remove')">{{ t("common.delete") }}</button>
+      </template>
     </div>
   </div>
 </template>
