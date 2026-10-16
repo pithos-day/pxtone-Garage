@@ -2,9 +2,9 @@
 // タブごとに独立した Service / UI 状態 / undo スタックを持ち、
 // タブ切替で「現在の doc/service/undo」を差し替える。
 import { ref } from "vue";
-import { Service, PxtnErr, MemoryIo, PXTN_MAX_EVENT_NUM } from "pxtone-ts";
+import { Service, PxtnErr, MemoryIo, PXTN_MAX_EVENT_NUM, Woice, WoiceType } from "pxtone-ts";
 import { setService } from "./service";
-import { setUndoStacks, undoStack, redoStack, type UndoEntry } from "./undo";
+import { setUndoStacks, undoStack, redoStack, snapshotService, pushUndoToStack, refreshUndoFlags, type UndoEntry } from "./undo";
 import { doc, sync, title, comment, ensureInit, pxtnErrorMessage } from "./project";
 import { resetLoaded } from "./player";
 import { downloadProjectFile, supportsSavePicker, stripFileExt, isTuneFormat, toArrayBuffer } from "../engine/io";
@@ -281,6 +281,36 @@ export function closeProject(id: number): void {
 // 現在のプロジェクトが pttune 形式 (再生専用) か
 export function isTuneProject(): boolean {
   return currentProject()?.kind === "tune";
+}
+
+// 「変更を適用」: リンク付き Voice/Noise タブの編集内容を、元の Collage プロジェクトの
+// 音色 index へ書き戻す。適用先は現在のタブとは限らないため、対象プロジェクトの
+// Service / undo スタックを直接操作する。エラーメッセージを返す (成功時 null)。
+// 音色名は元のまま (エディタは名前を編集しないため)
+export function applyWoiceLink(link: WoiceLink, bytes: Uint8Array, type: WoiceType): string | null {
+  const p = projects.value.find((x) => x.id === link.projectId);
+  const svc = p ? services.get(p.id) : undefined;
+  if (!p || !svc) return t("error.applyNoProject");
+  // pttune (再生専用) は書き換え対象にできない
+  if (p.kind === "tune") return t("error.applyReadOnly");
+  if (link.woiceIndex < 0 || link.woiceIndex >= svc.woiceNum) return t("error.applyNoWoice");
+  // woiceRead は読み込み失敗時に既存音色を削除するため、先にバイト列を検証する
+  const probe = new Woice();
+  if (probe.read(new MemoryIo(bytes), type) !== PxtnErr.OK) return t("error.format");
+  // undo は適用先プロジェクトのスタックへ積む (現在のタブのスタックではない)
+  const snap = snapshotService(svc);
+  if (snap) pushUndoToStack(p.undoStack, p.redoStack, snap);
+  const res = svc.woiceRead(link.woiceIndex, new MemoryIo(bytes), type);
+  if (res !== PxtnErr.OK) return pxtnErrorMessage(res);
+  p.dirty = true;
+  // 適用先が現在のタブなら、UI ミラー (W トレイ等) と undo 表示も更新する
+  if (p.id === currentProjectId.value) {
+    refreshUndoFlags();
+    doc.dirty = true;
+    sync();
+    doc.rev++;
+  }
+  return null;
 }
 
 // 通常保存: ダイアログを開かず従来どおりダウンロードを発火する

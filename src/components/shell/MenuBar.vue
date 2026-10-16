@@ -3,7 +3,7 @@
 // 右: モード別ドロップダウンメニュー (collage = File/Edit/View、voice/noise = File)
 <script setup lang="ts">
 import { computed } from "vue";
-import { FileUp, FileDown, Music, ListMusic, FileMusic, AudioLines, SlidersHorizontal, Settings, SquareStack, CircleGauge, Copy, Columns4, PackagePlus } from "@lucide/vue";
+import { FileUp, FileDown, Music, ListMusic, FileMusic, AudioLines, SlidersHorizontal, Settings, SquareStack, CircleGauge, Copy, Columns4, PackagePlus, Link2 } from "@lucide/vue";
 import { DIVI_TABLE } from "../../lib/clock";
 import { doc, setAllUnitsVisible, exportBytes, addWoice, WoiceType } from "../../state/project";
 import {
@@ -14,6 +14,7 @@ import {
   saveProjectAs,
   isTuneProject,
   currentProjectId,
+  applyWoiceLink,
 } from "../../state/projects";
 import { newVoice, openVoice, saveVoice, closeVoice, undoVoice, redoVoice, currentVoice, currentVoiceId, snapshotVoice } from "../../state/voice";
 import { newNoise, openNoise, saveNoise, closeNoise, undoNoise, redoNoise, currentNoise, currentNoiseId, snapshotNoise } from "../../state/noise";
@@ -191,6 +192,28 @@ function onAddNoiseToCollage(): void {
   addToCollage(snapshotNoise(d), WoiceType.PTN, d.fileName);
 }
 
+// ---- 変更を適用 (「音色を編集」で開いた voice/noise) ----
+
+// 「音色を編集」で開いたタブの書き戻し先 (通常のオープンでは undefined)
+const currentLink = computed(() => (mode.value === "voice" ? currentVoice()?.link : currentNoise()?.link));
+
+// 編集した音色を、元の Collage プロジェクトの音色 index へ書き戻す
+function onApplyLink(): void {
+  if (mode.value === "voice") {
+    const v = currentVoice();
+    const bytes = v ? snapshotVoice(v) : null;
+    if (!v?.link || !bytes) return;
+    const err = applyWoiceLink(v.link, bytes, WoiceType.PTV);
+    if (err) window.alert(err);
+  } else if (mode.value === "noise") {
+    const d = currentNoise();
+    const bytes = d ? snapshotNoise(d) : null;
+    if (!d?.link || !bytes) return;
+    const err = applyWoiceLink(d.link, bytes, WoiceType.PTN);
+    if (err) window.alert(err);
+  }
+}
+
 // ---- モード別メニュー ----
 
 const allVisible = computed(() => doc.unitVisible.length > 0 && doc.unitVisible.every(Boolean));
@@ -235,7 +258,20 @@ const modeOps: Record<AppMode, ModeMenuOps> = {
 
 const fileMenu = computed<MenuItem[]>(() => {
   const ops = modeOps[mode.value];
-const extra: MenuItem[] =
+  // 「変更を適用」は「音色を編集」で開いたタブのみ有効 (collage では出さない)。
+  // buildFileMenu で保存系の手前に差し込む
+  const beforeSave: MenuItem[] =
+    mode.value === "collage"
+      ? []
+      : [
+          {
+            label: t("menu.file.applyChanges"),
+            icon: Link2,
+            action: onApplyLink,
+            disabled: !currentLink.value,
+          },
+        ];
+  const extra: MenuItem[] =
     mode.value === "collage"
       ? [
           {
@@ -280,7 +316,7 @@ const extra: MenuItem[] =
           { label: t("menu.file.settings"), icon: Settings, action: () => emit("settings") },
           { sep: true },
         ];
-  return buildFileMenu(ops, extra);
+  return buildFileMenu(ops, extra, beforeSave);
 });
 
 const editMenu = computed<MenuItem[]>(() => {

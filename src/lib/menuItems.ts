@@ -47,13 +47,15 @@ export interface ModeMenuOps {
   canSave?: () => boolean;
 }
 
-// File メニュー。共通 5 項目 (new/open/save/saveAs + 区切り) + モード固有項目 (extra) + close
-export function buildFileMenu(ops: ModeMenuOps, extra: MenuItem[]): MenuItem[] {
+// File メニュー。共通 5 項目 (new/open/save/saveAs + 区切り) + 保存系の手前の固有項目
+// (beforeSave) + モード固有項目 (extra) + close
+export function buildFileMenu(ops: ModeMenuOps, extra: MenuItem[], beforeSave: MenuItem[] = []): MenuItem[] {
   const saveDisabled = ops.canSave ? !ops.canSave() : false;
   return [
     { label: t("menu.file.new"), icon: FilePlus2, action: ops.new },
     { label: t("menu.file.open"), icon: FileSearch2, action: ops.open },
     { sep: true },
+    ...beforeSave,
     { label: t("menu.file.save"), icon: Save, action: ops.save, disabled: saveDisabled },
     { label: t("menu.file.saveAs"), icon: SavePlus, action: ops.saveAs, disabled: saveDisabled },
     { sep: true },

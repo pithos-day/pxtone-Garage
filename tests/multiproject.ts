@@ -8,6 +8,7 @@ import {
   closeProject,
   openProjectInTab,
   isTuneProject,
+  applyWoiceLink,
 } from "../src/state/projects";
 import {
   doc,
@@ -84,7 +85,8 @@ import { parseMidi, convertMidiToPtcop } from "../src/engine/midi";
 import { formatTime, measStartClock } from "../src/lib/clock";
 import { scaleToWoice, scaleToGroup, VOLUME_EDIT_KIND } from "../src/lib/volume";
 import { writeNote, writeNoteLength, eraseNote, writeVolumeEvent, type EventWriteOps } from "../src/lib/editing";
-import { MENU_LABELS, menuNamesFor } from "../src/lib/menuItems";
+import { MENU_LABELS, menuNamesFor, buildFileMenu } from "../src/lib/menuItems";
+import { t } from "../src/i18n";
 import { secToEnveX, pctToEnveY, pushHistoryEntry } from "../src/lib/noise";
 import { nearestPoint } from "../src/lib/voice-geometry";
 import { visibleClockWindow, iterVisibleRecords, iterNoteDraws, type NoteDraw } from "../src/lib/records";
@@ -1478,6 +1480,121 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     anon.voiceAllocate(1);
     checkEq(woiceNameRaw(anon), "", "woiceedit: 名前なしは空文字列 (raw)");
     checkEq(woiceName(anon), "(no name)", "woiceedit: 名前なしは表示用に (no name)");
+  }
+
+  // ---- 32. 変更を適用 (リンク付き voice/noise → 元の Collage 音色) ----
+  {
+    // 書き戻し先になる Collage プロジェクト (現在のタブ)
+    const projA = newProjectInTab();
+    const vDoc = newVoice();
+    const vBytes = snapshotVoice(vDoc)!;
+    checkEq(await addWoice(vBytes, WoiceType.PTV, "ApplyA"), null, "apply: 対象の PTV を用意");
+    const idxA = serviceMod.service.woiceNum - 1;
+    checkEq(serviceMod.service.woiceGet(idxA)!.getVoice(0)!.volume, 64, "apply: PTV の初期ボリューム");
+
+    // 編集した音色を現在のタブへ適用する
+    vDoc.woice.getVoice(0)!.volume = 77;
+    const undoLen = projA.undoStack.length;
+    checkEq(
+      applyWoiceLink({ projectId: projA.id, woiceIndex: idxA }, snapshotVoice(vDoc)!, WoiceType.PTV),
+      null,
+      "apply: 現在のタブへ適用",
+    );
+    checkEq(serviceMod.service.woiceGet(idxA)!.getVoice(0)!.volume, 77, "apply: 対象音色の内容が更新される");
+    checkEq(projA.undoStack.length, undoLen + 1, "apply: undo エントリが積まれる");
+    check("apply: 対象プロジェクトが dirty になる", projA.dirty);
+    check("apply: undo が成功する", undo());
+    checkEq(serviceMod.service.woiceGet(idxA)!.getVoice(0)!.volume, 64, "apply: undo で適用前に戻る");
+
+    // 現在のタブでないプロジェクトへも書き戻せる (対象プロジェクトの Service を直接操作)
+    const projB = newProjectInTab();
+    vDoc.woice.getVoice(0)!.volume = 55;
+    checkEq(
+      applyWoiceLink({ projectId: projA.id, woiceIndex: idxA }, snapshotVoice(vDoc)!, WoiceType.PTV),
+      null,
+      "apply: 別プロジェクトへ適用",
+    );
+    check("apply: 別プロジェクトが dirty になる", projA.dirty);
+    switchProject(projA.id);
+    checkEq(serviceMod.service.woiceGet(idxA)!.getVoice(0)!.volume, 55, "apply: 切り替え後に内容を確認できる");
+    check("apply: 別プロジェクトの undo も積まれている", canUndo.value);
+    check("apply: 別プロジェクトでも undo できる", undo());
+    checkEq(serviceMod.service.woiceGet(idxA)!.getVoice(0)!.volume, 64, "apply: 別プロジェクトの undo で戻る");
+
+    // PTN (ノイズ) の書き戻し
+    switchProject(projB.id);
+    const nDoc = newNoise();
+    nDoc.noise.getUnit(0)!.main.freq = 550;
+    checkEq(await addWoice(snapshotNoise(nDoc)!, WoiceType.PTN, "ApplyB"), null, "apply: 対象の PTN を用意");
+    const idxB = serviceMod.service.woiceNum - 1;
+    nDoc.noise.getUnit(0)!.main.freq = 660;
+    checkEq(
+      applyWoiceLink({ projectId: projB.id, woiceIndex: idxB }, snapshotNoise(nDoc)!, WoiceType.PTN),
+      null,
+      "apply: PTN を適用",
+    );
+    checkEq(
+      serviceMod.service.woiceGet(idxB)!.getVoice(0)!.ptn.getUnit(0)!.main.freq,
+      660,
+      "apply: ノイズ内容が更新される",
+    );
+
+    // エラー系: 対象の音色を壊さない
+    check(
+      "apply: 範囲外 index はエラー",
+      applyWoiceLink({ projectId: projB.id, woiceIndex: 999 }, snapshotNoise(nDoc)!, WoiceType.PTN) !== null,
+    );
+    check(
+      "apply: 存在しないプロジェクトはエラー",
+      applyWoiceLink({ projectId: 99999, woiceIndex: 0 }, snapshotNoise(nDoc)!, WoiceType.PTN) !== null,
+    );
+    const woiceNum = serviceMod.service.woiceNum;
+    check(
+      "apply: 不正なバイト列はエラー",
+      applyWoiceLink({ projectId: projB.id, woiceIndex: idxB }, new Uint8Array([1, 2, 3]), WoiceType.PTN) !== null,
+    );
+    checkEq(serviceMod.service.woiceNum, woiceNum, "apply: 不正なバイト列でも音色は消えない");
+    checkEq(
+      serviceMod.service.woiceGet(idxB)!.getVoice(0)!.ptn.getUnit(0)!.main.freq,
+      660,
+      "apply: 不正なバイト列でも対象音色は無傷",
+    );
+
+    // pttune (再生専用) へは適用できない
+    const projTune = newProjectInTab("tune");
+    check(
+      "apply: 読み取り専用プロジェクトはエラー",
+      applyWoiceLink({ projectId: projTune.id, woiceIndex: 0 }, snapshotNoise(nDoc)!, WoiceType.PTN) !== null,
+    );
+  }
+
+  // ---- 33. File メニューの「変更を適用」の位置 ----
+  {
+    const ops = {
+      new: () => {},
+      open: () => {},
+      save: () => {},
+      saveAs: () => {},
+      close: () => {},
+      undo: () => {},
+      redo: () => {},
+      canUndo: () => false,
+      canRedo: () => false,
+    };
+    // voice/noise は beforeSave に「変更を適用」を渡す (プロジェクトを保存の手前)
+    const labels = buildFileMenu(ops, [], [{ label: "APPLY" }]).map((m) => (m.sep ? "-" : (m.label ?? "")));
+    check(
+      "filemenu: 変更を適用はプロジェクトを保存の手前",
+      labels.indexOf("APPLY") >= 0 && labels.indexOf("APPLY") < labels.indexOf(t("menu.file.save")),
+    );
+    // collage (beforeSave 省略) では入らない
+    check("filemenu: 省略時は変更を適用なし", !buildFileMenu(ops, []).some((m) => m.label === "APPLY"));
+    // extra は従来どおり保存系の後ろ
+    const labels2 = buildFileMenu(ops, [{ label: "EXTRA" }], [{ label: "APPLY" }]).map((m) => (m.sep ? "-" : (m.label ?? "")));
+    check(
+      "filemenu: extra は保存系の後ろ",
+      labels2.indexOf("EXTRA") > labels2.indexOf(t("menu.file.saveAs")),
+    );
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);

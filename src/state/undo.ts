@@ -2,7 +2,7 @@
 // 編集操作の直前に ptcop バイト列を保存し、undo 時はサービスへ読み戻す。
 // 複数プロジェクト対応のため、スタックはタブ切替で差し替えられる (export let)。
 import { ref } from "vue";
-import { MemoryIo, PxtnErr } from "pxtone-ts";
+import { MemoryIo, PxtnErr, type Service } from "pxtone-ts";
 import { service, EXE_VER } from "./service";
 import { doc, sync, uiRepeatToFile, fileRepeatToUi } from "./project";
 
@@ -26,52 +26,64 @@ export const canRedo = ref(false);
 export function setUndoStacks(newUndo: UndoEntry[], newRedo: UndoEntry[]): void {
   undoStack = newUndo;
   redoStack = newRedo;
-  updateFlags();
+  refreshUndoFlags();
 }
 
-function updateFlags(): void {
+// canUndo/canRedo の表示フラグを現在のスタックから再計算する。
+// 別プロジェクトのスタックへ積んだ場合 (現在のタブでないとき) は呼ばないこと
+export function refreshUndoFlags(): void {
   canUndo.value = undoStack.length > 0;
   canRedo.value = redoStack.length > 0;
 }
 
-export function snapshotProject(): UndoEntry | null {
-  if (!service.isInit) return null;
+// 任意の Service のスナップショット (現在のタブ以外への書き戻しでも使う)
+export function snapshotService(s: Service): UndoEntry | null {
+  if (!s.isInit) return null;
   const io = new MemoryIo();
-  if (service.write(io, false, EXE_VER) !== PxtnErr.OK) return null;
+  if (s.write(io, false, EXE_VER) !== PxtnErr.OK) return null;
   // repeatMeas は doc が書き換わった後でもエンジンはまだ編集前の値を持つ
   // (setRepeatMeas は doc 代入 → pushUndo → エンジン反映 の順) ため、エンジンから取る
   return {
     bytes: io.toUint8Array(),
-    measNum: service.master.measNum,
-    repeatMeas: fileRepeatToUi(service.master.repeatMeas),
+    measNum: s.master.measNum,
+    repeatMeas: fileRepeatToUi(s.master.repeatMeas),
   };
+}
+
+export function snapshotProject(): UndoEntry | null {
+  return snapshotService(service);
+}
+
+// 任意の undo スタックへエントリを積む (上限と redo クリアは pushUndo と共通)
+export function pushUndoToStack(stack: UndoEntry[], redoStack: UndoEntry[], entry: UndoEntry): void {
+  stack.push(entry);
+  if (stack.length > MAX_UNDO) stack.shift();
+  redoStack.length = 0;
 }
 
 // 編集開始 (ドラッグ操作の開始時) に呼ぶ。1回の編集で1エントリ
 export function pushUndo(): void {
   const b = snapshotProject();
   if (!b) return;
-  undoStack.push(b);
-  if (undoStack.length > MAX_UNDO) undoStack.shift();
-  redoStack.length = 0;
-  updateFlags();
+  pushUndoToStack(undoStack, redoStack, b);
+  refreshUndoFlags();
 }
 
 export function clearUndo(): void {
   undoStack.length = 0;
   redoStack.length = 0;
-  updateFlags();
+  refreshUndoFlags();
 }
 
 // stack から pop したスナップショットへ戻し、現在状態を pushTo へ積む (undo/redo 共通)
 function restoreFrom(stack: UndoEntry[], pushTo: UndoEntry[]): boolean {
   const b = stack.pop();
-  updateFlags();
+  refreshUndoFlags();
   if (!b) return false;
   const cur = snapshotProject();
   if (cur) {
     pushTo.push(cur);
-    updateFlags();
+    refreshUndoFlags();
   }
   return restoreBytes(b);
 }

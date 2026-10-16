@@ -21,6 +21,7 @@ const ja = {
   "menu.file.importMidiSplit": "和音を分解して読み込む",
   "menu.file.save": "プロジェクトを保存",
   "menu.file.saveAs": "名前を付けて保存",
+  "menu.file.applyChanges": "変更を適用",
   "menu.file.export": "書き出し",
   "menu.file.exportPttune": "pttuneを書き出し",
   "menu.file.exportWav": "WAVを書き出し",
@@ -214,6 +215,9 @@ const ja = {
   "error.noiseBuild": "ノイズのビルドに失敗しました",
   "error.midi": "MIDIファイルを読み込めませんでした",
   "error.save": "保存に失敗しました",
+  "error.applyNoProject": "元の Collage プロジェクトが見つかりません",
+  "error.applyNoWoice": "元の Collage の音色が見つかりません",
+  "error.applyReadOnly": "読み取り専用のため適用できません",
 } as const;
 
 export default ja;
