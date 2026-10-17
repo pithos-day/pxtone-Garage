@@ -5,6 +5,7 @@
 // (逆方向のドラッグは setScope が小さい方を scope1 にする)
 <script setup lang="ts">
 import { ref } from "vue";
+import { ClipboardPaste, Copy, Eraser, ListPlus, Scissors, Trash2, ChevronsUpDown } from "@lucide/vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, drawPlayhead, drawScopeBand } from "../../lib/draw";
@@ -163,15 +164,15 @@ function onMenuAction(action: MenuAction): void {
     />
     <div v-if="menu" class="ctxmenu popup" :style="{ left: menu.x + 'px', top: menu.y + 'px' }">
       <template v-if="menu.kind === 'point'">
-        <button :disabled="!menu.canPaste" @click="onMenuAction('paste')">{{ t("scope.paste") }}</button>
-        <button :disabled="!menu.canPaste" @click="onMenuAction('insert')">{{ t("scope.insert") }}</button>
+        <button :disabled="!menu.canPaste" @click="onMenuAction('paste')"><span class="menu-icon"><ClipboardPaste :size="14" /></span>{{ t("scope.paste") }}</button>
+        <button :disabled="!menu.canPaste" @click="onMenuAction('insert')"><span class="menu-icon"><ListPlus :size="14" /></span>{{ t("scope.insert") }}</button>
       </template>
       <template v-else>
-        <button @click="onMenuAction('copy')">{{ t("scope.copy") }}</button>
-        <button @click="onMenuAction('cut')">{{ t("scope.cut") }}</button>
-        <button @click="onMenuAction('clear')">{{ t("scope.clear") }}</button>
-        <button @click="onMenuAction('delete')">{{ t("scope.delete") }}</button>
-        <button @click="onMenuAction('transpose')">{{ t("scope.transpose") }}</button>
+        <button @click="onMenuAction('copy')"><span class="menu-icon"><Copy :size="14" /></span>{{ t("scope.copy") }}</button>
+        <button @click="onMenuAction('cut')"><span class="menu-icon"><Scissors :size="14" /></span>{{ t("scope.cut") }}</button>
+        <button @click="onMenuAction('clear')"><span class="menu-icon"><Eraser :size="14" /></span>{{ t("scope.clear") }}</button>
+        <button @click="onMenuAction('delete')"><span class="menu-icon"><Trash2 :size="14" /></span>{{ t("scope.delete") }}</button>
+        <button @click="onMenuAction('transpose')"><span class="menu-icon"><ChevronsUpDown :size="14" /></span>{{ t("scope.transpose") }}</button>
       </template>
     </div>
   </div>

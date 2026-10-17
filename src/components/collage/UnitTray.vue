@@ -3,7 +3,7 @@
 // 列ヘッダー付きで、ユニット名の下には割り当て音色名を表示する。
 <script setup lang="ts">
 import { ref } from "vue";
-import { Eye, Pin, Headphones, MousePointer2, Pencil, Pointer } from "@lucide/vue";
+import { Eye, Pin, Headphones, MousePointer2, Pencil, Pointer, Replace, Trash2 } from "@lucide/vue";
 import {
   doc,
   units,
@@ -217,9 +217,9 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
       <div v-if="units.length === 0" class="tray-empty">{{ t("unit.empty") }}</div>
     </div>
     <div v-if="menu" class="ctxmenu popup" :style="{ left: menu.x + 'px', top: menu.y + 'px' }">
-      <button v-if="woices.length > 0" @click="onMenuAction('change')">{{ t("unit.changeWoice") }}</button>
-      <button @click="onMenuAction('edit')">{{ t("unit.editName") }}</button>
-      <button class="danger" @click="onMenuAction('remove')">{{ t("common.delete") }}</button>
+      <button v-if="woices.length > 0" @click="onMenuAction('change')"><span class="menu-icon"><Replace :size="14" /></span>{{ t("unit.changeWoice") }}</button>
+      <button @click="onMenuAction('edit')"><span class="menu-icon"><Pencil :size="14" /></span>{{ t("unit.editName") }}</button>
+      <button class="danger" @click="onMenuAction('remove')"><span class="menu-icon"><Trash2 :size="14" /></span>{{ t("common.delete") }}</button>
     </div>
     <ChangeUnitDialog v-if="changeUnitIdx >= 0" :unit-idx="changeUnitIdx" @close="changeUnitIdx = -1" />
   </div>

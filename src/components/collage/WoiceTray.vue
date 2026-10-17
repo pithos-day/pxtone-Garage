@@ -1,6 +1,7 @@
 // 音色リスト (W モード)。型別色分け、選択、削除、並べ替え
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { Download, FileSearch2, SquarePen, Replace, Trash2 } from "@lucide/vue";
 import {
   doc,
   woices,
@@ -157,12 +158,12 @@ function woiceSummary(idx: number): string {
       </div>
     </div>
     <div v-if="menu" class="ctxmenu popup" :style="{ left: menu.x + 'px', top: menu.y + 'px' }">
-      <button v-if="doc.readOnly && menuHasEditor" @click="onMenuAction('open')">{{ t("woice.open") }}</button>
-      <button @click="onMenuAction('save')">{{ t("woice.save") }}</button>
+      <button v-if="doc.readOnly && menuHasEditor" @click="onMenuAction('open')"><span class="menu-icon"><FileSearch2 :size="14" /></span>{{ t("woice.open") }}</button>
+      <button @click="onMenuAction('save')"><span class="menu-icon"><Download :size="14" /></span>{{ t("woice.save") }}</button>
       <template v-if="!doc.readOnly">
-        <button v-if="menuHasEditor" @click="onMenuAction('edit')">{{ t("woice.edit") }}</button>
-        <button @click="onMenuAction('replace')">{{ t("woice.replace") }}</button>
-        <button class="danger" @click="onMenuAction('remove')">{{ t("common.delete") }}</button>
+        <button v-if="menuHasEditor" @click="onMenuAction('edit')"><span class="menu-icon"><SquarePen :size="14" /></span>{{ t("woice.edit") }}</button>
+        <button @click="onMenuAction('replace')"><span class="menu-icon"><Replace :size="14" /></span>{{ t("woice.replace") }}</button>
+        <button class="danger" @click="onMenuAction('remove')"><span class="menu-icon"><Trash2 :size="14" /></span>{{ t("common.delete") }}</button>
       </template>
     </div>
   </div>

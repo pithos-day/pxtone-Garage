@@ -215,7 +215,9 @@ textarea {
 }
 
 .ctxmenu button {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 2px;
   width: 100%;
   text-align: left;
   border: none;
@@ -224,6 +226,15 @@ textarea {
   padding: 4px 12px;
   font-size: var(--text-md);
   cursor: pointer;
+}
+
+/* アイコン列 (ツールバーメニューの .menu-check と同じ 18px で揃える) */
+.ctxmenu .menu-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  flex: none;
 }
 
 .ctxmenu button:hover {

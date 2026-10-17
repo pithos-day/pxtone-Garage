@@ -7,6 +7,7 @@
 // Start/End は線で繋ぎ、ドラッグ中は設定される Start/End を白黒タグでプレビューする。
 <script setup lang="ts">
 import { ref } from "vue";
+import { ArrowLeftToLine, ArrowRightToLine, Flag, Repeat, SquareX } from "@lucide/vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, drawMarkerTag, drawPlayhead, markerTagContentW, markerTagFontSize } from "../../lib/draw";
@@ -233,18 +234,18 @@ function onMenuAction(action: "setRepeat" | "setLast" | "clearRepeat" | "clearLa
     />
     <div v-if="menu" class="ctxmenu popup" :style="{ left: menu.x + 'px', top: menu.y + 'px' }">
       <template v-if="menu.zone === 'repeat'">
-        <button @click="onMenuAction('setRepeat')">{{ t("playfield.setRepeat") }}</button>
-        <button @click="onMenuAction('setLast')">{{ t("playfield.setLast") }}</button>
+        <button @click="onMenuAction('setRepeat')"><span class="menu-icon"><Repeat :size="14" /></span>{{ t("playfield.setRepeat") }}</button>
+        <button @click="onMenuAction('setLast')"><span class="menu-icon"><Flag :size="14" /></span>{{ t("playfield.setLast") }}</button>
         <div class="sep" />
-        <button @click="onMenuAction('clearRepeat')">{{ t("playfield.clearRepeat") }}</button>
-        <button @click="onMenuAction('clearLast')">{{ t("playfield.clearLast") }}</button>
+        <button @click="onMenuAction('clearRepeat')"><span class="menu-icon"><SquareX :size="14" /></span>{{ t("playfield.clearRepeat") }}</button>
+        <button @click="onMenuAction('clearLast')"><span class="menu-icon"><SquareX :size="14" /></span>{{ t("playfield.clearLast") }}</button>
       </template>
       <template v-else>
-        <button @click="onMenuAction('setStart')">{{ t("playfield.setStart") }}</button>
-        <button @click="onMenuAction('setEnd')">{{ t("playfield.setEnd") }}</button>
+        <button @click="onMenuAction('setStart')"><span class="menu-icon"><ArrowLeftToLine :size="14" /></span>{{ t("playfield.setStart") }}</button>
+        <button @click="onMenuAction('setEnd')"><span class="menu-icon"><ArrowRightToLine :size="14" /></span>{{ t("playfield.setEnd") }}</button>
         <div class="sep" />
-        <button @click="onMenuAction('clearStart')">{{ t("playfield.clearStart") }}</button>
-        <button @click="onMenuAction('clearEnd')">{{ t("playfield.clearEnd") }}</button>
+        <button @click="onMenuAction('clearStart')"><span class="menu-icon"><SquareX :size="14" /></span>{{ t("playfield.clearStart") }}</button>
+        <button @click="onMenuAction('clearEnd')"><span class="menu-icon"><SquareX :size="14" /></span>{{ t("playfield.clearEnd") }}</button>
       </template>
     </div>
   </div>
