@@ -23,7 +23,7 @@ import { woiceSummary as formatWoiceSummary, WOICE_FILE_ACCEPT, WOICE_FILE_EXT_R
 import { useCtxMenuClose } from "../../composables/useCtxMenu";
 import { useHoldPreview } from "../../composables/useHoldPreview";
 import { capturePointer, releasePointerCapture } from "../../lib/field";
-import { openFileDialog } from "../../engine/io";
+import { openFileDialog, exportWoiceFile } from "../../engine/io";
 import { t } from "../../i18n";
 
 const emit = defineEmits<{ (e: "open-editor", mode: "voice" | "noise"): void }>();
@@ -46,8 +46,7 @@ function onPointerDown(e: PointerEvent, idx: number): void {
   const s = getService();
   if (!s) return;
   if (e.button === 2) {
-    // 読み取り専用タブでも「音色を開く」だけは出せる (置き換え・削除は出さない)
-    if (doc.readOnly && !hasEditorType(idx)) return;
+    // 読み取り専用タブでも「音色を開く」「音色を保存」は出せる (編集系はテンプレート側で出さない)
     menu.value = { x: e.clientX, y: e.clientY, w: idx };
     e.preventDefault();
     return;
@@ -69,16 +68,26 @@ function onPointerUp(e: PointerEvent): void {
   releasePointerCapture(trayListRef.value, e);
 }
 
-function onMenuAction(action: "remove" | "replace" | "edit" | "open"): void {
+function onMenuAction(action: "remove" | "replace" | "edit" | "open" | "save"): void {
   const w = menu.value?.w;
   menu.value = null;
   if (w === undefined) return;
   if (action === "remove") removeWoice(w);
   else if (action === "replace") void replaceByDialog(w);
+  // 音色を元フォーマット (ptvoice/ptnoise/ogg/wav) でダウンロードする
+  else if (action === "save") void saveWoiceFile(w);
   // 編集 (ptcop): 書き戻し先 (元の Collage プロジェクトの音色) をタブに持たせる
   else if (action === "edit") openWoiceInEditor(w, { projectId: currentProjectId.value, woiceIndex: w });
   // 開くだけ (pttune などの読み取り専用タブ): link なしなので書き戻せない
   else if (action === "open") openWoiceInEditor(w, undefined);
+}
+
+// 音色を元フォーマットのファイルとして保存する (保存ピッカー / ダウンロード)
+async function saveWoiceFile(idx: number): Promise<void> {
+  const w = getService()?.woiceGet(idx);
+  if (!w) return;
+  const err = await exportWoiceFile(w, woiceNameRaw(w) || "woice");
+  if (err) console.error(err);
 }
 
 // 音色を ptvoice/ptnoise エディタで開き、そちらのモードタブへ移動する。
@@ -149,6 +158,7 @@ function woiceSummary(idx: number): string {
     </div>
     <div v-if="menu" class="ctxmenu popup" :style="{ left: menu.x + 'px', top: menu.y + 'px' }">
       <button v-if="doc.readOnly && menuHasEditor" @click="onMenuAction('open')">{{ t("woice.open") }}</button>
+      <button @click="onMenuAction('save')">{{ t("woice.save") }}</button>
       <template v-if="!doc.readOnly">
         <button v-if="menuHasEditor" @click="onMenuAction('edit')">{{ t("woice.edit") }}</button>
         <button @click="onMenuAction('replace')">{{ t("woice.replace") }}</button>

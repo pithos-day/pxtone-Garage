@@ -1,5 +1,5 @@
 // ファイルの開く・保存・書き出し
-import { Service, PxtnErr, MemoryIo, NoiseBuilder } from "pxtone-ts";
+import { Service, PxtnErr, MemoryIo, NoiseBuilder, WoiceType } from "pxtone-ts";
 import type { Noise, Woice } from "pxtone-ts";
 import { EXE_VER } from "../state/service";
 import { exportBytes } from "../state/project";
@@ -197,6 +197,58 @@ export async function exportVoiceWav(
     await downloadBytes(wav, { fileName: sanitizeFileName(fileName, ".wav"), mime: "audio/wav" });
   } catch {
     return t("error.save");
+  }
+  return null;
+}
+
+// 音色を元フォーマットのまま書き出す (ptvoice / ptnoise / ogg / wav)。
+// PCM は保持しているサンプルを WAV 形式に包んで保存する。
+// エラーメッセージを返す (成功時 null)
+export async function exportWoiceFile(woice: Woice, fileName: string): Promise<string | null> {
+  const fail = (): string => t("error.save");
+  let bytes: Uint8Array | null = null;
+  let ext = "";
+  let mime: string | undefined;
+  switch (woice.type) {
+    case WoiceType.PTV: {
+      const io = new MemoryIo();
+      if (woice.ptvWrite(io) < 0) return fail();
+      bytes = io.toUint8Array();
+      ext = ".ptvoice";
+      break;
+    }
+    case WoiceType.PTN: {
+      // 元の ptnoise を持つのは先頭ボイスのみ。write は io への書き込みだけで非破壊
+      const ptn = woice.getVoice(0)?.ptn;
+      const io = new MemoryIo();
+      if (!ptn || !ptn.write(io)) return fail();
+      bytes = io.toUint8Array();
+      ext = ".ptnoise";
+      break;
+    }
+    case WoiceType.OGGV:
+      // OGGV は読み込んだ生 OGG データをそのまま保存する
+      bytes = woice.getVoice(0)?.oggv?.data ?? null;
+      ext = ".ogg";
+      mime = "audio/ogg";
+      break;
+    case WoiceType.PCM: {
+      // PCM は格納サンプルのまま WAV で書き出す (devolveSamplingBuffer は破壊的なため使わない)
+      const io = new MemoryIo();
+      if (!woice.getVoice(0)?.pcm.write(io)) return fail();
+      bytes = io.toUint8Array();
+      ext = ".wav";
+      mime = "audio/wav";
+      break;
+    }
+    default:
+      return fail();
+  }
+  if (!bytes || bytes.length === 0) return fail();
+  try {
+    await downloadBytes(bytes, { fileName: sanitizeFileName(fileName, ext), mime });
+  } catch {
+    return fail();
   }
   return null;
 }

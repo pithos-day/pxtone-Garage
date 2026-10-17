@@ -121,6 +121,7 @@ const ja = {
   // 音色一覧
   "woice.title": "音色",
   "woice.edit": "音色を編集",
+  "woice.save": "音色を保存",
   "woice.open": "音色を開く",
   "woice.replace": "置き換え",
   "woice.empty": "音色がありません。",
