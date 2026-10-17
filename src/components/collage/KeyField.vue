@@ -246,12 +246,12 @@ interface SmartNote {
 interface SmartState {
   mode: SmartMode;
   note: SmartNote | null;
-  // 掴み / 端調整で移動再配置するイベント列 (clock は絶対値)。
-  // 実在しない KEY (前の KEY の余韻で鳴っている音程) は保存用の KEY としてここに載せる
+  // 掴み / 端調整で再配置するイベント列 (clock は絶対値)。
+  // 余韻で鳴っていた音程を保存するための KEY (実在しない) もここに載せる
   evs: { clock: number; kind: EventKind; value: number }[];
-  // 直前の applyDrag で置いたイベント (次の適用前に消してから置き直す)。
-  // 初期値は押下時の位置にある実在イベント
-  placed: { clock: number; kind: EventKind }[];
+  // 前回の配置で置いたノートのスパン (次の適用で一括削除する範囲)。
+  // 規定されていない間は押下時のノート範囲が対象
+  lastSpan?: { head: number; end: number };
   // 掴み移動で前回適用した音程差 (試聴の再トリガ判定用)
   lastDelta?: number;
 }
@@ -317,8 +317,6 @@ function beginSmartDrag(u: number, clock: number, row: number): KeyDrag {
   const note = noteAt(u, clock, row);
   const s = getService()!;
   const evs: SmartState["evs"] = [];
-  // 実在イベントの配置管理 (初回 applyDrag で消す対象)。余韻保存用の KEY は含めない
-  const placed: SmartState["placed"] = [];
   let mode: SmartMode = "write";
   if (note) {
     if (note.end - note.head > grid * 2) {
@@ -331,29 +329,26 @@ function beginSmartDrag(u: number, clock: number, row: number): KeyDrag {
       mode = "grab";
     }
     if (mode === "tail") {
-      // 終了調整: ON の長さだけを書き換える
+      // 終了調整: ON の長さだけを入れ替える (KEY/VELOCITY は動かさない)
       for (const e of s.evels.records) {
         if (e.clock > note.head) break;
         if (e.clock === note.head && e.unitNo === u && e.kind === EventKind.ON) {
           evs.push({ clock: e.clock, kind: e.kind, value: e.value });
-          placed.push({ clock: e.clock, kind: e.kind });
         }
       }
     } else {
-      // 掴み / 開始調整: 対象は先頭クロックの KEY/VELOCITY/ON。
-      // 掴みでは残り (範囲内の KEY/VELOCITY) も一体で動かす (範囲内の ON は別ノートなので対象外)
-      const atHeadOnly = mode === "head";
+      // 掴み / 開始調整: ノートを構成するイベント (先頭の KEY/VELOCITY/ON +
+      // 範囲内の KEY/VELOCITY) を一体で扱う。範囲内の ON は別ノートなので対象外
       for (const e of s.evels.records) {
         if (e.clock >= note.end) break;
-        if (e.clock < note.head || (atHeadOnly && e.clock !== note.head)) continue;
+        if (e.clock < note.head) continue;
         if (e.unitNo !== u) continue;
         if (e.kind !== EventKind.KEY && e.kind !== EventKind.VELOCITY && e.kind !== EventKind.ON) continue;
         if (e.kind === EventKind.ON && e.clock !== note.head) continue;
         evs.push({ clock: e.clock, kind: e.kind, value: e.value });
-        placed.push({ clock: e.clock, kind: e.kind });
       }
       // 押した行の音程を担う KEY が無い (前の KEY の余韻) 場合、移動先に KEY を
-      // 補って音程を保存する (元の KEY は移動させないので対象 evs にだけ載せる)
+      // 補って音程を保存する (余韻元の KEY は動かせないためここで補う)
       if (!evs.some((e) => e.kind === EventKind.KEY && e.clock === note.head)) {
         evs.push({ clock: note.head, kind: EventKind.KEY, value: note.key });
       }
@@ -363,19 +358,17 @@ function beginSmartDrag(u: number, clock: number, row: number): KeyDrag {
     // 空き地: pen と同じく押下位置にスコープを立てる (試聴は beginDrag 側で行う)
     setScope(clock, clock + Math.max(1, doc.divi));
   }
-  return { button: 0, clock1: clock, clock2: clock, row, smart: { mode, note, evs, placed } };
+  return { button: 0, clock1: clock, clock2: clock, row, smart: { mode, note, evs } };
 }
 
 // スマートツールのドラッグ適用 (掴み移動 / 端調整)。
-// 前回配置分を消してノート (イベント群) を移動先に置き直す (毎回フル再配置)
+// ノートを「前回配置スパンの一括削除 → 新しい位置へ一括再配置」で更新する。
+// 1 クロック単位の個別削除は ON のテール連鎖処理と干渉して断片を残すため、
+// 範囲単位で入れ替えて毎回 1 個のノートとして保つ
 function applySmartDrag(u: number, d: KeyDrag, pt?: { x: number; y: number }): void {
   const st = d.smart!;
   const note = st.note!;
   const grid = beatGrid();
-
-  // 前回の配置を消す (初回は押下時の位置にある実在イベント)
-  for (const p of st.placed) deleteEvents(p.clock, p.clock + 1, u, p.kind);
-  st.placed = [];
 
   // 掴み移動の音程変化 (縦ドラッグ)。端の調整では音程を変えない。
   // 音程が変わったら新しい行の音を改めて試聴する (押下中サステインが切り替わる)
@@ -389,26 +382,38 @@ function applySmartDrag(u: number, d: KeyDrag, pt?: { x: number; y: number }): v
       if (focus >= 0) previewUnitHold(focus, rowToKeyValue(row), EVENTDEFAULT_VELOCITY);
     }
   }
-  const clockOffset = d.clock2 - d.clock1;
 
-  for (const ev of st.evs) {
-    const clock = ev.clock + (st.mode === "tail" ? 0 : clockOffset);
-    if (st.mode === "tail" && ev.kind === EventKind.ON) {
-      // 終了位置: 押下クロックまで延伸 / 縮小 (最短 1 グリッド)
-      const len = Math.max(grid, d.clock2 - note.head);
-      if (len !== ev.value) addEvent(clock, u, ev.kind, len);
-    } else {
-      if (clock < 0) continue; // 負クロックには置けない
-      let value = ev.value;
-      if (ev.kind === EventKind.KEY) {
-        // 音程は押下行との差で動かす (KEY 値は 0x8700 - row*0x100 のため行が
-        // 下がるほど減る。KEY 範囲 0..49151 にクランプ)
-        value = Math.max(0, Math.min(49151, ev.value - rowDelta * 0x100));
-      }
-      addEvent(clock, u, ev.kind, value);
-    }
-    st.placed.push({ clock, kind: ev.kind });
+  // 前回の配置位置 (初回は押下時のノート範囲) を丸ごと消してから載せ替える。
+  // KEY/VELOCITY/ON の削除は範囲 1 回ずつ (前の ON の切断は 1 回だけ起きる)
+  const prev = st.lastSpan ?? { head: note.head, end: note.end };
+  if (st.mode === "tail") {
+    // 終了調整: 開始位置 (KEY/VELOCITY も) はそのまま、ON の長さだけを
+    // 押下クロックまで延伸 / 縮小する (最短 1 グリッド)
+    deleteEvents(prev.head, Math.max(prev.head + 1, prev.end), u, EventKind.ON);
+    const len = Math.max(grid, d.clock2 - note.head);
+    addEvent(note.head, u, EventKind.ON, len);
+    st.lastSpan = { head: note.head, end: note.head + len };
+    return;
   }
+  // 掴み / 開始調整: ノート範囲の KEY/VELOCITY/ON を消して移動先へ載せ替える。
+  // 長さは変わらない (開始調整は先頭位置だけ動き、掴みは全体が動く)
+  for (const kind of [EventKind.KEY, EventKind.VELOCITY, EventKind.ON]) {
+    deleteEvents(prev.head, Math.max(prev.head + 1, prev.end), u, kind);
+  }
+  const clockOffset = d.clock2 - d.clock1;
+  const head = Math.max(0, note.head + clockOffset);
+  for (const ev of st.evs) {
+    const clock = ev.clock + clockOffset;
+    if (clock < 0) continue; // 負クロックには置けない
+    let value = ev.value;
+    if (ev.kind === EventKind.KEY) {
+      // 音程は押下行との差で動かす (KEY 値は 0x8700 - row*0x100 のため行が
+      // 下がるほど減る。KEY 範囲 0..49151 にクランプ)
+      value = Math.max(0, Math.min(49151, ev.value - rowDelta * 0x100));
+    }
+    addEvent(clock, u, ev.kind, value);
+  }
+  st.lastSpan = { head, end: head + (note.end - note.head) };
 }
 
 function applyDrag(d: KeyDrag, pt?: { x: number; y: number }): void {
@@ -486,9 +491,9 @@ const { onPointerDown, onPointerMove, onPointerUp } = useCanvasDrag<KeyDrag>({
     return null;
   },
   applyDrag,
-  // スマートの掴み / 端調整は縦方向 (音程) だけのドラッグでも適用する
+  // スマートの掴みは縦方向 (音程) だけのドラッグでも適用する (端の調整は横方向のみ)
   isMove(d, pt, clock) {
-    if (d.smart && d.smart.mode !== "write") return clock !== d.clock2 || rowAt(pt.y) !== d.row;
+    if (d.smart && d.smart.mode === "grab") return clock !== d.clock2 || rowAt(pt.y) !== d.row;
     return clock !== d.clock2;
   },
   onClick(d) {
