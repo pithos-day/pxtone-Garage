@@ -79,12 +79,6 @@ function timeLabel(): string {
   width: 38px;
 }
 
-.btn.on {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: var(--primary-foreground);
-}
-
 .sep {
   width: 1px;
   height: 18px;
@@ -128,11 +122,5 @@ function timeLabel(): string {
 .btn-sm {
   padding: 1px 8px;
   font-size: var(--text-sm);
-}
-
-.btn-sm.on {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: var(--primary-foreground);
 }
 </style>
