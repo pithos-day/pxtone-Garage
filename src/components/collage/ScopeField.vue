@@ -5,7 +5,7 @@
 // (逆方向のドラッグは setScope が小さい方を scope1 にする)
 <script setup lang="ts">
 import { ref } from "vue";
-import { ClipboardPaste, Copy, Eraser, ListPlus, Scissors, Trash2, ChevronsUpDown } from "@lucide/vue";
+import { ClipboardPaste, Copy, Eraser, ListPlus, Scissors, ArrowLeftToLine, ChevronsUpDown } from "@lucide/vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, drawPlayhead, drawScopeBand } from "../../lib/draw";
@@ -171,7 +171,7 @@ function onMenuAction(action: MenuAction): void {
         <button @click="onMenuAction('copy')"><span class="menu-icon"><Copy :size="14" /></span>{{ t("scope.copy") }}</button>
         <button @click="onMenuAction('cut')"><span class="menu-icon"><Scissors :size="14" /></span>{{ t("scope.cut") }}</button>
         <button @click="onMenuAction('clear')"><span class="menu-icon"><Eraser :size="14" /></span>{{ t("scope.clear") }}</button>
-        <button @click="onMenuAction('delete')"><span class="menu-icon"><Trash2 :size="14" /></span>{{ t("scope.delete") }}</button>
+        <button @click="onMenuAction('delete')"><span class="menu-icon"><ArrowLeftToLine :size="14" /></span>{{ t("scope.delete") }}</button>
         <button @click="onMenuAction('transpose')"><span class="menu-icon"><ChevronsUpDown :size="14" /></span>{{ t("scope.transpose") }}</button>
       </template>
     </div>
