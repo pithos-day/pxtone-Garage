@@ -34,7 +34,6 @@ import {
   deleteEvents,
   setEventValue,
   projectWriteOps,
-  setScope,
   pianoRollUnits,
   mutate,
   EVENTDEFAULT_VELOCITY,
@@ -407,10 +406,6 @@ function beginSmartDrag(u: number, clock: number, row: number, x: number): KeyDr
       }
     }
   }
-  if (mode === "write") {
-    // 空き地: pen と同じく押下位置にスコープを立てる (試聴は beginDrag 側で行う)
-    setScope(clock, clock + Math.max(1, doc.divi));
-  }
   return { button: 0, clock1: clock, clock2: clock, row, smart: { mode, note, evs, offset: 0, rowDelta: 0, lastDelta: 0 } };
 }
 
@@ -611,11 +606,8 @@ function applyDrag(d: KeyDrag, pt?: { x: number; y: number }): void {
   }
   const c1 = Math.min(d.clock1, d.clock2);
   const c2 = Math.max(d.clock1, d.clock2);
-  if (c2 <= c1) {
-    if (d.button === 0) setScope(c1, c1 + Math.max(1, doc.divi));
-    return;
-  }
-  setScope(c1, c2);
+  if (c2 <= c1) return;
+  // ピアノロールのドラッグでスコープを書き換えない (範囲選択は ScopeField 側)
   const value = rowToKeyValue(d.row);
   const keyOnly = doc.tool === "hand";
   if (d.button === 0) {
@@ -665,7 +657,6 @@ const { onPointerDown, onPointerMove, onPointerUp, drag: dragState } = useCanvas
         previewAt(pt.y);
         return d;
       }
-      setScope(clock, clock + Math.max(1, doc.divi));
       previewAt(pt.y);
       return { button: 0, clock1: clock, clock2: clock, row };
     }

@@ -23,7 +23,6 @@ import {
   getService,
   clockContext,
   projectWriteOps,
-  setScope,
   pinnedUnits,
   EVENTDEFAULT_VOLUME,
   EVENTDEFAULT_VELOCITY,
@@ -196,11 +195,8 @@ function applyDrag(d: LanesDrag): void {
   if (!s) return;
   const c1 = Math.min(d.clock1, d.clock2);
   const c2 = Math.max(d.clock1, d.clock2);
-  if (c2 <= c1) {
-    if (d.button === 0) setScope(c1, c1 + Math.max(1, doc.divi));
-    return;
-  }
-  setScope(c1, c2);
+  if (c2 <= c1) return;
+  // レーンのドラッグでスコープを書き換えない (範囲選択は ScopeField 側)
   const u = d.unit;
   if (d.button === 0) {
     writeNoteLength(projectWriteOps, c1, c2, u, EVENTDEFAULT_VELOCITY);
@@ -229,7 +225,6 @@ const { onPointerDown, onPointerMove, onPointerUp } = useCanvasDrag<LanesDrag>({
         previewAt(pt.x, pt.y);
         return { button: 0, clock1: clock, clock2: clock, unit: u };
       }
-      setScope(clock, clock + Math.max(1, doc.divi));
       previewAt(pt.x, pt.y);
       return { button: 0, clock1: clock, clock2: clock, unit: u };
     }
