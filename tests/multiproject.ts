@@ -38,6 +38,13 @@ import {
   setPlayEnd,
   setPlayRange,
   setRepeatMeas,
+  scopeCopy,
+  scopeCut,
+  scopeClear,
+  scopeDelete,
+  scopePaste,
+  scopeInsert,
+  scopeClipReady,
 } from "../src/state/project";
 import * as serviceMod from "../src/state/service";
 import { undo, redo, canUndo, canRedo } from "../src/state/undo";
@@ -1830,6 +1837,142 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(noises.value.length, 1, "replace: noise の初期タブが置き換わる");
     checkEq(openNoise(unnamedNoise, ""), null, "replace: 2つ目の無題 ptnoise を開く");
     checkEq(noises.value.length, 2, "replace: noise も2つ目は新しいタブになる");
+  }
+
+  // ---- 39. スコープ操作 (コピー / 切り取り / クリア / 消去 / 貼り付け / 挿入 / 移調) ----
+  {
+    // 直前のセクションが tune (再生専用) タブのままなので、編集可能な ptcop タブを用意する
+    // (tune の Service は evels 容量 0 のためレコードを積めず、readOnly で mutate も無効。
+    // ユニットが無いと commitEdit の sync → cleanupSelection が focusUnit を -1 に戻すため追加する)
+    newProjectInTab();
+    addUnit(); // unit0 (スコープ操作の対象)
+    addUnit(); // unit1 (対象外ユニットの確認用)
+
+    const s = serviceMod.service;
+    const kindsAt = (clock: number, unitNo: number, kind: EventKind) =>
+      getAllEvents().find((e) => e.clock === clock && e.unitNo === unitNo && e.kind === kind);
+    const keyOf = (clock: number, unitNo: number) => kindsAt(clock, unitNo, EventKind.KEY)?.value ?? -1;
+
+    // unit0 / unit1 にイベントを用意
+    doc.selectedUnits = [];
+    doc.focusUnit = 0;
+    doc.mode = "U";
+    doc.copier.fill(true);
+    s.evels.clear();
+    s.evels.recordAddI(0, 0, EventKind.KEY, 0x6000);
+    s.evels.recordAddI(0, 0, EventKind.VELOCITY, 64);
+    s.evels.recordAddI(0, 0, EventKind.ON, 480);
+    s.evels.recordAddI(480, 0, EventKind.KEY, 0x6100); // 範囲外 (詰められ側)
+    s.evels.recordAddI(240, 1, EventKind.VELOCITY, 80); // 対象外ユニット
+
+    // クリップボード初期状態 (何もないので貼り付けメニューが非活性)
+    checkEq(scopeClipReady(), false, "スコープ: 初期クリップボードは空");
+
+    // ---- クリア (範囲内を消す。後続は詰めない) ----
+    scopeClear(0, 240);
+    check("クリア: 範囲内の KEY が消える", !kindsAt(0, 0, EventKind.KEY));
+    check("クリア: 範囲内の VELOCITY が消える", !kindsAt(0, 0, EventKind.VELOCITY));
+    check("クリア: 範囲内の ON は丸ごと消える", !kindsAt(0, 0, EventKind.ON));
+    check("クリア: 後続は詰めない", keyOf(480, 0) === 0x6100);
+    check("クリア: 対象外ユニットは残る", kindsAt(240, 1, EventKind.VELOCITY)?.value === 80);
+
+    // ---- 消去 (消して詰める) ----
+    scopeDelete(0, 480);
+    check("消去: 後続のイベントが前に詰まる", keyOf(0, 0) === 0x6100);
+    check("消去: 対象外ユニットは詰めない", kindsAt(240, 1, EventKind.VELOCITY)?.value === 80);
+
+    // ---- コピー (単一ユニット) + 貼り付け ----
+    s.evels.recordAddI(240, 0, EventKind.ON, 720); // 末尾をまたぐ ON ([0,480) 内)
+    scopeCopy(0, 480);
+    checkEq(scopeClipReady(), true, "コピー: クリップボードに載る");
+    scopePaste(960);
+    check("貼り付け: KEY が載る", keyOf(960, 0) === 0x6100);
+    checkEq(kindsAt(1200, 0, EventKind.ON)?.value, 240, "貼り付け: ON は範囲末尾でクリップされる (長さ = 480 - clock)");
+    check(
+      "貼り付け: 対象外ユニットは載らない",
+      getAllEvents().filter((e) => e.unitNo === 1).length === 1 &&
+        kindsAt(240, 1, EventKind.VELOCITY)?.value === 80,
+    );
+
+    // 書き込み領域の既存イベントは種別ごとに消してから載る (上書き貼り付け)
+    s.evels.recordAddI(960, 0, EventKind.VELOCITY, 128);
+    s.evels.recordAddI(1440, 0, EventKind.VELOCITY, 99); // 領域外は消えない
+    scopePaste(960);
+    check("貼り付け: 上書きでクリップに無い VELOCITY も領域内から消える", !kindsAt(960, 0, EventKind.VELOCITY));
+    checkEq(kindsAt(1440, 0, EventKind.VELOCITY)?.value, 99, "貼り付け: 領域外の既存イベントは消えない");
+
+    // ---- 種別フィルタ (コピーパネル) ----
+    s.evels.clear();
+    s.evels.recordAddI(0, 0, EventKind.KEY, 0x6000);
+    s.evels.recordAddI(0, 0, EventKind.ON, 480);
+    doc.copier.fill(true);
+    doc.copier[0] = false; // ON を外す (ON はコピーしない)
+    scopeCopy(0, 480);
+    scopePaste(960);
+    check("フィルタ: KEY は載る", keyOf(960, 0) === 0x6000);
+    check("フィルタ: ON は載らない", !kindsAt(960, 0, EventKind.ON));
+    doc.copier.fill(true);
+
+    // ---- 切り取り (フィルタなしコピー + 消去 + コピーパネル全 ON) ----
+    scopeCut(0, 480);
+    check("切り取り: 範囲のイベントが消える", !kindsAt(0, 0, EventKind.KEY) && !kindsAt(0, 0, EventKind.ON));
+    check("切り取り: 内容はクリップボードへ", scopeClipReady());
+    checkEq(doc.copier.every((v) => v), true, "切り取り: コピーパネルが全 ON になる");
+    scopeInsert(0);
+    check("切り取り+挿入: 位置 0 に戻せる", keyOf(0, 0) === 0x6000);
+
+    // ---- 単一ユニットコピーの振り直し (フォーカスユニット変更) ----
+    s.evels.clear();
+    s.evels.recordAddI(0, 0, EventKind.KEY, 0x6000);
+    s.evels.recordAddI(0, 0, EventKind.ON, 480);
+    doc.focusUnit = 1;
+    scopeCopy(0, 480); // unit1 (フォーカス) の範囲には何もない → 空
+    checkEq(scopeClipReady(), false, "振り直し: フォーカス外のイベントはコピーされない");
+    doc.focusUnit = 0;
+    scopeCopy(0, 480);
+    checkEq(keyOf(0, 0), 0x6000, "振り直し: コピーしても元ユニットは編集されない");
+    doc.focusUnit = 1;
+    scopePaste(960);
+    check("振り直し: 単独コピーはフォーカスユニットに載る", kindsAt(960, 1, EventKind.KEY)?.value === 0x6000);
+
+    // ---- 移調 (KEY 値 0x100/半音、加算は上限クランプ) ----
+    doc.focusUnit = 0;
+    s.evels.clear();
+    s.evels.recordAddI(0, 0, EventKind.KEY, 0x6000);
+    changeEventValue(0, 480, EventKind.KEY, 3 * 0x100); // +3 半音
+    checkEq(keyOf(0, 0), 0x6000 + 3 * 0x100, "移調: +3 半音");
+    changeEventValue(0, 480, EventKind.KEY, -3 * 0x100);
+    checkEq(keyOf(0, 0), 0x6000, "移調: -3 半音で戻る");
+    changeEventValue(0, 480, EventKind.KEY, 999 * 0x100);
+    checkEq(keyOf(0, 0), 49151, "移調: KEY 値は上限でクランプ");
+    changeEventValue(0, 480, EventKind.KEY, -999 * 0x100);
+    checkEq(keyOf(0, 0), 0, "移調: KEY 値は下限でクランプ");
+
+    // ---- 挿入 (後続をずらして空いた位置へ貼る) ----
+    s.evels.clear();
+    s.evels.recordAddI(0, 0, EventKind.KEY, 0x6000);
+    s.evels.recordAddI(0, 0, EventKind.ON, 480);
+    s.evels.recordAddI(240, 1, EventKind.VELOCITY, 80); // 対象外ユニット (動かない)
+    scopeCopy(0, 480);
+    s.evels.recordAddI(480, 0, EventKind.KEY, 0x6100); // 挿入位置の後続 (ずらされる側)
+    scopeInsert(480);
+    check("挿入: 貼り付け位置に載る", keyOf(480, 0) === 0x6000);
+    checkEq(keyOf(960, 0), 0x6100, "挿入: 後続が幅分ずれる (KEY@480 → 960)");
+    checkEq(kindsAt(240, 1, EventKind.VELOCITY)?.value, 80, "挿入: 対象外ユニットは動かない");
+
+    // ---- 切り取りの undo ----
+    s.evels.clear();
+    s.evels.recordAddI(0, 0, EventKind.KEY, 0x6000);
+    scopeCut(0, 240);
+    check("切り取り: undo 前に消えている", !kindsAt(0, 0, EventKind.KEY));
+    check("切り取り: undo できる", undo());
+    checkEq(keyOf(0, 0), 0x6000, "切り取り: undo で戻る");
+
+    // 後続テストのため編集対象とコピーパネルを戻す
+    doc.focusUnit = -1;
+    doc.selectedUnits = [];
+    doc.copier.fill(true);
+    doc.mode = "U";
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);

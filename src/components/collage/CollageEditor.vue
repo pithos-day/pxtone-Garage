@@ -31,7 +31,10 @@ import { t } from "../../i18n";
 const props = defineProps<{ active: boolean }>();
 
 // 音色トレイの「音色を編集」で、開いた先のエディタモードへタブを移動する
-const emit = defineEmits<{ (e: "open-editor", mode: "voice" | "noise"): void }>();
+const emit = defineEmits<{
+  (e: "open-editor", mode: "voice" | "noise"): void;
+  (e: "transpose"): void;
+}>();
 
 ensureInit();
 
@@ -104,7 +107,7 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
             <div class="collage-ruler-col">
               <MeasNoField />
               <PlayField />
-              <ScopeField />
+              <ScopeField @transpose="emit('transpose')" />
             </div>
             <div class="collage-ruler-vspacer" />
           </div>

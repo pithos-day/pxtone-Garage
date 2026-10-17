@@ -1,10 +1,16 @@
 // イベント音量ダイアログ (本家の dlg_EventVolume 相当)。
-// ベロシティ / パン(時間差) / パン(音量) / ボリューム の値を範囲内で加算する。
+// ベロシティ / パン(時間差) / パン(音量) / ボリューム / 移調 の値を範囲内で加算する。
+// 移調 (キーイベント一括変更) は入力 1 = 半音 (KEY 値 0x100)
 <script setup lang="ts">
 import { computed, reactive } from "vue";
 import { changeEventValue, clockContext } from "../../state/project";
 import { measBeatClockToClock } from "../../lib/clock";
-import { EVENT_VOLUME_KINDS, EVENT_VOLUME_TITLES, type EventVolumeMode } from "../../lib/eventVolume";
+import {
+  EVENT_VOLUME_KINDS,
+  EVENT_VOLUME_TITLES,
+  EVENT_VOLUME_VALUE_SCALE,
+  type EventVolumeMode,
+} from "../../lib/eventVolume";
 import { useScopeRangeForm } from "../../composables/useScopeRangeForm";
 import { t } from "../../i18n";
 import ModalDialog from "./ModalDialog.vue";
@@ -24,13 +30,15 @@ const form = reactive({
 });
 
 const title = computed(() => t(EVENT_VOLUME_TITLES[props.kind]));
+// 移調の単位は半音 (他モードはイベント値そのもの) をヒントに出す
+const hint = computed(() => (props.kind === "transpose" ? t("eventvolume.semi") : "-96..96"));
 
 useScopeRangeForm(form);
 
 function onSubmit(): void {
   const c1 = measBeatClockToClock(clockContext(), form.fromMeas, form.fromBeat, form.fromClock);
   const c2 = measBeatClockToClock(clockContext(), form.toMeas, form.toBeat, form.toClock);
-  changeEventValue(c1, c2, EVENT_VOLUME_KINDS[props.kind], form.value);
+  changeEventValue(c1, c2, EVENT_VOLUME_KINDS[props.kind], form.value * EVENT_VOLUME_VALUE_SCALE[props.kind]);
   emit("close");
 }
 </script>
@@ -54,7 +62,7 @@ function onSubmit(): void {
     <div class="row">
       <label>{{ t("eventvolume.value") }}</label>
       <input v-model.number="form.value" type="number" min="-96" max="96" />
-      <span class="hint">-96..96</span>
+      <span class="hint">{{ hint }}</span>
     </div>
     <template #buttons>
       <button class="btn btn-accent" @click="onSubmit">{{ t("common.ok") }}</button>

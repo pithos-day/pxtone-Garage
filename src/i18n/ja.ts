@@ -41,6 +41,7 @@ const ja = {
   "menu.edit.pantime": "パン (時間差)",
   "menu.edit.panvolume": "パン (音量)",
   "menu.edit.volume": "ボリューム",
+  "menu.edit.transpose": "移調",
 
   // 小節コピー / イベント音量ダイアログ
   "copymeas.title": "小節コピー",
@@ -53,6 +54,7 @@ const ja = {
   "copymeas.clock": "クロック",
   "copymeas.kinds": "イベント",
   "eventvolume.value": "加算値",
+  "eventvolume.semi": "半音 (-96..96)",
 
   // メニュー: View
   "menu.view.showAllUnits": "全ユニット表示",
@@ -161,6 +163,15 @@ const ja = {
   "playfield.setEnd": "End をここに設定",
   "playfield.clearStart": "Start をクリア",
   "playfield.clearEnd": "End をクリア",
+
+  // スコープフィールドのコンテキストメニュー
+  "scope.paste": "貼り付け",
+  "scope.insert": "挿入",
+  "scope.copy": "コピー",
+  "scope.cut": "切り取り",
+  "scope.clear": "クリア",
+  "scope.delete": "消去",
+  "scope.transpose": "移調",
 
   // 音声エディタ (ptVoice)
   "voice.title": "ptvoice 音色エディタ",
