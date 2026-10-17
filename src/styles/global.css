@@ -94,11 +94,9 @@ body {
   cursor: default;
 }
 
-/* 切替状態 (モードタブ・ツールなど) の選択表示。縁を primary で強調する */
+/* 切替状態 (モードタブ・ツールなど) の選択表示。縁だけを primary で強調する */
 .btn.on {
-  background: color-mix(in srgb, var(--primary) 15%, var(--background));
   border-color: var(--primary);
-  color: var(--foreground);
 }
 
 .btn-accent {
