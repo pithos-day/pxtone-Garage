@@ -24,7 +24,7 @@ export interface ProjectState {
   scope2: number;
   volumeVisible: boolean;
   volumeMode: number;
-  tool: "pen" | "hand";
+  tool: "pen" | "hand" | "smart";
   muted: number[];
   unitVisible: boolean[];
   unitPinned: boolean[];

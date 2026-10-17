@@ -106,6 +106,7 @@ const ja = {
   "unit.play": "再生",
   "unit.pin": "ピン留め (上部に固定)",
   "unit.solo": "ソロ (他ユニットをミュート)",
+  "unit.smart": "スマート",
   "unit.pen": "ペン",
   "unit.hand": "ハンド",
   "unit.editName": "名前を編集",

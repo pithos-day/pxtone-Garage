@@ -21,8 +21,11 @@ export interface CanvasDragOptions<T extends CanvasDragState> {
   // pointerdown: ドラッグを開始する場合に初期状態を返し、それ以外は null を返す
   // (ルーラー帯シーク・鍵盤試聴・インライン入力などはここで完結させる)
   beginDrag(e: PointerEvent, pt: { x: number; y: number }): T | null;
-  // ドラッグ中のイベント書き換え (x2 が変わったときのみ呼ばれる)
+  // ドラッグ中のイベント書き換え (isMove が true を返したときに呼ばれる)
   applyDrag(d: T, pt: { x: number; y: number }, e: PointerEvent): void;
+  // applyDrag を実行するかの判定 (省略時は clock が動いたとき)。
+  // 縦方向だけの移動で適用するツール (スマートのノート移動) で用いる
+  isMove?(d: T, pt: { x: number; y: number }, clock: number): boolean;
   // ドラッグを伴わないクリック時 (undo が積まれていない場合のみ呼ばれる)
   onClick?(d: T, e: PointerEvent): void;
   // pointerup 時の後始末 (試聴サステインの停止など)
@@ -56,7 +59,8 @@ export function useCanvasDrag<T extends CanvasDragState>(options: CanvasDragOpti
     if (!d) return;
     const pt = fieldOffset(options.canvasRef.value!, e);
     const clock = options.clockAt(pt.x);
-    if (clock === d.clock2) return;
+    const moved = options.isMove ? options.isMove(d, pt, clock) : clock !== d.clock2;
+    if (!moved) return;
     // 最初の移動時に undo を積む (クリックのみなら積まない)
     if (!options.undoOnDown) dragUndo.onFirstMove();
     d.clock2 = clock;
