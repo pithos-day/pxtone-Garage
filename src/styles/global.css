@@ -94,8 +94,9 @@ body {
   cursor: default;
 }
 
-/* 切替状態 (モードタブ・ツールなど) の選択表示。縁だけを primary で強調する */
-.btn.on {
+/* モード切替ボタンの選択表示 (値切替のループ/パネル開閉などは塗り表示のまま別扱い)。
+   mode クラス付きのボタンは縁だけを primary で強調する */
+.btn.mode.on {
   border-color: var(--primary);
 }
 

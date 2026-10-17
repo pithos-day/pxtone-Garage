@@ -456,8 +456,8 @@ function canvasRect(ref: { value: HTMLCanvasElement | null }): { el: HTMLCanvasE
     <div class="vsp-header">
       <span class="vsp-side">{{ side === 0 ? t("voice.sideA") : t("voice.sideB") }}</span>
       <div class="vsp-wavetype">
-        <button class="btn btn-sm" :class="{ on: waveType === 'coord' }" @click="setWaveType('coord')">Coordinate</button>
-        <button class="btn btn-sm" :class="{ on: waveType === 'overtone' }" @click="setWaveType('overtone')">Oscillator</button>
+        <button class="btn btn-sm mode" :class="{ on: waveType === 'coord' }" @click="setWaveType('coord')">Coordinate</button>
+        <button class="btn btn-sm mode" :class="{ on: waveType === 'overtone' }" @click="setWaveType('overtone')">Oscillator</button>
       </div>
       <div class="vsp-presets">
         <button

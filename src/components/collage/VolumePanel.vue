@@ -12,7 +12,7 @@ defineProps<{ modes: string[] }>();
     <button
       v-for="(m, i) in modes"
       :key="m"
-      class="btn btn-sm vol-mode"
+      class="btn btn-sm vol-mode mode"
       :class="{ on: doc.volumeMode === i }"
       :title="m"
       @click="doc.volumeMode = i"

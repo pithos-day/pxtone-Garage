@@ -25,8 +25,8 @@ async function onAddWoice(): Promise<void> {
 <template>
   <div class="toolpanel">
     <div class="tool-mode">
-      <button class="btn btn-sm" :class="{ on: doc.mode === 'W' }" :title="t('tool.woiceManage')" @click="doc.mode = 'W'"><Music2 :size="16" /></button>
-      <button class="btn btn-sm" :class="{ on: doc.mode === 'U' }" :title="t('tool.unitManage')" @click="doc.mode = 'U'"><Piano :size="16" /></button>
+      <button class="btn btn-sm mode" :class="{ on: doc.mode === 'W' }" :title="t('tool.woiceManage')" @click="doc.mode = 'W'"><Music2 :size="16" /></button>
+      <button class="btn btn-sm mode" :class="{ on: doc.mode === 'U' }" :title="t('tool.unitManage')" @click="doc.mode = 'U'"><Piano :size="16" /></button>
     </div>
     <div class="tool-buttons">
       <template v-if="doc.mode === 'W'">
