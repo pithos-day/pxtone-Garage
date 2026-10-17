@@ -321,9 +321,14 @@ function beginSmartDrag(u: number, clock: number, row: number): KeyDrag {
   const placed: SmartState["placed"] = [];
   let mode: SmartMode = "write";
   if (note) {
-    if (note.end - note.head > grid) {
+    if (note.end - note.head > grid * 2) {
+      // 両端 1 グリッドを端の調整にし、その間を掴みにする (3 グリッド以上)
       if (clock === note.head) mode = "head";
       else if (clock >= note.end - grid) mode = "tail";
+      else mode = "grab";
+    } else {
+      // 2 グリッド以下の短いノートは常に掴み (両端と掴みの判別がつかないため)
+      mode = "grab";
     }
     if (mode === "tail") {
       // 終了調整: ON の長さだけを書き換える
@@ -396,8 +401,9 @@ function applySmartDrag(u: number, d: KeyDrag, pt?: { x: number; y: number }): v
       if (clock < 0) continue; // 負クロックには置けない
       let value = ev.value;
       if (ev.kind === EventKind.KEY) {
-        // 音程は押下行との差で動かす (KEY 範囲 0..49151 にクランプ)
-        value = Math.max(0, Math.min(49151, ev.value + rowDelta * 0x100));
+        // 音程は押下行との差で動かす (KEY 値は 0x8700 - row*0x100 のため行が
+        // 下がるほど減る。KEY 範囲 0..49151 にクランプ)
+        value = Math.max(0, Math.min(49151, ev.value - rowDelta * 0x100));
       }
       addEvent(clock, u, ev.kind, value);
     }
