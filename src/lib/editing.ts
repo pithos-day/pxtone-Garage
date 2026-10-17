@@ -12,6 +12,32 @@ export interface EventWriteOps {
   setEventValue(c1: number, c2: number, unit: number, kind: EventKind, value: number): void;
 }
 
+// テール連鎖処理 (recordAddI) は直前の ON を挿入クロックで切り詰める。
+// 残りが minLen 未満になる断片は隣のノートに張り付いて超短いノートとして
+// 残る (見た目上重なって見える) ため、切り詰めで微小になるノートは
+// 切り詰める代わりに丸ごと消す。records は呼び出し直前のレコード列、
+// clock は新ノートの挿入位置 (先頭) とする。minLen に大きい値を渡すと
+// またぐ直前ノートを常に丸ごと消す (掴みのドロップは完全置き換えのため)
+export function dropShortPrevNote(
+  ops: EventWriteOps,
+  records: { clock: number; unitNo: number; kind: number; value: number }[],
+  clock: number,
+  unit: number,
+  minLen: number,
+): void {
+  let prev: { clock: number; value: number } | null = null;
+  for (const e of records) {
+    if (e.unitNo !== unit || e.kind !== EventKind.ON) continue;
+    if (e.clock >= clock) break;
+    prev = e;
+  }
+  // 挿入位置をまたぐ直前ノートのみ対象 (またがないなら切り詰めも起きない)
+  if (!prev || prev.clock + prev.value <= clock || clock - prev.clock >= minLen) return;
+  for (const kind of [EventKind.KEY, EventKind.VELOCITY, EventKind.ON]) {
+    ops.deleteEvents(prev.clock, prev.clock + 1, unit, kind);
+  }
+}
+
 // 音符 (KEY+ON+VELOCITY) を範囲に書き込む (ピアノロールの左ドラッグ)。
 // KEY は先頭クロックに 1 個、ON は長さ c2-c1 で先頭に置く
 export function writeNote(
