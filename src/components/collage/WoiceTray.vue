@@ -1,7 +1,7 @@
 // 音色リスト (W モード)。型別色分け、選択、削除、並べ替え
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { Download, FileSearch2, SquarePen, Replace, Trash2 } from "@lucide/vue";
+import { Download, FileSearch2, SquarePen, RefreshCw, Trash2 } from "@lucide/vue";
 import {
   doc,
   woices,
@@ -162,7 +162,7 @@ function woiceSummary(idx: number): string {
       <button @click="onMenuAction('save')"><span class="menu-icon"><Download :size="14" /></span>{{ t("woice.save") }}</button>
       <template v-if="!doc.readOnly">
         <button v-if="menuHasEditor" @click="onMenuAction('edit')"><span class="menu-icon"><SquarePen :size="14" /></span>{{ t("woice.edit") }}</button>
-        <button @click="onMenuAction('replace')"><span class="menu-icon"><Replace :size="14" /></span>{{ t("woice.replace") }}</button>
+        <button @click="onMenuAction('replace')"><span class="menu-icon"><RefreshCw :size="14" /></span>{{ t("woice.replace") }}</button>
         <button class="danger" @click="onMenuAction('remove')"><span class="menu-icon"><Trash2 :size="14" /></span>{{ t("common.delete") }}</button>
       </template>
     </div>
