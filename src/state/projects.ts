@@ -238,21 +238,14 @@ export function openProjectInTab(bytes: Uint8Array, name?: string): string | nul
   const p = newProjectInTab(isTune ? "tune" : "ptcop");
   const svc = services.get(p.id)!;
 
-  if (isTune) {
-    // pttune: beatClock≠480 でも DENY にならない
-    const res = svc.read(new MemoryIo(bytes));
-    if (res !== PxtnErr.OK) {
-      closeProject(p.id);
-      return pxtnErrorMessage(res);
-    }
-    p.tuneBytes = toArrayBuffer(bytes);
-  } else {
-    const res = svc.read(new MemoryIo(bytes));
-    if (res !== PxtnErr.OK) {
-      closeProject(p.id);
-      return pxtnErrorMessage(res);
-    }
+  // pttune は beatClock≠480 でも DENY にならない
+  const res = svc.read(new MemoryIo(bytes));
+  if (res !== PxtnErr.OK) {
+    closeProject(p.id);
+    return pxtnErrorMessage(res);
   }
+  // tune は再シリアライズできないため、元バイト列を保持して再生に使う
+  if (isTune) p.tuneBytes = toArrayBuffer(bytes);
 
   if (name) {
     p.fileName = name;
