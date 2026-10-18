@@ -2115,6 +2115,14 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(await addWoice(buildPcmWav(), WoiceType.PCM, "Prop"), null, "woiceprop: PCM音色を追加");
     const pIdx = serviceMod.service.woiceNum - 1;
 
+    // 名前の 16 バイト切り詰めは 2 バイト文字を分断しない (本家 pxShiftJIS_check_size 相当)
+    {
+      const longName = "ｱ" + "あ".repeat(8); // 1 + 16 バイト (16 バイト目で「あ」が分断される)
+      checkEq(await addWoice(buildPcmWav(), WoiceType.PCM, longName), null, "woiceprop: 17 バイトの名前で音色を追加");
+      const wLong = serviceMod.service.woiceGet(serviceMod.service.woiceNum - 1)!;
+      checkEq(woiceNameRaw(wLong), "ｱ" + "あ".repeat(7), "woiceprop: 2 バイト文字を分断せず 16 バイトで切り詰める");
+    }
+
     // 名前 / tuning / basic key / フラグをまとめて変更
     setWoiceProperties(pIdx, {
       name: "あいうえおかきくけこ",

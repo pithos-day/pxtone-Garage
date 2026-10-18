@@ -664,8 +664,10 @@ async function readWoiceFileInto(idx: number, bytes: Uint8Array, type: WoiceType
     mutate(() => {
       const res = service.woiceRead(idx, new MemoryIo(chunk), type);
       if (res !== PxtnErr.OK) return pxtnErrorMessage(res);
-      // 名前は本家形式 (ShiftJIS・最大 16 バイト) で設定する
-      if (name) service.woiceGet(idx)?.setNameBuf(encodeShiftJis(name), 16);
+      // 名前は本家形式 (ShiftJIS・最大 16 バイト) で設定する。
+      // 2 バイト文字の途中で切れないよう truncateShiftJis を通す
+      // (setNameBuf の bufSize はバイト数で切るだけなので、そのまま渡すと壊れた文字が残る)
+      if (name) service.woiceGet(idx)?.setNameBuf(truncateShiftJis(encodeShiftJis(name), 16), 16);
       return null;
     }) ?? null
   );

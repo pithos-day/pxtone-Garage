@@ -6,7 +6,7 @@
 import { Service, PxtnErr, MemoryIo, SEEK_SET, EventKind, WoiceType, PXTN_MAX_EVENT_NUM } from "pxtone-ts";
 import { EXE_VER } from "../state/service";
 import { createDefaultWoice } from "../state/voice";
-import { encodeShiftJis } from "../lib/sjis";
+import { encodeShiftJis, truncateShiftJis } from "../lib/sjis";
 
 // クロック/拍 (ptcop は beatClock=480 固定)
 const CLOCK_PER_BEAT = 480;
@@ -334,7 +334,7 @@ export function convertMidiToPtcop(bytes: Uint8Array, options: MidiConvertOption
     if (s.woiceRead(i, wio, WoiceType.PTV) !== PxtnErr.OK) return null;
     // 名前は woiceRead 後に service 側の woice に設定する
     // (ptvWrite には名前が含まれず、woiceRead が新しい Woice を作成するため)
-    s.woiceGet(i)?.setNameBuf(encodeShiftJis(woiceName), 16);
+    s.woiceGet(i)?.setNameBuf(truncateShiftJis(encodeShiftJis(woiceName), 16), 16);
     channelToWoiceIdx.set(ch, i);
   }
 
