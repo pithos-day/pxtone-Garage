@@ -181,7 +181,8 @@ function onClose(id: number): void {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--muted-foreground);
+  /* タブタイトルと同色にする (非アクティブ/ホバー/アクティブの各状態に追従) */
+  color: inherit;
   padding: 0 3px;
   border-radius: 2px;
   flex: none;
