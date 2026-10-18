@@ -37,6 +37,7 @@ import {
   enveDeletePoint,
   enveSetHeadPointX,
   applyWavePreset,
+  applyWaveTypeData,
   WAVE_PRESET_LABELS,
   WAVE_PRESET_TITLES,
 } from "../../state/voice";
@@ -151,31 +152,17 @@ function resetRelease(): void {
   });
 }
 
-// ---- 波形タイプ切替 (本家同様、切替時に波形をリセットする) ----
+// ---- 波形タイプ切替 (本家 ptuiWaveHead::_set_wave_tool 準拠。切替時に波形とボリュームをリセット) ----
 function setWaveType(type: "coord" | "overtone"): void {
   if (waveType.value === type) return;
-  waveType.value = type;
+  // 本家同様、切替前に確認する (波形とボリュームが初期値に戻るため)
+  if (!window.confirm(t("confirm.waveType"))) return;
   editVoice(() => {
     const c = currentVoiceUnit();
     if (!c) return;
-    if (type === "overtone") {
-      c.type = VoiceType.Overtone;
-      c.wave.reso = 0;
-      c.wave.num = 31;
-      c.wave.points = [];
-      for (let i = 0; i < 31; i++) c.wave.points.push({ x: i + 1, y: 0 });
-      c.wave.points[0]!.y = 128;
-    } else {
-      c.type = VoiceType.Coodinate;
-      c.wave.reso = 256;
-      c.wave.num = 3;
-      c.wave.points = [
-        { x: 0, y: 0 },
-        { x: 64, y: 64 },
-        { x: 192, y: -64 },
-      ];
-    }
+    applyWaveTypeData(c, type);
   });
+  waveType.value = type;
   // スライダー (points 配列) を新しい波形に更新する
   touch();
 }

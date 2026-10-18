@@ -70,6 +70,7 @@ import {
   enveDeletePoint,
   enveSetHeadPointX,
   applyWavePreset,
+  applyWaveTypeData,
   copyVoiceSide,
   snapshotVoice,
   openWoiceAsVoice,
@@ -697,6 +698,23 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(w.getVoice(0)!.wave.reso, 256, "voice: 座標分解能 256");
     checkEq(w.getVoice(0)!.envelope.fps, 1000, "voice: エンベロープ fps 1000");
     checkEq(projects.value.length, pCount, "voice: コラージュのタブ数は変わらない");
+
+    // 波形タイプ切替 (本家 ptuiWaveHead::_set_wave_tool 準拠): 波形リセット + ボリューム 64/32
+    {
+      const wt = createDefaultWoice();
+      const c0 = wt.getVoice(0)!;
+      applyWaveTypeData(c0, "overtone");
+      checkEq(c0.type, VoiceType.Overtone, "waveType: 倍音へ切替");
+      checkEq(c0.volume, 32, "waveType: 倍音のボリュームは 32 (本家準拠)");
+      checkEq(c0.wave.num, 31, "waveType: 倍音は 31 点");
+      checkEq(c0.wave.points[0]!.y, 128, "waveType: 倍音の先頭は 128");
+      c0.volume = 100;
+      applyWaveTypeData(c0, "coord");
+      checkEq(c0.type, VoiceType.Coodinate, "waveType: 座標へ切替");
+      checkEq(c0.volume, 64, "waveType: 座標のボリュームは 64 に戻る (本家準拠)");
+      checkEq(c0.wave.reso, 256, "waveType: 座標の分解能は 256");
+      checkEq(c0.wave.num, 3, "waveType: 座標は 3 点");
+    }
 
     editVoice(() => {
       w.getVoice(0)!.volume = 100;

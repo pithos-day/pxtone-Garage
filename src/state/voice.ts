@@ -349,6 +349,30 @@ export function applyWavePreset(vc: VoiceUnit, preset: WavePreset): void {
   else presetCoodinate(vc, preset);
 }
 
+// 波形タイプの切替。本家 ptuiWaveHead::_set_wave_tool 準拠で波形を既定値へ戻し、
+// ボリュームを 座標=64 / 倍音=32 にリセットする (本家 WoiceUnit::default_* 相当)
+export function applyWaveTypeData(vc: VoiceUnit, type: "coord" | "overtone"): void {
+  if (type === "overtone") {
+    vc.type = VoiceType.Overtone;
+    vc.wave.reso = 0;
+    vc.wave.num = WAVE_POINT_MAX;
+    vc.wave.points = [];
+    for (let i = 0; i < WAVE_POINT_MAX; i++) vc.wave.points.push({ x: i + 1, y: 0 });
+    vc.wave.points[0]!.y = 128;
+    vc.volume = 32;
+  } else {
+    vc.type = VoiceType.Coodinate;
+    vc.wave.reso = WAVE_RESO;
+    vc.wave.num = 3;
+    vc.wave.points = [
+      { x: 0, y: 0 },
+      { x: 64, y: 64 },
+      { x: 192, y: -64 },
+    ];
+    vc.volume = 64;
+  }
+}
+
 // ---- A/B 面コピー (本家 WoiceUnit::copy_ptv_voice / _copy_voice 準拠) ----
 export function copyVoiceSide(srcIdx: number, dstIdx: number): void {
   editVoice(() => {
