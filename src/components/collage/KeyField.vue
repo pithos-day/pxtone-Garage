@@ -508,8 +508,6 @@ function commitSmartDrag(u: number, d: KeyDrag): void {
   }
 }
 
-// スマートドラッグのゴースト (確定後の配置) 描画。
-// 配置計算は commitSmartDrag と同じ規則にする (見た目と実際の確定が一致するため)
 // pen / スマート書き込みドラッグの確定前ノート (ゴースト) 描画。
 // ドラッグ中はイベント列を触らないため、[押下..現在] の範囲に置くノートを予告として描く
 function drawNoteGhost(ctx: CanvasRenderingContext2D, d: KeyDrag, field: FieldCtx, unitNo: number): void {
@@ -531,6 +529,8 @@ function drawNoteGhost(ctx: CanvasRenderingContext2D, d: KeyDrag, field: FieldCt
   ctx.restore();
 }
 
+// スマートドラッグのゴースト (確定後の配置) 描画。
+// 配置計算は commitSmartDrag と同じ規則にする (見た目と実際の確定が一致するため)
 function drawSmartGhost(ctx: CanvasRenderingContext2D, d: KeyDrag, field: FieldCtx, unitNo: number): void {
   const st = d.smart!;
   const note = st.note!;
