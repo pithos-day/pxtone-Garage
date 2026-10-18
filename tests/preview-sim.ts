@@ -49,6 +49,10 @@ class FakeContext {
   destination = {};
   sources: FakeSource[] = [];
   params: FakeParam[] = [];
+  // destination へ接続されたゲイン (音量ゲイン) と、他のゲインへ挟まったゲイン
+  // (開始フェード用)。ソースごとに 1 個ずつ増える
+  destParams: FakeParam[] = [];
+  innerParams: FakeParam[] = [];
   // createBuffer に渡されたサンプルレート (PCM の実レートを検証するため記録)
   bufferSps: number[] = [];
   // createBuffer で作られたチャンネルデータ (フェード/クロスフェードの検証用)
@@ -62,10 +66,16 @@ class FakeContext {
     this.buffers.push(data);
     return { getChannelData: (i: number) => data[i]! };
   }
-  createGain(): { gain: FakeParam; connect: () => void } {
+  createGain(): { gain: FakeParam; connect: (dst?: unknown) => void } {
     const g = new FakeParam();
     this.params.push(g);
-    return { gain: g, connect: () => {} };
+    return {
+      gain: g,
+      connect: (dst?: unknown) => {
+        if (dst === this.destination) this.destParams.push(g);
+        else this.innerParams.push(g);
+      },
+    };
   }
   createBufferSource(): FakeSource {
     const s = new FakeSource();
@@ -77,6 +87,16 @@ class FakeContext {
 declare global {
   // eslint-disable-next-line no-var
   var AudioContext: new () => FakeContext;
+}
+
+// 1 ソースにつきゲインは 2 個できる (音量ゲイン → 開始フェード用ゲインの順)。
+// 索引ではなく接続先で引くことで、フェード用ゲインが無くなっても音量ゲインの検証は壊れない
+function volumeGain(ctx: FakeContext, srcIndex: number): FakeParam {
+  return ctx.destParams[srcIndex]!;
+}
+
+function attackGain(ctx: FakeContext, srcIndex: number): FakeParam | null {
+  return ctx.innerParams[srcIndex] ?? null;
 }
 let lastCtx: FakeContext | null = null;
 globalThis.AudioContext = class extends FakeContext {
@@ -235,7 +255,7 @@ void (async () => {
     previewWoiceObjectHold(w, 64, 104);
     await flush();
     const srcA = lastCtx.sources[0]!;
-    const gA = lastCtx.params[0]!;
+    const gA = volumeGain(lastCtx, 0);
     assert(srcA.stopCalls >= 1, "B: A への stop がスケジュールされる");
     // stopFadingSource は即時 gain=0 ではなく短いフェードで消す (プツッ防止)
     const rampA = gA.events.filter((e) => e.type === "ramp");
@@ -245,17 +265,48 @@ void (async () => {
     previewWoiceObjectHold(w, 67, 104);
     await flush();
     const srcB = lastCtx.sources[1]!;
-    const gB = lastCtx.params[1]!;
+    const gB = volumeGain(lastCtx, 1);
     assert(srcB.stopCalls >= 1, "C: B への stop がスケジュールされる");
     const rampB = gB.events.filter((e) => e.type === "ramp");
     assert(rampB.length >= 1 && rampB.at(-1)!.value === 0, "C: B のゲインがフェードアウトで 0 になる");
 
     stopPreview();
     const srcC = lastCtx.sources[2]!;
-    const gC = lastCtx.params[2]!;
+    const gC = volumeGain(lastCtx, 2);
     const rampC = gC.events.filter((e) => e.type === "ramp");
     assert(rampC.length === 1 && rampC[0]!.time >= 10, "押下解除: Release 区間 (10 秒) で減衰");
     assert(srcC.stopCalls === 1, "押下解除: C に stop(when) が 1 回");
+  }
+
+  // ---- hold 開始: ノート開始のクリック (プツッ) をゲインのフェードインで防ぐ ----
+  // ループ用バッファの先頭は継ぎ目クロスフェードで非ゼロから始まるため、
+  // 開始時にゲインを 0 から立ち上げないとノート開始ごとに段差が鳴る
+  // (ピアノロールを押しながら鍵を移動するとプツプツ鳴る原因)
+  {
+    clearWoicePreviewCache();
+    resetPreviewContext();
+    const w = longReleaseWoice();
+    lastCtx = new FakeContext() as unknown as FakeContext;
+    previewWoiceObjectHold(w, 60, 104);
+    await flush();
+    assert(lastCtx.sources.length === 1, "hold 開始: ソースが 1 つ生成される");
+    // 再生バッファの先頭は 0 ではない (クロスフェードの末尾素材で始まる)
+    const buf = lastCtx.buffers[lastCtx.buffers.length - 1]!;
+    const firstSample = buf[0]![0]!;
+    assert(Math.abs(firstSample) > 0.01, `hold 開始: バッファ先頭は非ゼロ (${firstSample.toFixed(4)})`);
+
+    const attack = attackGain(lastCtx, 0);
+    assert(attack !== null, "hold 開始: 開始フェード用ゲインがある");
+    const setZero = attack!.events.findIndex((e) => e.type === "set" && e.value === 0);
+    const rampUp = attack!.events.findIndex((e) => e.type === "ramp" && e.value === 1);
+    assert(setZero >= 0 && rampUp > setZero, "hold 開始: 開始フェード用ゲインが 0 から 1 へランプする");
+    const fadeSec = attack!.events[rampUp]!.time - attack!.events[setZero]!.time;
+    assert(fadeSec > 0 && fadeSec <= 0.02, `hold 開始: フェード長が短い (${Math.round(fadeSec * 1000)}ms)`);
+    // 音量ゲイン側には開始ランプを仕込まない (開始直後に停止する「タップ音」のリリースを
+    // 打ち消さないため。フェードインは別ノードで掛ける)
+    const vol = volumeGain(lastCtx, 0);
+    assert(!vol.events.some((e) => e.type === "ramp"), "hold 開始: 音量ゲインには開始フェードを掛けない");
+    stopPreview();
   }
 
   // ---- stopAfterStart: リリース後にレンダリング完了 → startHold 直後に停止 ----

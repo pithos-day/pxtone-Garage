@@ -416,20 +416,27 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
         return s;
       }
       createGain() {
+        const ctx = this;
         const gain = {
           value: 1,
           setValueAtTime(): void { /* noop */ },
           linearRampToValueAtTime(v: number, t: number): void {
-            if (v === 0) this._ctx.ramp = { v, t };
+            if (v === 0) ctx.ramp = { v, t };
           },
           setTargetAtTime(v: number): void {
             this.value = v;
           },
           cancelScheduledValues(): void { /* noop */ },
-          _ctx: this,
         };
-        this.lastGain = { gain };
-        return { gain, connect(): void { /* noop */ } };
+        const node = {
+          gain,
+          // 音量ゲインは destination へ直結される
+          // (開始フェード用ゲインは音量ゲインへ挟まるので lastGain にしない)
+          connect(dst?: unknown): void {
+            if (dst === ctx.destination) ctx.lastGain = node;
+          },
+        };
+        return node;
       }
     }
 

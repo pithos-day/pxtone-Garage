@@ -130,12 +130,14 @@ function applyTailFade(ch0: Float32Array, ch1: Float32Array, fade: number): void
 }
 
 // インターリーブされたステレオ PCM を AudioBuffer の各チャンネルへ展開し、
-// prepare (フェード/クロスフェード) を適用して再生ソースを組み立てる (gain はマスター音量連動)
+// prepare (フェード/クロスフェード) を適用して再生ソースを組み立てる (gain はマスター音量連動)。
+// attackSec > 0 なら音量ゲインの手前に開始フェードイン用のゲインを挟む
 function makeBufferSource(
   ctx: AudioContext,
   work: Float32Array,
   sps: number,
   prepare: (ch0: Float32Array, ch1: Float32Array) => void,
+  attackSec = 0,
 ): { src: AudioBufferSourceNode; gain: GainNode } {
   const buf = ctx.createBuffer(2, work.length / 2, sps);
   const ch0 = buf.getChannelData(0);
@@ -146,7 +148,19 @@ function makeBufferSource(
   src.buffer = buf;
   const g = ctx.createGain();
   g.gain.value = masterVolume.value;
-  src.connect(g);
+  if (attackSec > 0) {
+    // 開始フェードは音量ゲインと別ノードにする。音量ゲインは停止時のリリース
+    // (stopHold) にも使うため、開始フェードを混ぜると開始直後に停止する
+    // 「タップ音」のリリースまで打ち消してしまう
+    const attack = ctx.createGain();
+    const t = ctx.currentTime;
+    attack.gain.setValueAtTime(0, t);
+    attack.gain.linearRampToValueAtTime(1, t + attackSec);
+    src.connect(attack);
+    attack.connect(g);
+  } else {
+    src.connect(g);
+  }
   g.connect(ctx.destination);
   return { src, gain: g };
 }
@@ -277,6 +291,12 @@ let holdReleaseSec = 0;
 // 押下解除時の最小フェード時間 (秒) — 停止時のポップ (クリックノイズ) を避ける
 const RELEASE_SEC = 0.03;
 
+// ホールド再生の開始フェード時間 (秒) — ノート開始のクリック (プツッ) を避ける。
+// ループ用バッファの先頭は継ぎ目クロスフェードで非ゼロから始まるため、
+// そのまま鳴らすとノート開始ごとに段差が鳴る (先頭をバッファ側でフェードすると
+// ループのたびに音量が落ちるため、ゲイン側で開始時だけ立ち上げる)
+const HOLD_ATTACK_SEC = 0.01;
+
 // リリース減衰中のソースとそのゲイン (新しいプレビューで即時中断するため追跡)
 let fadingSource: AudioBufferSourceNode | null = null;
 let fadingGain: GainNode | null = null;
@@ -326,7 +346,9 @@ function startHold(work: Float32Array, ctx: AudioContext, releaseSec = 0): void 
   // ループ点の継ぎ目: 末尾の素材を先頭へクロスフェードで混ぜる。
   // 両端を 0 に落とす方式と違いループのたびに音量が落ちず、位相の近い位置を探すため段差も小さい
   const fade = Math.min(Math.trunc(ctx.sampleRate * 0.01), Math.trunc(work.length / 4));
-  const { src, gain: g } = makeBufferSource(ctx, work, ctx.sampleRate, (c0, c1) => loopCrossfade(c0, c1, fade));
+  const prepare = (c0: Float32Array, c1: Float32Array) => loopCrossfade(c0, c1, fade);
+  // バッファ先頭はクロスフェードで非ゼロから始まるため、開始時はゲインでフェードインする
+  const { src, gain: g } = makeBufferSource(ctx, work, ctx.sampleRate, prepare, HOLD_ATTACK_SEC);
   src.loop = true;
   holdSource = src;
   holdGain = g;
