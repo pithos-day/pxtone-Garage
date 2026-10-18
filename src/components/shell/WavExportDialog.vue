@@ -138,7 +138,7 @@ function onSubmit(): void {
           <option value="byTime">{{ t("wav.scopeByTime") }}</option>
         </select>
       </div>
-      <div class="row">
+      <div class="row" :class="{ off: scope !== 'byTime' }">
         <label>{{ t("wav.playTime") }}</label>
         <input v-model="playTime" type="number" min="0" step="0.01" :disabled="scope !== 'byTime'" />
         <span class="unit">{{ t("wav.sec") }}</span>
