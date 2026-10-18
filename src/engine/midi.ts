@@ -18,6 +18,9 @@ const MICROS_PER_MINUTE = 60000000;
 const META_TEMPO = 0x51;
 const META_TIME_SIGNATURE = 0x58;
 
+// General MIDI 1 のドラムパートはチャンネル 10 (0 始まりで 9)
+const GM_DRUM_CHANNEL = 9;
+
 // General MIDI 1 楽器名 (プログラム番号 0..127)。
 // woice 名は "{チャンネル3桁}-{楽器名}" の16バイト制限のため、12文字以内に短縮
 const GM_INSTRUMENTS: readonly string[] = [
@@ -325,7 +328,7 @@ export function convertMidiToPtcop(bytes: Uint8Array, options: MidiConvertOption
   for (let i = 0; i < usedChannels.length; i++) {
     const ch = usedChannels[i]!;
     const program = song.programByChannel.get(ch) ?? 0;
-    const instrumentName = ch === 9 ? "GMDrums" : (GM_INSTRUMENTS[program] ?? "Unknown");
+    const instrumentName = ch === GM_DRUM_CHANNEL ? "GMDrums" : (GM_INSTRUMENTS[program] ?? "Unknown");
     const woiceName = `${String(ch).padStart(3, "0")}-${instrumentName}`;
     const w = createDefaultWoice();
     const wio = new MemoryIo();
