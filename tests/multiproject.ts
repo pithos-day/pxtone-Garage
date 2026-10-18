@@ -1024,19 +1024,19 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(vc.volume, 28, "preset: Random (倍音) volume 28");
     checkEq(vc.wave.num, 31, "preset: Random (倍音) 31点");
     const rnd = vc.wave.points.filter((p) => p.y !== 0);
-    check(rnd.length >= 1 && rnd.length <= 30, "preset: Random の有効倍音は 1..30", `n=${rnd.length}`);
-    check(rnd.every((p) => p.y >= -128 && p.y <= 128), "preset: Random の振幅は ±128");
+    check("preset: Random の有効倍音は 1..30", rnd.length >= 1 && rnd.length <= 30, `n=${rnd.length}`);
+    check("preset: Random の振幅は ±128", rnd.every((p) => p.y >= -128 && p.y <= 128));
 
     // Random (座標): 点は x でソートされている
     vc.type = VoiceType.Coodinate;
     applyWavePreset(vc, 4);
     checkEq(vc.volume, 64, "preset: Random (座標) volume 64");
-    check(vc.wave.num >= 1 && vc.wave.num <= 31, "preset: Random (座標) 点数 1..31", `n=${vc.wave.num}`);
+    check("preset: Random (座標) 点数 1..31", vc.wave.num >= 1 && vc.wave.num <= 31, `n=${vc.wave.num}`);
     let sorted = true;
     for (let i = 2; i < vc.wave.num; i++) {
       if (vc.wave.points[i]!.x < vc.wave.points[i - 1]!.x) sorted = false;
     }
-    check(sorted, "preset: Random (座標) は x でソート");
+    check("preset: Random (座標) は x でソート", sorted);
   }
 
   // ---- 24. A/B 面コピー (本家 copy_ptv_voice 準拠) ----
@@ -1245,9 +1245,13 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       "lib: iterNoteDraws は ON を長さ込みで可視判定",
     );
 
-    // lib/woice: 音色サマリ
-    const sum = woiceSummary(createDefaultWoice());
-    check(sum.startsWith("座標波形"), "lib: woiceSummary は座標波形サマリ", sum);
+    // lib/woice: 音色サマリ (PTV はファイル読み込みでタイプが付く)
+    const sumW = createDefaultWoice();
+    const sumIo = new MemoryIo();
+    check("lib: woiceSummary 用に ptvWrite できる", sumW.ptvWrite(sumIo) > 0);
+    checkEq(sumW.read(new MemoryIo(sumIo.toUint8Array()), WoiceType.PTV), PxtnErr.OK, "lib: woiceSummary 用に PTV を読み戻す");
+    const sum = woiceSummary(sumW);
+    check("lib: woiceSummary は座標波形サマリ", sum.startsWith("座標波形"), sum);
 
     // lib/sjis: CP932 の記号 (WHATWG の shift_jis 逆引き表に無い文字) も本家と同じコードで書く
     checkBytes(encodeShiftJis("〜"), new Uint8Array([0x81, 0x60]), "lib: 〜 (U+301C) は 0x8160");
@@ -1327,7 +1331,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
       // ptcop 変換
       const bytes = convertMidiToPtcop(midi);
-      check(bytes !== null, "midi: ptcop 変換成功");
+      check("midi: ptcop 変換成功", bytes !== null);
       if (bytes) {
         const svc = new Service();
         checkEq(svc.initCollage(PXTN_MAX_EVENT_NUM), PxtnErr.OK, "midi: Service init");
@@ -1340,8 +1344,8 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
         const notes = svc.evels.records.filter((e) => e.kind === EventKind.ON);
         checkEq(notes.length, 3, "midi: ON イベント3つ");
         const keys = svc.evels.records.filter((e) => e.kind === EventKind.KEY);
-        check(keys.some((e) => e.value === 0x1b00 + 60 * 0x100), "midi: KEY 60 が存在");
-        check(keys.some((e) => e.value === 0x1b00 + 72 * 0x100), "midi: KEY 72 (ch1) が存在");
+        check("midi: KEY 60 が存在", keys.some((e) => e.value === 0x1b00 + 60 * 0x100));
+        check("midi: KEY 72 (ch1) が存在", keys.some((e) => e.value === 0x1b00 + 72 * 0x100));
         checkEq(svc.master.measNum >= 1, true, "midi: 小節数が調整される");
       }
     }
@@ -1379,13 +1383,13 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
           ...ev(480, 0x80, 60, 0),
           ...ev(0, 0x80, 64, 0),
           ...ev(0, 0x80, 67, 0),
-          ...ev(960, 0x90, 72, 90), // 和音終了後の順次ノート → スロット0を再利用
-          ...ev(960, 0x80, 72, 0),
+          ...ev(480, 0x90, 72, 90), // 和音終了後 (480+480=960) の順次ノート → スロット0を再利用
+          ...ev(480, 0x80, 72, 0),
           ...meta(0, 0x2f, []),
         ],
       ]);
       const bytes = convertMidiToPtcop(chord, { splitOverlap: true });
-      check(bytes !== null, "split: 変換成功");
+      check("split: 変換成功", bytes !== null);
       if (bytes) {
         const svc = new Service();
         svc.initCollage(PXTN_MAX_EVENT_NUM);
@@ -1398,7 +1402,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
         checkEq(ons.length, 4, "split: ON 4つ (統合されない)");
         checkEq(ons.filter((e) => e.clock === 0).length, 3, "split: クロック0に ON 3つ");
         const seq = ons.find((e) => e.clock === 960);
-        check(seq !== undefined && seq.unitNo === 0, "split: 順次ノートは unit0 を再利用", `unit=${seq?.unitNo}`);
+        check("split: 順次ノートは unit0 を再利用", seq !== undefined && seq.unitNo === 0, `unit=${seq?.unitNo}`);
       }
     }
 
@@ -1409,7 +1413,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
         [...ev(0, 0x91, 64, 90), ...ev(480, 0x80, 64, 0), ...meta(0, 0x2f, [])],
       ]);
       const bytes = convertMidiToPtcop(m);
-      check(bytes !== null, "name: 変換成功");
+      check("name: 変換成功", bytes !== null);
       if (bytes) {
         const svc = new Service();
         svc.initCollage(PXTN_MAX_EVENT_NUM);
@@ -1428,7 +1432,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       events.push(...meta(0, 0x2f, []));
       const m = buildMidi(480, [events]);
       const bytes = convertMidiToPtcop(m, { splitOverlap: true });
-      check(bytes !== null, "limit: 変換成功");
+      check("limit: 変換成功", bytes !== null);
       if (bytes) {
         const svc = new Service();
         svc.initCollage(PXTN_MAX_EVENT_NUM);
