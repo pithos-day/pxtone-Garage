@@ -10,6 +10,9 @@ pxtone-garage はピストンコラージュ (ptCollage) 互換の Web DAW。
 
 - 編集の正本は state 層のエンジン Service。`doc` (reactive) は UI 購読用ミラーで、
   undo を伴う編集は単発なら `mutate(fn)`、ドラッグ等は `beginEdit()` + `commitEdit()` で包む
+- pttune (再生専用) タブは `doc.readOnly` が true。編集系 API (`mutate` / `beginEdit` /
+  `commitEdit` / `replaceUnitRaw` / `addEvent` / `deleteEvents` / `setEventValue`) は
+  state 層で no-op になるが、UI 側でも入口 (メニュー / ポインタ操作) を無効化する
 - コメントは日本語
 - 時間は「クロック」単位 (beatClock=480 基準)、スクロール位置 scrollX は px
 
