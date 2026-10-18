@@ -29,6 +29,7 @@ import {
   changeEventValue,
   addUnitWithWoice,
   setUnitNameAndWoice,
+  setWoiceProperties,
   getAllEvents,
   addEvent,
   deleteEvents,
@@ -2058,6 +2059,68 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     }
     const unmuted = await renderWav(wavBytes!, { ...WAV_EXPORT_DEFAULTS, muteByUnit: false, mutedUnits: [0] });
     check("wavexport: ミュート無効なら鳴る", "wav" in unmuted && wavHasSignal(unmuted.wav));
+  }
+
+  // ---- 41. 音色プロパティ編集 (本家 dlg_Woice 相当) ----
+  {
+    newProjectInTab();
+    checkEq(await addWoice(buildPcmWav(), WoiceType.PCM, "Prop"), null, "woiceprop: PCM音色を追加");
+    const pIdx = serviceMod.service.woiceNum - 1;
+
+    // 名前 / tuning / basic key / フラグをまとめて変更
+    setWoiceProperties(pIdx, {
+      name: "あいうえおかきくけこ",
+      tuning: 2.5,
+      basicKey: 48,
+      waveLoop: true,
+      smooth: false,
+      beatFit: true,
+    });
+    let w = serviceMod.service.woiceGet(pIdx)!;
+    checkEq(woiceNameRaw(w), "あいうえおかきく", "woiceprop: 名前は ShiftJIS 16 バイトで切り詰め");
+    checkEq(w.getVoice(0)!.tuning, 2.5, "woiceprop: tuning が反映される");
+    checkEq(w.getVoice(0)!.basicKey, 48 * 0x100, "woiceprop: basicKey が反映される");
+    checkEq(w.getVoice(0)!.voiceFlags & 7, 1 | 4, "woiceprop: Loop / Beat Fit が反映される");
+
+    // 範囲外はクランプされる (本家 dlg_Woice と同じ範囲)
+    setWoiceProperties(pIdx, {
+      name: "Prop",
+      tuning: 999,
+      basicKey: 200,
+      waveLoop: false,
+      smooth: false,
+      beatFit: false,
+    });
+    w = serviceMod.service.woiceGet(pIdx)!;
+    checkEq(w.getVoice(0)!.tuning, 256, "woiceprop: tuning は 256 にクランプ");
+    checkEq(w.getVoice(0)!.basicKey, 108 * 0x100, "woiceprop: basicKey は 108 にクランプ");
+
+    // 1 操作 = 1 undo (名前・プロパティがまとめて戻る)
+    check("woiceprop: undo できる", undo());
+    w = serviceMod.service.woiceGet(pIdx)!;
+    checkEq(woiceNameRaw(w), "あいうえおかきく", "woiceprop: undo で編集前の名前へ戻る");
+    checkEq(w.getVoice(0)!.tuning, 2.5, "woiceprop: undo で tuning も戻る");
+
+    // PTV は本家同様、名前と tuning のみ反映し basic key / フラグは変更しない
+    const vDoc = newVoice();
+    checkEq(await addWoice(snapshotVoice(vDoc)!, WoiceType.PTV, "PropPTV"), null, "woiceprop: PTV を追加");
+    const vIdx = serviceMod.service.woiceNum - 1;
+    const before = serviceMod.service.woiceGet(vIdx)!.getVoice(0)!;
+    const beforeKey = before.basicKey;
+    const beforeFlags = before.voiceFlags;
+    setWoiceProperties(vIdx, {
+      name: "PTVName",
+      tuning: 3,
+      basicKey: 21,
+      waveLoop: true,
+      smooth: true,
+      beatFit: true,
+    });
+    const pw = serviceMod.service.woiceGet(vIdx)!;
+    checkEq(woiceNameRaw(pw), "PTVName", "woiceprop: PTV の名前は反映される");
+    checkEq(pw.getVoice(0)!.tuning, 3, "woiceprop: PTV の tuning は反映される");
+    checkEq(pw.getVoice(0)!.basicKey, beforeKey, "woiceprop: PTV の basicKey は変わらない");
+    checkEq(pw.getVoice(0)!.voiceFlags, beforeFlags, "woiceprop: PTV のフラグは変わらない");
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);

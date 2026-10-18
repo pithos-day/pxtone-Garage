@@ -1,7 +1,7 @@
 // 音色リスト (W モード)。型別色分け、選択、削除、並べ替え
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { Download, FileSearch2, SquarePen, RefreshCw, Trash2 } from "@lucide/vue";
+import { Download, ExternalLink, SquarePen, RefreshCw, Trash2 } from "@lucide/vue";
 import {
   doc,
   woices,
@@ -26,10 +26,13 @@ import { useHoldPreview } from "../../composables/useHoldPreview";
 import { capturePointer, releasePointerCapture } from "../../lib/field";
 import { openFileDialog, exportWoiceFile } from "../../engine/io";
 import { t } from "../../i18n";
+import WoicePropertyDialog from "./WoicePropertyDialog.vue";
 
 const emit = defineEmits<{ (e: "open-editor", mode: "voice" | "noise"): void }>();
 
 const menu = ref<{ x: number; y: number; w: number } | null>(null);
+// プロパティダイアログ (本家 dlg_Woice 相当) の対象音色 index (-1 = 非表示)
+const propIdx = ref(-1);
 const trayListRef = ref<HTMLElement | null>(null);
 
 useCtxMenuClose(menu);
@@ -69,7 +72,7 @@ function onPointerUp(e: PointerEvent): void {
   releasePointerCapture(trayListRef.value, e);
 }
 
-function onMenuAction(action: "remove" | "replace" | "edit" | "open" | "save"): void {
+function onMenuAction(action: "remove" | "replace" | "properties" | "openEditor" | "save"): void {
   const w = menu.value?.w;
   menu.value = null;
   if (w === undefined) return;
@@ -77,10 +80,13 @@ function onMenuAction(action: "remove" | "replace" | "edit" | "open" | "save"): 
   else if (action === "replace") void replaceByDialog(w);
   // 音色を元フォーマット (ptvoice/ptnoise/ogg/wav) でダウンロードする
   else if (action === "save") void saveWoiceFile(w);
-  // 編集 (ptcop): 書き戻し先 (元の Collage プロジェクトの音色) をタブに持たせる
-  else if (action === "edit") openWoiceInEditor(w, { projectId: currentProjectId.value, woiceIndex: w });
-  // 開くだけ (pttune などの読み取り専用タブ): link なしなので書き戻せない
-  else if (action === "open") openWoiceInEditor(w, undefined);
+  // プロパティ (名前 / チューニング / 基本キー / フラグ) を編集する
+  else if (action === "properties") propIdx.value = w;
+  // 音色エディタ (ptvoice/ptnoise) で開く。編集可能タブでは書き戻し先 (元の
+  // Collage プロジェクトの音色) をタブに持たせ、読み取り専用タブでは link なしで開く
+  else if (action === "openEditor") {
+    openWoiceInEditor(w, doc.readOnly ? undefined : { projectId: currentProjectId.value, woiceIndex: w });
+  }
 }
 
 // 音色を元フォーマットのファイルとして保存する (保存ピッカー / ダウンロード)
@@ -158,14 +164,15 @@ function woiceSummary(idx: number): string {
       </div>
     </div>
     <div v-if="menu" class="ctxmenu popup" :style="{ left: menu.x + 'px', top: menu.y + 'px' }">
-      <button v-if="doc.readOnly && menuHasEditor" @click="onMenuAction('open')"><span class="menu-icon"><FileSearch2 :size="14" /></span>{{ t("woice.open") }}</button>
+      <button v-if="!doc.readOnly" @click="onMenuAction('properties')"><span class="menu-icon"><SquarePen :size="14" /></span>{{ t("woice.edit") }}</button>
+      <button v-if="menuHasEditor" @click="onMenuAction('openEditor')"><span class="menu-icon"><ExternalLink :size="14" /></span>{{ t("woice.open") }}</button>
       <button @click="onMenuAction('save')"><span class="menu-icon"><Download :size="14" /></span>{{ t("woice.save") }}</button>
       <template v-if="!doc.readOnly">
-        <button v-if="menuHasEditor" @click="onMenuAction('edit')"><span class="menu-icon"><SquarePen :size="14" /></span>{{ t("woice.edit") }}</button>
         <button @click="onMenuAction('replace')"><span class="menu-icon"><RefreshCw :size="14" /></span>{{ t("woice.replace") }}</button>
         <button class="danger" @click="onMenuAction('remove')"><span class="menu-icon"><Trash2 :size="14" /></span>{{ t("common.delete") }}</button>
       </template>
     </div>
+    <WoicePropertyDialog v-if="propIdx >= 0" :woice-idx="propIdx" @close="propIdx = -1" />
   </div>
 </template>
 

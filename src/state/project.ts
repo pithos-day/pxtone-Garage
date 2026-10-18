@@ -20,6 +20,8 @@ import {
   EVENTDEFAULT_TUNING,
   EVENTDEFAULT_BASICKEY,
   PTV_VOICEFLAG_SMOOTH,
+  PTV_VOICEFLAG_WAVELOOP,
+  PTV_VOICEFLAG_BEATFIT,
   defaultOggvDecoder,
   ioPutUint32LE,
   ioPutUint16LE,
@@ -27,7 +29,7 @@ import {
   ioPutInt32LE,
   type EveRecord,
 } from "pxtone-ts";
-import { encodeShiftJis } from "../lib/sjis";
+import { encodeShiftJis, truncateShiftJis } from "../lib/sjis";
 import type { EventWriteOps } from "../lib/editing";
 import { COPIER_KINDS } from "../lib/eventKinds";
 import { service, ensureService } from "./service";
@@ -672,6 +674,40 @@ export async function replaceWoiceFile(idx: number, bytes: Uint8Array, type: Woi
   if (!doc.ready) return t("error.notReady");
   if (idx < 0 || idx >= service.woiceNum) return t("error.notReady");
   return readWoiceFileInto(idx, bytes, type, name);
+}
+
+// 音色フラグ (Loop / Smooth / Beat Fit) のビットマスク
+const WOICE_FLAG_MASK = PTV_VOICEFLAG_WAVELOOP | PTV_VOICEFLAG_SMOOTH | PTV_VOICEFLAG_BEATFIT;
+
+// 音色のプロパティ (本家 dlg_Woice 相当)
+export interface WoiceProperties {
+  name: string;
+  tuning: number; // 0..256
+  basicKey: number; // コード (21..108)。PTV では使わない
+  waveLoop: boolean; // PTV 以外のみ
+  smooth: boolean;
+  beatFit: boolean;
+}
+
+// 音色のプロパティをまとめて変更 (1つの undo エントリ)。
+// 本家 dlg_Woice と同じく、名前と tuning は全タイプ、basic key とフラグは PTV 以外に適用する
+export function setWoiceProperties(idx: number, props: WoiceProperties): void {
+  mutate(() => {
+    const w = service.woiceGet(idx);
+    const vc = w?.getVoice(0);
+    if (!w || !vc) return;
+    // 音色名は ShiftJIS・最大 16 バイト (本家 pxtnMAX_TUNEWOICENAME)
+    w.setNameBuf(truncateShiftJis(encodeShiftJis(props.name), 16), 16);
+    vc.tuning = Math.min(256, Math.max(0, props.tuning));
+    if (w.type !== WoiceType.PTV) {
+      vc.basicKey = Math.min(108, Math.max(21, props.basicKey)) * 0x100;
+      let flags = vc.voiceFlags & ~WOICE_FLAG_MASK;
+      if (props.waveLoop) flags |= PTV_VOICEFLAG_WAVELOOP;
+      if (props.smooth) flags |= PTV_VOICEFLAG_SMOOTH;
+      if (props.beatFit) flags |= PTV_VOICEFLAG_BEATFIT;
+      vc.voiceFlags = flags;
+    }
+  });
 }
 
 // 再生・プレビューは VOICENO イベントから音色を決定するため、

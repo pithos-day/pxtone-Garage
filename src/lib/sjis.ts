@@ -48,3 +48,17 @@ export function encodeShiftJis(text: string): Uint8Array {
   }
   return new Uint8Array(out);
 }
+
+// Shift_JIS バイト列を max バイト以内に切り詰める。
+// 2 バイト文字 (0x81-0x9F / 0xE0-0xEF が先頭) の途中で切らない
+// (本家 pxShiftJIS_check_size 相当)
+export function truncateShiftJis(bytes: Uint8Array, max: number): Uint8Array {
+  let size = 0;
+  while (size < bytes.length && size < max) {
+    const b = bytes[size]!;
+    const width = (b >= 0x81 && b <= 0x9f) || (b >= 0xe0 && b <= 0xef) ? 2 : 1;
+    if (size + width > max) break;
+    size += width;
+  }
+  return bytes.subarray(0, size);
+}

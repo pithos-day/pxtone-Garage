@@ -123,13 +123,24 @@ const ja = {
   "woice.title": "音色",
   "woice.edit": "音色を編集",
   "woice.save": "音色を保存",
-  "woice.open": "音色を開く",
+  "woice.open": "音色エディタで開く",
   "woice.replace": "置き換え",
   "woice.empty": "音色がありません。",
   "woice.summaryCoord": "座標波形 ({n}点)",
   "woice.summaryOvertone": "倍音 ({n}音)",
   "woice.summaryPtn": "{n}ユニット {ms}ms",
   "woice.summaryUnknown": "?",
+
+  // 音色プロパティダイアログ (本家 dlg_Woice 相当)
+  "woiceProp.title": "音色を編集",
+  "woiceProp.type": "タイプ",
+  "woiceProp.name": "名前",
+  "woiceProp.status": "状態",
+  "woiceProp.basicKey": "基本キー",
+  "woiceProp.tuning": "チューニング",
+  "woiceProp.loop": "ループ",
+  "woiceProp.smooth": "スムーズ",
+  "woiceProp.beatFit": "ビートフィット",
 
   // WAV書き出しダイアログ (本家 dlg_BuildOption 相当)
   "wav.title": "WAV書き出し",
