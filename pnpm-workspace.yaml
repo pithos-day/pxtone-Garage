@@ -1,3 +1,3 @@
 allowBuilds:
   esbuild: true
-  pxtone-ts@https://codeload.github.com/pithos-day/pxtone-ts/tar.gz/725192f714044ed4fcc68e8736bc678f119c0aa0: true
+  pxtone-ts@https://codeload.github.com/pithos-day/pxtone-ts/tar.gz/09262236209b46b7bd9dd3b57396117736a78522: true
