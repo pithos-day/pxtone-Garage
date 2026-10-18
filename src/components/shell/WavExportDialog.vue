@@ -24,14 +24,18 @@ const volume = ref("1");
 const muteByUnit = ref(WAV_EXPORT_DEFAULTS.muteByUnit);
 const busy = ref(false);
 
+// localStorage へ保存する設定 (ミュート対象は保存せず、書き出し時の現在値を使う)
+type StoredWavOptions = Omit<WavExportOptions, "mutedUnits">;
+
 // 保存済み設定を読み戻す (不正値は既定値のまま)
 function restoreStored(): void {
   const raw = readStorage(STORAGE_WAV_EXPORT);
   if (!raw) return;
   try {
-    const saved = JSON.parse(raw) as Partial<WavExportOptions>;
+    const saved = JSON.parse(raw) as Partial<StoredWavOptions>;
     if (saved.chNum === 1 || saved.chNum === 2) chNum.value = saved.chNum;
-    if (SPS_TABLE.includes(saved.sps as (typeof SPS_TABLE)[number])) sps.value = saved.sps!;
+    const savedSps = SPS_TABLE.find((v) => v === saved.sps);
+    if (savedSps !== undefined) sps.value = savedSps;
     if (saved.scope === "topLast" || saved.scope === "byTime") scope.value = saved.scope;
     if (Number.isFinite(saved.playTimeSec)) playTime.value = String(saved.playTimeSec);
     if (Number.isFinite(saved.extraFadeSec)) extraFade.value = String(saved.extraFadeSec);
@@ -98,7 +102,16 @@ function onSubmit(): void {
     muteByUnit: muteByUnit.value,
     mutedUnits: [...doc.muted],
   };
-  writeStorage(STORAGE_WAV_EXPORT, JSON.stringify({ ...options, mutedUnits: undefined }));
+  const stored: StoredWavOptions = {
+    chNum: options.chNum,
+    sps: options.sps,
+    scope: options.scope,
+    playTimeSec: options.playTimeSec,
+    extraFadeSec: options.extraFadeSec,
+    volume: options.volume,
+    muteByUnit: options.muteByUnit,
+  };
+  writeStorage(STORAGE_WAV_EXPORT, JSON.stringify(stored));
   busy.value = true;
   void exportWav(bytes, doc.fileName || "untitled", options).then((err) => {
     busy.value = false;
