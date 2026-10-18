@@ -432,7 +432,7 @@ export function resetPreviewContext(): void {
 }
 
 // 非同期集約レンダリング: キー変更時は最新キーのみを 1 回レンダリングする。
-// 複数のキー変更がイベントループ内で积み上がった場合、最後のキーだけを処理する
+// 複数のキー変更がイベントループ内で積み上がった場合、最後のキーだけを処理する
 let pendingWoice: Woice | null = null;
 let pendingKey = -1;
 let pendingVelocity = EVENTDEFAULT_VELOCITY;
