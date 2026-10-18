@@ -253,6 +253,11 @@ textarea {
   cursor: default;
 }
 
+/* グレーアウト中のホバーでは選択色を出さない (ツールバーメニューと同じ挙動) */
+.ctxmenu button:disabled:hover {
+  background: transparent;
+}
+
 .ctxmenu .sep {
   width: auto;
   height: 1px;
