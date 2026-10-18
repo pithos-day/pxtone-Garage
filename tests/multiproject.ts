@@ -111,6 +111,7 @@ import { t } from "../src/i18n";
 import { secToEnveX, pctToEnveY, pushHistoryEntry } from "../src/lib/noise";
 import { nearestPoint, coordPxToX, coordPxToY, cursorToWaveY } from "../src/lib/voice-geometry";
 import { encodeShiftJis, truncateShiftJis } from "../src/lib/sjis";
+import { loopCrossfade } from "../src/lib/loop";
 import { visibleClockWindow, iterVisibleRecords, iterNoteDraws, type NoteDraw } from "../src/lib/records";
 import { woiceSummary } from "../src/lib/woice";
 import { stripFileExt, renderWav, WAV_EXPORT_DEFAULTS } from "../src/engine/io";
@@ -1291,6 +1292,34 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(sumW.read(new MemoryIo(sumIo.toUint8Array()), WoiceType.PTV), PxtnErr.OK, "lib: woiceSummary 用に PTV を読み戻す");
     const sum = woiceSummary(sumW);
     check("lib: woiceSummary は座標波形サマリ", sum.startsWith("座標波形"), sum);
+
+    // lib/loop: ループ点のクロスフェード (継ぎ目の段差を小さくし、音量は落とさない)
+    {
+      const n = 4000;
+      const lc0 = new Float32Array(n);
+      const lc1 = new Float32Array(n);
+      for (let i = 0; i < n; i++) lc0[i] = 0.5 * Math.sin((2 * Math.PI * i) / 100.7);
+      const lcOrig = Float32Array.from(lc0);
+      let maxAdj = 0;
+      for (let i = 1; i < n; i++) maxAdj = Math.max(maxAdj, Math.abs(lc0[i]! - lc0[i - 1]!));
+      const seamBefore = Math.abs(lc0[n - 1]! - lc0[0]!);
+      loopCrossfade(lc0, lc1, 441);
+      const seamAfter = Math.abs(lc0[n - 1]! - lc0[0]!);
+      check(
+        "lib: loopCrossfade で継ぎ目の段差が小さくなる",
+        seamAfter < seamBefore / 10,
+        `${seamBefore.toFixed(4)} → ${seamAfter.toFixed(4)}`,
+      );
+      check("lib: loopCrossfade の段差は隣接差の範囲", seamAfter <= maxAdj, `seam=${seamAfter.toFixed(5)} maxAdj=${maxAdj.toFixed(5)}`);
+      // 先頭を 0 に落とさない (ループのたびのノッチを作らない)
+      let headPeak = 0;
+      for (let i = 0; i < 100; i++) headPeak = Math.max(headPeak, Math.abs(lc0[i]!));
+      check("lib: loopCrossfade は先頭を 0 に落とさない", headPeak > 0.25, `headPeak=${headPeak.toFixed(3)}`);
+      // クロスフェード範囲 (上限 441 サンプル) より後ろは無変更
+      let untouched = true;
+      for (let i = 441; i < n; i++) if (lc0[i] !== lcOrig[i]) untouched = false;
+      check("lib: loopCrossfade は範囲外を変更しない", untouched);
+    }
 
     // lib/sjis: CP932 の記号 (WHATWG の shift_jis 逆引き表に無い文字) も本家と同じコードで書く
     checkBytes(encodeShiftJis("〜"), new Uint8Array([0x81, 0x60]), "lib: 〜 (U+301C) は 0x8160");

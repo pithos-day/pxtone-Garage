@@ -11,6 +11,7 @@ import { EXE_VER } from "../state/service";
 import { watch } from "vue";
 import { masterVolume } from "../state/player";
 import { NOISE_BUILT_SPS } from "../lib/noise";
+import { loopCrossfade } from "../lib/loop";
 
 // プレビューの再生時間 (秒)
 export const PREVIEW_SEC = 2.5;
@@ -118,34 +119,29 @@ function deinterleave(work: Float32Array, ch0: Float32Array, ch1: Float32Array):
   }
 }
 
-// バッファの末尾 (head なら先頭も) をフェードし、ループ点・終端のクリックノイズを避ける
-function applyFade(ch0: Float32Array, ch1: Float32Array, fade: number, head: boolean): void {
+// バッファ末尾をフェードし、終端のクリックノイズを避ける (単発再生用)
+function applyTailFade(ch0: Float32Array, ch1: Float32Array, fade: number): void {
   if (fade <= 0) return;
   for (let i = 0; i < fade; i++) {
     const g = i / fade;
     ch0[ch0.length - 1 - i] *= g;
     ch1[ch1.length - 1 - i] *= g;
-    if (head) {
-      ch0[i] *= g;
-      ch1[i] *= g;
-    }
   }
 }
 
 // インターリーブされたステレオ PCM を AudioBuffer の各チャンネルへ展開し、
-// フェードを適用して再生ソースを組み立てる (gain はマスター音量連動)
+// prepare (フェード/クロスフェード) を適用して再生ソースを組み立てる (gain はマスター音量連動)
 function makeBufferSource(
   ctx: AudioContext,
   work: Float32Array,
   sps: number,
-  fade: number,
-  head: boolean,
+  prepare: (ch0: Float32Array, ch1: Float32Array) => void,
 ): { src: AudioBufferSourceNode; gain: GainNode } {
   const buf = ctx.createBuffer(2, work.length / 2, sps);
   const ch0 = buf.getChannelData(0);
   const ch1 = buf.getChannelData(1);
   deinterleave(work, ch0, ch1);
-  applyFade(ch0, ch1, fade, head);
+  prepare(ch0, ch1);
   const src = ctx.createBufferSource();
   src.buffer = buf;
   const g = ctx.createGain();
@@ -162,7 +158,7 @@ function playBuffer(work: Float32Array, sps: number): void {
   if (ctx.state === "suspended") void ctx.resume();
   // 末尾フェードでクリックノイズ回避 (バッファ終端のサンプルを減衰)
   const fade = Math.min(Math.trunc(work.length / 4), Math.trunc(sps * 0.05));
-  const { src } = makeBufferSource(ctx, work, sps, fade, false);
+  const { src } = makeBufferSource(ctx, work, sps, (c0, c1) => applyTailFade(c0, c1, fade));
   if (lastSrc) {
     try {
       lastSrc.stop();
@@ -327,9 +323,10 @@ function startHold(work: Float32Array, ctx: AudioContext, releaseSec = 0): void 
   stopHoldForNewPreview();
   if (ctx.state === "suspended") void ctx.resume();
 
-  // ループ点のクリック軽減: 先頭/末尾 10ms フェード
+  // ループ点の継ぎ目: 末尾の素材を先頭へクロスフェードで混ぜる。
+  // 両端を 0 に落とす方式と違いループのたびに音量が落ちず、位相の近い位置を探すため段差も小さい
   const fade = Math.min(Math.trunc(ctx.sampleRate * 0.01), Math.trunc(work.length / 4));
-  const { src, gain: g } = makeBufferSource(ctx, work, ctx.sampleRate, fade, true);
+  const { src, gain: g } = makeBufferSource(ctx, work, ctx.sampleRate, (c0, c1) => loopCrossfade(c0, c1, fade));
   src.loop = true;
   holdSource = src;
   holdGain = g;

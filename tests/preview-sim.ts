@@ -51,12 +51,16 @@ class FakeContext {
   params: FakeParam[] = [];
   // createBuffer に渡されたサンプルレート (PCM の実レートを検証するため記録)
   bufferSps: number[] = [];
+  // createBuffer で作られたチャンネルデータ (フェード/クロスフェードの検証用)
+  buffers: Float32Array[][] = [];
   resume(): void {
     this.state = "running";
   }
   createBuffer(ch: number, len: number, sps: number): { getChannelData: (i: number) => Float32Array } {
     this.bufferSps.push(sps);
-    return { getChannelData: () => new Float32Array(len) };
+    const data = Array.from({ length: ch }, () => new Float32Array(len));
+    this.buffers.push(data);
+    return { getChannelData: (i: number) => data[i]! };
   }
   createGain(): { gain: FakeParam; connect: () => void } {
     const g = new FakeParam();
@@ -265,6 +269,40 @@ void (async () => {
     assert(lastCtx!.sources.length === 1, "noise pcm: ソースが 1 つ生成される");
     globalThis.AudioContext = realAc;
     resetPreviewContext();
+  }
+
+  // ---- ループ試聴 (長押し): 継ぎ目をクロスフェードし、両端を 0 に落とさない ----
+  {
+    clearWoicePreviewCache();
+    resetPreviewContext();
+    const w = createDefaultWoice();
+    const sps = 44100;
+    const durSec = 1.0;
+    const rendered = renderWoice(w, 60, 104, durSec, sps);
+    lastCtx = new FakeContext() as unknown as FakeContext;
+    previewWoiceObjectHold(w, 60, 104, durSec);
+    await flush();
+    const buf = lastCtx.buffers[lastCtx.buffers.length - 1];
+    assert(!!rendered, "loop: 参照レンダリングが取れる");
+    assert(!!buf, "loop: ループ再生の AudioBuffer が作られる");
+    const ch0 = buf![0]!;
+    const n = ch0.length;
+    let maxAdj = 0;
+    for (let i = 1; i < n; i++) maxAdj = Math.max(maxAdj, Math.abs(ch0[i]! - ch0[i - 1]!));
+    const seam = Math.abs(ch0[n - 1]! - ch0[0]!);
+    assert(seam <= maxAdj, `loop: 継ぎ目の段差 ${seam.toFixed(5)} <= 最大隣接差 ${maxAdj.toFixed(5)}`);
+    // 先頭は末尾側の素材で始まる (両端を 0 に落とすフェードではない)
+    const limit = Math.min(Math.trunc(sps * 0.01), Math.trunc(n / 4));
+    let fromTail = false;
+    for (let j = n - limit; j < n; j++) {
+      if (Math.abs(ch0[0]! - rendered![j * 2]!) < 1e-9) fromTail = true;
+    }
+    assert(fromTail, "loop: 先頭は末尾素材とのクロスフェードで始まる");
+    // クロスフェード範囲より後ろは元のレンダリングのまま
+    let same = true;
+    for (let i = limit + 1; i < n; i++) if (ch0[i] !== rendered![i * 2]) same = false;
+    assert(same, "loop: クロスフェード範囲外はレンダリング結果のまま");
+    stopPreview();
   }
 
   console.log(`ALL PASS (${pass} assertions)`);
