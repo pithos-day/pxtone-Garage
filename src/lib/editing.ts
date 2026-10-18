@@ -2,7 +2,7 @@
 // deleteEvents / addEvent / setEventValue の並び (choreography) を
 // コンポーネント間で共有するための純関数群。書き込み先は EventWriteOps で抽象化し、
 // state 層へ依存しない (コンポーネント側で state/project の関数をアダプタとして渡す)
-import { EventKind } from "pxtone-ts";
+import { EventKind, type EveRecord } from "pxtone-ts";
 import { scaleToGroup, scaleToWoice, type VolumeEditKind } from "./volume";
 
 // イベント書き換え API (state/project の deleteEvents / addEvent / setEventValue)
@@ -20,12 +20,12 @@ export interface EventWriteOps {
 // またぐ直前ノートを常に丸ごと消す (掴みのドロップは完全置き換えのため)
 export function dropShortPrevNote(
   ops: EventWriteOps,
-  records: { clock: number; unitNo: number; kind: number; value: number }[],
+  records: EveRecord[],
   clock: number,
   unit: number,
   minLen: number,
 ): void {
-  let prev: { clock: number; value: number } | null = null;
+  let prev: EveRecord | null = null;
   for (const e of records) {
     if (e.unitNo !== unit || e.kind !== EventKind.ON) continue;
     if (e.clock >= clock) break;
