@@ -3,6 +3,17 @@
 // (Web 標準の TextEncoder は UTF-8 のみのため)
 let encodeTable: Map<string, number> | null = null;
 
+// CP932 には存在するが WHATWG の shift_jis 逆引き表では引けない記号 (JIS X 0208 のコードで書く)。
+// Windows の CP932 では全角形 (U+FF5E など) として扱われるため、本家の往復と一致する
+const CP932_EXTRA: ReadonlyArray<readonly [string, number]> = [
+  ["\u00a2", 0x8191], // ¢ (CP932 では U+FFE0 の位置)
+  ["\u00a3", 0x8192], // £ (同 U+FFE1)
+  ["\u00ac", 0x81ca], // ¬ (同 U+FFE2)
+  ["\u2016", 0x8161], // ‖ (同 U+2225)
+  ["\u2212", 0x817c], // − (同 U+FF0D)
+  ["\u301c", 0x8160], // 〜 (同 U+FF5E)。日本語入力で頻出
+];
+
 function buildTable(): void {
   const decoder = new TextDecoder("shift_jis");
   const map = new Map<string, number>();
@@ -21,6 +32,12 @@ function buildTable(): void {
   for (let b = 0xa1; b <= 0xdf; b++) {
     const s = decoder.decode(new Uint8Array([b]));
     if (s.length === 1 && s !== "\uFFFD") map.set(s, b);
+  }
+  // CP932 の記号のうち、WHATWG の復号表 (shift_jis) からは逆引きできない文字。
+  // 本家は WideCharToMultiByte(CP932) で書き出すため、これらも JIS X 0208 側の
+  // コードで書けるようにしておく (既存の対応は上書きしない)
+  for (const [ch, code] of CP932_EXTRA) {
+    if (!map.has(ch)) map.set(ch, code);
   }
   encodeTable = map;
 }

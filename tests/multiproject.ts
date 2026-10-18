@@ -113,6 +113,7 @@ import { visibleClockWindow, iterVisibleRecords, iterNoteDraws, type NoteDraw } 
 import { woiceSummary } from "../src/lib/woice";
 import { stripFileExt, renderWav, WAV_EXPORT_DEFAULTS } from "../src/engine/io";
 import { MemoryIo, VoiceType, WaveType, EventKind, type EveRecord } from "pxtone-ts";
+import { shiftJisToString } from "pxtone-ts";
 import { Service, PxtnErr, PXTN_MAX_EVENT_NUM, Woice, Noise, pxtnServiceMooCalcSampleNum } from "pxtone-ts";
 import { defaultOggvDecoder } from "pxtone-ts";
 import { decodeProjectBytes } from "../src/engine/oggv";
@@ -1247,6 +1248,20 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     // lib/woice: 音色サマリ
     const sum = woiceSummary(createDefaultWoice());
     check(sum.startsWith("座標波形"), "lib: woiceSummary は座標波形サマリ", sum);
+
+    // lib/sjis: CP932 の記号 (WHATWG の shift_jis 逆引き表に無い文字) も本家と同じコードで書く
+    checkBytes(encodeShiftJis("〜"), new Uint8Array([0x81, 0x60]), "lib: 〜 (U+301C) は 0x8160");
+    checkEq(shiftJisToString(encodeShiftJis("〜")), "～", "lib: 〜 は Windows の復号で ～ になる (本家と同じ)");
+    checkBytes(encodeShiftJis("‖"), new Uint8Array([0x81, 0x61]), "lib: ‖ (U+2016) は 0x8161");
+    checkBytes(encodeShiftJis("−"), new Uint8Array([0x81, 0x7c]), "lib: − (U+2212) は 0x817C");
+    checkBytes(
+      encodeShiftJis("¢£¬"),
+      new Uint8Array([0x81, 0x91, 0x81, 0x92, 0x81, 0xca]),
+      "lib: ¢£¬ は 0x8191 / 0x8192 / 0x81CA",
+    );
+    // 全角形 (既存の対応) は上書きされない
+    checkBytes(encodeShiftJis("～"), new Uint8Array([0x81, 0x60]), "lib: ～ (U+FF5E) も 0x8160");
+    checkBytes(encodeShiftJis("あ"), new Uint8Array([0x82, 0xa0]), "lib: ひらがなは従来どおり");
   }
 
   // ---- 25. MIDI (SMF) → ptcop 変換 ----
