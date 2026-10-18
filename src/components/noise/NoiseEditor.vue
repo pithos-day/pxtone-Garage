@@ -108,22 +108,17 @@ function setEnvePct(u: number, i: number, raw: string): void {
 // 波形とビルド履歴はタブごとの内容を表示する (履歴の実体は doc 側が持つ)
 const builtPcm = ref<Float32Array | null>(null);
 
-// 直近の依頼が履歴を積むかどうか (デバウンス実行時に参照する)
-let recordNextBuild = true;
-
-// 編集をデバウンスして波形へ反映する
-const scheduleRebuild = useDebounced(() => rebuild(recordNextBuild)).run;
+// デバウンス実行時に「履歴に積むか」を受け取る (編集 = true / 表示のみ = false)
+const scheduleRebuild = useDebounced((record: boolean) => rebuild(record)).run;
 
 // 編集後の再ビルド (履歴に積む)
 function scheduleEditBuild(): void {
-  recordNextBuild = true;
-  scheduleRebuild();
+  scheduleRebuild(true);
 }
 
 // 表示だけの再ビルド (タブ切替・起動直後。履歴に積まない)
 function schedulePreview(): void {
-  recordNextBuild = false;
-  scheduleRebuild();
+  scheduleRebuild(false);
 }
 
 // タブを切り替えたら、前のファイルの波形を残さず新しいタブの波形を描き直す。
