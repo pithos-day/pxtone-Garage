@@ -1463,6 +1463,8 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     if (bytes) {
       const ascii = new TextDecoder().decode(bytes);
       check("oggv: 保存は mateOGGV チャンク", ascii.includes("mateOGGV"));
+      // ヘッダの exe_ver は本家の算出値 (本家 0.9.4.56 → 0*1000+9*100+4*10+56 = 996)
+      checkEq(bytes[16] | (bytes[17] << 8), 996, "oggv: 書き出し ptcop の exeVer は 996 (本家 0.9.4.56)");
     }
 
     // decodeProjectBytes (アプリの実動): デコード済みバイト列は PCM チャンクになり、
