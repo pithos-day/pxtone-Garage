@@ -29,6 +29,8 @@ import {
   changeEventValue,
   addUnitWithWoice,
   setUnitNameAndWoice,
+  setUnitName,
+  unitNameDisplay,
   setWoiceProperties,
   getAllEvents,
   addEvent,
@@ -106,6 +108,7 @@ import { MENU_LABELS, menuNamesFor, buildFileMenu } from "../src/lib/menuItems";
 import { t } from "../src/i18n";
 import { secToEnveX, pctToEnveY, pushHistoryEntry } from "../src/lib/noise";
 import { nearestPoint, coordPxToX, coordPxToY, cursorToWaveY } from "../src/lib/voice-geometry";
+import { encodeShiftJis, truncateShiftJis } from "../src/lib/sjis";
 import { visibleClockWindow, iterVisibleRecords, iterNoteDraws, type NoteDraw } from "../src/lib/records";
 import { woiceSummary } from "../src/lib/woice";
 import { stripFileExt, renderWav, WAV_EXPORT_DEFAULTS } from "../src/engine/io";
@@ -595,7 +598,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     const added = addUnitWithWoice("u-テスト", wIdx);
     checkEq(added, true, "addUnitWithWoice: 追加される");
     const last = serviceMod.service.unitGet(serviceMod.service.unitNum - 1);
-    checkEq(last?.name, "u-テスト", "addUnitWithWoice: 名前が付く");
+    checkEq(unitNameDisplay(last?.name ?? ""), "u-テスト", "addUnitWithWoice: 名前が付く (SJIS 名は表示時にデコード)");
     checkEq(last?.woice, serviceMod.service.woiceGet(wIdx), "addUnitWithWoice: 音色が割り当てられる");
     // 再生は VOICENO イベントから音色を決定するため、clock 0 に割当が書かれる
     const vnOf = (u: number) => getAllEvents().filter((e) => e.unitNo === u && e.kind === EventKind.VOICENO);
@@ -606,7 +609,25 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     const wIdx2 = wIdx - 1;
     setUnitNameAndWoice(ui2, "u-変更", wIdx2);
     const changed = serviceMod.service.unitGet(ui2);
-    checkEq(changed?.name, "u-変更", "setUnitNameAndWoice: 名前が変わる");
+    checkEq(unitNameDisplay(changed?.name ?? ""), "u-変更", "setUnitNameAndWoice: 名前が変わる");
+    // 名前は本家形式 (Shift_JIS バイト列) で保持される (JS 文字列のまま保持しない)
+    {
+      const expect = truncateShiftJis(encodeShiftJis("u-変更"), 16);
+      const got = changed?.name ?? "";
+      let same = got.length === expect.length;
+      for (let i = 0; same && i < expect.length; i++) same = got.charCodeAt(i) === expect[i];
+      check("setUnitNameAndWoice: 内部は ShiftJIS バイト列 (latin-1 保持)", same);
+    }
+    // ユニット名の単独変更と 16 バイト切り詰め (2 バイト文字を分断しない)
+    setUnitName(ui2, "ドラム");
+    checkEq(unitNameDisplay(serviceMod.service.unitGet(ui2)?.name ?? ""), "ドラム", "setUnitName: SJIS で往復する");
+    setUnitName(ui2, "あ".repeat(9)); // 18 バイト → 16 バイト (8 文字)
+    checkEq(
+      unitNameDisplay(serviceMod.service.unitGet(ui2)?.name ?? ""),
+      "ああああああああ",
+      "setUnitName: 16 バイトで切り詰め (分断しない)",
+    );
+    setUnitName(ui2, "u-変更");
     checkEq(changed?.woice, serviceMod.service.woiceGet(wIdx2), "setUnitNameAndWoice: 音色が変わる");
     checkEq(vnOf(ui2).at(-1)?.value, wIdx2, "setUnitNameAndWoice: 最後の VOICENO が新音色になる");
     // 空文字の名前では名前を変更しない

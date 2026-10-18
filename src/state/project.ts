@@ -177,7 +177,7 @@ function syncUnits(): void {
     }
     us.push({
       index: i,
-      name: u.name || `unit ${i}`,
+      name: unitNameDisplay(u.name) || `unit ${i}`,
       woiceIndex: wIdx,
       muted: doc.muted.includes(i),
       visible: doc.unitVisible[i] ?? true,
@@ -267,6 +267,21 @@ export function woiceNameRaw(w: { getNameBuf(): Uint8Array }): string {
 // 音色名を表示用にデコード (本家同様、最初の NUL で終端する C 文字列扱い)
 export function woiceName(w: { getNameBuf(): Uint8Array }): string {
   return woiceNameRaw(w) || "(no name)";
+}
+
+// ユニット名を本家形式 (Shift_JIS・最大 16 バイト) にエンコードする。
+// pxtone-ts の Unit.setNameBuf は 1 バイト = 1 文字 (latin-1) として保持するため SJIS バイト列を渡す
+// (2 バイト文字は分断しない。本家 pxShiftJIS_check_size 相当)
+export function encodeUnitName(name: string): Uint8Array {
+  return truncateShiftJis(encodeShiftJis(name), 16);
+}
+
+// Unit.name (latin-1 文字列) を本家と同じ Shift_JIS としてデコードした表示用の名前
+export function unitNameDisplay(name: string): string {
+  if (!name) return "";
+  const bytes = new Uint8Array(name.length);
+  for (let i = 0; i < name.length; i++) bytes[i] = name.charCodeAt(i) & 0xff;
+  return shiftJisToString(bytes);
 }
 
 export function woiceTypeName(type: WoiceType): string {
@@ -395,7 +410,7 @@ export function addUnit(name?: string): boolean {
     const ok = service.unitAddNew();
     if (ok && name) {
       const u = service.unitGet(service.unitNum - 1);
-      u?.setNameBuf(name);
+      u?.setNameBuf(encodeUnitName(name));
     }
     return ok;
   });
@@ -408,7 +423,7 @@ export function addUnitWithWoice(name: string | undefined, woiceIdx: number): bo
     if (!service.unitAddNew()) return false;
     const ui = service.unitNum - 1;
     const u = service.unitGet(ui);
-    if (name) u?.setNameBuf(name);
+    if (name) u?.setNameBuf(encodeUnitName(name));
     const w = woiceIdx >= 0 ? service.woiceGet(woiceIdx) : null;
     if (u && w) {
       u.setWoice(w);
@@ -480,7 +495,7 @@ export function replaceUnitRaw(oldPlace: number, newPlace: number): void {
 
 export function setUnitName(idx: number, name: string): void {
   mutate(() => {
-    service.unitGet(idx)?.setNameBuf(name);
+    service.unitGet(idx)?.setNameBuf(encodeUnitName(name));
   });
 }
 
@@ -726,7 +741,7 @@ export function setUnitNameAndWoice(unitIdx: number, name: string, woiceIdx: num
     const u = service.unitGet(unitIdx);
     if (!u) return;
     const trimmed = name.trim();
-    if (trimmed) u.setNameBuf(trimmed);
+    if (trimmed) u.setNameBuf(encodeUnitName(trimmed));
     const w = service.woiceGet(woiceIdx);
     if (!w) return;
     u.setWoice(w);
