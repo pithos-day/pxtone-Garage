@@ -25,7 +25,7 @@ importers:
         version: 1.31.0(vue@3.5.40(typescript@6.0.3))
       pxtone-ts:
         specifier: github:pithos-day/pxtone-ts
-        version: https://codeload.github.com/pithos-day/pxtone-ts/tar.gz/09262236209b46b7bd9dd3b57396117736a78522
+        version: https://codeload.github.com/pithos-day/pxtone-ts/tar.gz/e3474c23555c4fd2ea14dc9654071fbf368820d4
       vue:
         specifier: ^3.5.40
         version: 3.5.40(typescript@6.0.3)
@@ -550,8 +550,8 @@ packages:
     resolution: {integrity: sha512-DTPx3RWSSnWyzLxQnlH0rJP+EW5ekl16ZU4/psbIhA0e53kJfdgaN5vKM+xP7yJtXVu+nfdVFmlgFDEKAe4Pyw==}
     engines: {node: ^10 || ^12 || >=14}
 
-  pxtone-ts@https://codeload.github.com/pithos-day/pxtone-ts/tar.gz/09262236209b46b7bd9dd3b57396117736a78522:
-    resolution: {gitHosted: true, integrity: sha512-m3DI+1xxLsFwKXaX1qNouFCWWs5oxhjDvfI+7oUkBx8+QEmSe7B4SQKAu9ALPIp9Q1hWQMo3gTrnHTa5JAuX4g==, tarball: https://codeload.github.com/pithos-day/pxtone-ts/tar.gz/09262236209b46b7bd9dd3b57396117736a78522}
+  pxtone-ts@https://codeload.github.com/pithos-day/pxtone-ts/tar.gz/e3474c23555c4fd2ea14dc9654071fbf368820d4:
+    resolution: {gitHosted: true, integrity: sha512-/2pGd4nIxDIMSVvOydekmPV7op7DNFnnosPYGXnAfJYMc8Fdd6wPSm7yAyVeWr/nBWXzg9HxQ27pYCYjV46jGg==, tarball: https://codeload.github.com/pithos-day/pxtone-ts/tar.gz/e3474c23555c4fd2ea14dc9654071fbf368820d4}
     version: 1.0.0
 
   rolldown@1.2.2:
@@ -1011,7 +1011,7 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
-  pxtone-ts@https://codeload.github.com/pithos-day/pxtone-ts/tar.gz/09262236209b46b7bd9dd3b57396117736a78522:
+  pxtone-ts@https://codeload.github.com/pithos-day/pxtone-ts/tar.gz/e3474c23555c4fd2ea14dc9654071fbf368820d4:
     dependencies:
       '@wasm-audio-decoders/ogg-vorbis': 0.1.20
 
