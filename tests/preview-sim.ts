@@ -1,7 +1,7 @@
 // プレビュー音声制御 (preview.ts) のシミュレーションテスト。
 // AudioContext をモックして、キー変更時の「前の音の停止」を検証する。
 import type { Woice } from "pxtone-ts";
-import { previewWoiceObjectHold, stopPreview, renderWoice, clearWoicePreviewCache, resetPreviewContext } from "../src/engine/preview";
+import { previewWoiceObjectHold, stopPreview, renderWoice, clearWoicePreviewCache, resetPreviewContext, playPcmOnce } from "../src/engine/preview";
 import { createDefaultWoice } from "../src/state/voice";
 
 // ---- モック AudioContext ----
@@ -49,10 +49,13 @@ class FakeContext {
   destination = {};
   sources: FakeSource[] = [];
   params: FakeParam[] = [];
+  // createBuffer に渡されたサンプルレート (PCM の実レートを検証するため記録)
+  bufferSps: number[] = [];
   resume(): void {
     this.state = "running";
   }
-  createBuffer(ch: number, len: number): { getChannelData: (i: number) => Float32Array } {
+  createBuffer(ch: number, len: number, sps: number): { getChannelData: (i: number) => Float32Array } {
+    this.bufferSps.push(sps);
     return { getChannelData: () => new Float32Array(len) };
   }
   createGain(): { gain: FakeParam; connect: () => void } {
@@ -209,6 +212,26 @@ void (async () => {
     const ms = performance.now() - t0;
     assert(work !== null && work.length >= 2, "renderWoice: 結果あり");
     console.log(`renderWoice: ${ms.toFixed(1)}ms (len=${work?.length})`);
+  }
+
+  // ---- ノイズ PCM の再生: デバイスが 48kHz でもバッファは実レート 44100 で作る ----
+  // (デバイスレートで作ると 48000/44100 倍速になり、本家より音程が高くなる)
+  {
+    resetPreviewContext();
+    const realAc = globalThis.AudioContext;
+    globalThis.AudioContext = class extends FakeContext {
+      constructor() {
+        super();
+        this.sampleRate = 48000;
+        lastCtx = this;
+      }
+    } as unknown as new () => FakeContext;
+    playPcmOnce(new Float32Array(44100 * 2));
+    assert(lastCtx!.sampleRate === 48000, "noise pcm: 48kHz デバイスを模擬");
+    assert(lastCtx!.bufferSps[0] === 44100, "noise pcm: 44100 のバッファとして作られる");
+    assert(lastCtx!.sources.length === 1, "noise pcm: ソースが 1 つ生成される");
+    globalThis.AudioContext = realAc;
+    resetPreviewContext();
   }
 
   console.log(`ALL PASS (${pass} assertions)`);

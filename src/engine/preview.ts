@@ -10,6 +10,7 @@ import { getService } from "../state/project";
 import { EXE_VER } from "../state/service";
 import { watch } from "vue";
 import { masterVolume } from "../state/player";
+import { NOISE_BUILT_SPS } from "../lib/noise";
 
 // プレビューの再生時間 (秒)
 export const PREVIEW_SEC = 2.5;
@@ -494,11 +495,14 @@ export function previewWoiceObjectHold(woice: Woice, key: number, velocity: numb
   }
 }
 
-// レンダリング済み PCM を単発再生する (ノイズのクリック再生用。ループしない)
+// レンダリング済み PCM を単発再生する (ノイズのクリック再生用。ループしない)。
+// ノイズの PCM は常に NOISE_BUILT_SPS (44100) ベースなので、AudioBuffer も 44100 として
+// 作る。デバイスレートで作ると 48kHz 環境で 48000/44100 倍速 (約 +1.5 半音) にずれる
+// (本家は再生側で 44100/dst_sps を掛けて補正している)
 export function playPcmOnce(pcm: Float32Array): void {
   const ctx = getCtx();
   if (!ctx) return;
-  playBuffer(pcm, ctx.sampleRate);
+  playBuffer(pcm, NOISE_BUILT_SPS);
 }
 
 // 現在のホールド音を指定リリースで停止し、フェード中の音として追跡する
