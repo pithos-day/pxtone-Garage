@@ -17,6 +17,7 @@
 //   42. スコープ操作 (コピー / 切り取り / クリア / 消去 / 貼り付け / 挿入 / 移調) / 43. WAV書き出しオプション (本家 dlg_BuildOption 相当)
 //   44. 音色プロパティ編集 (本家 dlg_Woice 相当) / 45. スマートツールの配置と確定 (lib/smart-note)
 //   46. キーボードショートカット (lib/shortcuts: 判定 / 表示 / スクロール)
+//   47. 進捗ダイアログ (state/progress) と IO の進捗・キャンセル
 import {
   projects,
   currentProjectId,
@@ -146,6 +147,25 @@ import { loopCrossfade } from "../src/lib/loop";
 import { visibleClockWindow, iterVisibleRecords, iterNoteDraws, type NoteDraw } from "../src/lib/records";
 import { woiceSummary } from "../src/lib/woice";
 import { stripFileExt, renderWav, WAV_EXPORT_DEFAULTS } from "../src/engine/io";
+import {
+  readBlobAndApply,
+  readBlobBytes,
+  writeSaveDestination,
+  chooseSaveDestination,
+  type BlobLike,
+} from "../src/engine/io";
+import {
+  PROGRESS_SHOW_DELAY_MS,
+  ProgressCancelled,
+  cancelProgress,
+  isProgressRunning,
+  progress,
+  withProgress,
+  type ProgressTask,
+} from "../src/state/progress";
+import { isModalOpen } from "../src/state/ui";
+import { dueYield, nextFrame } from "../src/lib/async";
+import { watch } from "vue";
 import { buildPcmWav } from "./fixtures/pcm-wav";
 import { MemoryIo, VoiceType, WaveType, EventKind, PTV_DATAFLAG_ENVELOPE, type EveRecord } from "pxtone-ts";
 import { shiftJisToString } from "pxtone-ts";
@@ -2631,6 +2651,396 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(arrowScrollRow(5, -1, 10), 4, "shortcut: ↑ は 1 行上へ");
     checkEq(arrowScrollRow(0, -1, 10), 0, "shortcut: ↑ は 0 未満にしない");
     checkEq(arrowScrollRow(9, 1, 10), 9, "shortcut: ↓ は最終行で止まる");
+  }
+
+  // ---- 47. 進捗ダイアログ (state/progress) と IO の進捗・キャンセル ----
+  {
+    // 進捗タスクの代わり (range / set の呼ばれ方を記録する)
+    const spyTask = (): { task: ProgressTask; ranges: [number, number][]; values: number[] } => {
+      const ranges: [number, number][] = [];
+      const values: number[] = [];
+      const task: ProgressTask = {
+        signal: new AbortController().signal,
+        range: (start, end) => ranges.push([start, end]),
+        set: (v) => values.push(v),
+        step: () => {},
+        throwIfCancelled: () => {},
+      };
+      return { task, ranges, values };
+    };
+
+    // 進捗が閾値を超えたらキャンセルするタスク (チャンクの区切りで中断が効くかの検証用)
+    const cancelTaskAfter = (threshold: number): { task: ProgressTask; cancelled: () => boolean } => {
+      const controller = new AbortController();
+      const task: ProgressTask = {
+        signal: controller.signal,
+        range: () => {},
+        set: (v) => {
+          if (v > threshold) controller.abort();
+        },
+        step: () => {},
+        throwIfCancelled: () => {
+          if (controller.signal.aborted) throw new ProgressCancelled();
+        },
+      };
+      return { task, cancelled: () => controller.signal.aborted };
+    };
+
+    // ---- withProgress の基本 (区間の写像 / 不定表示 / 後始末) ----
+    checkEq(PROGRESS_SHOW_DELAY_MS, 300, "progress: 既定の表示遅延は 300ms");
+    checkEq(isProgressRunning(), false, "progress: 実行前は非実行中");
+    {
+      const result = await withProgress(
+        "テスト処理",
+        async (task) => {
+          checkEq(isProgressRunning(), true, "progress: 実行中は isProgressRunning が true");
+          checkEq(isModalOpen(), true, "progress: 実行中はモーダル扱い (ショートカット抑止)");
+          checkEq(progress.active, true, "progress: 実行中はオーバーレイが出る");
+          checkEq(progress.open, true, "progress: showDelayMs=0 なら即表示");
+          checkEq(progress.title, "テスト処理", "progress: タイトルが入る");
+          task.range(0, 0.5, "前半");
+          checkEq(progress.value, 0, "progress: range 直後は区間の開始値");
+          checkEq(progress.label, "前半", "progress: range でラベルが入る");
+          task.set(0.5);
+          checkEq(progress.value, 0.25, "progress: set は区間へ写像される");
+          task.set(2);
+          checkEq(progress.value, 0.5, "progress: set は区間の上限でクランプ");
+          task.set(-1);
+          checkEq(progress.value, 0, "progress: set は区間の下限でクランプ");
+          task.set(Number.NaN);
+          checkEq(progress.value, 0, "progress: set(NaN) は 0 として扱う");
+          task.range(0.5, 1, "後半");
+          checkEq(progress.value, 0.5, "progress: 次の range で開始値へ進む");
+          task.set(0.5);
+          checkEq(progress.value, 0.75, "progress: 2 つ目の区間へ写像される");
+          task.step("解析中");
+          checkEq(progress.indeterminate, true, "progress: step で不定表示になる");
+          checkEq(progress.value, 0.75, "progress: step では数字が据え置き");
+          checkEq(progress.label, "解析中", "progress: step でラベルが変わる");
+          return "done";
+        },
+        { showDelayMs: 0 },
+      );
+      checkEq(result, "done", "progress: 戻り値がそのまま返る");
+      checkEq(progress.active, false, "progress: 終了後はオーバーレイが消える");
+      checkEq(progress.open, false, "progress: 終了後はダイアログが消える");
+      checkEq(progress.value, 0, "progress: 終了後は進捗がリセットされる");
+      checkEq(progress.indeterminate, false, "progress: 終了後は不定表示も解除される");
+      checkEq(isModalOpen(), false, "progress: 終了後はモーダルが解除される");
+      checkEq(isProgressRunning(), false, "progress: 終了後は非実行中");
+    }
+
+    // ---- 表示遅延 (短い処理ではダイアログを出さない) ----
+    {
+      let openDuring = false;
+      let activeDuring = false;
+      await withProgress(
+        "短い処理",
+        async () => {
+          openDuring = progress.open;
+          activeDuring = progress.active;
+        },
+        { showDelayMs: 1000 },
+      );
+      checkEq(openDuring, false, "progress: 遅延中はダイアログを出さない");
+      checkEq(activeDuring, true, "progress: 遅延中も入力を止めるオーバーレイは出す");
+      checkEq(progress.open, false, "progress: 遅延内に終わった処理は表示しない");
+      checkEq(progress.active, false, "progress: 遅延内に終わっても後始末はされる");
+    }
+
+    // ---- キャンセル ----
+    {
+      const result = await withProgress(
+        "キャンセルされる処理",
+        async (task) => {
+          task.range(0, 1, "作業中");
+          task.set(0.1);
+          cancelProgress();
+          checkEq(progress.cancelling, true, "progress: キャンセル要求で中断待ち表示になる");
+          checkEq(task.signal.aborted, true, "progress: キャンセル要求で signal が立つ");
+          cancelProgress();
+          checkEq(progress.cancelling, true, "progress: 二重のキャンセル要求は無視される");
+          task.throwIfCancelled();
+          return "到達しない";
+        },
+        { showDelayMs: 0 },
+      );
+      checkEq(result, null, "progress: キャンセル時は null が返る");
+      checkEq(progress.cancelling, false, "progress: 終了後は中断待ち表示が消える");
+      checkEq(isProgressRunning(), false, "progress: キャンセル後も非実行中に戻る");
+      checkEq(isModalOpen(), false, "progress: キャンセル後もモーダルが解除される");
+    }
+
+    // ---- キャンセル不可の処理 ----
+    {
+      const result = await withProgress(
+        "中断できない処理",
+        async (task) => {
+          cancelProgress();
+          checkEq(progress.cancellable, false, "progress: キャンセル不可フラグが立つ");
+          checkEq(task.signal.aborted, false, "progress: キャンセル不可の処理は中断されない");
+          task.throwIfCancelled();
+          return 7;
+        },
+        { showDelayMs: 0, cancellable: false },
+      );
+      checkEq(result, 7, "progress: キャンセル不可でも完了する");
+    }
+
+    // ---- 二重起動 (ネスト) は進捗なしで実行する ----
+    {
+      const warn = console.warn;
+      console.warn = () => {};
+      try {
+        const result = await withProgress(
+          "外側",
+          async () => withProgress("内側", async () => "inner", { showDelayMs: 0 }),
+          { showDelayMs: 0 },
+        );
+        checkEq(result, "inner", "progress: ネスト実行は落ちずに結果を返す");
+      } finally {
+        console.warn = warn;
+      }
+      checkEq(isProgressRunning(), false, "progress: ネスト後も非実行中に戻る");
+    }
+
+    // ---- 時間ヘルパ ----
+    checkEq(dueYield(0, 100, 100), true, "async: 経過時間が閾値以上なら yield する");
+    checkEq(dueYield(0, 100, 99), false, "async: 閾値未満では yield しない");
+    {
+      let resolved = false;
+      await nextFrame().then(() => {
+        resolved = true;
+      });
+      checkEq(resolved, true, "async: nextFrame は解決する (node は setTimeout)");
+    }
+
+    // ---- 読み込み (stream) の進捗とキャンセル ----
+    const fakeBlob = (chunks: Uint8Array[]): BlobLike => {
+      const size = chunks.reduce((n, c) => n + c.byteLength, 0);
+      let i = 0;
+      return {
+        size,
+        stream: () =>
+          new ReadableStream<Uint8Array>({
+            pull(controller) {
+              if (i >= chunks.length) {
+                controller.close();
+                return;
+              }
+              controller.enqueue(chunks[i++]!);
+            },
+          }),
+        arrayBuffer: async () => new Uint8Array(size).buffer,
+      };
+    };
+    const CHUNK_BYTES = 64 * 1024;
+    {
+      // stream 経路 (256KB 以上) で読む
+      const chunk = new Uint8Array(CHUNK_BYTES);
+      for (let i = 0; i < chunk.length; i++) chunk[i] = (i * 31) & 0xff;
+      const chunks = Array.from({ length: 8 }, () => chunk);
+      const { task, values } = spyTask();
+      const bytes = await readBlobBytes(fakeBlob(chunks), task);
+      checkEq(bytes.byteLength, CHUNK_BYTES * 8, "io: stream 読み込みで全バイトが連結される");
+      checkEq(bytes[CHUNK_BYTES], chunk[0], "io: 連結の 2 チャンク目が正しい位置に入る");
+      checkEq(bytes[bytes.length - 1], chunk[chunk.length - 1], "io: 末尾バイトも正しい");
+      checkEq(values.length, chunks.length, "io: チャンクごとに進捗を報告する");
+      checkEq(values[values.length - 1], 1, "io: 読み込み進捗は 1 で終わる");
+      let monotonic = true;
+      for (let i = 1; i < values.length; i++) if (values[i]! < values[i - 1]!) monotonic = false;
+      checkEq(monotonic, true, "io: 読み込み進捗は単調増加");
+    }
+    {
+      // 小さなファイルは一括読み (進捗なし)
+      const { task, values } = spyTask();
+      const small: BlobLike = { size: 3, arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer };
+      const bytes = await readBlobBytes(small, task);
+      checkEq(bytes.length, 3, "io: 小さいファイルは一括読み");
+      checkEq(values.length, 0, "io: 一括読みでは進捗を報告しない");
+    }
+    {
+      // チャンクの区切りで中断できる
+      const chunk = new Uint8Array(CHUNK_BYTES);
+      const { task, cancelled } = cancelTaskAfter(0.4);
+      let interrupted = false;
+      try {
+        await readBlobBytes(fakeBlob(Array.from({ length: 8 }, () => chunk)), task);
+      } catch (e) {
+        interrupted = e instanceof ProgressCancelled;
+      }
+      checkEq(cancelled(), true, "io: 読み込みの中断要求が立つ");
+      checkEq(interrupted, true, "io: 読み込みはチャンクの区切りで中断できる");
+    }
+    {
+      // 読み込み中にキャンセルされたら適用しない (半端なタブを残さない)
+      const stop = watch(
+        () => progress.value,
+        (v) => {
+          if (v >= 0.3) cancelProgress();
+        },
+        { flush: "sync" },
+      );
+      let applied = false;
+      const chunk = new Uint8Array(CHUNK_BYTES);
+      const result = await readBlobAndApply("読み込み中に中断", fakeBlob(Array.from({ length: 16 }, () => chunk)), (bytes) => {
+        applied = true;
+        return bytes.length;
+      });
+      stop();
+      checkEq(result, null, "io: 読み込み中にキャンセルしたら null が返る");
+      checkEq(applied, false, "io: キャンセル時は適用 (解析・タブ作成) を行わない");
+      checkEq(progress.active, false, "io: キャンセル後も進捗が閉じる");
+    }
+    {
+      // 読み込み → 適用 (小さいファイル)
+      const small: BlobLike = { size: 3, arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer };
+      const applied = await readBlobAndApply("小さなファイル", small, (bytes) => bytes[0]! + bytes[1]! + bytes[2]!);
+      checkEq(applied, 6, "io: readBlobAndApply は読んだバイト列を適用する");
+    }
+
+    // ---- 保存先の決定と書き込み ----
+    {
+      const dest = await chooseSaveDestination("song.ptcop", "application/octet-stream", false);
+      checkEq(dest?.kind, "download", "io: 通常保存はダウンロード経路 (ピッカーを開かない)");
+      checkEq(dest?.name, "song.ptcop", "io: 保存名がそのまま入る");
+      // node には showSaveFilePicker が無いため、usePicker=true でもダウンロードへ落ちる
+      const picked = await chooseSaveDestination("song.ptcop", "application/octet-stream", true);
+      checkEq(picked?.kind, "download", "io: ピッカー非対応環境ではダウンロードへフォールバック");
+    }
+    {
+      // ピッカー経路のチャンク書き込み (ハンドルは偽物)
+      const written: Uint8Array[] = [];
+      let closed = false;
+      let aborted = false;
+      const fakeHandle = (): FileSystemFileHandle =>
+        ({
+          name: "test.ptcop",
+          createWritable: async () => ({
+            write: async (data: unknown) => {
+              written.push(new Uint8Array(data as ArrayBuffer));
+            },
+            close: async () => {
+              closed = true;
+            },
+            abort: async () => {
+              aborted = true;
+            },
+          }),
+        }) as unknown as FileSystemFileHandle;
+      const bytes = new Uint8Array(2.5 * 1024 * 1024);
+      for (let i = 0; i < bytes.length; i += 1024) bytes[i] = (i * 31) & 0xff;
+      const { task, values } = spyTask();
+      await writeSaveDestination({ kind: "file", name: "test.ptcop", handle: fakeHandle() }, bytes, { task });
+      checkEq(written.length, 3, "io: ピッカー書き込みは 1MB ずつに分割される");
+      checkEq(written[0]!.byteLength, 1024 * 1024, "io: 1 チャンク目は 1MB");
+      checkEq(written[2]!.byteLength, 0.5 * 1024 * 1024, "io: 最後のチャンクは端数");
+      checkEq(written[1]![0], bytes[1024 * 1024], "io: 2 チャンク目は 1MB 地点から書く");
+      checkEq(closed, true, "io: 書き込み完了で close する");
+      checkEq(values[values.length - 1], 1, "io: 書き込み進捗は 1 で終わる");
+      checkEq(aborted, false, "io: 正常終了では abort しない");
+
+      // 中断: 1 チャンク目で止めると書きかけを破棄して close しない
+      closed = false;
+      aborted = false;
+      const { task: canceling, cancelled } = cancelTaskAfter(0);
+      let interrupted = false;
+      try {
+        await writeSaveDestination({ kind: "file", name: "test.ptcop", handle: fakeHandle() }, bytes, { task: canceling });
+      } catch (e) {
+        interrupted = e instanceof ProgressCancelled;
+      }
+      checkEq(cancelled(), true, "io: 書き込みの中断要求が立つ");
+      checkEq(interrupted, true, "io: 書き込みはチャンクの区切りで中断できる");
+      checkEq(aborted, true, "io: 中断時は書きかけを破棄する (abort)");
+      checkEq(closed, false, "io: 中断時は close せず元ファイルを置き換えない");
+    }
+
+    // ---- WAV レンダリングの進捗とキャンセル ----
+    {
+      // PCM 音色 + 2 拍のノート 1 つ (セクション 43 と同じ作り方)
+      newProjectInTab();
+      checkEq(await addWoice(buildPcmWav(), WoiceType.PCM, "ProgressPCM"), null, "progress: PCM 音色を追加");
+      const woiceIdx = serviceMod.service.woiceNum - 1;
+      checkEq(addUnitWithWoice("P", woiceIdx), true, "progress: ユニットを追加");
+      const svc = serviceMod.service;
+      svc.evels.recordAddI(0, 0, EventKind.KEY, 0x6000);
+      svc.evels.recordAddI(0, 0, EventKind.VELOCITY, 100);
+      svc.evels.recordAddI(0, 0, EventKind.ON, 480 * 2);
+      const wavBytes = exportBytes();
+      check(wavBytes !== null, "progress: ptcop を書き出し");
+
+      const options: WavExportOptions = { ...WAV_EXPORT_DEFAULTS, sps: 22050, scope: "byTime", playTimeSec: 1 };
+      const plain = await renderWav(wavBytes!, options);
+      const { task, values } = spyTask();
+      const withTask = await renderWav(wavBytes!, options, task, { chunkFrames: 1024, yieldMs: 0 });
+      check("wav" in plain && "wav" in withTask, "progress: 進捗つきでもレンダリングできる");
+      if ("wav" in plain && "wav" in withTask) {
+        checkEq(withTask.wav.length, plain.wav.length, "progress: 進捗つきと通常で同じ長さ");
+        let diff = -1;
+        for (let i = 0; i < plain.wav.length; i++) {
+          if (plain.wav[i] !== withTask.wav[i]) {
+            diff = i;
+            break;
+          }
+        }
+        checkEq(diff, -1, "progress: 進捗つきと通常で同じバイト列 (チャンク分割が結果を変えない)");
+      }
+      checkEq(values.length >= 2, true, "progress: レンダリング中に進捗を報告する");
+      checkEq(values[values.length - 1], 1, "progress: レンダリング進捗は 1 で終わる");
+      let monotonic = true;
+      for (let i = 1; i < values.length; i++) if (values[i]! < values[i - 1]!) monotonic = false;
+      checkEq(monotonic, true, "progress: レンダリング進捗は単調増加");
+
+      // span を指定すると、その範囲と残り (書き込み用) を分けて報告する
+      const { task: spanTask, ranges, values: spanValues } = spyTask();
+      await renderWav(wavBytes!, options, spanTask, { span: [0.5, 0.97], chunkFrames: 1024, yieldMs: 0 });
+      checkEq(ranges[0]?.[0], 0.5, "progress: span の開始値から報告する");
+      checkEq(ranges[ranges.length - 1]?.[1], 0.97, "progress: span の終端で止まる");
+      checkEq(Math.max(...spanValues, 0) <= 1, true, "progress: レンダリング内の進捗は 0..1");
+      checkEq(Math.min(...spanValues, 1) >= 0, true, "progress: レンダリング内の進捗は 0 から");
+
+      // 途中でキャンセルすると ProgressCancelled で止まる
+      const { task: canceling } = cancelTaskAfter(0.5);
+      let interrupted = false;
+      try {
+        await renderWav(wavBytes!, { ...options, playTimeSec: 10 }, canceling, { chunkFrames: 1024, yieldMs: 0 });
+      } catch (e) {
+        interrupted = e instanceof ProgressCancelled;
+      }
+      checkEq(interrupted, true, "progress: WAV レンダリングはチャンクの区切りで中断できる");
+      checkEq(isModalOpen(), false, "progress: レンダリング中断後もモーダルは残らない");
+    }
+
+    // ---- OGGV デコード (音色単位の進捗) ----
+    {
+      const ogg = new Uint8Array(readFileSync(join(__dirname, "fixtures", "test-tone.ogg")));
+      checkEq(await addWoice(ogg, WoiceType.OGGV, "ProgressOGG"), null, "progress: OGGV 音色を追加");
+      const bytes = exportBytes();
+      check(bytes !== null, "progress: OGGV 入り ptcop を書き出し");
+      const plain = await decodeProjectBytes(bytes!, 996);
+      const { task, values } = spyTask();
+      const withTask = await decodeProjectBytes(bytes!, 996, task);
+      checkEq(withTask?.length, plain?.length, "progress: OGGV デコード結果の長さが一致する");
+      let diff = -1;
+      if (plain && withTask) {
+        for (let i = 0; i < plain.length; i++) {
+          if (plain[i] !== withTask[i]) {
+            diff = i;
+            break;
+          }
+        }
+      }
+      checkEq(diff, -1, "progress: 進捗つき OGGV デコードは通常経路と同じ結果になる");
+      checkEq(values[values.length - 1], 1, "progress: OGGV デコードは音色単位で 1 まで報告する");
+      // OGGV を含まないプロジェクトは素通しする (進捗も出ない)
+      newProjectInTab();
+      const noOgg = exportBytes();
+      const { task: noOggTask, values: noOggValues } = spyTask();
+      const passthrough = noOgg ? await decodeProjectBytes(noOgg, 996, noOggTask) : null;
+      checkEq(passthrough === noOgg, true, "progress: OGGV なしは元バイト列をそのまま返す");
+      checkEq(noOggValues.length, 0, "progress: OGGV なしでは進捗を報告しない");
+    }
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);

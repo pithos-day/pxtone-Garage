@@ -95,6 +95,27 @@ const ja = {
   "transport.volume": "音量",
   "transport.panels": "パネル",
 
+  // IO 中の進捗ダイアログ
+  "progress.cancel": "キャンセル",
+  "progress.cancelling": "中断しています…",
+  "progress.openTitle": "ファイルを読み込み中",
+  "progress.reading": "読み込み中",
+  "progress.parsing": "解析中",
+  "progress.midiTitle": "MIDI を読み込み中",
+  "progress.midiConvert": "MIDI を変換中",
+  "progress.woiceTitle": "音色を読み込み中",
+  "progress.saveTitle": "保存中",
+  "progress.serializing": "書き出し中",
+  "progress.writing": "書き込み中",
+  "progress.pttuneTitle": "pttune を書き出し中",
+  "progress.wavTitle": "WAV を書き出し中",
+  "progress.rendering": "レンダリング中",
+  "progress.oggv": "OGGV を変換中",
+  "progress.voiceWavTitle": "音色を WAV で書き出し中",
+  "progress.noiseWavTitle": "ノイズを WAV で書き出し中",
+  "progress.woiceFileTitle": "音色を書き出し中",
+  "progress.building": "生成中",
+
   // ツールパネル
   "tool.woiceManage": "音色管理",
   "tool.unitManage": "ユニット",

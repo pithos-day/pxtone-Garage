@@ -10,6 +10,7 @@ import SettingsDialog from "./SettingsDialog.vue";
 import CopyMeasDialog from "./CopyMeasDialog.vue";
 import EventVolumeDialog from "./EventVolumeDialog.vue";
 import WavExportDialog from "./WavExportDialog.vue";
+import ProgressDialog from "./ProgressDialog.vue";
 import type { EventVolumeMode } from "../../lib/eventVolume";
 import type { AppMode } from "../../lib/modes";
 import CollageTab from "../collage/CollageEditor.vue";
@@ -17,8 +18,9 @@ import VoiceTab from "../voice/VoiceEditor.vue";
 import NoiseTab from "../noise/NoiseEditor.vue";
 import VoiceCopyDialog from "../voice/VoiceCopyDialog.vue";
 import { ensureInitialProject } from "../../state/projects";
-import { openProjectInTab } from "../../state/projects";
-import { initLanguage } from "../../i18n";
+import { openProjectFromBlob } from "../../state/projects";
+import { readBlobAndApply } from "../../engine/io";
+import { initLanguage, t } from "../../i18n";
 import { copyVoiceSide, openVoice, ensureInitialVoice } from "../../state/voice";
 import { openNoise, ensureInitialNoise } from "../../state/noise";
 
@@ -77,14 +79,14 @@ async function onDrop(e: DragEvent): Promise<void> {
   if (!file) return;
   const ext = file.name.split(".").pop()?.toLowerCase();
   const name = file.name.replace(/\.(ptcop|pttune|ptvoice|ptnoise)$/i, "");
-  const bytes = new Uint8Array(await file.arrayBuffer());
+  // 現在のモードに対応する拡張子のみ開く (読み込みは進捗つき・キャンセル可)
   let err: string | null = null;
   if (activeTab.value === "collage" && (ext === "ptcop" || ext === "pttune")) {
-    err = openProjectInTab(bytes, name);
+    err = await openProjectFromBlob(file, name);
   } else if (activeTab.value === "voice" && ext === "ptvoice") {
-    err = openVoice(bytes, name);
+    err = await readBlobAndApply(t("progress.openTitle"), file, (bytes) => openVoice(bytes, name));
   } else if (activeTab.value === "noise" && ext === "ptnoise") {
-    err = openNoise(bytes, name);
+    err = await readBlobAndApply(t("progress.openTitle"), file, (bytes) => openNoise(bytes, name));
   }
   if (err) window.alert(err);
 }
@@ -125,6 +127,8 @@ async function onDrop(e: DragEvent): Promise<void> {
       @yes="onVoiceCopyYes"
       @close="voiceCopyDir = null"
     />
+    <!-- IO 中の進捗ダイアログ (state/progress を購読する) -->
+    <ProgressDialog />
   </div>
 </template>
 

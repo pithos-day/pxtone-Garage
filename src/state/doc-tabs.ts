@@ -3,7 +3,8 @@
 // voice.ts / noise.ts は実体の読み書き (codec) とタブ生成だけを提供する。
 // (本家と同じく、この層はコラージュの projects.ts とはタブ管理方式が異なる)
 import { ref, type Ref } from "vue";
-import { downloadBytes, sanitizeFileName, stripFileExt, supportsSavePicker } from "../engine/io";
+import { chooseSaveDestination, sanitizeFileName, stripFileExt, supportsSavePicker, writeSaveDestination } from "../engine/io";
+import { withProgress } from "./progress";
 import { t } from "../i18n";
 
 const MAX_UNDO = 100;
@@ -109,7 +110,8 @@ export function createDocTabs<D extends TabDocBase>(codec: DocCodec<D>) {
 
     // タブをファイルとして保存 (asNew でファイル名入力を促す)。
     // 通常保存 (asNew=false) はダイアログを開かずダウンロードを発火し、
-    // 名前を付けて保存 (asNew=true) は対応ブラウザでピッカーを開く
+    // 名前を付けて保存 (asNew=true) は対応ブラウザでピッカーを開く。
+    // ピッカーは生成より先に呼ぶ (長い処理の後だとユーザー操作が切れて開けない)
     async save(d: D, asNew: boolean, ext: string): Promise<boolean> {
       let name = d.fileName || "untitled";
       if (asNew && !supportsSavePicker()) {
@@ -117,12 +119,19 @@ export function createDocTabs<D extends TabDocBase>(codec: DocCodec<D>) {
         if (input === null) return false;
         name = input.trim() || "untitled";
       }
-      const bytes = codec.snapshotForSave ? codec.snapshotForSave(d) : codec.snapshot(d);
-      if (!bytes) return false;
+      const dest = await chooseSaveDestination(sanitizeFileName(name, ext), "application/octet-stream", asNew);
+      if (!dest) return false; // ピッカーを閉じた
+      const saved = await withProgress(t("progress.saveTitle"), async (task) => {
+        task.step(t("progress.serializing"));
+        const bytes = codec.snapshotForSave ? codec.snapshotForSave(d) : codec.snapshot(d);
+        if (!bytes) return null;
+        task.range(0.2, 1, t("progress.writing"));
+        await writeSaveDestination(dest, bytes, { task });
+        return dest.name;
+      });
+      if (!saved) return false; // キャンセル
       // キャンセル時 (null) はファイル名を更新しない。ピッカーで変更された名前は反映する
       // (タブ表示は拡張子なしのため、拡張子を除いて記録する)
-      const saved = await downloadBytes(bytes, { fileName: sanitizeFileName(name, ext), usePicker: asNew });
-      if (!saved) return false;
       d.fileName = stripFileExt(saved);
       d.dirty = false;
       return true;

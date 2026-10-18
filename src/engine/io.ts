@@ -2,7 +2,8 @@
 import { Service, PxtnErr, MemoryIo, NoiseBuilder, WoiceType, pxtnServiceMooCalcSampleNum } from "pxtone-ts";
 import type { Noise, Woice } from "pxtone-ts";
 import { EXE_VER } from "../state/service";
-import { exportBytes } from "../state/project";
+import { ProgressCancelled, withProgress, type ProgressTask } from "../state/progress";
+import { dueYield, nextFrame, nowMs, YIELD_INTERVAL_MS } from "../lib/async";
 import { decodeProjectBytes } from "./oggv";
 import { t } from "../i18n";
 
@@ -21,7 +22,7 @@ export function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
 
 // 「名前を付けて保存」ピッカー (File System Access API, Chromium 系のみ) が使えるか
 export function supportsSavePicker(): boolean {
-  return typeof window.showSaveFilePicker === "function";
+  return typeof window !== "undefined" && typeof window.showSaveFilePicker === "function";
 }
 
 // ファイル保存のオプション。
@@ -33,34 +34,88 @@ export interface SaveOptions {
   usePicker?: boolean;
 }
 
-// ファイルを保存する。usePicker=true かつ対応ブラウザ (Chromium 系) では
-// 「名前を付けて保存」ピッカーを開き、それ以外は従来どおりダウンロードを発火する。
-// 保存が完了したら実際のファイル名、ユーザーがキャンセルしたら null を返す (書き込み失敗は throw)。
-// ピッカーではファイル名を変更できるため、呼び出し側は戻り値で保存後の名前を把握できる
-export async function downloadBytes(bytes: Uint8Array, options: SaveOptions): Promise<string | null> {
-  const { fileName, mime = "application/octet-stream", usePicker = true } = options;
-  const buf = toArrayBuffer(bytes);
-  if (usePicker && supportsSavePicker()) {
-    // File System Access API — 保存先・ファイル名をユーザーが選択して書き込む
-    const dot = fileName.lastIndexOf(".");
-    const ext = dot > 0 ? fileName.slice(dot) : "";
+// ファイル名の拡張子 (ピッカーの accept に渡す)
+function fileExt(fileName: string): string {
+  const dot = fileName.lastIndexOf(".");
+  return dot > 0 ? fileName.slice(dot) : "";
+}
+
+export interface SaveDestination {
+  kind: "file" | "download";
+  name: string; // 保存名 (ピッカーで変更され得る)
+  handle: FileSystemFileHandle | null;
+}
+
+// 保存先を決める。usePicker かつ対応ブラウザなら「名前を付けて保存」ピッカーを開く。
+// ピッカーはユーザー操作 (transient activation) が必要なので、時間のかかる生成より
+// 前に呼ぶこと (生成の後に呼ぶと SecurityError で開けない)。
+// ユーザーがピッカーを閉じた場合は null。操作が切れていた場合もダウンロードへ落とす
+export async function chooseSaveDestination(fileName: string, mime: string, usePicker: boolean): Promise<SaveDestination | null> {
+  if (!usePicker || !supportsSavePicker()) {
+    return { kind: "download", name: fileName, handle: null };
+  }
+  try {
+    const handle = await window.showSaveFilePicker({
+      suggestedName: fileName,
+      types: [{ description: fileName, accept: { [mime]: [fileExt(fileName)] } }],
+    });
+    return { kind: "file", name: handle.name, handle };
+  } catch (e) {
+    // キャンセル (AbortError) は「保存しなかった」として扱う
+    if (e instanceof DOMException && e.name === "AbortError") return null;
+    // ユーザー操作が切れていた (SecurityError) 場合はダウンロードへフォールバック
+    if (e instanceof DOMException && e.name === "SecurityError") {
+      return { kind: "download", name: fileName, handle: null };
+    }
+    throw e;
+  }
+}
+
+// FileSystemWritableFileStream.write は ArrayBuffer 裏付けのビューしか受け付けない型に
+// なっているが、エンジン由来の Uint8Array は常に ArrayBuffer 上にある
+// (SharedArrayBuffer は使わない) ため、コピーを避けてキャストで通す
+function asWriteChunk(bytes: Uint8Array): BufferSource {
+  return bytes as unknown as BufferSource;
+}
+
+// 保存先へ書き込む。ピッカーのファイルは 1MB ずつ書き込んで進捗を報告し、
+// キャンセル時は書きかけを破棄する (ピッカーは差し替え用の一時ファイルへ書くため、
+// 中断しても元のファイルは壊れない)。ダウンロードの場合は進捗を出せない
+export async function writeSaveDestination(
+  dest: SaveDestination,
+  bytes: Uint8Array,
+  options: { mime?: string; task?: ProgressTask } = {},
+): Promise<void> {
+  const { mime = "application/octet-stream", task } = options;
+  if (dest.kind === "file" && dest.handle) {
+    // 作成の前にキャンセルを確認する (無駄な一時ファイルを作らない)
+    task?.throwIfCancelled();
+    const writable = await dest.handle.createWritable();
+    const chunk = 1 << 20;
     try {
-      const handle = await window.showSaveFilePicker({
-        suggestedName: fileName,
-        types: [{ description: fileName, accept: { [mime]: [ext] } }],
-      });
-      const writable = await handle.createWritable();
-      await writable.write(buf);
+      for (let off = 0; off < bytes.length; off += chunk) {
+        task?.throwIfCancelled();
+        const end = Math.min(off + chunk, bytes.length);
+        await writable.write(asWriteChunk(bytes.subarray(off, end)));
+        task?.set(end / bytes.length);
+      }
       await writable.close();
-      return handle.name;
     } catch (e) {
-      // キャンセル (AbortError) は「保存しなかった」として扱う
-      if (e instanceof DOMException && e.name === "AbortError") return null;
+      // 中断・失敗時は書きかけを捨てる (元のファイルは close するまで置き換わらない)
+      await writable.abort().catch(() => {});
       throw e;
     }
+    return;
   }
-  // フォールバック: 従来どおりダウンロード発火
-  const blob = new Blob([buf], { type: mime });
+  // ダウンロード経路は一瞬で終わる (中断要求があれば保存しない)
+  task?.throwIfCancelled();
+  triggerDownload(bytes, dest.name, mime);
+  task?.set(1);
+}
+
+// ダウンロードを発火する (ピッカー非対応ブラウザ用)
+function triggerDownload(bytes: Uint8Array, fileName: string, mime: string): void {
+  const blob = new Blob([toArrayBuffer(bytes)], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -69,16 +124,93 @@ export async function downloadBytes(bytes: Uint8Array, options: SaveOptions): Pr
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-  return fileName;
+}
+
+// ファイルを保存する。戻り値は実際のファイル名、ユーザーがキャンセルしたら null
+// (書き込み失敗は throw)。ピッカーではファイル名を変更できるため、
+// 呼び出し側は戻り値で保存後の名前を把握できる
+export async function downloadBytes(bytes: Uint8Array, options: SaveOptions): Promise<string | null> {
+  const { fileName, mime = "application/octet-stream", usePicker = true } = options;
+  const dest = await chooseSaveDestination(fileName, mime, usePicker);
+  if (!dest) return null;
+  await writeSaveDestination(dest, bytes, { mime });
+  return dest.name;
+}
+
+// Blob / File の必要最小限 (テストから stream を持つ偽物を渡せるようにする)
+export interface BlobLike {
+  size: number;
+  stream?: () => ReadableStream<Uint8Array>;
+  arrayBuffer: () => Promise<ArrayBuffer>;
+}
+
+// stream を分割して読む下限サイズ (これ未満は一括読み。進捗を出さないほど速い)
+const STREAM_MIN_SIZE = 256 * 1024;
+
+// Blob を読む (task があればバイト数で進捗を報告し、チャンクごとに中断を確認する)。
+// キャンセル時は ProgressCancelled を投げる
+export async function readBlobBytes(blob: BlobLike, task?: ProgressTask): Promise<Uint8Array> {
+  if (!task || !blob.stream || blob.size < STREAM_MIN_SIZE) {
+    return new Uint8Array(await blob.arrayBuffer());
+  }
+  const reader = blob.stream().getReader();
+  const chunks: Uint8Array[] = [];
+  let read = 0;
+  let lastYield = nowMs();
+  try {
+    for (;;) {
+      task.throwIfCancelled();
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) {
+        chunks.push(value);
+        read += value.byteLength;
+        task.set(blob.size > 0 ? read / blob.size : 1);
+      }
+      if (dueYield(lastYield)) {
+        lastYield = nowMs();
+        await nextFrame();
+      }
+    }
+  } finally {
+    reader.releaseLock?.();
+  }
+  const out = new Uint8Array(read);
+  let off = 0;
+  for (const c of chunks) {
+    out.set(c, off);
+    off += c.byteLength;
+  }
+  return out;
+}
+
+// ファイルを読み込んで適用する (進捗つき・キャンセル可)。
+// 読み込みはバイト数の実進捗、適用 (解析〜反映) は進捗が測れないため不定表示にする。
+// 適用の直前にキャンセルを確認するので、中断時に半端な状態 (空のタブなど) は残らない。
+// 戻り値 null はキャンセル
+export async function readBlobAndApply<T>(
+  title: string,
+  blob: BlobLike,
+  apply: (bytes: Uint8Array) => T | Promise<T>,
+  labels: { read?: string; apply?: string } = {},
+): Promise<T | null> {
+  return withProgress(title, async (task) => {
+    task.range(0, 0.6, labels.read ?? t("progress.reading"));
+    const bytes = await readBlobBytes(blob, task);
+    task.step(labels.apply ?? t("progress.parsing"));
+    task.throwIfCancelled();
+    return apply(bytes);
+  });
 }
 
 export interface OpenedFile {
-  name: string;
-  bytes: Uint8Array;
+  name: string; // 表示用の名前 (stripExts で拡張子を除去済み)
+  file: File;
 }
 
 // accept は拡張子のカンマ区切り (例 ".ptvoice,.ptnoise")。
-// stripExts に一致する拡張子はタブ表示用ファイル名から除去する
+// stripExts に一致する拡張子はタブ表示用ファイル名から除去する。
+// 読み込み (進捗つき) は呼び出し側で readBlobBytes / readBlobAndApply を使う
 export function openFileDialog(accept: string, stripExts: RegExp = /\.(ptcop|pttune)$/i): Promise<OpenedFile | null> {
   return new Promise((resolve) => {
     const input = document.createElement("input");
@@ -90,11 +222,7 @@ export function openFileDialog(accept: string, stripExts: RegExp = /\.(ptcop|ptt
         resolve(null);
         return;
       }
-      const name = f.name.replace(stripExts, "");
-      void f
-        .arrayBuffer()
-        .then((buf) => resolve({ name, bytes: new Uint8Array(buf) }))
-        .catch(() => resolve(null));
+      resolve({ name: f.name.replace(stripExts, ""), file: f });
     };
     input.click();
   });
@@ -112,22 +240,37 @@ export function stripFileExt(name: string): string {
   return dot > 0 ? name.slice(0, dot) : name;
 }
 
-// ptcop の保存 (「名前を付けて保存」ピッカー / ダウンロード発火)。
-// 保存したファイル名を返す (キャンセル・失敗時 null)
-export async function downloadProjectFile(fileName: string, options: Pick<SaveOptions, "usePicker"> = {}): Promise<string | null> {
-  const bytes = exportBytes();
-  if (!bytes) return null;
-  return downloadBytes(bytes, { fileName: sanitizeFileName(fileName, ".ptcop"), ...options });
+// 書き込みの失敗をエラーメッセージにする (キャンセルはそのまま伝える)
+async function writeOrError(
+  dest: SaveDestination,
+  bytes: Uint8Array,
+  mime: string,
+  task: ProgressTask,
+): Promise<string | null> {
+  try {
+    await writeSaveDestination(dest, bytes, { mime, task });
+    return null;
+  } catch (e) {
+    if (e instanceof ProgressCancelled) throw e;
+    return t("error.save");
+  }
 }
 
 // pttune 書き出し (bTune=true)。保存したファイル名を返す (キャンセル・失敗時 null)
 export async function exportPttune(bytes: Uint8Array, fileName: string): Promise<string | null> {
-  const s = new Service();
-  if (s.init() !== PxtnErr.OK) return null;
-  if (s.read(new MemoryIo(bytes)) !== PxtnErr.OK) return null;
-  const io = new MemoryIo();
-  if (s.write(io, true, EXE_VER) !== PxtnErr.OK) return null;
-  return downloadBytes(io.toUint8Array(), { fileName: sanitizeFileName(fileName, ".pttune") });
+  const dest = await chooseSaveDestination(sanitizeFileName(fileName, ".pttune"), "application/octet-stream", true);
+  if (!dest) return null;
+  return withProgress(t("progress.pttuneTitle"), async (task) => {
+    task.step(t("progress.serializing"));
+    const s = new Service();
+    if (s.init() !== PxtnErr.OK) return null;
+    if (s.read(new MemoryIo(bytes)) !== PxtnErr.OK) return null;
+    const io = new MemoryIo();
+    if (s.write(io, true, EXE_VER) !== PxtnErr.OK) return null;
+    task.range(0.5, 1, t("progress.writing"));
+    await writeSaveDestination(dest, io.toUint8Array(), { task });
+    return dest.name;
+  });
 }
 
 // WAV 書き出しオプション (本家 dlg_BuildOption / ptConfig_Build 相当)
@@ -158,10 +301,31 @@ export const WAV_EXPORT_DEFAULTS: WavExportOptions = {
 
 export type WavRenderResult = { wav: Uint8Array } | { error: string };
 
+export interface WavRenderOptions {
+  // 全体進捗のうちこのレンダリングに割り当てる区間 (既定 0..1)。
+  // 先頭 10% を OGGV 変換が使う
+  span?: readonly [number, number];
+  yieldMs?: number; // ブラウザへ譲る間隔 (テスト用)
+  chunkFrames?: number; // 1 回の Moo に渡すフレーム数 (テスト用)
+}
+
+// OGGV 変換に割り当てる進捗の割合 (残りがレンダリング)
+const OGGV_SPAN = 0.1;
+
 // WAV のオフラインレンダリング (保存は行わない)。
-// 本家 dlg_BuildProgress と同じ手順で PCM を作り、WAV バイト列を返す
-export async function renderWav(bytes: Uint8Array, options: WavExportOptions): Promise<WavRenderResult> {
-  const decoded = await decodeProjectBytes(bytes, EXE_VER);
+// 本家 dlg_BuildProgress と同じ手順で PCM を作り、WAV バイト列を返す。
+// task を渡すと OGGV 変換 (音色単位) とレンダリング (チャンク単位) の進捗を報告し、
+// キャンセル時は ProgressCancelled を投げる
+export async function renderWav(
+  bytes: Uint8Array,
+  options: WavExportOptions,
+  task?: ProgressTask,
+  renderOptions: WavRenderOptions = {},
+): Promise<WavRenderResult> {
+  const [spanStart, spanEnd] = renderOptions.span ?? [0, 1];
+  const span = spanEnd - spanStart;
+  task?.range(spanStart, spanStart + span * OGGV_SPAN, t("progress.oggv"));
+  const decoded = await decodeProjectBytes(bytes, EXE_VER, task);
   if (!decoded) return { error: t("error.ogg") };
   const s = new Service();
   if (s.init() !== PxtnErr.OK) return { error: t("error.engineInit") };
@@ -189,57 +353,57 @@ export async function renderWav(bytes: Uint8Array, options: WavExportOptions): P
   if (total <= 0) return { error: t("error.prepare") };
 
   const pcm = new Int16Array(total * options.chNum);
-  const CHUNK = 44100; // 一度に Moo へ渡すフレーム数
-  const renderRange = (from: number, to: number): void => {
-    for (let pos = from; pos < to; pos += CHUNK) {
-      const n = Math.min(CHUNK, to - pos);
-      s.Moo(pcm.subarray(pos * options.chNum), n);
+  const chunkFrames = renderOptions.chunkFrames ?? 16384; // 一度に Moo へ渡すフレーム数
+  const yieldMs = renderOptions.yieldMs ?? YIELD_INTERVAL_MS;
+  task?.range(spanStart + span * OGGV_SPAN, spanEnd, t("progress.rendering"));
+  // チャンクごとに進捗を報告し、yieldMs ごとにブラウザへ譲ってキャンセルを確認する
+  // (task なしのときは従来どおり一気にレンダリングする)
+  let lastYield = nowMs();
+  const renderRange = async (from: number, to: number): Promise<void> => {
+    for (let pos = from; pos < to; ) {
+      const n = Math.min(chunkFrames, to - pos);
+      s.Moo(pcm.subarray(pos * options.chNum, (pos + n) * options.chNum), n);
+      pos += n;
+      task?.set(pos / total);
+      if (task && dueYield(lastYield, yieldMs)) {
+        task.throwIfCancelled();
+        await nextFrame();
+        lastYield = nowMs();
+      }
     }
   };
-  renderRange(0, endSample);
+  await renderRange(0, endSample);
   if (fadeSamples > 0) {
     // 追加フェードアウトは末尾区間の先頭で開始を指示する
     // (本家の 1 サンプルずつのループで s == endSample のときに呼ぶのと同じ位置)
     s.mooSetFade(-1, options.extraFadeSec);
-    renderRange(endSample, total);
+    await renderRange(endSample, total);
   }
   return { wav: makeWav(pcm, options.sps, options.chNum, 16) };
 }
 
-// WAV 書き出し (オフライン全曲レンダリング + 保存)。
-// エラーメッセージを返す (成功時 null)
-export async function exportWav(bytes: Uint8Array, fileName: string, options: WavExportOptions): Promise<string | null> {
-  const result = await renderWav(bytes, options);
-  if ("error" in result) return result.error;
-  try {
-    await downloadBytes(result.wav, { fileName: sanitizeFileName(fileName, ".wav"), mime: "audio/wav" });
-  } catch {
-    return t("error.save");
-  }
-  return null;
-}
-
 // ノイズを WAV として書き出し (本家 ptNoise の .wave 保存相当)。
-// エラーメッセージを返す (成功時 null)
+// エラーメッセージを返す (成功時・キャンセル時 null)
 export async function exportNoiseWav(noise: Noise, fileName: string, sps = 44100): Promise<string | null> {
-  const bldr = new NoiseBuilder();
-  if (!bldr.init()) return t("error.engineInit");
-  const pcm = bldr.buildNoise(noise, 2, sps, 16);
-  if (!pcm) return t("error.noiseBuild");
-  const buf = pcm.devolveSamplingBuffer();
-  if (!buf) return t("error.noiseBuild");
-  const s16 = new Int16Array(buf.buffer, buf.byteOffset, buf.byteLength >> 1);
-  const wav = makeWav(s16, sps, 2, 16);
-  try {
-    await downloadBytes(wav, { fileName: sanitizeFileName(fileName, ".wav"), mime: "audio/wav" });
-  } catch {
-    return t("error.save");
-  }
-  return null;
+  const dest = await chooseSaveDestination(sanitizeFileName(fileName, ".wav"), "audio/wav", true);
+  if (!dest) return null;
+  return withProgress(t("progress.noiseWavTitle"), async (task) => {
+    task.step(t("progress.building"));
+    const bldr = new NoiseBuilder();
+    if (!bldr.init()) return t("error.engineInit");
+    const pcm = bldr.buildNoise(noise, 2, sps, 16);
+    if (!pcm) return t("error.noiseBuild");
+    const buf = pcm.devolveSamplingBuffer();
+    if (!buf) return t("error.noiseBuild");
+    const s16 = new Int16Array(buf.buffer, buf.byteOffset, buf.byteLength >> 1);
+    const wav = makeWav(s16, sps, 2, 16);
+    task.range(0.5, 1, t("progress.writing"));
+    return writeOrError(dest, wav, "audio/wav", task);
+  });
 }
 
 // 音声 (PTV) を単音レンダリングして WAV として書き出し。
-// エラーメッセージを返す (成功時 null)
+// エラーメッセージを返す (成功時・キャンセル時 null)
 export async function exportVoiceWav(
   woice: Woice,
   fileName: string,
@@ -248,72 +412,78 @@ export async function exportVoiceWav(
   durSec = 1,
   sps = 44100,
 ): Promise<string | null> {
-  // preview.ts は player と循環 import になるため動的 import する
-  // (player → realtime-player → io → preview → player の循環を避ける)
-  const { renderWoice } = await import("./preview");
-  const pcm = renderWoice(woice, key, velocity, durSec, sps);
-  if (!pcm) return t("error.tonesReady");
-  const s16 = new Int16Array(pcm.length);
-  for (let i = 0; i < pcm.length; i++) s16[i] = Math.round(pcm[i]! * 32767);
-  const wav = makeWav(s16, sps, 2, 16);
-  try {
-    await downloadBytes(wav, { fileName: sanitizeFileName(fileName, ".wav"), mime: "audio/wav" });
-  } catch {
-    return t("error.save");
-  }
-  return null;
+  const dest = await chooseSaveDestination(sanitizeFileName(fileName, ".wav"), "audio/wav", true);
+  if (!dest) return null;
+  return withProgress(t("progress.voiceWavTitle"), async (task) => {
+    task.step(t("progress.building"));
+    // preview.ts は player と循環 import になるため動的 import する
+    // (player → realtime-player → io → preview → player の循環を避ける)
+    const { renderWoice } = await import("./preview");
+    const pcm = renderWoice(woice, key, velocity, durSec, sps);
+    if (!pcm) return t("error.tonesReady");
+    const s16 = new Int16Array(pcm.length);
+    for (let i = 0; i < pcm.length; i++) s16[i] = Math.round(pcm[i]! * 32767);
+    const wav = makeWav(s16, sps, 2, 16);
+    task.range(0.5, 1, t("progress.writing"));
+    return writeOrError(dest, wav, "audio/wav", task);
+  });
 }
 
-// 音色を元フォーマットのまま書き出す (ptvoice / ptnoise / ogg / wav)。
-// PCM は保持しているサンプルを WAV 形式に包んで保存する。
-// エラーメッセージを返す (成功時 null)
-export async function exportWoiceFile(woice: Woice, fileName: string): Promise<string | null> {
-  const fail = (): string => t("error.save");
-  let bytes: Uint8Array | null = null;
-  let ext = "";
-  let mime: string | undefined;
+// 音色の書き出し形式 (元フォーマットのまま保存する)
+function woiceFileFormat(woice: Woice): { ext: string; mime: string } | null {
   switch (woice.type) {
-    case WoiceType.PTV: {
-      const io = new MemoryIo();
-      if (woice.ptvWrite(io) < 0) return fail();
-      bytes = io.toUint8Array();
-      ext = ".ptvoice";
-      break;
-    }
+    case WoiceType.PTV:
+      return { ext: ".ptvoice", mime: "application/octet-stream" };
+    case WoiceType.PTN:
+      return { ext: ".ptnoise", mime: "application/octet-stream" };
+    case WoiceType.OGGV:
+      return { ext: ".ogg", mime: "audio/ogg" };
+    case WoiceType.PCM:
+      return { ext: ".wav", mime: "audio/wav" };
+    default:
+      return null;
+  }
+}
+
+// 音色のバイト列 (書き出し用)。PCM は保持しているサンプルを WAV 形式に包む。
+// 元の ptnoise を持つのは先頭ボイスのみ (write は io への書き込みだけで非破壊)
+function woiceFileBytes(woice: Woice): Uint8Array | null {
+  const io = new MemoryIo();
+  switch (woice.type) {
+    case WoiceType.PTV:
+      if (woice.ptvWrite(io) < 0) return null;
+      return io.toUint8Array();
     case WoiceType.PTN: {
-      // 元の ptnoise を持つのは先頭ボイスのみ。write は io への書き込みだけで非破壊
       const ptn = woice.getVoice(0)?.ptn;
-      const io = new MemoryIo();
-      if (!ptn || !ptn.write(io)) return fail();
-      bytes = io.toUint8Array();
-      ext = ".ptnoise";
-      break;
+      if (!ptn || !ptn.write(io)) return null;
+      return io.toUint8Array();
     }
     case WoiceType.OGGV:
       // OGGV は読み込んだ生 OGG データをそのまま保存する
-      bytes = woice.getVoice(0)?.oggv?.data ?? null;
-      ext = ".ogg";
-      mime = "audio/ogg";
-      break;
-    case WoiceType.PCM: {
+      return woice.getVoice(0)?.oggv?.data ?? null;
+    case WoiceType.PCM:
       // PCM は格納サンプルのまま WAV で書き出す (devolveSamplingBuffer は破壊的なため使わない)
-      const io = new MemoryIo();
-      if (!woice.getVoice(0)?.pcm.write(io)) return fail();
-      bytes = io.toUint8Array();
-      ext = ".wav";
-      mime = "audio/wav";
-      break;
-    }
+      if (!woice.getVoice(0)?.pcm.write(io)) return null;
+      return io.toUint8Array();
     default:
-      return fail();
+      return null;
   }
-  if (!bytes || bytes.length === 0) return fail();
-  try {
-    await downloadBytes(bytes, { fileName: sanitizeFileName(fileName, ext), mime });
-  } catch {
-    return fail();
-  }
-  return null;
+}
+
+// 音色を元フォーマットのまま書き出す (ptvoice / ptnoise / ogg / wav)。
+// エラーメッセージを返す (成功時・キャンセル時 null)
+export async function exportWoiceFile(woice: Woice, fileName: string): Promise<string | null> {
+  const format = woiceFileFormat(woice);
+  if (!format) return t("error.save");
+  const dest = await chooseSaveDestination(sanitizeFileName(fileName, format.ext), format.mime, true);
+  if (!dest) return null;
+  return withProgress(t("progress.woiceFileTitle"), async (task) => {
+    task.step(t("progress.serializing"));
+    const bytes = woiceFileBytes(woice);
+    if (!bytes || bytes.length === 0) return t("error.save");
+    task.range(0.5, 1, t("progress.writing"));
+    return writeOrError(dest, bytes, format.mime, task);
+  });
 }
 
 // WAV ヘッダ (44 バイト = RIFF 12 + fmt 24 + data 8)。fmt チャンクは PCM で固定 16 バイト

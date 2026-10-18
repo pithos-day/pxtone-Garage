@@ -4,7 +4,16 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { doc, exportBytes, getService } from "../../state/project";
-import { exportWav, WAV_EXPORT_DEFAULTS, type WavExportOptions, type WavExportScope } from "../../engine/io";
+import {
+  chooseSaveDestination,
+  renderWav,
+  sanitizeFileName,
+  writeSaveDestination,
+  WAV_EXPORT_DEFAULTS,
+  type WavExportOptions,
+  type WavExportScope,
+} from "../../engine/io";
+import { withProgress } from "../../state/progress";
 import { readStorage, writeStorage } from "../../lib/storage";
 import { t } from "../../i18n";
 import ModalDialog from "./ModalDialog.vue";
@@ -69,7 +78,7 @@ function onDefault(): void {
   muteByUnit.value = WAV_EXPORT_DEFAULTS.muteByUnit;
 }
 
-function onSubmit(): void {
+async function onSubmit(): Promise<void> {
   if (busy.value) return;
   const fade = Number(extraFade.value);
   const time = Number(playTime.value);
@@ -113,14 +122,36 @@ function onSubmit(): void {
   };
   writeStorage(STORAGE_WAV_EXPORT, JSON.stringify(stored));
   busy.value = true;
-  void exportWav(bytes, doc.fileName || "untitled", options).then((err) => {
-    busy.value = false;
-    if (err) {
-      window.alert(err);
+  let err: string | null = null;
+  try {
+    // レンダリング (数秒かかる) より先に保存先を決める。ピッカーはユーザー操作が
+    // 必要なため、長い処理の後に呼ぶと SecurityError で開けない
+    const dest = await chooseSaveDestination(
+      sanitizeFileName(doc.fileName || "untitled", ".wav"),
+      "audio/wav",
+      true,
+    );
+    if (!dest) {
+      // ピッカーを閉じた: ダイアログは開いたままにする
+      busy.value = false;
       return;
     }
+    // オプションダイアログを閉じて進捗ダイアログへ引き継ぐ (設定は localStorage に残る)
     emit("close");
-  });
+    err = await withProgress(t("progress.wavTitle"), async (task) => {
+      // レンダリング 0..97% → 書き込み 97..100%
+      const result = await renderWav(bytes, options, task, { span: [0, 0.97] });
+      if ("error" in result) return result.error;
+      task.range(0.97, 1, t("progress.writing"));
+      await writeSaveDestination(dest, result.wav, { mime: "audio/wav", task });
+      return null;
+    });
+  } catch {
+    err = t("error.save");
+  }
+  busy.value = false;
+  // キャンセル (null) は何も表示しない
+  if (err) window.alert(err);
 }
 </script>
 

@@ -5,9 +5,20 @@ import { ref } from "vue";
 import { Service, PxtnErr, MemoryIo, PXTN_MAX_EVENT_NUM, Woice, WoiceType } from "pxtone-ts";
 import { setService } from "./service";
 import { setUndoStacks, undoStack, redoStack, snapshotService, pushUndoToStack, refreshUndoFlags, type UndoEntry } from "./undo";
-import { doc, sync, title, comment, ensureInit, pxtnErrorMessage } from "./project";
+import { doc, sync, title, comment, ensureInit, pxtnErrorMessage, exportBytes } from "./project";
 import { resetLoaded } from "./player";
-import { downloadProjectFile, supportsSavePicker, stripFileExt, isTuneFormat, toArrayBuffer } from "../engine/io";
+import {
+  chooseSaveDestination,
+  readBlobAndApply,
+  sanitizeFileName,
+  stripFileExt,
+  isTuneFormat,
+  supportsSavePicker,
+  toArrayBuffer,
+  writeSaveDestination,
+  type BlobLike,
+} from "../engine/io";
+import { withProgress } from "./progress";
 import { t } from "../i18n";
 
 export interface ProjectState {
@@ -256,6 +267,14 @@ export function openProjectInTab(bytes: Uint8Array, name?: string): string | nul
   return null;
 }
 
+// ファイル (Blob) から読み込んでタブで開く (進捗つき・キャンセル可)。
+// 読み込みはバイト数の実進捗、解析は不定表示。
+// 解析の直前にキャンセルを確認するため、中断時に半端なタブは残らない。
+// 戻り値はエラーメッセージ (キャンセル・成功時 null)
+export async function openProjectFromBlob(file: BlobLike, name: string): Promise<string | null> {
+  return readBlobAndApply(t("progress.openTitle"), file, (bytes) => openProjectInTab(bytes, name));
+}
+
 // タブを閉じる (最後の1つは閉じない)
 export function closeProject(id: number): void {
   if (projects.value.length <= 1) return;
@@ -328,10 +347,20 @@ async function saveProjectFile(name: string, options: { usePicker: boolean }): P
   if (!p) return false;
   // tune 再生専用タブは保存不可 (非編集 Service の再シリアライズは壊れた ptcop になるため)
   if (p.kind === "tune") return false;
+  // 生成より先に保存先を決める (ピッカーはユーザー操作が必要なため)
+  const dest = await chooseSaveDestination(sanitizeFileName(name, ".ptcop"), "application/octet-stream", options.usePicker);
+  if (!dest) return false; // ピッカーを閉じた
+  const saved = await withProgress(t("progress.saveTitle"), async (task) => {
+    task.step(t("progress.serializing"));
+    const bytes = exportBytes();
+    if (!bytes) return null;
+    task.range(0.2, 1, t("progress.writing"));
+    await writeSaveDestination(dest, bytes, { task });
+    return dest.name;
+  });
+  if (!saved) return false; // キャンセル
   // ピッカーで名前を変更された場合は、実際に保存されたファイル名を反映する
   // (タブ表示は拡張子なしのため、拡張子を除いて記録する)
-  const saved = await downloadProjectFile(name, options);
-  if (!saved) return false;
   const displayName = stripFileExt(saved);
   doc.fileName = displayName;
   p.fileName = displayName;

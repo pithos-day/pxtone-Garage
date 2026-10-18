@@ -24,7 +24,7 @@ import { woiceSummary as formatWoiceSummary, WOICE_FILE_ACCEPT, WOICE_FILE_EXT_R
 import { useCtxMenuClose } from "../../composables/useCtxMenu";
 import { useHoldPreview } from "../../composables/useHoldPreview";
 import { capturePointer, releasePointerCapture } from "../../lib/field";
-import { openFileDialog, exportWoiceFile } from "../../engine/io";
+import { openFileDialog, exportWoiceFile, readBlobAndApply } from "../../engine/io";
 import { t } from "../../i18n";
 import WoicePropertyDialog from "./WoicePropertyDialog.vue";
 import CtxMenuItem from "../shell/CtxMenuItem.vue";
@@ -117,9 +117,11 @@ function openWoiceInEditor(idx: number, link: WoiceLink | undefined): void {
 
 // ファイル選択ダイアログで選んだ別の音色で、指定 index の音色を置き換える
 async function replaceByDialog(idx: number): Promise<void> {
-  const file = await openFileDialog(WOICE_FILE_ACCEPT, WOICE_FILE_EXT_RE);
-  if (!file) return;
-  const err = await replaceWoiceFile(idx, file.bytes, detectWoiceType(file.bytes), file.name);
+  const opened = await openFileDialog(WOICE_FILE_ACCEPT, WOICE_FILE_EXT_RE);
+  if (!opened) return;
+  const err = await readBlobAndApply(t("progress.woiceTitle"), opened.file, (bytes) =>
+    replaceWoiceFile(idx, bytes, detectWoiceType(bytes), opened.name),
+  );
   if (err) console.error(err);
 }
 
@@ -129,10 +131,9 @@ async function onDrop(e: DragEvent): Promise<void> {
   if (doc.readOnly) return;
   const file = e.dataTransfer?.files?.[0];
   if (!file) return;
-  const buf = await file.arrayBuffer();
-  const bytes = new Uint8Array(buf);
   const name = file.name.replace(WOICE_FILE_EXT_RE, "");
-  const err = await addWoice(bytes, detectWoiceType(bytes), name);
+  // 読み込み (実進捗) → 適用 (解析・追加)。キャンセル時は null
+  const err = await readBlobAndApply(t("progress.woiceTitle"), file, (bytes) => addWoice(bytes, detectWoiceType(bytes), name));
   if (err) console.error(err);
 }
 

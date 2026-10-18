@@ -5,7 +5,7 @@ import { Plus, Music2, Piano } from "@lucide/vue";
 import { doc, addWoice, detectWoiceType } from "../../state/project";
 import { WOICE_FILE_ACCEPT, WOICE_FILE_EXT_RE } from "../../lib/woice";
 import AddUnitDialog from "./AddUnitDialog.vue";
-import { openFileDialog } from "../../engine/io";
+import { openFileDialog, readBlobAndApply } from "../../engine/io";
 import { formatShortcut } from "../../lib/shortcuts";
 import { t } from "../../i18n";
 
@@ -13,9 +13,12 @@ const errorMsg = ref("");
 const showAddUnit = ref(false);
 
 async function onAddWoice(): Promise<void> {
-  const file = await openFileDialog(WOICE_FILE_ACCEPT, WOICE_FILE_EXT_RE);
-  if (!file) return;
-  const err = await addWoice(file.bytes, detectWoiceType(file.bytes), file.name);
+  const opened = await openFileDialog(WOICE_FILE_ACCEPT, WOICE_FILE_EXT_RE);
+  if (!opened) return;
+  // 読み込み (実進捗) → 適用 (解析・追加)。キャンセル時は null
+  const err = await readBlobAndApply(t("progress.woiceTitle"), opened.file, (bytes) =>
+    addWoice(bytes, detectWoiceType(bytes), opened.name),
+  );
   if (err) {
     errorMsg.value = err;
     setTimeout(() => (errorMsg.value = ""), 4000);

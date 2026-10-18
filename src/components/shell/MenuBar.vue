@@ -9,6 +9,7 @@ import { doc, setAllUnitsVisible, exportBytes, addWoice, WoiceType } from "../..
 import {
   newProjectInTab,
   openProjectInTab,
+  openProjectFromBlob,
   closeProject,
   saveProject,
   saveProjectAs,
@@ -19,7 +20,7 @@ import {
 } from "../../state/projects";
 import { newVoice, openVoice, saveVoice, closeVoice, undoVoice, redoVoice, currentVoice, currentVoiceId, snapshotVoice, markVoiceClean, voices } from "../../state/voice";
 import { newNoise, openNoise, saveNoise, closeNoise, undoNoise, redoNoise, currentNoise, currentNoiseId, snapshotNoise, markNoiseClean, noises } from "../../state/noise";
-import { exportPttune, exportVoiceWav, exportNoiseWav, openFileDialog } from "../../engine/io";
+import { exportPttune, exportVoiceWav, exportNoiseWav, openFileDialog, readBlobAndApply } from "../../engine/io";
 import { convertMidiToPtcop } from "../../engine/midi";
 import { undo, redo, canUndo, canRedo } from "../../state/undo";
 import { t } from "../../i18n";
@@ -82,9 +83,9 @@ function runSave(p: Promise<unknown>): void {
 }
 
 function onOpen(): void {
-  void openFileDialog(".ptcop,.pttune").then((file) => {
-    if (!file) return;
-    const err = openProjectInTab(file.bytes, file.name);
+  void openFileDialog(".ptcop,.pttune").then(async (opened) => {
+    if (!opened) return;
+    const err = await openProjectFromBlob(opened.file, opened.name);
     if (err) window.alert(err);
   });
 }
@@ -98,14 +99,19 @@ function onExportPttune(): void {
 
 // MIDI ファイルを選択して ptcop として読み込む (split = 和音を別ユニットに分割)
 function onImportMidi(split: boolean): void {
-  void openFileDialog(".mid,.midi", /\.midi?$/i).then((file) => {
-    if (!file) return;
-    const bytes = convertMidiToPtcop(file.bytes, split ? { splitOverlap: true } : {});
-    if (!bytes) {
-      window.alert(t("error.midi"));
-      return;
-    }
-    const err = openProjectInTab(bytes, file.name);
+  void openFileDialog(".mid,.midi", /\.midi?$/i).then(async (opened) => {
+    if (!opened) return;
+    // 読み込み (実進捗) → MIDI 変換 (不定) → タブで開く
+    const err = await readBlobAndApply(
+      t("progress.midiTitle"),
+      opened.file,
+      (bytes) => {
+        const ptcop = convertMidiToPtcop(bytes, split ? { splitOverlap: true } : {});
+        if (!ptcop) return t("error.midi");
+        return openProjectInTab(ptcop, opened.name);
+      },
+      { apply: t("progress.midiConvert") },
+    );
     if (err) window.alert(err);
   });
 }
@@ -125,9 +131,9 @@ function onClose(): void {
 // ---- 音声 (ptVoice) のアクション ----
 
 function onOpenVoice(): void {
-  void openFileDialog(".ptvoice", /\.ptvoice$/i).then((file) => {
-    if (!file) return;
-    const err = openVoice(file.bytes, file.name);
+  void openFileDialog(".ptvoice", /\.ptvoice$/i).then(async (opened) => {
+    if (!opened) return;
+    const err = await readBlobAndApply(t("progress.openTitle"), opened.file, (bytes) => openVoice(bytes, opened.name));
     if (err) window.alert(err);
   });
 }
@@ -141,9 +147,9 @@ function onCloseVoice(): void {
 // ---- ノイズ (ptNoise) のアクション ----
 
 function onOpenNoise(): void {
-  void openFileDialog(".ptnoise", /\.ptnoise$/i).then((file) => {
-    if (!file) return;
-    const err = openNoise(file.bytes, file.name);
+  void openFileDialog(".ptnoise", /\.ptnoise$/i).then(async (opened) => {
+    if (!opened) return;
+    const err = await readBlobAndApply(t("progress.openTitle"), opened.file, (bytes) => openNoise(bytes, opened.name));
     if (err) window.alert(err);
   });
 }
