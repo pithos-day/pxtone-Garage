@@ -346,7 +346,7 @@ watch(masterVolume, (v) => {
 // 単体 Woice をオフライン短レンダリングして Float32Array (ステレオインターリーブ) を得る。
 // renderPreview と同一の手法で、音色スロット 0 に ptvWrite バイト列を注入してから
 // VOICENO/KEY/VELOCITY/ON イベントを置いてレンダリングする。
-// read() が clear() するため 1 個の Service を使い回す (毎回の initCollage を省略)
+// 毎回 clear() して 1 個の Service を使い回す (毎回の initCollage を省略)
 let renderSvc: Service | null = null;
 
 function getRenderService(): Service | null {
@@ -368,20 +368,16 @@ export function renderWoice(
 ): Float32Array | null {
   const s = getRenderService();
   if (!s) return null;
-  // 前回の read で 1 ユニットが残っているため削除してから注入する
-  if (s.unitNum > 0) s.unitRemove(0);
+  // 使い回している Service から前回の音色/ユニット/イベントを消してから注入する。
+  // initCollage 済みの Service は moo 有効フラグが立っている (pxtone-ts 側) ため、
+  // 以前のように ptcop へシリアライズして読み直す必要はない
+  if (!s.clear()) return null;
   const io = new MemoryIo();
   if (woice.ptvWrite(io) < 0) return null;
   // ptvWrite は位置を末尾へ進めるため、読み込み前に先頭へ戻す
   if (!io.seek(SEEK_SET, 0)) return null;
   if (s.woiceRead(0, io, WoiceType.PTV) !== PxtnErr.OK) return null;
   if (!s.unitAddNew()) return null;
-  // read() を経由しないと _mooBValidData が立たず mooPreparation が失敗するため、
-  // 一時プロジェクトを ptcop にシリアライズして読み直す (renderPreview と同じ経路。
-  // bTune=false は ptcop 形式 — pttune 書き出しの io.ts exportPttune とは別経路)
-  const out = new MemoryIo();
-  if (s.write(out, false, EXE_VER) !== PxtnErr.OK) return null;
-  if (s.read(new MemoryIo(out.toUint8Array())) !== PxtnErr.OK) return null;
   return renderEvents(s, 0, key, velocity, durSec, sps);
 }
 
