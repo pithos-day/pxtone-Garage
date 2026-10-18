@@ -578,10 +578,10 @@ function drawSmartGhost(ctx: CanvasRenderingContext2D, d: KeyDrag, field: FieldC
   const grab = st.mode === "grab";
   for (const ev of st.evs) {
     if (ev.kind !== EventKind.KEY || ev.clock === note.head) continue;
-    const row2 = keyValueToRow(grab ? shiftKeyValue(ev.value, st.rowDelta) : ev.value);
-    const clock2 = ev.clock + (grab ? st.offset : 0);
-    if (clock2 < place.head || clock2 >= place.head + place.len) continue;
-    fillRect(ctx, clockToX(view, clock2) - scrollX - 1, top + row2 * KEY_HEIGHT - scrollY + KEY_HEIGHT / 2 - 4, 2, 8, COLORS.noteHead);
+    const evRow = keyValueToRow(grab ? shiftKeyValue(ev.value, st.rowDelta) : ev.value);
+    const evClock = ev.clock + (grab ? st.offset : 0);
+    if (evClock < place.head || evClock >= place.head + place.len) continue;
+    fillRect(ctx, clockToX(view, evClock) - scrollX - 1, top + evRow * KEY_HEIGHT - scrollY + KEY_HEIGHT / 2 - 4, 2, 8, COLORS.noteHead);
   }
   ctx.restore();
 }
