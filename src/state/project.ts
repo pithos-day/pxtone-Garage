@@ -682,7 +682,7 @@ const WOICE_FLAG_MASK = PTV_VOICEFLAG_WAVELOOP | PTV_VOICEFLAG_SMOOTH | PTV_VOIC
 // 音色のプロパティ (本家 dlg_Woice 相当)
 export interface WoiceProperties {
   name: string;
-  tuning: number; // 0..256
+  tuning: number; // 0..256 (PTV では使わない)
   basicKey: number; // コード (21..108)。PTV では使わない
   waveLoop: boolean; // PTV 以外のみ
   smooth: boolean;
@@ -690,7 +690,8 @@ export interface WoiceProperties {
 }
 
 // 音色のプロパティをまとめて変更 (1つの undo エントリ)。
-// 本家 dlg_Woice と同じく、名前と tuning は全タイプ、basic key とフラグは PTV 以外に適用する
+// 本家 dlg_Woice と同じく、名前は全タイプ、tuning / basic key / フラグは
+// PTV 以外に適用する (PTV の tuning はダイアログでも編集不可のため触らない)
 export function setWoiceProperties(idx: number, props: WoiceProperties): void {
   mutate(() => {
     const w = service.woiceGet(idx);
@@ -698,8 +699,8 @@ export function setWoiceProperties(idx: number, props: WoiceProperties): void {
     if (!w || !vc) return;
     // 音色名は ShiftJIS・最大 16 バイト (本家 pxtnMAX_TUNEWOICENAME)
     w.setNameBuf(truncateShiftJis(encodeShiftJis(props.name), 16), 16);
-    vc.tuning = Math.min(256, Math.max(0, props.tuning));
     if (w.type !== WoiceType.PTV) {
+      vc.tuning = Math.min(256, Math.max(0, props.tuning));
       vc.basicKey = Math.min(108, Math.max(21, props.basicKey)) * 0x100;
       let flags = vc.voiceFlags & ~WOICE_FLAG_MASK;
       if (props.waveLoop) flags |= PTV_VOICEFLAG_WAVELOOP;

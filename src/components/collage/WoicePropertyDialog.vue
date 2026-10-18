@@ -1,6 +1,6 @@
 // 音色のプロパティダイアログ (本家 ptCollage の dlg_Woice 相当)。
 // 名前 / チューニング / 基本キー / フラグ (Loop / Smooth / Beat Fit) を編集する。
-// PTV は本家同様、基本キーとフラグを編集しない (非表示)
+// PTV は本家同様、名前のみ編集できる (基本キーは無効表示、チューニングとフラグは非表示)
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import {
@@ -85,13 +85,15 @@ function onSubmit(): void {
       <label>{{ t("woiceProp.name") }}</label>
       <input v-model="name" type="text" class="grow" maxlength="16" @keydown.enter="onSubmit" @keydown.esc="emit('close')" />
     </div>
-    <div v-if="!isPtv" class="row">
+    <div class="row" :class="{ off: isPtv }">
       <label>{{ t("woiceProp.basicKey") }}</label>
-      <input v-model.number="basicKey" type="number" :min="KEY_MIN" :max="KEY_MAX" />
-      <button class="btn key-btn" @click="shiftBasicKey(-12)">-</button>
-      <button class="btn key-btn" @click="shiftBasicKey(12)">+</button>
+      <input v-model.number="basicKey" type="number" :min="KEY_MIN" :max="KEY_MAX" :disabled="isPtv" />
+      <template v-if="!isPtv">
+        <button class="btn key-btn" @click="shiftBasicKey(-12)">-</button>
+        <button class="btn key-btn" @click="shiftBasicKey(12)">+</button>
+      </template>
     </div>
-    <div class="row">
+    <div v-if="!isPtv" class="row">
       <label>{{ t("woiceProp.tuning") }}</label>
       <input v-model="tuning" type="number" min="0" max="256" step="0.001" />
     </div>

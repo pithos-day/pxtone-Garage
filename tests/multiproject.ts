@@ -2101,11 +2101,12 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(woiceNameRaw(w), "あいうえおかきく", "woiceprop: undo で編集前の名前へ戻る");
     checkEq(w.getVoice(0)!.tuning, 2.5, "woiceprop: undo で tuning も戻る");
 
-    // PTV は本家同様、名前と tuning のみ反映し basic key / フラグは変更しない
+    // PTV は本家同様、名前のみ反映し tuning / basic key / フラグは変更しない
     const vDoc = newVoice();
     checkEq(await addWoice(snapshotVoice(vDoc)!, WoiceType.PTV, "PropPTV"), null, "woiceprop: PTV を追加");
     const vIdx = serviceMod.service.woiceNum - 1;
     const before = serviceMod.service.woiceGet(vIdx)!.getVoice(0)!;
+    const beforeTuning = before.tuning;
     const beforeKey = before.basicKey;
     const beforeFlags = before.voiceFlags;
     setWoiceProperties(vIdx, {
@@ -2118,7 +2119,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     });
     const pw = serviceMod.service.woiceGet(vIdx)!;
     checkEq(woiceNameRaw(pw), "PTVName", "woiceprop: PTV の名前は反映される");
-    checkEq(pw.getVoice(0)!.tuning, 3, "woiceprop: PTV の tuning は反映される");
+    checkEq(pw.getVoice(0)!.tuning, beforeTuning, "woiceprop: PTV の tuning は変わらない");
     checkEq(pw.getVoice(0)!.basicKey, beforeKey, "woiceprop: PTV の basicKey は変わらない");
     checkEq(pw.getVoice(0)!.voiceFlags, beforeFlags, "woiceprop: PTV のフラグは変わらない");
   }
