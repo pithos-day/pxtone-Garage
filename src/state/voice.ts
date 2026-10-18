@@ -206,63 +206,73 @@ export function snapshotVoice(v: VoiceDoc): Uint8Array | null {
   return io.toUint8Array();
 }
 
+// 保存用の正規化: 倍音の未使用ポイント (y==0) を詰めて前に寄せる (本家 VoiceFile_Save の倍音処理)。
+// 有効な点数を num に入れる
+function compactOvertonePoints(vc: VoiceUnit): void {
+  const points = vc.wave.points;
+  for (let i = 0; i < vc.wave.num; i++) {
+    if (points[i]!.y) continue;
+    let next = i + 1;
+    for (; next < vc.wave.num; next++) {
+      if (points[next]!.y) break;
+    }
+    if (next < vc.wave.num) {
+      points[i]!.x = points[next]!.x;
+      points[i]!.y = points[next]!.y;
+      points[next]!.x = 0;
+      points[next]!.y = 0;
+    }
+  }
+  let num = 0;
+  for (let i = 0; i < vc.wave.num; i++) {
+    if (points[i]!.y) num++;
+  }
+  vc.wave.num = num;
+}
+
+// 保存用の正規化: エンベロープの空ポイントを詰める (本家 VoiceFile_Save のエンベロープ処理)。
+// head 部の [1..] が対象。詰めた点数を headNum へ戻し、tail の先頭点をその直後へ移す
+function compactEnvelopePoints(vc: VoiceUnit): void {
+  const points = vc.envelope.points;
+  const oldHeadNum = vc.envelope.headNum;
+  for (let i = 1; i < oldHeadNum; i++) {
+    if (points[i]!.x || points[i]!.y) continue;
+    let next = i + 1;
+    for (; next < oldHeadNum; next++) {
+      if (points[next]!.x || points[next]!.y) break;
+    }
+    if (next < oldHeadNum) {
+      points[i]!.x = points[next]!.x;
+      points[i]!.y = points[next]!.y;
+      points[next]!.x = 0;
+      points[next]!.y = 0;
+    }
+  }
+  let headNum = 1;
+  for (let i = 1; i < oldHeadNum; i++) {
+    if (points[i]!.x || points[i]!.y) headNum++;
+  }
+  const tailHead = points[oldHeadNum + vc.envelope.bodyNum]!;
+  points[headNum]!.x = tailHead.x;
+  points[headNum]!.y = tailHead.y;
+  vc.envelope.headNum = headNum;
+}
+
+// 無効エンベロープ (既定の 1 点のみ) はデータフラグを落とす
+function clearDefaultEnvelopeFlag(vc: VoiceUnit): void {
+  const points = vc.envelope.points;
+  const isDefault = vc.envelope.headNum === 1 && points[0]!.x === 0 && points[0]!.y === 128 && points[1]!.x === 1 && points[1]!.y === 0;
+  if (isDefault) vc.dataFlags &= ~PTV_DATAFLAG_ENVELOPE;
+}
+
 // 音声 1 面ぶんの保存時正規化 (本家 ptVoice/VoiceFile.cpp の VoiceFile_Save 準拠)。
 // 倍音の未使用ポイント (y==0) とエンベロープの空ポイントを詰め、
 // 既定値のままのエンベロープはデータフラグを落とす。編集用データは変更しないため、
 // 呼び出し側はコピーに対して実行する
 export function normalizeVoiceUnitForSave(vc: VoiceUnit): void {
-  // 倍音 (未使用ポイントを詰める)
-  if (vc.type === VoiceType.Overtone) {
-    const p = vc.wave.points;
-    for (let i = 0; i < vc.wave.num; i++) {
-      if (p[i]!.y) continue;
-      let i2 = i + 1;
-      for (; i2 < vc.wave.num; i2++) {
-        if (p[i2]!.y) break;
-      }
-      if (i2 < vc.wave.num) {
-        p[i]!.x = p[i2]!.x;
-        p[i]!.y = p[i2]!.y;
-        p[i2]!.x = 0;
-        p[i2]!.y = 0;
-      }
-    }
-    let count = 0;
-    for (let i = 0; i < vc.wave.num; i++) {
-      if (p[i]!.y) count++;
-    }
-    vc.wave.num = count;
-  }
-
-  // エンベロープ (未使用ポイントを詰める)。head 部の [1..] のみ対象
-  const ep = vc.envelope.points;
-  const headNum = vc.envelope.headNum;
-  for (let i = 1; i < headNum; i++) {
-    if (ep[i]!.x || ep[i]!.y) continue;
-    let i2 = i + 1;
-    for (; i2 < headNum; i2++) {
-      if (ep[i2]!.x || ep[i2]!.y) break;
-    }
-    if (i2 < headNum) {
-      ep[i]!.x = ep[i2]!.x;
-      ep[i]!.y = ep[i2]!.y;
-      ep[i2]!.x = 0;
-      ep[i2]!.y = 0;
-    }
-  }
-  let count = 1;
-  for (let i = 1; i < headNum; i++) {
-    if (ep[i]!.x || ep[i]!.y) count++;
-  }
-  const tail = ep[headNum + vc.envelope.bodyNum]!;
-  ep[count]!.x = tail.x;
-  ep[count]!.y = tail.y;
-  vc.envelope.headNum = count;
-
-  // 無効エンベロープ (既定の 1 点のみ) はデータフラグを落とす
-  if (count === 1 && ep[0]!.x === 0 && ep[0]!.y === 128 && ep[1]!.x === 1 && ep[1]!.y === 0) {
-    vc.dataFlags &= ~PTV_DATAFLAG_ENVELOPE;
-  }
+  if (vc.type === VoiceType.Overtone) compactOvertonePoints(vc);
+  compactEnvelopePoints(vc);
+  clearDefaultEnvelopeFlag(vc);
 }
 
 // 保存用スナップショット (本家 ptVoice の保存処理 VoiceFile_Save 準拠)。
