@@ -1,6 +1,6 @@
 // プレビュー音声制御 (preview.ts) のシミュレーションテスト。
 // AudioContext をモックして、キー変更時の「前の音の停止」を検証する。
-import type { Woice } from "pxtone-ts";
+import { EventKind, MemoryIo, PXTN_MAX_EVENT_NUM, PxtnErr, SEEK_SET, Service, WoiceType, type Woice } from "pxtone-ts";
 import { previewWoiceObjectHold, stopPreview, renderWoice, clearWoicePreviewCache, resetPreviewContext, playPcmOnce } from "../src/engine/preview";
 import { createDefaultWoice } from "../src/state/voice";
 
@@ -126,6 +126,37 @@ void (async () => {
     }
     assert(eq, "Service 再利用: 同一キーで内容一致");
     console.log(`renderWoice: ${work1!.length} samples`);
+  }
+
+  // ---- pxtone-ts の契約: initCollage 直後 (read() を経由しない) でも mooPreparation が通り音が出る ----
+  // renderWoice は 1 個の Service を clear() で使い回しているため、この挙動に依存している
+  // (pxtone-ts が initCollage で moo 有効フラグを立てなくなったら、ここで気づけるようにする)
+  {
+    const s = new Service();
+    assert(s.initCollage(PXTN_MAX_EVENT_NUM) === PxtnErr.OK, "moo 契約: initCollage が成功する");
+    const w = createDefaultWoice();
+    const io = new MemoryIo();
+    assert(w.ptvWrite(io) > 0, "moo 契約: 音色を ptvWrite できる");
+    assert(io.seek(SEEK_SET, 0), "moo 契約: 読み込み位置を先頭へ戻せる");
+    assert(s.woiceRead(0, io, WoiceType.PTV) === PxtnErr.OK, "moo 契約: woiceRead が成功する");
+    assert(s.unitAddNew(), "moo 契約: ユニットを追加できる");
+    s.master.set(4, 120, 480);
+    s.master.setMeasNum(2);
+    s.evels.clear();
+    s.evels.recordAddI(0, 0, EventKind.VOICENO, 0);
+    s.evels.recordAddI(0, 0, EventKind.KEY, 0x6000);
+    s.evels.recordAddI(0, 0, EventKind.VELOCITY, 104);
+    s.evels.recordAddI(0, 0, EventKind.ON, 480);
+    assert(s.setDestinationQuality(2, 44100), "moo 契約: setDestinationQuality が成功する");
+    assert(s.tonesReady() === PxtnErr.OK, "moo 契約: tonesReady が成功する");
+    assert(s.mooPreparation(null), "moo 契約: read() を経由せず mooPreparation が成功する");
+    const pcm = new Int16Array(1024 * 2);
+    assert(s.Moo(pcm, 1024), "moo 契約: Moo が成功する");
+    let signal = false;
+    for (let i = 0; i < pcm.length; i++) {
+      if (pcm[i] !== 0) signal = true;
+    }
+    assert(signal, "moo 契約: 音が出る (非ゼロサンプル)");
   }
 
   // ---- 出力レート確定 → tones_ready の順序: 減衰長が出力レートに依存しないこと ----
