@@ -49,6 +49,13 @@ export function shiftKeyValue(value: number, rowDelta: number): number {
   return Math.max(0, Math.min(KEY_VALUE_MAX, value - rowDelta * 0x100));
 }
 
+// 掴みの移動量を「ノート先頭が負のクロックにならない」範囲にクランプする。
+// 負のクロックにはイベントを置けないため、クランプしないとプレビュー (先頭 0 に描画) と
+// 確定 (先頭成分を置けずノートが消える) がずれる (本家 if_Cursor.cpp の 0 クランプ相当)
+export function clampSmartOffset(offset: number, noteHead: number): number {
+  return Math.max(offset, -noteHead);
+}
+
 // 移動後の配置。ノートを持たない write モードでは null
 export function smartPlacement(d: SmartDrag, dragClock2: number, grid: number): SmartPlacement | null {
   const note = d.note;
@@ -65,7 +72,7 @@ export function smartPlacement(d: SmartDrag, dragClock2: number, grid: number): 
     return { head, len: note.end - head, rowKey };
   }
   // 掴み: 全体移動 + 音程移動
-  return { head: Math.max(0, note.head + d.offset), len: note.end - note.head, rowKey: shiftKeyValue(rowKey, d.rowDelta) };
+  return { head: note.head + clampSmartOffset(d.offset, note.head), len: note.end - note.head, rowKey: shiftKeyValue(rowKey, d.rowDelta) };
 }
 
 // スマートドラッグの確定 (pointerup)。プレビューしていた配置をイベント列へ 1 回だけ反映する。
@@ -119,9 +126,12 @@ export function commitSmartDrag(
     ops.addEvent(place.head, unit, EventKind.ON, place.len);
     return;
   }
-  // 掴み: 押下時の配置から移動がなければ何もしない。あればノート全体を
-  // 新しい位置へ載せ替える (移動元の範囲を消してから置く)
-  if (d.offset === 0 && d.rowDelta === 0) return;
+  // 掴み: 押下時の配置から動いていなければ何もしない (左端で止まっただけの掴みで
+  // 移動先のノートを巻き込まない)。動いていればノート全体を新しい位置へ
+  // 載せ替える (移動元の範囲を消してから置く)
+  if (place.head === note.head && d.rowDelta === 0) return;
+  // 移動量は配置と揃える (クランプにより先頭は負にならない)
+  const offset = place.head - note.head;
   for (const kind of [EventKind.KEY, EventKind.VELOCITY, EventKind.ON]) {
     ops.deleteEvents(note.head, Math.max(note.head + 1, note.end), unit, kind);
   }
@@ -135,8 +145,6 @@ export function commitSmartDrag(
     ops.deleteEvents(place.head, Math.max(place.head + 1, targetEnd), unit, kind);
   }
   for (const ev of d.evs) {
-    const clock = ev.clock + d.offset;
-    if (clock < 0) continue; // 負クロックには置けない
-    ops.addEvent(clock, unit, ev.kind, ev.kind === EventKind.KEY ? shiftKeyValue(ev.value, d.rowDelta) : ev.value);
+    ops.addEvent(ev.clock + offset, unit, ev.kind, ev.kind === EventKind.KEY ? shiftKeyValue(ev.value, d.rowDelta) : ev.value);
   }
 }

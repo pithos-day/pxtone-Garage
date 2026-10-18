@@ -15,7 +15,7 @@
 //   37. 音量スライダーの永続化 (localStorage) / 38. ptnoise のレイヤー数 (ファイルに無いレイヤーも 4 つ表示する) / 39. ビルド履歴はタブごとに独立する
 //   40. リンクなしで音色を開く (pttune の「音色を開く」) / 41. 初期タブの置き換え (無題の音色を開いたタブは置き換えない)
 //   42. スコープ操作 (コピー / 切り取り / クリア / 消去 / 貼り付け / 挿入 / 移調) / 43. WAV書き出しオプション (本家 dlg_BuildOption 相当)
-//   44. 音色プロパティ編集 (本家 dlg_Woice 相当)
+//   44. 音色プロパティ編集 (本家 dlg_Woice 相当) / 45. スマートツールの配置と確定 (lib/smart-note)
 import {
   projects,
   currentProjectId,
@@ -123,6 +123,8 @@ import { parseMidi, convertMidiToPtcop } from "../src/engine/midi";
 import { formatTime, measStartClock } from "../src/lib/clock";
 import { scaleToWoice, scaleToGroup, VOLUME_EDIT_KIND } from "../src/lib/volume";
 import { writeNote, writeNoteLength, eraseNote, writeVolumeEvent, paintKeyDrag, type EventWriteOps } from "../src/lib/editing";
+import { smartPlacement, commitSmartDrag, clampSmartOffset, shiftKeyValue, type SmartDrag } from "../src/lib/smart-note";
+import { clockAtX } from "../src/lib/field";
 import { MENU_LABELS, menuNamesFor, buildFileMenu } from "../src/lib/menuItems";
 import { t } from "../src/i18n";
 import { secToEnveX, pctToEnveY, pushHistoryEntry } from "../src/lib/noise";
@@ -1294,6 +1296,103 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
         "key@0,on@0+960=24576,key@480,off@480+480=26624,key@960,on@960+960=26624",
         "lib: paintKeyDrag 後の余韻は 1 本につながる (細切れにならない)",
       );
+    }
+
+    // lib/smart-note: スマートツール (掴み移動 / 端の調整) の配置と確定。
+    // プレビューと確定が同じ配置計算 (smartPlacement) を共有する
+    {
+      const kindName = (k: EventKind) => EventKind[k] ?? String(k);
+      const opsOf = (s: Service): EventWriteOps => ({
+        deleteEvents: (c1, c2, unit, kind) => {
+          s.evels.recordDelete(c1, c2, unit, kind);
+        },
+        addEvent: (clock, unit, kind, value) => {
+          s.evels.recordAddI(clock, unit, kind, value);
+        },
+        setEventValue: (c1, c2, unit, kind, value) => {
+          s.evels.recordValueSet(c1, c2, unit, kind, value);
+        },
+      });
+      const newService = (): Service => {
+        const s = new Service();
+        checkEq(s.initCollage(PXTN_MAX_EVENT_NUM), PxtnErr.OK, "smart: Service init");
+        s.evels.clear();
+        return s;
+      };
+      const drawsOf = (s: Service): string =>
+        [...iterNoteDraws(s.evels.records, 0, { startClock: 0, endClock: 1920 }, 0x6000)]
+          .filter((d) => d.kind !== "off")
+          .map((d) => (d.kind === "key" ? `key@${d.clock}` : `${d.kind}@${d.clock}+${d.len}=${d.key}`))
+          .join(",");
+      // clockAtX: フィールド左端より外 (負の x) は 0 にクランプする (本家準拠)
+      const cv = { beatClock: 480, beatNum: 4, zoom: 24 };
+      checkEq(clockAtX(cv, 4, 0, -100), 0, "lib: clockAtX は負の x を 0 にクランプ");
+      checkEq(clockAtX(cv, 4, 0, 0, 24), 0, "lib: clockAtX は除外幅ぶんの負も 0 にクランプ");
+      checkEq(clockAtX(cv, 4, 0, 24), 480, "lib: clockAtX は通常の x をスナップ");
+
+      // 配置のクランプ (純関数)。note は 960..1440 (1 拍 = 480 クロック、グリッド 120)
+      const note = { head: 960, end: 1440, key: 0x6000 };
+      const headEvs = [
+        { clock: 960, kind: EventKind.KEY, value: 0x6000 },
+        { clock: 960, kind: EventKind.VELOCITY, value: 100 },
+        { clock: 960, kind: EventKind.ON, value: 480 },
+      ];
+      const grab = (offset: number, rowDelta = 0): SmartDrag => ({ mode: "grab", note, evs: headEvs, offset, rowDelta });
+      checkEq(clampSmartOffset(-2000, note.head), -960, "lib: 掴みの移動量はノート先頭までにクランプ");
+      checkEq(smartPlacement(grab(-2000), 0, 120)!.head, 0, "lib: 掴みの先頭は左端でクランプ");
+      checkEq(smartPlacement(grab(-480), 0, 120)!.head, 480, "lib: 掴みの移動量はそのまま反映");
+      checkEq(smartPlacement(grab(240), 0, 120)!.head, 1200, "lib: 掴みは右へも動かせる");
+      checkEq(smartPlacement(grab(0, 4), 0, 120)!.rowKey, 0x5c00, "lib: 掴みの音程移動は KEY 値に反映");
+      checkEq(shiftKeyValue(0x6000, 1), 0x5f00, "lib: shiftKeyValue は 1 行で 0x100 下がる");
+      checkEq(shiftKeyValue(0x100, 2), 0, "lib: shiftKeyValue は下限 0 でクランプ");
+      checkEq(shiftKeyValue(49151, -1), 49151, "lib: shiftKeyValue は上限でクランプ");
+      checkEq(smartPlacement({ ...grab(0), mode: "tail" }, 1000, 120)!.len, 120, "lib: 終了調整の最短は 1 グリッド");
+      checkEq(smartPlacement({ ...grab(0), mode: "tail" }, 1920, 120)!.len, 960, "lib: 終了調整は押下クロックまで伸ばせる");
+      checkEq(smartPlacement({ ...grab(0), mode: "head" }, 2000, 120)!.head, 1320, "lib: 開始調整は終了の 1 グリッド手前まで");
+      checkEq(smartPlacement({ ...grab(0), mode: "head" }, -120, 120)!.head, 0, "lib: 開始調整も左端でクランプ");
+      checkEq(smartPlacement({ mode: "write", note: null, evs: [], offset: 0, rowDelta: 0 }, 0, 120), null, "lib: write モードは配置なし");
+
+      // 確定: 掴みを左端の外へ運んでもプレビューどおり先頭に残る (負クロックは作らない)
+      {
+        const s = newService();
+        const ops = opsOf(s);
+        ops.addEvent(960, 0, EventKind.KEY, 0x6000);
+        ops.addEvent(960, 0, EventKind.VELOCITY, 100);
+        ops.addEvent(960, 0, EventKind.ON, 480);
+        commitSmartDrag(ops, () => s.evels.records, 0, grab(-2000), 0, 120);
+        checkEq(drawsOf(s), "key@0,on@0+480=24576", "lib: 掴みの確定は左端でクランプされノートが残る");
+        check(
+          s.evels.records.every((e) => e.clock >= 0),
+          "lib: 掴みの確定で負クロックのイベントが出ない",
+          s.evels.records.map((e) => e.clock).join(","),
+        );
+      }
+
+      // 確定: 掴みのドロップは移動先を完全置き換えにする (またぐノートは丸ごと消す)
+      {
+        const s = newService();
+        const ops = opsOf(s);
+        for (const head of [0, 960]) {
+          ops.addEvent(head, 0, EventKind.KEY, 0x6000);
+          ops.addEvent(head, 0, EventKind.VELOCITY, 100);
+          ops.addEvent(head, 0, EventKind.ON, 480);
+        }
+        commitSmartDrag(ops, () => s.evels.records, 0, grab(-720), 0, 120);
+        checkEq(drawsOf(s), "key@240,on@240+480=24576", "lib: 掴みのドロップは移動先のノートを置き換える");
+      }
+
+      // 確定: 左端で止まる掴み (クランプ後も元の位置) はイベントを触らない
+      {
+        const log: string[] = [];
+        const spy: EventWriteOps = {
+          deleteEvents: (c1, c2, unit, kind) => log.push(`del ${c1}-${c2} u${unit} ${kindName(kind)}`),
+          addEvent: (clock, unit, kind, value) => log.push(`add ${clock} u${unit} ${kindName(kind)} ${value}`),
+          setEventValue: () => {},
+        };
+        const evs = [{ clock: 0, kind: EventKind.KEY, value: 0x6000 }];
+        commitSmartDrag(spy, () => [], 0, { mode: "grab", note: { head: 0, end: 480, key: 0x6000 }, evs, offset: -400, rowDelta: 0 }, 0, 120);
+        checkEq(log.join(";"), "", "lib: 左端で止まる掴みはイベントを触らない");
+      }
     }
 
     // lib/menuItems: トップメニュー定義

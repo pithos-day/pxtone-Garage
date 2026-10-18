@@ -8,9 +8,12 @@ export function fieldOffset(canvas: HTMLCanvasElement, e: PointerEvent): { x: nu
 }
 
 // 画面 x 座標 → グリッドにスナップしたクロック。
-// offsetX は鍵盤ストリップなどフィールド左端の除外幅
+// offsetX は鍵盤ストリップなどフィールド左端の除外幅。
+// フィールド左端より外 (ポインタキャプチャで負の x) は 0 にクランプする
+// (本家 if_Cursor.cpp の if (*p_clock1 < 0) *p_clock1 = 0; 相当。
+//  負のクロックへイベントを書けないため、書込系はすべてここで止める)
 export function clockAtX(view: ClockView, divi: number, scrollX: number, x: number, offsetX = 0): number {
-  return snapClock(view, divi, xToClock(view, x - offsetX + scrollX));
+  return Math.max(0, snapClock(view, divi, xToClock(view, x - offsetX + scrollX)));
 }
 
 // Ctrl+ホイールのズーム切替。新しいズーム倍率を返す (Ctrl 以外は null)

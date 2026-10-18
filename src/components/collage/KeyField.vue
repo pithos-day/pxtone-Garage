@@ -28,6 +28,7 @@ import { writeNote, eraseNote, dropShortPrevNote, paintKeyDrag } from "../../lib
 import {
   smartPlacement,
   commitSmartDrag,
+  clampSmartOffset,
   shiftKeyValue,
   type SmartDrag,
   type SmartMode,
@@ -417,7 +418,9 @@ function updateSmartPreview(d: KeyDrag, pt?: { x: number; y: number }): void {
     }
   }
   st.lastDelta = st.rowDelta;
-  st.offset = d.clock2 - d.clock1;
+  // 掴みの移動量はノート先頭が負のクロックにならない範囲にクランプする
+  // (負のクロックにはイベントを置けず、プレビューと確定がずれてしまうため)
+  st.offset = st.note ? clampSmartOffset(d.clock2 - d.clock1, st.note.head) : 0;
   previewRev.value++;
 }
 
@@ -464,12 +467,14 @@ function drawSmartGhost(ctx: CanvasRenderingContext2D, d: KeyDrag, field: FieldC
   const y = top + row * KEY_HEIGHT - scrollY + KEY_HEIGHT / 2;
   fillRect(ctx, x1, y - 3, x2 - x1, 7, color.note(false, EVENTDEFAULT_VELOCITY, EVENTDEFAULT_VOLUME));
   fillRect(ctx, x1, y - 3, 2, 7, COLORS.noteHead);
-  // 掴みで動くノート内部の KEY 目印 (端の調整では位置を変えない)
+  // 掴みで動くノート内部の KEY 目印 (端の調整では位置を変えない)。
+  // 移動量は配置と同じ値を使い、確定後の位置とずれないようにする
   const grab = st.mode === "grab";
+  const offset = place.head - note.head;
   for (const ev of st.evs) {
     if (ev.kind !== EventKind.KEY || ev.clock === note.head) continue;
     const evRow = keyValueToRow(grab ? shiftKeyValue(ev.value, st.rowDelta) : ev.value);
-    const evClock = ev.clock + (grab ? st.offset : 0);
+    const evClock = ev.clock + (grab ? offset : 0);
     if (evClock < place.head || evClock >= place.head + place.len) continue;
     fillRect(ctx, clockToX(view, evClock) - scrollX - 1, top + evRow * KEY_HEIGHT - scrollY + KEY_HEIGHT / 2 - 4, 2, 8, COLORS.noteHead);
   }
