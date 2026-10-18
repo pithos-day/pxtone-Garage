@@ -201,16 +201,17 @@ export function previewUnit(unitNo: number, key: number, velocity: number = EVEN
   playBuffer(work, ctx.sampleRate);
 }
 
-// ユニットの音色をループ再生で開始する。pointerup まで鳴り続ける。
-// renderWoice による高速パスを試み、失敗時はプロジェクト全体のシリアライズ
-// パスにフォールバックする (PCM 音色など ptvWrite が使えない場合に対応)
-export async function previewUnitHold(unitNo: number, key: number, velocity: number = EVENTDEFAULT_VELOCITY, durSec = PREVIEW_SEC): Promise<void> {
-  const svc = getService();
-  if (!svc) return;
-  const ctx = getCtx();
-  if (!ctx) return;
-  const woice = resolveUnitWoice(svc, unitNo);
-  if (!woice) return;
+// 音色のループ再生を開始する。renderWoice の高速パスを試し、失敗したら
+// プロジェクト全体のシリアライズ + レンダリング (previewFallback) へ回す
+// (PCM 音色など ptvWrite が使えない場合に対応)
+async function startWoiceHold(
+  woice: Woice,
+  target: PreviewTarget,
+  key: number,
+  velocity: number,
+  durSec: number,
+  ctx: AudioContext,
+): Promise<void> {
   let work: Float32Array | null = null;
   try {
     work = renderWoice(woice, key, velocity, durSec, ctx.sampleRate);
@@ -221,8 +222,18 @@ export async function previewUnitHold(unitNo: number, key: number, velocity: num
     startHold(work, ctx, woiceReleaseSec(woice));
     return;
   }
-  // フォールバック: プロジェクト全体をシリアライズしてレンダリング
-  await previewFallback({ unitNo, woiceIdx: null }, key, velocity, durSec, ctx, true);
+  await previewFallback(target, key, velocity, durSec, ctx, true);
+}
+
+// ユニットの音色をループ再生で開始する。pointerup まで鳴り続ける
+export async function previewUnitHold(unitNo: number, key: number, velocity: number = EVENTDEFAULT_VELOCITY, durSec = PREVIEW_SEC): Promise<void> {
+  const svc = getService();
+  if (!svc) return;
+  const ctx = getCtx();
+  if (!ctx) return;
+  const woice = resolveUnitWoice(svc, unitNo);
+  if (!woice) return;
+  await startWoiceHold(woice, { unitNo, woiceIdx: null }, key, velocity, durSec, ctx);
 }
 
 // previewUnitHold のフォールバック用 (旧 preview() パイプライン)
@@ -252,18 +263,7 @@ export async function previewWoiceHold(woiceIdx: number, key: number, velocity: 
   if (!woice) return;
   const ctx = getCtx();
   if (!ctx) return;
-  let work: Float32Array | null = null;
-  try {
-    work = renderWoice(woice, key, velocity, durSec, ctx.sampleRate);
-  } catch {
-    // ptvWrite が使えない音色 (PCM 等) では例外になることがある
-  }
-  if (work && work.length >= 2) {
-    startHold(work, ctx, woiceReleaseSec(woice));
-    return;
-  }
-  // フォールバック: プロジェクト全体をシリアライズしてレンダリング
-  await previewFallback({ unitNo: null, woiceIdx }, key, velocity, durSec, ctx, true);
+  await startWoiceHold(woice, { unitNo: null, woiceIdx }, key, velocity, durSec, ctx);
 }
 
 // ---- 押下中サステイン (押している間ループ再生) ----
