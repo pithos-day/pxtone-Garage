@@ -222,7 +222,7 @@ async function startWoiceHold(
     startHold(work, ctx, woiceReleaseSec(woice));
     return;
   }
-  await previewFallback(target, key, velocity, durSec, ctx, true);
+  await previewFallback(target, key, velocity, durSec, ctx);
 }
 
 // ユニットの音色をループ再生で開始する。pointerup まで鳴り続ける
@@ -236,8 +236,9 @@ export async function previewUnitHold(unitNo: number, key: number, velocity: num
   await startWoiceHold(woice, { unitNo, woiceIdx: null }, key, velocity, durSec, ctx);
 }
 
-// previewUnitHold のフォールバック用 (旧 preview() パイプライン)
-async function previewFallback(target: PreviewTarget, key: number, velocity: number, durSec: number, ctx: AudioContext, hold: boolean): Promise<void> {
+// renderWoice の高速パスが使えない場合のフォールバック (旧 preview() パイプライン)。
+// プロジェクト全体をシリアライズしてブレンドレンダリングし、ループ再生で開始する
+async function previewFallback(target: PreviewTarget, key: number, velocity: number, durSec: number, ctx: AudioContext): Promise<void> {
   const svc = getService();
   if (!svc) return;
   const bytes = exportBytes();
@@ -251,8 +252,7 @@ async function previewFallback(target: PreviewTarget, key: number, velocity: num
   const releaseSec = woiceReleaseSec(woice);
   const work = await renderPreview(bytes, target, key, velocity, durSec, ctx.sampleRate);
   if (!work) return;
-  if (hold) startHold(work, ctx, releaseSec);
-  else playBuffer(work, ctx.sampleRate);
+  startHold(work, ctx, releaseSec);
 }
 
 // 音色単体をループ再生で開始する。pointerup まで鳴り続ける
