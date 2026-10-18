@@ -329,6 +329,14 @@ function noteAt(u: number, clock: number, row: number): SmartNote | null {
 // グリッド基準の端判定だと書き込み 1 つ分の短いノートで端が掴めないため px 基準にする
 const EDGE_PX = 8;
 
+// KEY イベント値の上限 (音程移動のクランプ。本家の KEY 値域)
+const KEY_VALUE_MAX = 49151;
+
+// KEY 値を rowDelta 行ぶん移動する (KEY 値は 0x8700 - row*0x100 のため行が下がるほど減る)
+function shiftKeyValue(value: number, rowDelta: number): number {
+  return Math.max(0, Math.min(KEY_VALUE_MAX, value - rowDelta * 0x100));
+}
+
 // 押下 x (キャンバス px) で掴み / 開始 / 終了を決める。
 // ノート幅が端判定幅以下の短いノートは左右半分で開始/終了を分ける
 function smartModeAt(note: SmartNote, x: number): SmartMode {
@@ -433,6 +441,30 @@ function updateSmartPreview(d: KeyDrag, pt?: { x: number; y: number }): void {
   previewRev.value++;
 }
 
+// スマートドラッグの確定後の配置。確定 (commitSmartDrag) とプレビュー (drawSmartGhost) が
+// この 1 つの計算を共有し、見た目と実際の確定がずれないようにする
+interface SmartPlacement {
+  head: number; // ノート先頭クロック
+  len: number; // ノート長 (クロック)
+  rowKey: number; // 表示する代表 KEY 値 (掴みでは音程移動を反映)
+}
+
+function smartPlacement(st: SmartState, note: SmartNote, dragClock2: number): SmartPlacement {
+  // 余韻で鳴っている音程も保存用 KEY として配置に含める
+  const rowKey = st.evs.find((e) => e.kind === EventKind.KEY && e.clock === note.head)?.value ?? note.key;
+  if (st.mode === "tail") {
+    // 終了調整: 先頭は固定で押下クロックを末尾にする (最短 1 グリッド)
+    return { head: note.head, len: Math.max(beatGrid(), dragClock2 - note.head), rowKey };
+  }
+  if (st.mode === "head") {
+    // 開始調整: 終了は固定で押下クロックに開始を合わせる (最短 1 グリッド)
+    const head = Math.max(0, Math.min(note.end - beatGrid(), dragClock2));
+    return { head, len: note.end - head, rowKey };
+  }
+  // 掴み: 全体移動 + 音程移動
+  return { head: Math.max(0, note.head + st.offset), len: note.end - note.head, rowKey: shiftKeyValue(rowKey, st.rowDelta) };
+}
+
 // スマートドラッグの確定 (pointerup)。プレビューしていた配置をイベント列に反映する。
 // ドラッグ中は 1 度も書き換えていないため、周囲のノートを巻き込むのはこの 1 回だけ
 function commitSmartDrag(u: number, d: KeyDrag): void {
@@ -441,16 +473,16 @@ function commitSmartDrag(u: number, d: KeyDrag): void {
   const grid = beatGrid();
   const s = getService();
   if (!s) return;
+  const place = smartPlacement(st, note, d.clock2);
   if (st.mode === "tail") {
     // 終了位置: 押下クロックを新しい末尾にする (最短 1 グリッド)
-    const len = Math.max(grid, d.clock2 - note.head);
-    if (len === note.end - note.head) return;
+    if (place.len === note.end - note.head) return;
     deleteEvents(note.head, note.head + 1, u, EventKind.ON);
     // 延伸で呑み込まれるノート: ON は追加時 (テール連鎖処理) に消えるが
     // 先頭成分 (KEY/VELOCITY) が孤児で残る。孤児 KEY は後続ノートの音程を
     // 化けさせ、描画上の off (余韻) を ON に重ねて見せるため、自ノートの
     // 先頭スロットを除いて掃除しておく
-    const tailEnd = note.head + len;
+    const tailEnd = place.head + place.len;
     for (const e of s.evels.records) {
       if (e.unitNo !== u || e.kind !== EventKind.ON) continue;
       if (e.clock >= tailEnd) break;
@@ -459,24 +491,23 @@ function commitSmartDrag(u: number, d: KeyDrag): void {
         deleteEvents(e.clock, e.clock + 1, u, kind);
       }
     }
-    addEvent(note.head, u, EventKind.ON, len);
+    addEvent(note.head, u, EventKind.ON, place.len);
     return;
   }
   if (st.mode === "head") {
     // 開始位置: 終了 (note.end) は固定。押下クロックを新しい開始にし、
-    // 先頭クロックに置かれていたノート成分 (KEY/VELOCITY/ON) を移す (最短 1 グリッド)
-    const head = Math.max(0, Math.min(note.end - grid, d.clock2));
-    if (head === note.head) return;
+    // 先頭クロックに置かれていたノート成分 (KEY/VELOCITY/ON) を移す
+    if (place.head === note.head) return;
     for (const kind of [EventKind.KEY, EventKind.VELOCITY, EventKind.ON]) {
       deleteEvents(note.head, note.head + 1, u, kind);
     }
     // 挿入位置の直前ノートが超短い断片になる (隣に張り付いて重なって見える) ときは消す
-    dropShortPrevNote(projectWriteOps, s.evels.records, head, u, grid);
+    dropShortPrevNote(projectWriteOps, s.evels.records, place.head, u, grid);
     for (const ev of st.evs) {
       if (ev.clock !== note.head || ev.kind === EventKind.ON) continue;
-      addEvent(head, u, ev.kind, ev.value);
+      addEvent(place.head, u, ev.kind, ev.value);
     }
-    addEvent(head, u, EventKind.ON, note.end - head);
+    addEvent(place.head, u, EventKind.ON, place.len);
     return;
   }
   // 掴み: 押下時の配置から移動がなければ何もしない。あればノート全体を
@@ -489,22 +520,15 @@ function commitSmartDrag(u: number, d: KeyDrag): void {
   // 残さない)、呑み込まれたノートは ON が消えても先頭成分 (KEY/VELOCITY) が
   // 孤児で残る (後続の音程を化けさせ、off を重ねて描かせる) ので範囲ごと消す。
   // 自ノートの成分はこの後に st.evs から再配置する
-  const target = Math.max(0, note.head + st.offset);
-  const targetEnd = target + (note.end - note.head);
-  dropShortPrevNote(projectWriteOps, s.evels.records, target, u, Number.MAX_SAFE_INTEGER);
+  const targetEnd = place.head + place.len;
+  dropShortPrevNote(projectWriteOps, s.evels.records, place.head, u, Number.MAX_SAFE_INTEGER);
   for (const kind of [EventKind.KEY, EventKind.VELOCITY]) {
-    deleteEvents(target, Math.max(target + 1, targetEnd), u, kind);
+    deleteEvents(place.head, Math.max(place.head + 1, targetEnd), u, kind);
   }
   for (const ev of st.evs) {
     const clock = ev.clock + st.offset;
     if (clock < 0) continue; // 負クロックには置けない
-    let value = ev.value;
-    if (ev.kind === EventKind.KEY) {
-      // 音程は押下行との差で動かす (KEY 値は 0x8700 - row*0x100 のため行が
-      // 下がるほど減る。KEY 範囲 0..49151 にクランプ)
-      value = Math.max(0, Math.min(49151, ev.value - st.rowDelta * 0x100));
-    }
-    addEvent(clock, u, ev.kind, value);
+    addEvent(clock, u, ev.kind, ev.kind === EventKind.KEY ? shiftKeyValue(ev.value, st.rowDelta) : ev.value);
   }
 }
 
@@ -530,32 +554,13 @@ function drawNoteGhost(ctx: CanvasRenderingContext2D, d: KeyDrag, field: FieldCt
 }
 
 // スマートドラッグのゴースト (確定後の配置) 描画。
-// 配置計算は commitSmartDrag と同じ規則にする (見た目と実際の確定が一致するため)
+// 配置 (head/len/KEY 値) は commitSmartDrag と smartPlacement を共有する
 function drawSmartGhost(ctx: CanvasRenderingContext2D, d: KeyDrag, field: FieldCtx, unitNo: number): void {
   const st = d.smart!;
   const note = st.note!;
-  const grid = beatGrid();
+  const place = smartPlacement(st, note, d.clock2);
   const color = getUnitColor(unitNo);
   const { w, top, h, view, scrollX, scrollY } = field;
-
-  // 確定後の配置を求める
-  let head = note.head;
-  let len = note.end - note.head;
-  // 余韻で鳴っている音程も保存用 KEY として配置に含める
-  let rowKey = st.evs.find((e) => e.kind === EventKind.KEY && e.clock === note.head)?.value ?? note.key;
-  if (st.mode === "tail") {
-    len = Math.max(grid, d.clock2 - note.head);
-  } else {
-    if (st.mode === "head") {
-      // 開始位置: 終了は固定で押下クロックに開始を合わせる (最短 1 グリッド)
-      head = Math.max(0, Math.min(note.end - grid, d.clock2));
-      len = note.end - head;
-    } else {
-      // 掴みは全体移動 + 音程移動
-      head = Math.max(0, note.head + st.offset);
-      rowKey = Math.max(0, Math.min(49151, rowKey - st.rowDelta * 0x100));
-    }
-  }
 
   ctx.save();
   ctx.beginPath();
@@ -563,18 +568,19 @@ function drawSmartGhost(ctx: CanvasRenderingContext2D, d: KeyDrag, field: FieldC
   ctx.clip();
   // 確定前の目印として半透明で描く
   ctx.globalAlpha = 0.75;
-  const row = keyValueToRow(rowKey);
-  const x1 = clockToX(view, head) - scrollX;
-  const x2 = Math.max(x1 + 1, clockToX(view, head + len) - scrollX);
+  const row = keyValueToRow(place.rowKey);
+  const x1 = clockToX(view, place.head) - scrollX;
+  const x2 = Math.max(x1 + 1, clockToX(view, place.head + place.len) - scrollX);
   const y = top + row * KEY_HEIGHT - scrollY + KEY_HEIGHT / 2;
   fillRect(ctx, x1, y - 3, x2 - x1, 7, color.note(false, EVENTDEFAULT_VELOCITY, EVENTDEFAULT_VOLUME));
   fillRect(ctx, x1, y - 3, 2, 7, COLORS.noteHead);
   // 掴みで動くノート内部の KEY 目印 (端の調整では位置を変えない)
+  const grab = st.mode === "grab";
   for (const ev of st.evs) {
     if (ev.kind !== EventKind.KEY || ev.clock === note.head) continue;
-    const row2 = st.mode === "grab" ? keyValueToRow(Math.max(0, Math.min(49151, ev.value - st.rowDelta * 0x100))) : keyValueToRow(ev.value);
-    const clock2 = ev.clock + (st.mode === "grab" ? st.offset : 0);
-    if (clock2 < head || clock2 >= head + len) continue;
+    const row2 = keyValueToRow(grab ? shiftKeyValue(ev.value, st.rowDelta) : ev.value);
+    const clock2 = ev.clock + (grab ? st.offset : 0);
+    if (clock2 < place.head || clock2 >= place.head + place.len) continue;
     fillRect(ctx, clockToX(view, clock2) - scrollX - 1, top + row2 * KEY_HEIGHT - scrollY + KEY_HEIGHT / 2 - 4, 2, 8, COLORS.noteHead);
   }
   ctx.restore();
