@@ -15,9 +15,10 @@ import {
   isTuneProject,
   currentProjectId,
   applyWoiceLink,
+  projects,
 } from "../../state/projects";
-import { newVoice, openVoice, saveVoice, closeVoice, undoVoice, redoVoice, currentVoice, currentVoiceId, snapshotVoice, markVoiceClean } from "../../state/voice";
-import { newNoise, openNoise, saveNoise, closeNoise, undoNoise, redoNoise, currentNoise, currentNoiseId, snapshotNoise, markNoiseClean } from "../../state/noise";
+import { newVoice, openVoice, saveVoice, closeVoice, undoVoice, redoVoice, currentVoice, currentVoiceId, snapshotVoice, markVoiceClean, voices } from "../../state/voice";
+import { newNoise, openNoise, saveNoise, closeNoise, undoNoise, redoNoise, currentNoise, currentNoiseId, snapshotNoise, markNoiseClean, noises } from "../../state/noise";
 import { exportPttune, exportWav, exportVoiceWav, exportNoiseWav, openFileDialog } from "../../engine/io";
 import { convertMidiToPtcop } from "../../engine/midi";
 import { undo, redo, canUndo, canRedo } from "../../state/undo";
@@ -240,6 +241,8 @@ const modeOps: Record<AppMode, ModeMenuOps> = {
     canUndo: () => canUndo.value,
     canRedo: () => canRedo.value,
     canSave: () => !tuneReadOnly.value,
+    // タブが 1 つだと閉じられない (closeProject が no-op) ためグレーアウトする
+    canClose: () => projects.value.length > 1,
   },
   voice: {
     new: () => newVoice(),
@@ -251,6 +254,8 @@ const modeOps: Record<AppMode, ModeMenuOps> = {
     redo: redoVoice,
     canUndo: () => (currentVoice()?.undoStack.length ?? 0) > 0,
     canRedo: () => (currentVoice()?.redoStack.length ?? 0) > 0,
+    // タブバーの X 表示 (2 つ以上) と揃える
+    canClose: () => voices.value.length > 1,
   },
   noise: {
     new: () => newNoise(),
@@ -262,6 +267,8 @@ const modeOps: Record<AppMode, ModeMenuOps> = {
     redo: redoNoise,
     canUndo: () => (currentNoise()?.undoStack.length ?? 0) > 0,
     canRedo: () => (currentNoise()?.redoStack.length ?? 0) > 0,
+    // タブバーの X 表示 (2 つ以上) と揃える
+    canClose: () => noises.value.length > 1,
   },
 };
 

@@ -45,12 +45,15 @@ export interface ModeMenuOps {
   canRedo: () => boolean;
   // 保存可否 (省略時は保存可。tune 再生専用タブ等で false を返す)
   canSave?: () => boolean;
+  // 閉じる可否 (省略時は閉じられる。タブが 1 つで閉じられないときなど false)
+  canClose?: () => boolean;
 }
 
 // File メニュー。共通 5 項目 (new/open/save/saveAs + 区切り) + 保存系の手前の固有項目
 // (beforeSave) + モード固有項目 (extra) + close
 export function buildFileMenu(ops: ModeMenuOps, extra: MenuItem[], beforeSave: MenuItem[] = []): MenuItem[] {
   const saveDisabled = ops.canSave ? !ops.canSave() : false;
+  const closeDisabled = ops.canClose ? !ops.canClose() : false;
   return [
     { label: t("menu.file.new"), icon: FilePlus2, action: ops.new },
     { label: t("menu.file.open"), icon: FileSearch2, action: ops.open },
@@ -60,7 +63,7 @@ export function buildFileMenu(ops: ModeMenuOps, extra: MenuItem[], beforeSave: M
     { label: t("menu.file.saveAs"), icon: SavePlus, action: ops.saveAs, disabled: saveDisabled },
     { sep: true },
     ...extra,
-    { label: t("menu.file.close"), icon: SquareX, action: ops.close },
+    { label: t("menu.file.close"), icon: SquareX, action: ops.close, disabled: closeDisabled },
   ];
 }
 
