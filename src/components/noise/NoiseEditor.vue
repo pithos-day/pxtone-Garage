@@ -12,6 +12,7 @@ import { useDebounced } from "../../composables/useDebounced";
 import { useUndoOnce } from "../../composables/useUndo";
 import { COLORS } from "../../lib/theme";
 import { fillRect, fillText } from "../../lib/draw";
+import { NOISE_WAVE_TYPE_NAMES as WAVE_TYPE_NAMES, NOISE_BUILT_SPS, secToEnveX, pctToEnveY } from "../../lib/noise";
 import { WaveType } from "pxtone-ts";
 import { currentNoise, newNoise, editNoise, readNoiseBytes, pushNoiseHistory, NOISE_UNIT_NUM } from "../../state/noise";
 import { renderNoise, playPcmOnce } from "../../engine/preview";
@@ -24,7 +25,6 @@ const noise = computed(() => currentNoise());
 // 編集リビジョン。undo/redo 後はリアルタイム反映のため再ビルドを予約する
 const { rev, touch } = useEditRev(() => noise.value, undefined, () => scheduleEditBuild());
 
-import { NOISE_WAVE_TYPE_NAMES as WAVE_TYPE_NAMES, NOISE_BUILT_SPS, secToEnveX, pctToEnveY } from "../../lib/noise";
 const OSC_IDS = ["main", "freq", "volu"] as const;
 
 // 全レイヤーを縦に並べる (read 直後は有効ユニット数ぶん)
