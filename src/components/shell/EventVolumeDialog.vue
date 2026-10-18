@@ -30,8 +30,11 @@ const form = reactive({
 });
 
 const title = computed(() => t(EVENT_VOLUME_TITLES[props.kind]));
+// 加算値の範囲 (本家 dlg_EventVolume と同じ)。ヒントと入力欄の min/max をここから導出する
+const VALUE_MIN = -96;
+const VALUE_MAX = 96;
 // 移調の単位は半音 (他モードはイベント値そのもの) をヒントに出す
-const hint = computed(() => (props.kind === "transpose" ? t("eventvolume.semi") : "-96..96"));
+const hint = computed(() => (props.kind === "transpose" ? t("eventvolume.semi") : `${VALUE_MIN}..${VALUE_MAX}`));
 
 useScopeRangeForm(form);
 
@@ -61,7 +64,7 @@ function onSubmit(): void {
     </div>
     <div class="row">
       <label>{{ t("eventvolume.value") }}</label>
-      <input v-model.number="form.value" type="number" min="-96" max="96" />
+      <input v-model.number="form.value" type="number" :min="VALUE_MIN" :max="VALUE_MAX" />
       <span class="hint">{{ hint }}</span>
     </div>
     <template #buttons>
