@@ -175,14 +175,15 @@ function onPointerUp(e: PointerEvent): void {
   releasePointerCapture(c, e);
   const d = drag.value;
   drag.value = null;
-  if (!d || !c) return;
+  if (!d) return;
   if (!d.moved) {
     // クリック = シーク
     seekToClock(clockAt(d.x0));
     return;
   }
-  // ドラッグ = Start/End をまとめて設定 (押した位置が Start、離した位置が End)
-  const { start, end } = dragRange(d.x0, e.clientX - c.getBoundingClientRect().left);
+  // ドラッグ = Start/End をまとめて設定 (押した位置が Start、離した位置が End)。
+  // 離した位置は onPointerMove が保持している最新の canvas 座標を使う (プレビューと同じ値)
+  const { start, end } = dragRange(d.x0, d.x);
   setPlayRange(start, end);
 }
 
