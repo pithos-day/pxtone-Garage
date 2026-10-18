@@ -15,6 +15,9 @@ pxtone-garage はピストンコラージュ (ptCollage) 互換の Web DAW。
   state 層で no-op になるが、UI 側でも入口 (メニュー / ポインタ操作) を無効化する
 - コメントは日本語
 - 時間は「クロック」単位 (beatClock=480 基準)、スクロール位置 scrollX は px
+- キーボードショートカットは `src/lib/shortcuts.ts` の表 (コマンド / キー / 動作説明 /
+  実行担当 `area`) に集約する。判定 (`shortcutCommand`) とメニュー併記 (`formatShortcut`) は
+  表から導出し、コンポーネント側に個別のキー判定を書かない (`area` ごとに 1 か所で実行する)
 
 ## ドメイン用語・不変条件
 
