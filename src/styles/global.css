@@ -249,7 +249,7 @@ textarea {
 }
 
 .ctxmenu button:disabled {
-  color: var(--muted-foreground);
+  color: color-mix(in srgb, var(--card-foreground) 50%, transparent);
   cursor: default;
 }
 
