@@ -6,6 +6,7 @@ import { doc, addWoice, detectWoiceType } from "../../state/project";
 import { WOICE_FILE_ACCEPT, WOICE_FILE_EXT_RE } from "../../lib/woice";
 import AddUnitDialog from "./AddUnitDialog.vue";
 import { openFileDialog } from "../../engine/io";
+import { formatShortcut } from "../../lib/shortcuts";
 import { t } from "../../i18n";
 
 const errorMsg = ref("");
@@ -25,8 +26,8 @@ async function onAddWoice(): Promise<void> {
 <template>
   <div class="toolpanel">
     <div class="tool-mode">
-      <button class="btn btn-sm mode" :class="{ on: doc.mode === 'W' }" :title="t('tool.woiceManage')" @click="doc.mode = 'W'"><Music2 :size="16" /></button>
-      <button class="btn btn-sm mode" :class="{ on: doc.mode === 'U' }" :title="t('tool.unitManage')" @click="doc.mode = 'U'"><Piano :size="16" /></button>
+      <button class="btn btn-sm mode" :class="{ on: doc.mode === 'W' }" :title="`${t('tool.woiceManage')} (${formatShortcut('modeW')})`" @click="doc.mode = 'W'"><Music2 :size="16" /></button>
+      <button class="btn btn-sm mode" :class="{ on: doc.mode === 'U' }" :title="`${t('tool.unitManage')} (${formatShortcut('modeU')})`" @click="doc.mode = 'U'"><Piano :size="16" /></button>
     </div>
     <div class="tool-buttons">
       <template v-if="doc.mode === 'W'">

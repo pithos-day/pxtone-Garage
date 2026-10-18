@@ -6,6 +6,7 @@ import { isPlaying, togglePlay, stopAndRewind, loop, setLoop, masterVolume, setM
 import { doc, getService, clockContext } from "../../state/project";
 import { panels, PANEL_DEFS as PANELS } from "../../state/panels";
 import { formatClock, formatTime } from "../../lib/clock";
+import { formatShortcut } from "../../lib/shortcuts";
 import { t } from "../../i18n";
 
 function timeLabel(): string {
@@ -20,7 +21,7 @@ function timeLabel(): string {
 
 <template>
   <div class="transport">
-    <button class="btn btn-accent play-btn" @click="togglePlay" :title="isPlaying ? t('transport.pause') : t('transport.play')">
+    <button class="btn btn-accent play-btn" @click="togglePlay" :title="`${isPlaying ? t('transport.pause') : t('transport.play')} (${formatShortcut('playToggle')})`">
       <Pause v-if="isPlaying" :size="16" /><Play v-else :size="16" />
     </button>
     <button class="btn" @click="stopAndRewind" :title="t('transport.stop')"><Square :size="14" /></button>

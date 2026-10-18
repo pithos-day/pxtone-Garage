@@ -165,14 +165,14 @@ function onMenuAction(action: MenuAction): void {
     />
     <div v-if="menu" class="ctxmenu popup" :style="{ left: menu.x + 'px', top: menu.y + 'px' }">
       <template v-if="menu.kind === 'point'">
-        <CtxMenuItem :icon="ClipboardPaste" :disabled="!menu.canPaste" @click="onMenuAction('paste')">{{ t("scope.paste") }}</CtxMenuItem>
+        <CtxMenuItem :icon="ClipboardPaste" :disabled="!menu.canPaste" command="scopePaste" @click="onMenuAction('paste')">{{ t("scope.paste") }}</CtxMenuItem>
         <CtxMenuItem :icon="ListPlus" :disabled="!menu.canPaste" @click="onMenuAction('insert')">{{ t("scope.insert") }}</CtxMenuItem>
       </template>
       <template v-else>
-        <CtxMenuItem :icon="Copy" @click="onMenuAction('copy')">{{ t("scope.copy") }}</CtxMenuItem>
-        <CtxMenuItem :icon="Scissors" @click="onMenuAction('cut')">{{ t("scope.cut") }}</CtxMenuItem>
-        <CtxMenuItem :icon="Eraser" @click="onMenuAction('clear')">{{ t("scope.clear") }}</CtxMenuItem>
-        <CtxMenuItem :icon="ArrowLeftToLine" @click="onMenuAction('delete')">{{ t("scope.delete") }}</CtxMenuItem>
+        <CtxMenuItem :icon="Copy" command="scopeCopy" @click="onMenuAction('copy')">{{ t("scope.copy") }}</CtxMenuItem>
+        <CtxMenuItem :icon="Scissors" command="scopeCut" @click="onMenuAction('cut')">{{ t("scope.cut") }}</CtxMenuItem>
+        <CtxMenuItem :icon="Eraser" command="scopeClear" @click="onMenuAction('clear')">{{ t("scope.clear") }}</CtxMenuItem>
+        <CtxMenuItem :icon="ArrowLeftToLine" command="scopeDelete" @click="onMenuAction('delete')">{{ t("scope.delete") }}</CtxMenuItem>
         <CtxMenuItem :icon="ChevronsUpDown" @click="onMenuAction('transpose')">{{ t("scope.transpose") }}</CtxMenuItem>
       </template>
     </div>

@@ -1,8 +1,10 @@
 // メニュー項目1行。サブメニューを持つ項目は内部で再帰的に描画する。
-// クリック時は選択された項目を "select" で親へ渡す
+// クリック時は選択された項目を "select" で親へ渡す。
+// ショートカットを持つ項目 (item.command) は右寄せでキーを併記する
 <script setup lang="ts">
 import { Check, ChevronRight } from "@lucide/vue";
 import type { MenuItem } from "../../lib/menuItems";
+import { formatShortcut } from "../../lib/shortcuts";
 
 defineProps<{ item: MenuItem; subOpen: boolean }>();
 const emit = defineEmits<{
@@ -25,6 +27,7 @@ const emit = defineEmits<{
       <component v-else-if="item.icon" :is="item.icon" :size="16" />
     </span>
     <span class="menu-text">{{ item.label }}</span>
+    <span v-if="item.command" class="menu-key">{{ formatShortcut(item.command) }}</span>
     <span v-if="item.sub" class="menu-arrow"><ChevronRight :size="14" /></span>
     <div v-if="item.sub && subOpen" class="menu-sub popup">
       <MenuItemRow
@@ -76,6 +79,14 @@ const emit = defineEmits<{
 
 .menu-text {
   flex: 1;
+}
+
+/* ショートカット表示 (右寄せ・控えめな色) */
+.menu-key {
+  flex: none;
+  margin-left: 16px;
+  opacity: 0.6;
+  font-size: var(--text-sm);
 }
 
 .menu-arrow {

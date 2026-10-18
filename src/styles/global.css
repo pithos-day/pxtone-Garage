@@ -259,6 +259,19 @@ textarea:disabled {
   flex: none;
 }
 
+/* ラベルは伸縮させ、ショートカット表示を右端へ寄せる */
+.ctxmenu .menu-text {
+  flex: 1;
+}
+
+/* ショートカット表示 (右寄せ・控えめな色) */
+.ctxmenu .menu-key {
+  flex: none;
+  margin-left: 16px;
+  opacity: 0.6;
+  font-size: var(--text-sm);
+}
+
 .ctxmenu button:hover {
   background: var(--primary);
   color: var(--primary-foreground);

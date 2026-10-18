@@ -16,6 +16,7 @@
 //   40. リンクなしで音色を開く (pttune の「音色を開く」) / 41. 初期タブの置き換え (無題の音色を開いたタブは置き換えない)
 //   42. スコープ操作 (コピー / 切り取り / クリア / 消去 / 貼り付け / 挿入 / 移調) / 43. WAV書き出しオプション (本家 dlg_BuildOption 相当)
 //   44. 音色プロパティ編集 (本家 dlg_Woice 相当) / 45. スマートツールの配置と確定 (lib/smart-note)
+//   46. キーボードショートカット (lib/shortcuts: 判定 / 表示 / スクロール)
 import {
   projects,
   currentProjectId,
@@ -124,6 +125,17 @@ import { formatTime, measStartClock } from "../src/lib/clock";
 import { scaleToWoice, scaleToGroup, VOLUME_EDIT_KIND } from "../src/lib/volume";
 import { writeNote, writeNoteLength, eraseNote, writeVolumeEvent, paintKeyDrag, type EventWriteOps } from "../src/lib/editing";
 import { smartPlacement, commitSmartDrag, clampSmartOffset, shiftKeyValue, type SmartDrag } from "../src/lib/smart-note";
+import {
+  SHORTCUTS,
+  shortcutAreaOf,
+  shortcutCommand,
+  formatShortcut,
+  isModifierKey,
+  arrowScrollX,
+  arrowScrollRow,
+  type ShortcutCommand,
+  type ShortcutEvent,
+} from "../src/lib/shortcuts";
 import { clockAtX } from "../src/lib/field";
 import { MENU_LABELS, menuNamesFor, buildFileMenu } from "../src/lib/menuItems";
 import { t } from "../src/i18n";
@@ -2494,6 +2506,131 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(pw.getVoice(0)!.tuning, beforeTuning, "woiceprop: PTV の tuning は変わらない");
     checkEq(pw.getVoice(0)!.basicKey, beforeKey, "woiceprop: PTV の basicKey は変わらない");
     checkEq(pw.getVoice(0)!.voiceFlags, beforeFlags, "woiceprop: PTV のフラグは変わらない");
+  }
+
+  // ---- 46. キーボードショートカット (lib/shortcuts: 判定 / 表示 / スクロール) ----
+  {
+    // KeyboardEvent の必要最小限を組み立てるヘルパ
+    const stroke = (
+      key: string,
+      mods: { ctrl?: boolean; shift?: boolean; meta?: boolean; alt?: boolean; repeat?: boolean } = {},
+    ): ShortcutEvent => ({
+      key,
+      ctrlKey: !!mods.ctrl,
+      metaKey: !!mods.meta,
+      shiftKey: !!mods.shift,
+      altKey: !!mods.alt,
+      repeat: !!mods.repeat,
+    });
+    const ctx = { readOnly: false, clipReady: true, modalOpen: false };
+    const cmdOf = (e: ShortcutEvent, c = ctx): ShortcutCommand | null => shortcutCommand(e, c);
+
+    // ---- 本家準拠のコマンド割り当て ----
+    checkEq(cmdOf(stroke("z", { ctrl: true })), "undo", "shortcut: Ctrl+Z は元に戻す");
+    checkEq(cmdOf(stroke("y", { ctrl: true })), "redo", "shortcut: Ctrl+Y はやり直す");
+    checkEq(cmdOf(stroke("Z", { ctrl: true, shift: true })), "redo", "shortcut: Ctrl+Shift+Z もやり直す (大文字キーも可)");
+    checkEq(cmdOf(stroke("s", { ctrl: true })), "save", "shortcut: Ctrl+S は保存");
+    checkEq(cmdOf(stroke("s", { ctrl: true, shift: true })), "saveAs", "shortcut: Ctrl+Shift+S は名前を付けて保存");
+    checkEq(cmdOf(stroke("a", { ctrl: true })), "scopeAll", "shortcut: Ctrl+A は範囲の全選択");
+    checkEq(cmdOf(stroke("a", { ctrl: true, shift: true })), "selectAllUnits", "shortcut: Ctrl+Shift+A はユニットの全選択");
+    checkEq(cmdOf(stroke("c", { ctrl: true })), "scopeCopy", "shortcut: Ctrl+C は範囲コピー");
+    checkEq(cmdOf(stroke("x", { ctrl: true })), "scopeCut", "shortcut: Ctrl+X は範囲切り取り");
+    checkEq(cmdOf(stroke("v", { ctrl: true })), "scopePaste", "shortcut: Ctrl+V は範囲貼り付け");
+    checkEq(cmdOf(stroke("Delete")), "scopeDelete", "shortcut: Delete は範囲の消去");
+    checkEq(cmdOf(stroke("Delete", { shift: true })), "scopeClear", "shortcut: Shift+Delete は範囲のクリア");
+    checkEq(cmdOf(stroke("Backspace")), "scopeDelete", "shortcut: Backspace も範囲の消去 (Delete の別名)");
+    checkEq(cmdOf(stroke("Backspace", { shift: true })), "scopeClear", "shortcut: Shift+Backspace も範囲のクリア");
+    checkEq(cmdOf(stroke("ArrowLeft")), "scrollLeft", "shortcut: ← は左へスクロール");
+    checkEq(cmdOf(stroke("ArrowRight")), "scrollRight", "shortcut: → は右へスクロール");
+    checkEq(cmdOf(stroke("ArrowUp")), "rowUp", "shortcut: ↑ は上へスクロール");
+    checkEq(cmdOf(stroke("ArrowDown")), "rowDown", "shortcut: ↓ は下へスクロール");
+    checkEq(cmdOf(stroke(" ")), "playToggle", "shortcut: Space は再生/停止");
+    checkEq(cmdOf(stroke("Home")), "seekStart", "shortcut: Home は先頭へシーク");
+    checkEq(cmdOf(stroke("End")), "seekEnd", "shortcut: End は末尾へシーク");
+    checkEq(cmdOf(stroke("F1")), "modeW", "shortcut: F1 は音色管理 (W)");
+    checkEq(cmdOf(stroke("F2")), "modeU", "shortcut: F2 はユニット (U)");
+
+    // ---- 修飾キーは完全一致 (macOS の ⌘ は Ctrl とみなす) ----
+    checkEq(cmdOf(stroke("s", { meta: true })), "save", "shortcut: ⌘S も保存 (macOS)");
+    checkEq(cmdOf(stroke("s", { ctrl: true, alt: true })), null, "shortcut: Ctrl+Alt+S は対象外");
+    checkEq(cmdOf(stroke("Delete", { ctrl: true })), null, "shortcut: Ctrl+Delete は対象外");
+    checkEq(cmdOf(stroke("ArrowLeft", { ctrl: true })), null, "shortcut: Ctrl+← は対象外");
+    checkEq(cmdOf(stroke("q")), null, "shortcut: 未割り当てキーは null");
+
+    // ---- 読み取り専用タブ (pttune): 編集系は止め、コピー / 選択 / 再生は許可 ----
+    const ro = { readOnly: true, clipReady: true, modalOpen: false };
+    checkEq(cmdOf(stroke("x", { ctrl: true }), ro), null, "shortcut: readOnly では切り取り不可");
+    checkEq(cmdOf(stroke("v", { ctrl: true }), ro), null, "shortcut: readOnly では貼り付け不可");
+    checkEq(cmdOf(stroke("Delete"), ro), null, "shortcut: readOnly では消去不可");
+    checkEq(cmdOf(stroke("Delete", { shift: true }), ro), null, "shortcut: readOnly ではクリア不可");
+    checkEq(cmdOf(stroke("Backspace"), ro), null, "shortcut: readOnly では Backspace でも消去不可");
+    checkEq(cmdOf(stroke("c", { ctrl: true }), ro), "scopeCopy", "shortcut: readOnly でもコピーは可");
+    checkEq(cmdOf(stroke("a", { ctrl: true }), ro), "scopeAll", "shortcut: readOnly でも全選択は可");
+    checkEq(cmdOf(stroke(" "), ro), "playToggle", "shortcut: readOnly でも再生は可");
+
+    // ---- クリップボードが空なら貼り付け不可 ----
+    const noClip = { readOnly: false, clipReady: false, modalOpen: false };
+    checkEq(cmdOf(stroke("v", { ctrl: true }), noClip), null, "shortcut: クリップボードが空なら貼り付け不可");
+    checkEq(cmdOf(stroke("c", { ctrl: true }), noClip), "scopeCopy", "shortcut: クリップボードが空でもコピーは可");
+
+    // ---- モーダルダイアログ表示中はすべて止める ----
+    const modal = { readOnly: false, clipReady: true, modalOpen: true };
+    for (const e of [stroke("s", { ctrl: true }), stroke("z", { ctrl: true }), stroke("c", { ctrl: true }), stroke(" ")]) {
+      checkEq(cmdOf(e, modal), null, `shortcut: モーダル中は無効 (${e.key})`);
+    }
+
+    // ---- 自動リピートはスクロール系のみ許可 ----
+    checkEq(cmdOf(stroke("ArrowRight", { repeat: true })), "scrollRight", "shortcut: 矢印は長押し可");
+    checkEq(cmdOf(stroke("z", { ctrl: true, repeat: true })), null, "shortcut: Ctrl+Z は長押し無効");
+    checkEq(cmdOf(stroke(" ", { repeat: true })), null, "shortcut: Space は長押し無効");
+    checkEq(cmdOf(stroke("v", { ctrl: true, repeat: true })), null, "shortcut: Ctrl+V は長押し無効");
+
+    // ---- 実行担当 (app = MenuBar / collage = CollageEditor) ----
+    checkEq(shortcutAreaOf("undo"), "app", "shortcut: undo は MenuBar 担当");
+    checkEq(shortcutAreaOf("save"), "app", "shortcut: save は MenuBar 担当");
+    checkEq(shortcutAreaOf("scopeCopy"), "collage", "shortcut: 範囲コピーは CollageEditor 担当");
+    checkEq(shortcutAreaOf("playToggle"), "collage", "shortcut: Space は CollageEditor 担当");
+
+    // ---- 表の整合性 (記載漏れ・重複割り当ての検出) ----
+    const combos = new Set<string>();
+    let duplicate = "";
+    for (const def of SHORTCUTS) {
+      checkEq(def.action.length > 0, true, `shortcut: ${def.command} に動作説明がある`);
+      checkEq(def.keys.length > 0, true, `shortcut: ${def.command} にキー割り当てがある`);
+      for (const b of def.keys) {
+        const combo = `${b.key}|${!!b.ctrl}|${!!b.shift}`;
+        if (combos.has(combo)) duplicate = combo;
+        combos.add(combo);
+        // 表の各キーが必ずそのコマンドへ解決される (判定と表の食い違い検出)
+        checkEq(cmdOf(stroke(b.key.length === 1 ? b.key.toUpperCase() : b.key, { ctrl: b.ctrl, shift: b.shift })), def.command, `shortcut: ${def.command} (${combo}) が表から引ける`);
+      }
+    }
+    checkEq(duplicate, "", "shortcut: 同じキーの重複割り当てが無い");
+    checkEq(SHORTCUTS.length, 20, "shortcut: コマンド数");
+
+    // ---- 表示 (右寄せ併記用) ----
+    checkEq(formatShortcut("scopeCopy", false), "Ctrl+C", "shortcut: 表示 Ctrl+C");
+    checkEq(formatShortcut("saveAs", false), "Ctrl+Shift+S", "shortcut: 表示 Ctrl+Shift+S");
+    checkEq(formatShortcut("modeW", false), "F1", "shortcut: 表示 F1");
+    checkEq(formatShortcut("scrollLeft", false), "←", "shortcut: 表示 ←");
+    checkEq(formatShortcut("playToggle", false), "Space", "shortcut: 表示 Space");
+    checkEq(formatShortcut("scopeDelete", false), "Delete", "shortcut: 表示 Delete");
+    checkEq(formatShortcut("seekStart", false), "Home", "shortcut: 表示 Home");
+    checkEq(formatShortcut("scopeCopy", true), "⌘C", "shortcut: macOS では ⌘ 表示");
+    checkEq(formatShortcut("saveAs", true), "⇧⌘S", "shortcut: macOS の Shift 併記は ⇧⌘S");
+
+    // ---- メニューを閉じる判定に使う修飾キー単独の検出 ----
+    checkEq(isModifierKey("Control") && isModifierKey("Shift") && isModifierKey("Alt") && isModifierKey("Meta"), true, "shortcut: 修飾キー単独を検出する");
+    checkEq(isModifierKey("a") || isModifierKey("Escape"), false, "shortcut: 文字キー / Escape は修飾キーではない");
+
+    // ---- 矢印スクロール量 (本家 1 拍 / 1 行) ----
+    checkEq(arrowScrollX(100, 40, -1), 60, "shortcut: ← は 1 拍 (zoom px) 戻る");
+    checkEq(arrowScrollX(100, 40, 1), 140, "shortcut: → は 1 拍進む");
+    checkEq(arrowScrollX(10, 40, -1), 0, "shortcut: ← は 0 未満にしない");
+    checkEq(arrowScrollRow(5, 1, 10), 6, "shortcut: ↓ は 1 行下へ");
+    checkEq(arrowScrollRow(5, -1, 10), 4, "shortcut: ↑ は 1 行上へ");
+    checkEq(arrowScrollRow(0, -1, 10), 0, "shortcut: ↑ は 0 未満にしない");
+    checkEq(arrowScrollRow(9, 1, 10), 9, "shortcut: ↓ は最終行で止まる");
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);

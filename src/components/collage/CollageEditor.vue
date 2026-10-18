@@ -4,13 +4,14 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { ChevronDown, ChevronRight } from "@lucide/vue";
-import { doc, units, ensureInit, pinnedUnits, VOLUME_MODES } from "../../state/project";
-import { KEY_HEIGHT, KEYNUM } from "../../lib/clock";
+import { doc, units, ensureInit, pinnedUnits, VOLUME_MODES, setScope, scopeCopy, scopeCut, scopeClear, scopeDelete, scopePaste, scopeClipReady, clockContext, getService } from "../../state/project";
+import { KEY_HEIGHT, KEYNUM, measStartClock } from "../../lib/clock";
 import { RULER_H, STRIP_W, LEFT_W, NAME_W } from "../../lib/layout";
 import { useGlobalKeys } from "../../composables/useGlobalKeys";
+import { arrowScrollRow, arrowScrollX, shortcutAreaOf, shortcutCommand, type ShortcutCommand } from "../../lib/shortcuts";
 import { panels } from "../../state/panels";
+import { isModalOpen } from "../../state/ui";
 import { togglePlay, seekToClock } from "../../state/player";
-import { undo, redo } from "../../state/undo";
 import ToolPanel from "./ToolPanel.vue";
 import UnitTray from "./UnitTray.vue";
 import WoiceTray from "./WoiceTray.vue";
@@ -40,43 +41,78 @@ ensureInit();
 
 const pinned = computed(() => pinnedUnits());
 
-function onKeydown(e: KeyboardEvent): void {
-  if (e.ctrlKey || e.metaKey) {
-    switch (e.key.toLowerCase()) {
-      case "z":
-        e.preventDefault();
-        if (e.shiftKey) redo();
-        else undo();
-        return;
-      case "y":
-        e.preventDefault();
-        redo();
-        return;
-      case "a":
-        e.preventDefault();
-        doc.selectedUnits = units.value.map((u) => u.index);
-        return;
-    }
-    return;
-  }
-  switch (e.key) {
-    case "F1":
-      e.preventDefault();
-      doc.mode = "W";
-      break;
-    case "F2":
-      e.preventDefault();
-      doc.mode = "U";
-      break;
-    case " ":
-      e.preventDefault();
+// ---- キーボードショートカット ----
+// 割り当て表は lib/shortcuts に集約する。ここは collage 担当コマンドの実行のみ。
+// app 担当 (undo/redo/save) は MenuBar が実行するため素通しする (preventDefault もしない)
+
+// 曲の末尾クロック (本家 if_ScopeField_SetScopeAll = meas_num の先頭クロック相当)
+function songEndClock(): number {
+  const s = getService();
+  const view = clockContext();
+  return measStartClock(view, s ? s.master.measNum : 1);
+}
+
+function runShortcut(cmd: ShortcutCommand): void {
+  switch (cmd) {
+    case "scopeAll":
+      setScope(0, songEndClock());
+      return;
+    case "selectAllUnits":
+      doc.selectedUnits = units.value.map((u) => u.index);
+      return;
+    case "scopeCopy":
+      scopeCopy(doc.scope1, doc.scope2);
+      return;
+    case "scopeCut":
+      scopeCut(doc.scope1, doc.scope2);
+      return;
+    case "scopePaste":
+      // 貼り付け先は選択範囲の開始 (本家 ScopeEvent_Paste(clock1, 1, ...) と同じ)
+      scopePaste(doc.scope1);
+      return;
+    case "scopeDelete":
+      scopeDelete(doc.scope1, doc.scope2);
+      return;
+    case "scopeClear":
+      scopeClear(doc.scope1, doc.scope2);
+      return;
+    case "scrollLeft":
+      doc.scrollX = arrowScrollX(doc.scrollX, doc.zoom, -1);
+      return;
+    case "scrollRight":
+      doc.scrollX = arrowScrollX(doc.scrollX, doc.zoom, 1);
+      return;
+    case "rowUp":
+      doc.scrollYKey = arrowScrollRow(doc.scrollYKey, -1, KEYNUM);
+      return;
+    case "rowDown":
+      doc.scrollYKey = arrowScrollRow(doc.scrollYKey, 1, KEYNUM);
+      return;
+    case "playToggle":
       togglePlay();
-      break;
-    case "Home":
-      e.preventDefault();
+      return;
+    case "seekStart":
       seekToClock(0);
-      break;
+      return;
+    case "seekEnd":
+      seekToClock(songEndClock());
+      return;
+    case "modeW":
+      doc.mode = "W";
+      return;
+    case "modeU":
+      doc.mode = "U";
+      return;
+    default:
+      return; // app 担当 (undo/redo/save) は MenuBar が実行する
   }
+}
+
+function onKeydown(e: KeyboardEvent): void {
+  const cmd = shortcutCommand(e, { readOnly: doc.readOnly, clipReady: scopeClipReady(), modalOpen: isModalOpen() });
+  if (!cmd || shortcutAreaOf(cmd) !== "collage") return;
+  e.preventDefault();
+  runShortcut(cmd);
 }
 
 useGlobalKeys(() => props.active, { keydown: onKeydown });

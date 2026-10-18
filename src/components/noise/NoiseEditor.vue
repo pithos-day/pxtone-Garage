@@ -15,6 +15,7 @@ import { fillRect, fillText } from "../../lib/draw";
 import { NOISE_WAVE_TYPE_NAMES as WAVE_TYPE_NAMES, NOISE_BUILT_SPS, secToEnveX, pctToEnveY } from "../../lib/noise";
 import { WaveType } from "pxtone-ts";
 import { currentNoise, newNoise, editNoise, readNoiseBytes, pushNoiseHistory, NOISE_UNIT_NUM } from "../../state/noise";
+import { isModalOpen } from "../../state/ui";
 import { renderNoise, playPcmOnce } from "../../engine/preview";
 import { t } from "../../i18n";
 
@@ -167,6 +168,8 @@ function applyHistory(i: number): void {
 // ---- Space: ビルド済み波形の再生 (未反映なら即ビルドして再生) ----
 function onKeydown(e: KeyboardEvent): void {
   if (e.code !== "Space") return;
+  // モーダルダイアログ表示中はショートカットを止める (CollageEditor / MenuBar と同じ)
+  if (isModalOpen()) return;
   e.preventDefault();
   if (e.repeat) return;
   if (!builtPcm.value) rebuild(false);

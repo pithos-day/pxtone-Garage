@@ -3,6 +3,7 @@
 import { FilePlus2, FileSearch2, Save, SavePlus, SquareX, Undo, Redo, ZoomIn } from "@lucide/vue";
 import type { Component } from "vue";
 import { ZOOM_TABLE } from "./clock";
+import type { ShortcutCommand } from "./shortcuts";
 import { t } from "../i18n";
 import type { AppMode } from "./modes";
 
@@ -30,6 +31,8 @@ export interface MenuItem {
   checked?: boolean;
   sep?: boolean;
   sub?: MenuItem[];
+  // ショートカット表示 (右寄せで併記する)。lib/shortcuts のコマンドを指す
+  command?: ShortcutCommand;
 }
 
 // モード別に差し替わる操作 (File メニュー・undo/redo)
@@ -59,8 +62,8 @@ export function buildFileMenu(ops: ModeMenuOps, extra: MenuItem[], beforeSave: M
     { label: t("menu.file.open"), icon: FileSearch2, action: ops.open },
     { sep: true },
     ...beforeSave,
-    { label: t("menu.file.save"), icon: Save, action: ops.save, disabled: saveDisabled },
-    { label: t("menu.file.saveAs"), icon: SavePlus, action: ops.saveAs, disabled: saveDisabled },
+    { label: t("menu.file.save"), icon: Save, action: ops.save, disabled: saveDisabled, command: "save" },
+    { label: t("menu.file.saveAs"), icon: SavePlus, action: ops.saveAs, disabled: saveDisabled, command: "saveAs" },
     { sep: true },
     ...extra,
     { label: t("menu.file.close"), icon: SquareX, action: ops.close, disabled: closeDisabled },
@@ -70,8 +73,8 @@ export function buildFileMenu(ops: ModeMenuOps, extra: MenuItem[], beforeSave: M
 // Edit メニュー。undo/redo + モード固有項目 (extra)
 export function buildEditMenu(ops: ModeMenuOps, extra: MenuItem[]): MenuItem[] {
   return [
-    { label: t("menu.edit.undo"), icon: Undo, action: ops.undo, disabled: !ops.canUndo() },
-    { label: t("menu.edit.redo"), icon: Redo, action: ops.redo, disabled: !ops.canRedo() },
+    { label: t("menu.edit.undo"), icon: Undo, action: ops.undo, disabled: !ops.canUndo(), command: "undo" },
+    { label: t("menu.edit.redo"), icon: Redo, action: ops.redo, disabled: !ops.canRedo(), command: "redo" },
     ...extra,
   ];
 }

@@ -87,8 +87,8 @@ const ja = {
   "settings.loadLocalFontsFallback": "このブラウザではシステムフォントの列挙ができないため、よく使われるフォントから検出しました",
 
   // 再生コントロール
-  "transport.play": "再生 (Space)",
-  "transport.pause": "一時停止 (Space)",
+  "transport.play": "再生",
+  "transport.pause": "一時停止",
   "transport.stop": "停止",
   "transport.loop": "リピート",
   "transport.followPlayback": "再生位置に画面を追従",
@@ -96,8 +96,8 @@ const ja = {
   "transport.panels": "パネル",
 
   // ツールパネル
-  "tool.woiceManage": "音色管理 (F1)",
-  "tool.unitManage": "ユニット (F2)",
+  "tool.woiceManage": "音色管理",
+  "tool.unitManage": "ユニット",
 
   // ユニット一覧
   "unit.title": "ユニット",

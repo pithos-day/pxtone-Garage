@@ -37,6 +37,9 @@ import {
   type ModeMenuOps,
 } from "../../lib/menuItems";
 import { useDropdownMenu } from "../../composables/useDropdownMenu";
+import { useGlobalKeys } from "../../composables/useGlobalKeys";
+import { shortcutAreaOf, shortcutCommand } from "../../lib/shortcuts";
+import { isModalOpen } from "../../state/ui";
 import ModeTabs from "./ModeTabs.vue";
 
 const mode = defineModel<AppMode>({ required: true });
@@ -270,6 +273,41 @@ const modeOps: Record<AppMode, ModeMenuOps> = {
     canClose: () => noises.value.length > 1,
   },
 };
+
+// ---- キーボードショートカット (3 タブ共通のコマンド) ----
+// 保存 / 名前を付けて保存 / undo / redo はモード別の ops を使うため、モードを
+// 知っているここで受ける。collage 担当コマンドは CollageEditor が実行する
+
+// 保存可否 (canSave 未指定は保存可。pttune 再生専用タブは false)
+function canSaveNow(): boolean {
+  const can = modeOps[mode.value].canSave;
+  return !can || can();
+}
+
+function onShortcut(e: KeyboardEvent): void {
+  const cmd = shortcutCommand(e, { readOnly: false, clipReady: false, modalOpen: isModalOpen() });
+  if (!cmd || shortcutAreaOf(cmd) !== "app") return;
+  e.preventDefault();
+  const ops = modeOps[mode.value];
+  switch (cmd) {
+    case "undo":
+      ops.undo();
+      return;
+    case "redo":
+      ops.redo();
+      return;
+    case "save":
+      if (canSaveNow()) ops.save();
+      return;
+    case "saveAs":
+      if (canSaveNow()) ops.saveAs();
+      return;
+    default:
+      return; // collage 担当 (スコープ操作・スクロール等) は CollageEditor が実行する
+  }
+}
+
+useGlobalKeys(() => true, { keydown: onShortcut });
 
 const fileMenu = computed<MenuItem[]>(() => {
   const ops = modeOps[mode.value];

@@ -12,6 +12,7 @@ import { capturePointer, releasePointerCapture } from "../../lib/field";
 import { useHoldPreview } from "../../composables/useHoldPreview";
 import { useGlobalKeys } from "../../composables/useGlobalKeys";
 import { currentVoice } from "../../state/voice";
+import { isModalOpen } from "../../state/ui";
 import { previewWoiceObjectHold, stopPreview, clearWoicePreviewCache } from "../../engine/preview";
 import { t } from "../../i18n";
 
@@ -116,6 +117,8 @@ let spaceOn = false;
 
 function onKeydown(e: KeyboardEvent): void {
   if (e.code !== "Space") return;
+  // モーダルダイアログ表示中はショートカットを止める (CollageEditor / MenuBar と同じ)
+  if (isModalOpen()) return;
   e.preventDefault();
   if (e.repeat || spaceOn) return;
   spaceOn = true;

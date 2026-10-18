@@ -1,6 +1,13 @@
 // 汎用モーダルダイアログのシェル。オーバーレイクリックで "close" を emit する。
 // タイトルは title スロット、本体はデフォルトスロット、ボタンは buttons スロット。
+// 表示中はショートカットを止めるため、開閉を state/ui のカウンタへ登録する
 <script setup lang="ts">
+import { onBeforeUnmount, onMounted } from "vue";
+import { popModal, pushModal } from "../../state/ui";
+
+onMounted(pushModal);
+onBeforeUnmount(popModal);
+
 withDefaults(
   defineProps<{
     label: string; // aria-label
