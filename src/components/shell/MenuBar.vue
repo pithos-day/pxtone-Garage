@@ -19,7 +19,7 @@ import {
 } from "../../state/projects";
 import { newVoice, openVoice, saveVoice, closeVoice, undoVoice, redoVoice, currentVoice, currentVoiceId, snapshotVoice, markVoiceClean, voices } from "../../state/voice";
 import { newNoise, openNoise, saveNoise, closeNoise, undoNoise, redoNoise, currentNoise, currentNoiseId, snapshotNoise, markNoiseClean, noises } from "../../state/noise";
-import { exportPttune, exportWav, exportVoiceWav, exportNoiseWav, openFileDialog } from "../../engine/io";
+import { exportPttune, exportVoiceWav, exportNoiseWav, openFileDialog } from "../../engine/io";
 import { convertMidiToPtcop } from "../../engine/midi";
 import { undo, redo, canUndo, canRedo } from "../../state/undo";
 import { t } from "../../i18n";
@@ -44,6 +44,7 @@ const mode = defineModel<AppMode>({ required: true });const emit = defineEmits<{
   (e: "settings"): void;
   (e: "copyMeas"): void;
   (e: "eventVolume", kind: EventVolumeMode): void;
+  (e: "exportWav"): void;
   (e: "voiceCopyAB"): void;
   (e: "voiceCopyBA"): void;
 }>();
@@ -106,12 +107,9 @@ function onImportMidi(split: boolean): void {
 }
 
 function onExportWav(): void {
-  const bytes = exportBytes();
-  if (bytes) {
-    void exportWav(bytes, doc.fileName || "untitled").then((err) => {
-      if (err) window.alert(err);
-    });
-  }
+  // 音質・ビルド範囲などのオプションを設定するダイアログを開く
+  // (実際の書き出しは AppShell の WavExportDialog が行う)
+  emit("exportWav");
 }
 
 function onClose(): void {

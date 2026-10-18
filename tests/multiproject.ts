@@ -106,9 +106,9 @@ import { secToEnveX, pctToEnveY, pushHistoryEntry } from "../src/lib/noise";
 import { nearestPoint } from "../src/lib/voice-geometry";
 import { visibleClockWindow, iterVisibleRecords, iterNoteDraws, type NoteDraw } from "../src/lib/records";
 import { woiceSummary } from "../src/lib/woice";
-import { stripFileExt } from "../src/engine/io";
+import { stripFileExt, renderWav, WAV_EXPORT_DEFAULTS } from "../src/engine/io";
 import { MemoryIo, VoiceType, WaveType, EventKind, type EveRecord } from "pxtone-ts";
-import { Service, PxtnErr, PXTN_MAX_EVENT_NUM, Woice, Noise } from "pxtone-ts";
+import { Service, PxtnErr, PXTN_MAX_EVENT_NUM, Woice, Noise, pxtnServiceMooCalcSampleNum } from "pxtone-ts";
 import { defaultOggvDecoder } from "pxtone-ts";
 import { decodeProjectBytes } from "../src/engine/oggv";
 import { readFileSync } from "node:fs";
@@ -1973,6 +1973,91 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     doc.selectedUnits = [];
     doc.copier.fill(true);
     doc.mode = "U";
+  }
+
+  // ---- 40. WAV書き出しオプション (本家 dlg_BuildOption 相当) ----
+  {
+    // WAV ヘッダ (fmt ch / sps / data サイズ) を読む
+    const wavInfo = (wav: Uint8Array): { ch: number; sps: number; dataSize: number } => {
+      const dv = new DataView(wav.buffer, wav.byteOffset, wav.byteLength);
+      return { ch: dv.getUint16(22, true), sps: dv.getUint32(24, true), dataSize: dv.getUint32(40, true) };
+    };
+    // data チャンクに非ゼロサンプルがあるか
+    const wavHasSignal = (wav: Uint8Array): boolean => {
+      const pcm = new Int16Array(wav.buffer, wav.byteOffset + 44, (wav.byteLength - 44) >> 1);
+      for (let i = 0; i < pcm.length; i++) {
+        if (pcm[i] !== 0) return true;
+      }
+      return false;
+    };
+
+    // PCM 音色 + ノート 1 つ (4拍) のプロジェクトを用意する
+    newProjectInTab();
+    checkEq(await addWoice(buildPcmWav(), WoiceType.PCM, "WavTest"), null, "wavexport: PCM音色を追加");
+    const wvIdx = serviceMod.service.woiceNum - 1;
+    checkEq(addUnitWithWoice("W", wvIdx), true, "wavexport: ユニットを追加");
+    const ws = serviceMod.service;
+    ws.evels.recordAddI(0, 0, EventKind.KEY, 0x6000);
+    ws.evels.recordAddI(0, 0, EventKind.VELOCITY, 100);
+    ws.evels.recordAddI(0, 0, EventKind.ON, 480 * 4);
+    const wavBytes = exportBytes();
+    check("wavexport: ptcop を書き出し", wavBytes !== null);
+
+    // 既定値 (最後まで / ステレオ / 44100Hz): 演奏データの末尾までの長さになる
+    const def = await renderWav(wavBytes!, { ...WAV_EXPORT_DEFAULTS });
+    check("wavexport: 既定値でレンダリングできる", "wav" in def);
+    if ("wav" in def) {
+      const info = wavInfo(def.wav);
+      checkEq(info.ch, 2, "wavexport: 既定はステレオ");
+      checkEq(info.sps, 44100, "wavexport: 既定は 44100Hz");
+      // 本家と同じ規則 (master.playMeas まで) のフレーム数 + ch2 + 16bit
+      const frames = pxtnServiceMooCalcSampleNum(
+        ws.master.playMeas,
+        ws.master.beatNum,
+        44100,
+        ws.master.beatTempo,
+      );
+      checkEq(info.dataSize, frames * 2 * 2, "wavexport: 最後までのデータ長");
+      check("wavexport: PCM が無音でない", wavHasSignal(def.wav));
+    }
+
+    // モノラル / 22050Hz / 演奏時間 0.5 秒: ch と長さが指定どおりになる
+    const mono = await renderWav(wavBytes!, {
+      ...WAV_EXPORT_DEFAULTS,
+      chNum: 1,
+      sps: 22050,
+      scope: "byTime",
+      playTimeSec: 0.5,
+    });
+    check("wavexport: モノラル + 時間指定でレンダリングできる", "wav" in mono);
+    if ("wav" in mono) {
+      const info = wavInfo(mono.wav);
+      checkEq(info.ch, 1, "wavexport: モノラル指定");
+      checkEq(info.sps, 22050, "wavexport: 22050Hz 指定");
+      checkEq(info.dataSize, 11025 * 2, "wavexport: 演奏時間ぶんのデータ長");
+    }
+
+    // 追加フェードアウト: 末尾にフェード区間ぶんの長さが加わる
+    const faded = await renderWav(wavBytes!, {
+      ...WAV_EXPORT_DEFAULTS,
+      sps: 22050,
+      scope: "byTime",
+      playTimeSec: 1,
+      extraFadeSec: 0.5,
+    });
+    check("wavexport: フェードアウト付きでレンダリングできる", "wav" in faded);
+    if ("wav" in faded) {
+      checkEq(wavInfo(faded.wav).dataSize, (22050 + 11025) * 2 * 2, "wavexport: フェード区間が末尾に加算される");
+    }
+
+    // ユニットミュート: muteByUnit=true ではミュート中のユニットが鳴らない
+    const muted = await renderWav(wavBytes!, { ...WAV_EXPORT_DEFAULTS, muteByUnit: true, mutedUnits: [0] });
+    check("wavexport: ミュート有効でレンダリングできる", "wav" in muted);
+    if ("wav" in muted) {
+      check("wavexport: ミュート中のユニットは無音", !wavHasSignal(muted.wav));
+    }
+    const unmuted = await renderWav(wavBytes!, { ...WAV_EXPORT_DEFAULTS, muteByUnit: false, mutedUnits: [0] });
+    check("wavexport: ミュート無効なら鳴る", "wav" in unmuted && wavHasSignal(unmuted.wav));
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);

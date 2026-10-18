@@ -1,5 +1,5 @@
 // ファイルの開く・保存・書き出し
-import { Service, PxtnErr, MemoryIo, NoiseBuilder, WoiceType } from "pxtone-ts";
+import { Service, PxtnErr, MemoryIo, NoiseBuilder, WoiceType, pxtnServiceMooCalcSampleNum } from "pxtone-ts";
 import type { Noise, Woice } from "pxtone-ts";
 import { EXE_VER } from "../state/service";
 import { exportBytes } from "../state/project";
@@ -130,26 +130,87 @@ export async function exportPttune(bytes: Uint8Array, fileName: string): Promise
   return downloadBytes(io.toUint8Array(), { fileName: sanitizeFileName(fileName, ".pttune") });
 }
 
-// WAV 書き出し (オフライン全曲レンダリング)
-export async function exportWav(bytes: Uint8Array, fileName: string, sps = 44100): Promise<string | null> {
+// WAV 書き出しオプション (本家 dlg_BuildOption / ptConfig_Build 相当)
+export type WavExportScope = "topLast" | "byTime";
+
+export interface WavExportOptions {
+  chNum: number; // 1=モノラル / 2=ステレオ
+  sps: number; // 11025 / 22050 / 44100 / 48000
+  scope: WavExportScope; // topLast=最初から最後まで / byTime=演奏時間で指定
+  playTimeSec: number; // scope="byTime" の演奏時間 (秒)
+  extraFadeSec: number; // 末尾に追加するフェードアウト (秒)
+  volume: number; // マスターボリューム (0.01..1.00)
+  muteByUnit: boolean; // 本家 "Enable Units Mute": ミュート中ユニットを鳴らさない
+  mutedUnits: number[]; // muteByUnit=true のときミュートするユニット index
+}
+
+// 本家 ptConfig_Build::set_default と同じ既定値
+export const WAV_EXPORT_DEFAULTS: WavExportOptions = {
+  chNum: 2,
+  sps: 44100,
+  scope: "topLast",
+  playTimeSec: 0,
+  extraFadeSec: 0,
+  volume: 1,
+  muteByUnit: false,
+  mutedUnits: [],
+};
+
+export type WavRenderResult = { wav: Uint8Array } | { error: string };
+
+// WAV のオフラインレンダリング (保存は行わない)。
+// 本家 dlg_BuildProgress と同じ手順で PCM を作り、WAV バイト列を返す
+export async function renderWav(bytes: Uint8Array, options: WavExportOptions): Promise<WavRenderResult> {
   const decoded = await decodeProjectBytes(bytes, EXE_VER);
-  if (!decoded) return t("error.ogg");
+  if (!decoded) return { error: t("error.ogg") };
   const s = new Service();
-  if (s.init() !== PxtnErr.OK) return t("error.engineInit");
-  if (s.read(new MemoryIo(decoded)) !== PxtnErr.OK) return t("error.loadFailed");
-  if (s.tonesReady() !== PxtnErr.OK) return t("error.tonesReady");
-  if (!s.setDestinationQuality(2, sps)) return t("error.quality");
-  if (!s.mooPreparation(null)) return t("error.prepare");
-  const total = s.mooGetSamplingEnd();
-  const pcm = new Int16Array(total * 2);
-  const CHUNK = 44100;
-  for (let pos = 0; pos < total; pos += CHUNK) {
-    const n = Math.min(CHUNK, total - pos);
-    s.Moo(pcm.subarray(pos * 2), n);
+  if (s.init() !== PxtnErr.OK) return { error: t("error.engineInit") };
+  if (s.read(new MemoryIo(decoded)) !== PxtnErr.OK) return { error: t("error.loadFailed") };
+  if (s.tonesReady() !== PxtnErr.OK) return { error: t("error.tonesReady") };
+  if (!s.setDestinationQuality(options.chNum, options.sps)) return { error: t("error.quality") };
+
+  // 本家と同じ順序: mute / volume を設定してから preparation する
+  s.mooSetMuteByUnit(options.muteByUnit);
+  if (options.muteByUnit) {
+    for (let u = 0; u < s.unitNum; u++) s.unitGet(u)?.setPlayed(!options.mutedUnits.includes(u));
   }
-  const wav = makeWav(pcm, sps, 2, 16);
+  s.mooSetMasterVolume(options.volume);
+  if (!s.mooPreparation(null)) return { error: t("error.prepare") };
+
+  // サンプル数は本家と同じ規則で決める (topLast は演奏データの末尾まで)
+  const fadeSamples = Math.trunc(options.extraFadeSec * options.sps);
+  const endSample =
+    options.scope === "byTime"
+      ? Math.trunc(options.playTimeSec * options.sps)
+      : pxtnServiceMooCalcSampleNum(s.master.playMeas, s.master.beatNum, options.sps, s.master.beatTempo);
+  const total = endSample + fadeSamples;
+  if (total <= 0) return { error: t("error.prepare") };
+
+  const pcm = new Int16Array(total * options.chNum);
+  const CHUNK = 44100; // 一度に Moo へ渡すフレーム数
+  const renderRange = (from: number, to: number): void => {
+    for (let pos = from; pos < to; pos += CHUNK) {
+      const n = Math.min(CHUNK, to - pos);
+      s.Moo(pcm.subarray(pos * options.chNum), n);
+    }
+  };
+  renderRange(0, endSample);
+  if (fadeSamples > 0) {
+    // 追加フェードアウトは末尾区間の先頭で開始を指示する
+    // (本家の 1 サンプルずつのループで s == endSample のときに呼ぶのと同じ位置)
+    s.mooSetFade(-1, options.extraFadeSec);
+    renderRange(endSample, total);
+  }
+  return { wav: makeWav(pcm, options.sps, options.chNum, 16) };
+}
+
+// WAV 書き出し (オフライン全曲レンダリング + 保存)。
+// エラーメッセージを返す (成功時 null)
+export async function exportWav(bytes: Uint8Array, fileName: string, options: WavExportOptions): Promise<string | null> {
+  const result = await renderWav(bytes, options);
+  if ("error" in result) return result.error;
   try {
-    await downloadBytes(wav, { fileName: sanitizeFileName(fileName, ".wav"), mime: "audio/wav" });
+    await downloadBytes(result.wav, { fileName: sanitizeFileName(fileName, ".wav"), mime: "audio/wav" });
   } catch {
     return t("error.save");
   }

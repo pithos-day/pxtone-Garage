@@ -9,6 +9,7 @@ import ProjectDialog from "./ProjectDialog.vue";
 import SettingsDialog from "./SettingsDialog.vue";
 import CopyMeasDialog from "./CopyMeasDialog.vue";
 import EventVolumeDialog from "./EventVolumeDialog.vue";
+import WavExportDialog from "./WavExportDialog.vue";
 import type { EventVolumeMode } from "../../lib/eventVolume";
 import type { AppMode } from "../../lib/modes";
 import CollageTab from "../collage/CollageEditor.vue";
@@ -26,6 +27,7 @@ const projectDialogOpen = ref(false);
 const settingsDialogOpen = ref(false);
 const copyMeasOpen = ref(false);
 const eventVolumeKind = ref<null | EventVolumeMode>(null);
+const wavExportOpen = ref(false);
 // A/B コピー確認ダイアログ (AB = A→B, BA = B→A)
 const voiceCopyDir = ref<null | "AB" | "BA">(null);
 
@@ -96,6 +98,7 @@ async function onDrop(e: DragEvent): Promise<void> {
       @settings="settingsDialogOpen = true"
       @copy-meas="copyMeasOpen = true"
       @event-volume="(kind) => (eventVolumeKind = kind)"
+      @export-wav="wavExportOpen = true"
       @voice-copy-a-b="voiceCopyDir = 'AB'"
       @voice-copy-b-a="voiceCopyDir = 'BA'"
     />
@@ -115,6 +118,7 @@ async function onDrop(e: DragEvent): Promise<void> {
     <SettingsDialog v-if="settingsDialogOpen" @close="settingsDialogOpen = false" />
     <CopyMeasDialog v-if="copyMeasOpen" @close="copyMeasOpen = false" />
     <EventVolumeDialog v-if="eventVolumeKind" :kind="eventVolumeKind" @close="eventVolumeKind = null" />
+    <WavExportDialog v-if="wavExportOpen" @close="wavExportOpen = false" />
     <VoiceCopyDialog
       v-if="voiceCopyDir"
       :direction="voiceCopyDir"
