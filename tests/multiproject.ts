@@ -129,8 +129,8 @@ function fail(name: string, detail = ""): void {
   console.log(`FAIL ${name}${detail ? ` ${detail}` : ""}`);
 }
 
-// 条件チェック (失敗時は detail を表示)
-function check(name: string, cond: boolean, detail = ""): void {
+// 条件チェック (引数は checkEq / checkBytes と同じ「値 → 名前」の順。失敗時は detail を表示)
+function check(cond: boolean, name: string, detail = ""): void {
   if (cond) console.log(`ok   ${name}`);
   else fail(name, detail);
 }
@@ -190,7 +190,7 @@ checkEq(doc.ready, true, "doc.ready");
 addUnit("A");
 checkEq(units.value.length, 1, "ユニット追加で units=1");
 setTempo(180);
-check("テンポ変更", exportBytes() !== null);
+check(exportBytes() !== null, "テンポ変更");
 const p1Id = currentProjectId.value;
 const savedScroll = 12345;
 doc.scrollX = savedScroll;
@@ -227,7 +227,7 @@ checkEq(canRedo.value, true, "1タブ目 redo 復元");
 addUnit("B");
 checkEq(units.value.length, 2, "1タブ目 units=2 (A,B)");
 const bytes = exportBytes();
-check("bytes 取得", bytes !== null);
+check(bytes !== null, "bytes 取得");
 switchProject(p2.id);
 checkEq(units.value.length, 0, "2タブ目 units=0 のまま");
 
@@ -288,10 +288,10 @@ checkEq(canUndo.value, true, "1タブ目 undo 復元 (true)");
 closeProject(p3Id);
 checkEq(projects.value.length, 2, "閉じると 2タブ");
 checkEq(currentProjectId.value, p1Id, "非アクティブを閉じても現在タブは p1");
-check("最後の1つは閉じられない", (() => {
+check((() => {
   for (let i = 0; i < 10; i++) closeProject(projects.value[0]!.id);
   return projects.value.length === 1;
-})());
+})(), "最後の1つは閉じられない");
 checkEq(currentProjectId.value, p2.id, "残ったタブは 1つ (p2)");
 checkEq(units.value.length, 0, "p2 は units=0");
 
@@ -303,15 +303,15 @@ checkEq(units.value.length, 3, "ソロ前 units=3");
 toggleUnitSolo(1);
 checkEq(doc.soloUnit, 1, "ソロON: soloUnit=1");
 checkEq(doc.muted.length, 2, "ソロON: 他2ユニットがミュート");
-check("ソロON: 対象ユニットはミュート外", !doc.muted.includes(1), `muted=${doc.muted}`);
+check(!doc.muted.includes(1), "ソロON: 対象ユニットはミュート外", `muted=${doc.muted}`);
 checkEq(units.value[1]?.soloed, true, "ソロON: ソロ対象のフラグ");
 toggleUnitSolo(1);
 checkEq(doc.soloUnit, -1, "ソロOFF: soloUnit=-1");
 checkEq(doc.muted.length, 0, "ソロOFF: ミュート全解除");
 toggleUnitSolo(0);
 checkEq(doc.soloUnit, 0, "別ユニットへソロ切替");
-check("別ユニットへソロ切替: unit1 がミュート", doc.muted.includes(1), `muted=${doc.muted}`);
-check("別ユニットへソロ切替: unit2 がミュート", doc.muted.includes(2), `muted=${doc.muted}`);
+check(doc.muted.includes(1), "別ユニットへソロ切替: unit1 がミュート", `muted=${doc.muted}`);
+check(doc.muted.includes(2), "別ユニットへソロ切替: unit2 がミュート", `muted=${doc.muted}`);
 // タブ切替でソロも独立
 const soloP2 = doc.soloUnit;
 newProjectInTab();
@@ -326,7 +326,7 @@ checkEq(doc.muted.length, 1, "手動ミュート: unit0のみ");
 checkEq(doc.muted[0], 0, "手動ミュート: 対象は unit0");
 toggleUnitSolo(1);
 checkEq(doc.muted.length, 2, "ソロ中: muted は solo 由来");
-check("ソロ中: 対象ユニットはミュート外", !doc.muted.includes(1), `muted=${doc.muted}`);
+check(!doc.muted.includes(1), "ソロ中: 対象ユニットはミュート外", `muted=${doc.muted}`);
 toggleUnitSolo(1);
 checkEq(doc.muted.length, 1, "ソロ解除: unit0 のミュートが復元");
 checkEq(doc.muted[0], 0, "ソロ解除: 残るのは unit0");
@@ -376,10 +376,10 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
   toggleUnitMute(0);
   await new Promise((r) => setTimeout(r, 10));
   const callsAfterMute = mutedCalls.length;
-  check("再生中のミュート変更が worklet に反映", callsAfterMute >= 1 && mutedCalls.at(-1)?.includes(0), `calls=${mutedCalls.length}`);
+  check(callsAfterMute >= 1 && mutedCalls.at(-1)?.includes(0), "再生中のミュート変更が worklet に反映", `calls=${mutedCalls.length}`);
   toggleUnitSolo(0);
   await new Promise((r) => setTimeout(r, 10));
-  check("再生中のソロ変更が worklet に反映", mutedCalls.length > callsAfterMute && mutedCalls.at(-1)?.length === 1, `calls=${JSON.stringify(mutedCalls)}`);
+  check(mutedCalls.length > callsAfterMute && mutedCalls.at(-1)?.length === 1, "再生中のソロ変更が worklet に反映", `calls=${JSON.stringify(mutedCalls)}`);
   isPlaying.value = false;
   player.setMutedUnits = orig;
 
@@ -447,18 +447,18 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     masterVolume.value = 0.5;
     await p.previewUnitHold(0, 0x6000, 104);
     const mock = MockAudioContext.instances.at(-1)!;
-    check("プレビュー開始で hold ソース作成", mock.lastSource !== null, `instances=${MockAudioContext.instances.length}`);
+    check(mock.lastSource !== null, "プレビュー開始で hold ソース作成", `instances=${MockAudioContext.instances.length}`);
     checkEq(mock.lastGain?.gain.value, 0.5, "プレビューの音量にマスター音量が適用");
     masterVolume.value = 0.8;
     await new Promise((r) => setTimeout(r, 10));
     checkEq(mock.lastGain?.gain.value, 0.8, "音量変更がサステイン中のプレビューに反映");
     masterVolume.value = 1.0;
     p.stopPreview();
-    check("停止時: gain を 0 へランプ (リリースフェード)", mock.ramp !== null && mock.ramp.v === 0, `ramp=${JSON.stringify(mock.ramp)}`);
-    check("停止時: stop が予約される", mock.lastSource?.stopTime !== undefined, `stopTime=${mock.lastSource?.stopTime}`);
+    check(mock.ramp !== null && mock.ramp.v === 0, "停止時: gain を 0 へランプ (リリースフェード)", `ramp=${JSON.stringify(mock.ramp)}`);
+    check(mock.lastSource?.stopTime !== undefined, "停止時: stop が予約される", `stopTime=${mock.lastSource?.stopTime}`);
     check(
-      "停止時: ランプ完了後に stop が予約される",
       mock.ramp !== null && mock.lastSource?.stopTime !== undefined && mock.lastSource.stopTime >= mock.ramp.t,
+      "停止時: ランプ完了後に stop が予約される",
       `stopTime=${mock.lastSource?.stopTime} rampT=${mock.ramp?.t}`,
     );
   }
@@ -471,7 +471,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     doc.dirty = false;
     doc.fileName = "";
     const bytes = exportBytes();
-    check("置き換えテスト用の bytes 取得", bytes !== null);
+    check(bytes !== null, "置き換えテスト用の bytes 取得");
     const before = projects.value.length;
     const err = openProjectInTab(bytes!, "replaced");
     checkEq(err, null, "初期プロジェクトのみなら置き換え (エラーなし)");
@@ -511,14 +511,14 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
   * { @apply border-border; }
 }`;
     const t = parseThemeCss(gen);
-    check("ジェネレーターCSSをパース", t !== null);
+    check(t !== null, "ジェネレーターCSSをパース");
     checkEq(t?.light["--background"], "oklch(1 0 0)", "light トークン抽出: --background");
     checkEq(t?.light["--primary"], "oklch(0.514 0.222 16.935)", "light トークン抽出: --primary");
     checkEq(t?.dark["--background"], "oklch(0.148 0 0)", "dark トークン抽出");
-    check("--font-* は除外 (light)", !("--font-sans" in (t?.light ?? {})));
-    check("--font-* は除外 (dark)", !("--font-sans" in (t?.dark ?? {})));
-    check("@theme/@layer の変数は除外", !("--color-background" in (t?.light ?? {})));
-    check("--shadow* は拒否 (ベースから継承)", !("--shadow-sm" in (t?.light ?? {})) && !("--shadow" in (t?.light ?? {})));
+    check(!("--font-sans" in (t?.light ?? {})), "--font-* は除外 (light)");
+    check(!("--font-sans" in (t?.dark ?? {})), "--font-* は除外 (dark)");
+    check(!("--color-background" in (t?.light ?? {})), "@theme/@layer の変数は除外");
+    check(!("--shadow-sm" in (t?.light ?? {})) && !("--shadow" in (t?.light ?? {})), "--shadow* は拒否 (ベースから継承)");
 
     // 素の :root/.dark (rose 形式)
     const plain = parseThemeCss(":root { --background: oklch(1 0 0); }\n.dark { --background: oklch(0.5 0 0); }");
@@ -527,8 +527,8 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
     // サニタイズ: インジェクション拒否
     const evil = parseThemeCss(`:root { --background: oklch(1 0 0); --x: url("https://evil/"); --y: red; --z: }bad; }`);
-    check("url() を拒否", evil !== null && !("--x" in evil.light));
-    check("不正構造を拒否", !("--z" in (evil?.light ?? {})));
+    check(evil !== null && !("--x" in evil.light), "url() を拒否");
+    check(!("--z" in (evil?.light ?? {})), "不正構造を拒否");
 
     // マージ (未定義トークンはベースから継承)
     const base = parseThemeCss(":root { --background: oklch(0 0 0); --btn-bg: red; }\n.dark { --background: oklch(1 0 0); }")!;
@@ -540,22 +540,22 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
     // スコープ付き CSS 生成
     const css = buildThemeCss("test-x", merged);
-    check("注入CSS: ライトスコープ", css.includes(':root[data-theme="test-x"]') && css.includes("--background: oklch(1 0 0);"));
-    check("注入CSS: ダークスコープ", css.includes('.dark[data-theme="test-x"]') && css.includes("--background: oklch(0.148 0 0);"));
+    check(css.includes(':root[data-theme="test-x"]') && css.includes("--background: oklch(1 0 0);"), "注入CSS: ライトスコープ");
+    check(css.includes('.dark[data-theme="test-x"]') && css.includes("--background: oklch(0.148 0 0);"), "注入CSS: ダークスコープ");
 
     // エクスポート CSS 生成 (単体 :root/.dark) → 再インポートの往復
     const standalone = buildStandaloneThemeCss("My Theme", merged);
-    check("エクスポートCSS: テーマ名コメント", standalone.includes("/* pxtone-garage theme: My Theme */"));
+    check(standalone.includes("/* pxtone-garage theme: My Theme */"), "エクスポートCSS: テーマ名コメント");
     const reimported = parseThemeCss(standalone);
     check(
-      "エクスポートCSS: 再インポートで light トークン一致",
       reimported !== null &&
         JSON.stringify(reimported.light) === JSON.stringify(merged.light),
+      "エクスポートCSS: 再インポートで light トークン一致",
     );
     check(
-      "エクスポートCSS: 再インポートで dark トークン一致",
       reimported !== null &&
         JSON.stringify(reimported.dark) === JSON.stringify(merged.dark),
+      "エクスポートCSS: 再インポートで dark トークン一致",
     );
     // 名前中の "*/" はコメントを壊さないよう除去される
     const evilName = buildStandaloneThemeCss("a*/ :root { --x: red; } /*", merged);
@@ -563,8 +563,8 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
     // 片側が空ならブロックごと省略される
     const lightOnly = buildStandaloneThemeCss("Light", { light: { "--background": "red" }, dark: {} });
-    check("エクスポートCSS: dark が空ならブロック省略", !lightOnly.includes(".dark"));
-    check("エクスポートCSS: light が空ならブロック省略", !buildStandaloneThemeCss("Dark", { light: {}, dark: { "--background": "black" } }).includes(":root"));
+    check(!lightOnly.includes(".dark"), "エクスポートCSS: dark が空ならブロック省略");
+    check(!buildStandaloneThemeCss("Dark", { light: {}, dark: { "--background": "black" } }).includes(":root"), "エクスポートCSS: light が空ならブロック省略");
   }
 
   // ---- 16. 小節コピー / イベント音量 / ユニット追加 ----
@@ -585,11 +585,11 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     const events = getAllEvents();
     const at = (clock: number, unitNo: number, kind: EventKind): boolean =>
       events.some((e) => e.clock === clock && e.unitNo === unitNo && e.kind === kind);
-    check("コピー: 対象ユニットのイベントがコピーされる", at(960, 0, EventKind.VELOCITY));
-    check("コピー: 種類フィルタ (KEY はコピーされない)", !at(960, 0, EventKind.KEY));
-    check("コピー: 1回分ペースト (clock 960)", at(960, 0, EventKind.ON));
-    check("コピー: 2回分ペースト (clock 1440)", at(1440, 0, EventKind.ON));
-    check("コピー: 対象外ユニットはコピーされない", !at(960, 1, EventKind.VELOCITY));
+    check(at(960, 0, EventKind.VELOCITY), "コピー: 対象ユニットのイベントがコピーされる");
+    check(!at(960, 0, EventKind.KEY), "コピー: 種類フィルタ (KEY はコピーされない)");
+    check(at(960, 0, EventKind.ON), "コピー: 1回分ペースト (clock 960)");
+    check(at(1440, 0, EventKind.ON), "コピー: 2回分ペースト (clock 1440)");
+    check(!at(960, 1, EventKind.VELOCITY), "コピー: 対象外ユニットはコピーされない");
 
     // イベント音量 (加算 + クランプ)
     changeEventValue(0, 960, EventKind.VELOCITY, 100);
@@ -620,7 +620,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       const got = changed?.name ?? "";
       let same = got.length === expect.length;
       for (let i = 0; same && i < expect.length; i++) same = got.charCodeAt(i) === expect[i];
-      check("setUnitNameAndWoice: 内部は ShiftJIS バイト列 (latin-1 保持)", same);
+      check(same, "setUnitNameAndWoice: 内部は ShiftJIS バイト列 (latin-1 保持)");
     }
     // ユニット名の単独変更と 16 バイト切り詰め (2 バイト文字を分断しない)
     setUnitName(ui2, "ドラム");
@@ -644,8 +644,8 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     setUnitNameAndWoice(ui2, "", wIdx2);
     const vns = vnOf(ui2);
     check(
-      "setUnitNameAndWoice: 全 VOICENO が新音色に書き換わる",
       vns.length >= 3 && vns.every((e) => e.value === wIdx2),
+      "setUnitNameAndWoice: 全 VOICENO が新音色に書き換わる",
       `values=${JSON.stringify(vns.map((e) => e.value))}`,
     );
   }
@@ -713,7 +713,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     const pCount = projects.value.length;
     newVoice();
     checkEq(voices.value.length, 1, "voice: 新規タブが1つ");
-    check("voice: currentVoiceId が新規タブ", voices.value[0]!.id === currentVoiceId.value);
+    check(voices.value[0]!.id === currentVoiceId.value, "voice: currentVoiceId が新規タブ");
     const w = currentVoice()!.woice;
     checkEq(w.voiceNum, 2, "voice: A/B の2面");
     checkEq(w.getVoice(0)!.volume, 64, "voice: A面ボリューム 64");
@@ -745,7 +745,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     {
       // Slim: 空の B面 (座標で num<=1) は保存時に削除される
       const saved = snapshotVoiceForSave(currentVoice()!);
-      check("voice: 保存スナップショットが取れる", saved !== null);
+      check(saved !== null, "voice: 保存スナップショットが取れる");
       const wSaved = new Woice();
       checkEq(wSaved.read(new MemoryIo(saved!), WoiceType.PTV), PxtnErr.OK, "voice: 保存バイト列を読み戻せる");
       checkEq(wSaved.voiceNum, 1, "voice: 空の B面は保存時に削除される (Slim)");
@@ -775,7 +775,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       de.envelope.points[0] = { x: 0, y: 128 };
       normalizeVoiceUnitForSave(de);
       checkEq(de.envelope.headNum, 1, "voice: 既定エンベロープは 1 点に詰まる");
-      check("voice: 既定エンベロープはフラグが落ちる", (de.dataFlags & PTV_DATAFLAG_ENVELOPE) === 0);
+      check((de.dataFlags & PTV_DATAFLAG_ENVELOPE) === 0, "voice: 既定エンベロープはフラグが落ちる");
     }
 
     editVoice(() => {
@@ -793,7 +793,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
     // .ptvoice ラウンドトリップ
     const io = new MemoryIo();
-    check("voice: ptvWrite 成功", w.ptvWrite(io) > 0);
+    check(w.ptvWrite(io) > 0, "voice: ptvWrite 成功");
     const err = openVoice(io.toUint8Array(), "test");
     checkEq(err, null, "voice: openVoice 成功 (エラーなし)");
     checkEq(voices.value.length, 2, "voice: 2タブ目が開く");
@@ -814,7 +814,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
     // レンダリング (オフライン) がパイプラインで通ること
     const pcm = renderWoice(createDefaultWoice(), 0x6000, 100, 0.5, 44100);
-    check("voice: renderWoice が PCM を返す", pcm !== null && pcm.length > 0, `len=${pcm?.length}`);
+    check(pcm !== null && pcm.length > 0, "voice: renderWoice が PCM を返す", `len=${pcm?.length}`);
   }
 
   // ---- 19. ノイズ (ptNoise) ドキュメント管理 ----
@@ -845,7 +845,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
     // .ptnoise ラウンドトリップ
     const io = new MemoryIo();
-    check("noise: write 成功", n.write(io));
+    check(n.write(io), "noise: write 成功");
     const roundBytes = io.toUint8Array();
     const err = openNoise(roundBytes, "n1");
     checkEq(err, null, "noise: openNoise 成功 (エラーなし)");
@@ -870,7 +870,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
     // ビルド (波形生成) が通ること
     const pcm = renderNoise(currentNoise()!.noise, 44100);
-    check("noise: renderNoise が1秒ステレオ PCM を返す", pcm !== null && pcm.length === 44100 * 2, `len=${pcm?.length}`);
+    check(pcm !== null && pcm.length === 44100 * 2, "noise: renderNoise が1秒ステレオ PCM を返す", `len=${pcm?.length}`);
   }
 
   // ---- 20. Coordinate 波形の編集ルール (本家 ptuiWave 準拠) ----
@@ -983,7 +983,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     vc.wave.num = 1;
     vc.wave.points = [{ x: 1, y: 128 }];
     const pcm = renderWoice(w, 0x6000, 104, 0.5, 44100); // コード69 = 中央キー
-    check("pitch: renderWoice が PCM を返す", pcm !== null && pcm.length > 0, `len=${pcm?.length}`);
+    check(pcm !== null && pcm.length > 0, "pitch: renderWoice が PCM を返す", `len=${pcm?.length}`);
     if (pcm) {
       // ゼロ交差 (正→負/負→正) の回数 ÷ 2 = サイクル数。0.5秒なので ×2 で Hz
       let crossings = 0;
@@ -1064,19 +1064,19 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(vc.volume, 28, "preset: Random (倍音) volume 28");
     checkEq(vc.wave.num, 31, "preset: Random (倍音) 31点");
     const rnd = vc.wave.points.filter((p) => p.y !== 0);
-    check("preset: Random の有効倍音は 1..30", rnd.length >= 1 && rnd.length <= 30, `n=${rnd.length}`);
-    check("preset: Random の振幅は ±128", rnd.every((p) => p.y >= -128 && p.y <= 128));
+    check(rnd.length >= 1 && rnd.length <= 30, "preset: Random の有効倍音は 1..30", `n=${rnd.length}`);
+    check(rnd.every((p) => p.y >= -128 && p.y <= 128), "preset: Random の振幅は ±128");
 
     // Random (座標): 点は x でソートされている
     vc.type = VoiceType.Coodinate;
     applyWavePreset(vc, 4);
     checkEq(vc.volume, 64, "preset: Random (座標) volume 64");
-    check("preset: Random (座標) 点数 1..31", vc.wave.num >= 1 && vc.wave.num <= 31, `n=${vc.wave.num}`);
+    check(vc.wave.num >= 1 && vc.wave.num <= 31, "preset: Random (座標) 点数 1..31", `n=${vc.wave.num}`);
     let sorted = true;
     for (let i = 2; i < vc.wave.num; i++) {
       if (vc.wave.points[i]!.x < vc.wave.points[i - 1]!.x) sorted = false;
     }
-    check("preset: Random (座標) は x でソート", sorted);
+    check(sorted, "preset: Random (座標) は x でソート");
   }
 
   // ---- 24. A/B 面コピー (本家 copy_ptv_voice 準拠) ----
@@ -1288,10 +1288,10 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     // lib/woice: 音色サマリ (PTV はファイル読み込みでタイプが付く)
     const sumW = createDefaultWoice();
     const sumIo = new MemoryIo();
-    check("lib: woiceSummary 用に ptvWrite できる", sumW.ptvWrite(sumIo) > 0);
+    check(sumW.ptvWrite(sumIo) > 0, "lib: woiceSummary 用に ptvWrite できる");
     checkEq(sumW.read(new MemoryIo(sumIo.toUint8Array()), WoiceType.PTV), PxtnErr.OK, "lib: woiceSummary 用に PTV を読み戻す");
     const sum = woiceSummary(sumW);
-    check("lib: woiceSummary は座標波形サマリ", sum.startsWith("座標波形"), sum);
+    check(sum.startsWith("座標波形"), "lib: woiceSummary は座標波形サマリ", sum);
 
     // lib/loop: ループ点のクロスフェード (継ぎ目の段差を小さくし、音量は落とさない)
     {
@@ -1306,19 +1306,19 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       loopCrossfade(lc0, lc1, 441);
       const seamAfter = Math.abs(lc0[n - 1]! - lc0[0]!);
       check(
-        "lib: loopCrossfade で継ぎ目の段差が小さくなる",
         seamAfter < seamBefore / 10,
+        "lib: loopCrossfade で継ぎ目の段差が小さくなる",
         `${seamBefore.toFixed(4)} → ${seamAfter.toFixed(4)}`,
       );
-      check("lib: loopCrossfade の段差は隣接差の範囲", seamAfter <= maxAdj, `seam=${seamAfter.toFixed(5)} maxAdj=${maxAdj.toFixed(5)}`);
+      check(seamAfter <= maxAdj, "lib: loopCrossfade の段差は隣接差の範囲", `seam=${seamAfter.toFixed(5)} maxAdj=${maxAdj.toFixed(5)}`);
       // 先頭を 0 に落とさない (ループのたびのノッチを作らない)
       let headPeak = 0;
       for (let i = 0; i < 100; i++) headPeak = Math.max(headPeak, Math.abs(lc0[i]!));
-      check("lib: loopCrossfade は先頭を 0 に落とさない", headPeak > 0.25, `headPeak=${headPeak.toFixed(3)}`);
+      check(headPeak > 0.25, "lib: loopCrossfade は先頭を 0 に落とさない", `headPeak=${headPeak.toFixed(3)}`);
       // クロスフェード範囲 (上限 441 サンプル) より後ろは無変更
       let untouched = true;
       for (let i = 441; i < n; i++) if (lc0[i] !== lcOrig[i]) untouched = false;
-      check("lib: loopCrossfade は範囲外を変更しない", untouched);
+      check(untouched, "lib: loopCrossfade は範囲外を変更しない");
     }
 
     // lib/sjis: CP932 の記号 (WHATWG の shift_jis 逆引き表に無い文字) も本家と同じコードで書く
@@ -1383,7 +1383,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
     // パース結果
     const song = parseMidi(midi);
-    check("midi: パース成功", song !== null);
+    check(song !== null, "midi: パース成功");
     if (song) {
       checkEq(song.tempo, 120, "midi: テンポ 120");
       checkEq(song.beatNum, 4, "midi: 拍子 4/4");
@@ -1399,7 +1399,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
       // ptcop 変換
       const bytes = convertMidiToPtcop(midi);
-      check("midi: ptcop 変換成功", bytes !== null);
+      check(bytes !== null, "midi: ptcop 変換成功");
       if (bytes) {
         const svc = new Service();
         checkEq(svc.initCollage(PXTN_MAX_EVENT_NUM), PxtnErr.OK, "midi: Service init");
@@ -1412,8 +1412,8 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
         const notes = svc.evels.records.filter((e) => e.kind === EventKind.ON);
         checkEq(notes.length, 3, "midi: ON イベント3つ");
         const keys = svc.evels.records.filter((e) => e.kind === EventKind.KEY);
-        check("midi: KEY 60 が存在", keys.some((e) => e.value === 0x1b00 + 60 * 0x100));
-        check("midi: KEY 72 (ch1) が存在", keys.some((e) => e.value === 0x1b00 + 72 * 0x100));
+        check(keys.some((e) => e.value === 0x1b00 + 60 * 0x100), "midi: KEY 60 が存在");
+        check(keys.some((e) => e.value === 0x1b00 + 72 * 0x100), "midi: KEY 72 (ch1) が存在");
         checkEq(svc.master.measNum >= 1, true, "midi: 小節数が調整される");
       }
     }
@@ -1421,12 +1421,12 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     // PPQ=96 (非480) のクロック変換: tick 480 → 480*480/96 = 2400
     const midi96 = buildMidi(96, [[...ev(0, 0x90, 60, 100), ...ev(480, 0x80, 60, 0), ...meta(0, 0x2f, [])]]);
     const song96 = parseMidi(midi96);
-    check("midi: PPQ=96 でクロック変換 (tick 480 → 2400)", song96 !== null && song96.notes.length === 1 && song96.notes[0]!.length === 2400, `length=${song96?.notes[0]?.length}`);
+    check(song96 !== null && song96.notes.length === 1 && song96.notes[0]!.length === 2400, "midi: PPQ=96 でクロック変換 (tick 480 → 2400)", `length=${song96?.notes[0]?.length}`);
 
     // 重なりノート (同じ note をオフ前に再オン) → 先のノートは新しい位置で閉じる
     const midiOv = buildMidi(480, [[...ev(0, 0x90, 60, 100), ...ev(240, 0x90, 60, 90), ...ev(480, 0x80, 60, 0), ...meta(0, 0x2f, [])]]);
     const songOv = parseMidi(midiOv);
-    check("midi: 重なりノートは2つに分割", songOv !== null && songOv.notes.length === 2, `n=${songOv?.notes.length}`);
+    check(songOv !== null && songOv.notes.length === 2, "midi: 重なりノートは2つに分割", `n=${songOv?.notes.length}`);
     if (songOv) {
       checkEq(songOv.notes[0]!.length, 240, "midi: 重なり1つ目は 240 クロック");
       checkEq(songOv.notes[1]!.clock, 240, "midi: 重なり2つ目は 240 から");
@@ -1435,7 +1435,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     // ノートオフの無いノートは曲末で閉じられる
     const midiOpen = buildMidi(480, [[...ev(0, 0x90, 60, 100), ...ev(480, 0x90, 64, 80), ...meta(0, 0x2f, [])]]);
     const songOpen = parseMidi(midiOpen);
-    check("midi: 未閉じノートも曲末で閉じる", songOpen !== null && songOpen.notes.length === 2, `n=${songOpen?.notes.length}`);
+    check(songOpen !== null && songOpen.notes.length === 2, "midi: 未閉じノートも曲末で閉じる", `n=${songOpen?.notes.length}`);
 
     // 不正なヘッダは失敗
     checkEq(parseMidi(new Uint8Array([0x4d, 0x54, 0x68, 0x64, 0, 0])), null, "midi: 不正ヘッダは null");
@@ -1457,7 +1457,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
         ],
       ]);
       const bytes = convertMidiToPtcop(chord, { splitOverlap: true });
-      check("split: 変換成功", bytes !== null);
+      check(bytes !== null, "split: 変換成功");
       if (bytes) {
         const svc = new Service();
         svc.initCollage(PXTN_MAX_EVENT_NUM);
@@ -1470,7 +1470,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
         checkEq(ons.length, 4, "split: ON 4つ (統合されない)");
         checkEq(ons.filter((e) => e.clock === 0).length, 3, "split: クロック0に ON 3つ");
         const seq = ons.find((e) => e.clock === 960);
-        check("split: 順次ノートは unit0 を再利用", seq !== undefined && seq.unitNo === 0, `unit=${seq?.unitNo}`);
+        check(seq !== undefined && seq.unitNo === 0, "split: 順次ノートは unit0 を再利用", `unit=${seq?.unitNo}`);
       }
     }
 
@@ -1481,7 +1481,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
         [...ev(0, 0x91, 64, 90), ...ev(480, 0x80, 64, 0), ...meta(0, 0x2f, [])],
       ]);
       const bytes = convertMidiToPtcop(m);
-      check("name: 変換成功", bytes !== null);
+      check(bytes !== null, "name: 変換成功");
       if (bytes) {
         const svc = new Service();
         svc.initCollage(PXTN_MAX_EVENT_NUM);
@@ -1500,7 +1500,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       events.push(...meta(0, 0x2f, []));
       const m = buildMidi(480, [events]);
       const bytes = convertMidiToPtcop(m, { splitOverlap: true });
-      check("limit: 変換成功", bytes !== null);
+      check(bytes !== null, "limit: 変換成功");
       if (bytes) {
         const svc = new Service();
         svc.initCollage(PXTN_MAX_EVENT_NUM);
@@ -1531,10 +1531,10 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
     // 保存: 未デコードのまま mateOGGV チャンクで書かれる (本家準拠)
     const bytes = exportBytes();
-    check("oggv: exportBytes 成功", bytes !== null);
+    check(bytes !== null, "oggv: exportBytes 成功");
     if (bytes) {
       const ascii = new TextDecoder().decode(bytes);
-      check("oggv: 保存は mateOGGV チャンク", ascii.includes("mateOGGV"));
+      check(ascii.includes("mateOGGV"), "oggv: 保存は mateOGGV チャンク");
       // ヘッダの exe_ver は本家の算出値 (本家 0.9.4.56 → 0*1000+9*100+4*10+56 = 996)
       checkEq(bytes[16] | (bytes[17] << 8), 996, "oggv: 書き出し ptcop の exeVer は 996 (本家 0.9.4.56)");
     }
@@ -1542,11 +1542,11 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     // decodeProjectBytes (アプリの実動): デコード済みバイト列は PCM チャンクになり、
     // 書き出し ptcop のヘッダにエディタバージョン EXE_VER が記録される
     const decoded = bytes ? await decodeProjectBytes(bytes, serviceMod.EXE_VER) : null;
-    check("oggv: decodeProjectBytes 成功", decoded !== null);
+    check(decoded !== null, "oggv: decodeProjectBytes 成功");
     if (decoded) {
       const ascii = new TextDecoder().decode(decoded);
-      check("oggv: デコード後は mateOGGV が無い", !ascii.includes("mateOGGV"));
-      check("oggv: デコード後は PCM チャンクになる", ascii.includes("matePCM"));
+      check(!ascii.includes("mateOGGV"), "oggv: デコード後は mateOGGV が無い");
+      check(ascii.includes("matePCM"), "oggv: デコード後は PCM チャンクになる");
       // ヘッダ: 先頭 16 バイトの形式コード ("PTCOLLAGE-071119") の直後に exeVer が U16LE で続く
       const exeVer = decoded[16] | (decoded[17] << 8);
       checkEq(exeVer, serviceMod.EXE_VER, "oggv: デコード後 ptcop の exeVer は EXE_VER");
@@ -1559,7 +1559,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
     // exeVer 未指定なら従来どおり 0 (後方互換)
     const decodedDefault = bytes ? await decodeProjectBytes(bytes) : null;
-    check("oggv: decodeProjectBytes (exeVer 未指定) 成功", decodedDefault !== null);
+    check(decodedDefault !== null, "oggv: decodeProjectBytes (exeVer 未指定) 成功");
     if (decodedDefault) {
       checkEq(decodedDefault[16] | (decodedDefault[17] << 8), 0, "oggv: 未指定なら exeVer 0");
     }
@@ -1602,7 +1602,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
     const v = newVoice();
     const vBytes = snapshotVoice(v);
-    check("collageadd: 編集中の ptvoice をバイト列化", vBytes !== null);
+    check(vBytes !== null, "collageadd: 編集中の ptvoice をバイト列化");
     const woiceNum0 = serviceMod.service.woiceNum;
     checkEq(await addWoice(vBytes!, WoiceType.PTV, "AddA"), null, "collageadd: ptvoice を追加");
     checkEq(serviceMod.service.woiceNum, woiceNum0 + 1, "collageadd: 音色数が1増える");
@@ -1612,7 +1612,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
     const n = newNoise();
     const nBytes = snapshotNoise(n);
-    check("collageadd: 編集中の ptnoise をバイト列化", nBytes !== null);
+    check(nBytes !== null, "collageadd: 編集中の ptnoise をバイト列化");
     checkEq(await addWoice(nBytes!, WoiceType.PTN, "AddB"), null, "collageadd: ptnoise を追加");
     const wn = serviceMod.service.woiceGet(woiceNum0 + 1)!;
     checkEq(wn.type, WoiceType.PTN, "collageadd: 追加した音色は PTN");
@@ -1620,7 +1620,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
     // 追加した音色は ptcop に保存され、読み戻しても残る
     const projBytes = exportBytes();
-    check("collageadd: ptcop を書き出し", projBytes !== null);
+    check(projBytes !== null, "collageadd: ptcop を書き出し");
     const svc = new Service();
     svc.initCollage(PXTN_MAX_EVENT_NUM);
     checkEq(svc.read(new MemoryIo(projBytes!)), PxtnErr.OK, "collageadd: 書き出した ptcop を読み戻せる");
@@ -1639,7 +1639,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
     // 書き戻し先 (リンク) を付けて開く
     const link = { projectId: currentProjectId.value, woiceIndex: s.woiceNum - 2 };
-    check("woiceedit: PTV を ptvoice エディタで開く", openWoiceAsVoice(ptvW, woiceNameRaw(ptvW), link));
+    check(openWoiceAsVoice(ptvW, woiceNameRaw(ptvW), link), "woiceedit: PTV を ptvoice エディタで開く");
     checkEq(currentVoice()?.fileName, "AddA", "woiceedit: ptvoice タブ名が音色名になる");
     checkEq(currentVoice()?.link?.projectId, link.projectId, "woiceedit: ptvoice の書き戻し先 projectId (reactive)");
     checkEq(currentVoice()?.link?.woiceIndex, link.woiceIndex, "woiceedit: ptvoice の書き戻し先 woiceIndex (reactive)");
@@ -1651,7 +1651,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
     const ptn = ptnW.getVoice(0)!.ptn;
     const ptnLink = { projectId: currentProjectId.value, woiceIndex: s.woiceNum - 1 };
-    check("woiceedit: PTN を ptnoise エディタで開く", openPtnAsNoise(ptn, woiceNameRaw(ptnW), ptnLink));
+    check(openPtnAsNoise(ptn, woiceNameRaw(ptnW), ptnLink), "woiceedit: PTN を ptnoise エディタで開く");
     checkEq(currentNoise()?.fileName, "AddB", "woiceedit: ptnoise タブ名が音色名になる");
     checkEq(currentNoise()?.link?.projectId, ptnLink.projectId, "woiceedit: ptnoise の書き戻し先 projectId (reactive)");
     checkEq(currentNoise()?.link?.woiceIndex, ptnLink.woiceIndex, "woiceedit: ptnoise の書き戻し先 woiceIndex (reactive)");
@@ -1692,8 +1692,8 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     );
     checkEq(serviceMod.service.woiceGet(idxA)!.getVoice(0)!.volume, 77, "apply: 対象音色の内容が更新される");
     checkEq(projA.undoStack.length, undoLen + 1, "apply: undo エントリが積まれる");
-    check("apply: 対象プロジェクトが dirty になる", projA.dirty);
-    check("apply: undo が成功する", undo());
+    check(projA.dirty, "apply: 対象プロジェクトが dirty になる");
+    check(undo(), "apply: undo が成功する");
     checkEq(serviceMod.service.woiceGet(idxA)!.getVoice(0)!.volume, 64, "apply: undo で適用前に戻る");
 
     // 現在のタブでないプロジェクトへも書き戻せる (対象プロジェクトの Service を直接操作)
@@ -1704,11 +1704,11 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       null,
       "apply: 別プロジェクトへ適用",
     );
-    check("apply: 別プロジェクトが dirty になる", projA.dirty);
+    check(projA.dirty, "apply: 別プロジェクトが dirty になる");
     switchProject(projA.id);
     checkEq(serviceMod.service.woiceGet(idxA)!.getVoice(0)!.volume, 55, "apply: 切り替え後に内容を確認できる");
-    check("apply: 別プロジェクトの undo も積まれている", canUndo.value);
-    check("apply: 別プロジェクトでも undo できる", undo());
+    check(canUndo.value, "apply: 別プロジェクトの undo も積まれている");
+    check(undo(), "apply: 別プロジェクトでも undo できる");
     checkEq(serviceMod.service.woiceGet(idxA)!.getVoice(0)!.volume, 64, "apply: 別プロジェクトの undo で戻る");
 
     // PTN (ノイズ) の書き戻し
@@ -1731,30 +1731,30 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
     // 変更を適用するとタブの dirty が解除される (タブの link アイコンの色が戻る)
     editVoice(() => {});
-    check("apply: 編集でタブが dirty になる", currentVoice()!.dirty);
+    check(currentVoice()!.dirty, "apply: 編集でタブが dirty になる");
     const vUndoLen = currentVoice()!.undoStack.length;
     markVoiceClean();
-    check("apply: 適用で dirty が解除される", !currentVoice()!.dirty);
+    check(!currentVoice()!.dirty, "apply: 適用で dirty が解除される");
     checkEq(currentVoice()!.undoStack.length, vUndoLen, "apply: 解除しても undo スタックは残る");
 
     editNoise(() => {});
-    check("apply: ノイズも編集で dirty になる", currentNoise()!.dirty);
+    check(currentNoise()!.dirty, "apply: ノイズも編集で dirty になる");
     markNoiseClean();
-    check("apply: ノイズも適用で dirty が解除される", !currentNoise()!.dirty);
+    check(!currentNoise()!.dirty, "apply: ノイズも適用で dirty が解除される");
 
     // エラー系: 対象の音色を壊さない
     check(
-      "apply: 範囲外 index はエラー",
       applyWoiceLink({ projectId: projB.id, woiceIndex: 999 }, snapshotNoise(nDoc)!, WoiceType.PTN) !== null,
+      "apply: 範囲外 index はエラー",
     );
     check(
-      "apply: 存在しないプロジェクトはエラー",
       applyWoiceLink({ projectId: 99999, woiceIndex: 0 }, snapshotNoise(nDoc)!, WoiceType.PTN) !== null,
+      "apply: 存在しないプロジェクトはエラー",
     );
     const woiceNum = serviceMod.service.woiceNum;
     check(
-      "apply: 不正なバイト列はエラー",
       applyWoiceLink({ projectId: projB.id, woiceIndex: idxB }, new Uint8Array([1, 2, 3]), WoiceType.PTN) !== null,
+      "apply: 不正なバイト列はエラー",
     );
     checkEq(serviceMod.service.woiceNum, woiceNum, "apply: 不正なバイト列でも音色は消えない");
     checkEq(
@@ -1766,8 +1766,8 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     // pttune (再生専用) へは適用できない
     const projTune = newProjectInTab("tune");
     check(
-      "apply: 読み取り専用プロジェクトはエラー",
       applyWoiceLink({ projectId: projTune.id, woiceIndex: 0 }, snapshotNoise(nDoc)!, WoiceType.PTN) !== null,
+      "apply: 読み取り専用プロジェクトはエラー",
     );
   }
 
@@ -1787,16 +1787,16 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     // voice/noise は beforeSave に「変更を適用」を渡す (プロジェクトを保存の手前)
     const labels = buildFileMenu(ops, [], [{ label: "APPLY" }]).map((m) => (m.sep ? "-" : (m.label ?? "")));
     check(
-      "filemenu: 変更を適用はプロジェクトを保存の手前",
       labels.indexOf("APPLY") >= 0 && labels.indexOf("APPLY") < labels.indexOf(t("menu.file.save")),
+      "filemenu: 変更を適用はプロジェクトを保存の手前",
     );
     // collage (beforeSave 省略) では入らない
-    check("filemenu: 省略時は変更を適用なし", !buildFileMenu(ops, []).some((m) => m.label === "APPLY"));
+    check(!buildFileMenu(ops, []).some((m) => m.label === "APPLY"), "filemenu: 省略時は変更を適用なし");
     // extra は従来どおり保存系の後ろ
     const labels2 = buildFileMenu(ops, [{ label: "EXTRA" }], [{ label: "APPLY" }]).map((m) => (m.sep ? "-" : (m.label ?? "")));
     check(
-      "filemenu: extra は保存系の後ろ",
       labels2.indexOf("EXTRA") > labels2.indexOf(t("menu.file.saveAs")),
+      "filemenu: extra は保存系の後ろ",
     );
   }
 
@@ -1854,17 +1854,17 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     ];
     u0.main = { type: WaveType.Sine, freq: 440, volume: 50, offset: 0, bRev: false };
     const io1 = new MemoryIo();
-    check("layers: 1ユニットの ptnoise を書き出せる", one.write(io1));
+    check(one.write(io1), "layers: 1ユニットの ptnoise を書き出せる");
     const bytes1 = io1.toUint8Array();
 
     checkEq(openNoise(bytes1, "One"), null, "layers: 1ユニットの ptnoise を開く");
     const d1 = currentNoise()!;
     checkEq(d1.noise.unitNum, NOISE_UNIT_NUM, "layers: 開いた直後から4レイヤーある");
     check(
-      "layers: ファイルのレイヤーは内容を保つ",
       d1.noise.getUnit(0)!.bEnable && d1.noise.getUnit(0)!.pan === -30 && d1.noise.getUnit(0)!.enveNum === 2,
+      "layers: ファイルのレイヤーは内容を保つ",
     );
-    check("layers: 追加されたレイヤーは無効", !d1.noise.getUnit(1)!.bEnable && !d1.noise.getUnit(3)!.bEnable);
+    check(!d1.noise.getUnit(1)!.bEnable && !d1.noise.getUnit(3)!.bEnable, "layers: 追加されたレイヤーは無効");
     checkEq(d1.noise.getUnit(3)!.enveNum, NOISE_ENVE_NUM, "layers: 追加レイヤーのエンベロープ数");
     // 無効レイヤーは書き出されないため、保存バイト列は元のまま
     checkBytes(snapshotNoise(d1)!, bytes1, "layers: 保存バイト列は元と同じ");
@@ -1873,7 +1873,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     editNoise(() => {
       d1.noise.getUnit(0)!.pan = 10;
     });
-    check("layers: undo できる", undoNoise());
+    check(undoNoise(), "layers: undo できる");
     checkEq(d1.noise.unitNum, NOISE_UNIT_NUM, "layers: undo 後も4レイヤーある");
     checkEq(d1.noise.getUnit(0)!.pan, -30, "layers: undo で内容が戻る");
 
@@ -1887,12 +1887,12 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       unit.main = { type: WaveType.Sine, freq: 220 * (u + 1), volume: 50, offset: 0, bRev: false };
     }
     const io3 = new MemoryIo();
-    check("layers: 3ユニットの ptnoise を書き出せる", three.write(io3));
+    check(three.write(io3), "layers: 3ユニットの ptnoise を書き出せる");
     const bytes3 = io3.toUint8Array();
     checkEq(openNoise(bytes3, "Three"), null, "layers: 3ユニットの ptnoise を開く");
     const d3 = currentNoise()!;
     checkEq(d3.noise.unitNum, NOISE_UNIT_NUM, "layers: 3ユニットでも4レイヤー表示");
-    check("layers: 4レイヤー目だけ無効", d3.noise.getUnit(2)!.bEnable && !d3.noise.getUnit(3)!.bEnable);
+    check(d3.noise.getUnit(2)!.bEnable && !d3.noise.getUnit(3)!.bEnable, "layers: 4レイヤー目だけ無効");
     checkBytes(snapshotNoise(d3)!, bytes3, "layers: 3ユニットでも保存バイト列は元と同じ");
   }
 
@@ -1930,13 +1930,13 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     const w = new Woice();
     checkEq(w.read(new MemoryIo(snapshotVoice(src)!), WoiceType.PTV), PxtnErr.OK, "open: 元の PTV を用意");
     const tabNum = voices.value.length;
-    check("open: リンクなしで音色を開ける", openWoiceAsVoice(w, "Copy"));
+    check(openWoiceAsVoice(w, "Copy"), "open: リンクなしで音色を開ける");
     checkEq(voices.value.length, tabNum + 1, "open: 新しいタブが増える");
     checkEq(currentVoice()!.fileName, "Copy", "open: ファイル名が入る");
     checkEq(currentVoice()!.link, undefined, "open: link を持たない (書き戻し先なし)");
 
     // link 付きで開けば書き戻し先を持つ (ptcop の「音色を編集」)
-    check("open: リンク付きでも開ける", openWoiceAsVoice(w, "Linked", { projectId: 1, woiceIndex: 0 }));
+    check(openWoiceAsVoice(w, "Linked", { projectId: 1, woiceIndex: 0 }), "open: リンク付きでも開ける");
     checkEq(currentVoice()!.link?.woiceIndex, 0, "open: link を持てる");
   }
 
@@ -1947,29 +1947,29 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(voices.value.length, 0, "replace: voice のタブを空にする");
     ensureInitialVoice();
     checkEq(voices.value.length, 1, "replace: 初期タブが1つできる");
-    check("replace: 初期タブに印が付く", voices.value[0]!.initial);
+    check(voices.value[0]!.initial, "replace: 初期タブに印が付く");
 
     // 名前の無い ptvoice を開くと初期タブを置き換える
     const dw = createDefaultWoice();
     const io = new MemoryIo();
-    check("replace: 無題の ptvoice を用意", dw.ptvWrite(io) >= 0);
+    check(dw.ptvWrite(io) >= 0, "replace: 無題の ptvoice を用意");
     const unnamedVoice = io.toUint8Array();
     checkEq(openVoice(unnamedVoice, ""), null, "replace: 無題の ptvoice を開く");
     checkEq(voices.value.length, 1, "replace: 初期タブが置き換わる");
-    check("replace: 置き換えたタブは初期タブではない", !voices.value[0]!.initial);
+    check(!voices.value[0]!.initial, "replace: 置き換えたタブは初期タブではない");
 
     // 無題のまま続けて開いても、置き換えずにタブが増える
     checkEq(openVoice(unnamedVoice, ""), null, "replace: 2つ目の無題 ptvoice を開く");
     checkEq(voices.value.length, 2, "replace: 2つ目は新しいタブになる");
-    check("replace: 1つ目のタブが残っている", voices.value[0]!.fileName === "" && voices.value[0]!.woice !== undefined);
+    check(voices.value[0]!.fileName === "" && voices.value[0]!.woice !== undefined, "replace: 1つ目のタブが残っている");
 
     // noise も同じ扱い
     for (const n of [...noises.value]) closeNoise(n.id);
     ensureInitialNoise();
     checkEq(noises.value.length, 1, "replace: noise の初期タブが1つできる");
-    check("replace: noise の初期タブに印が付く", noises.value[0]!.initial);
+    check(noises.value[0]!.initial, "replace: noise の初期タブに印が付く");
     const io2 = new MemoryIo();
-    check("replace: 無題の ptnoise を用意", createDefaultNoise().write(io2));
+    check(createDefaultNoise().write(io2), "replace: 無題の ptnoise を用意");
     const unnamedNoise = io2.toUint8Array();
     checkEq(openNoise(unnamedNoise, ""), null, "replace: 無題の ptnoise を開く");
     checkEq(noises.value.length, 1, "replace: noise の初期タブが置き換わる");
@@ -2008,35 +2008,35 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
     // ---- クリア (範囲内を消す。後続は詰めない) ----
     scopeClear(0, 240);
-    check("クリア: 範囲内の KEY が消える", !kindsAt(0, 0, EventKind.KEY));
-    check("クリア: 範囲内の VELOCITY が消える", !kindsAt(0, 0, EventKind.VELOCITY));
-    check("クリア: 範囲内の ON は丸ごと消える", !kindsAt(0, 0, EventKind.ON));
-    check("クリア: 後続は詰めない", keyOf(480, 0) === 0x6100);
-    check("クリア: 対象外ユニットは残る", kindsAt(240, 1, EventKind.VELOCITY)?.value === 80);
+    check(!kindsAt(0, 0, EventKind.KEY), "クリア: 範囲内の KEY が消える");
+    check(!kindsAt(0, 0, EventKind.VELOCITY), "クリア: 範囲内の VELOCITY が消える");
+    check(!kindsAt(0, 0, EventKind.ON), "クリア: 範囲内の ON は丸ごと消える");
+    check(keyOf(480, 0) === 0x6100, "クリア: 後続は詰めない");
+    check(kindsAt(240, 1, EventKind.VELOCITY)?.value === 80, "クリア: 対象外ユニットは残る");
 
     // ---- 消去 (消して詰める) ----
     scopeDelete(0, 480);
-    check("消去: 後続のイベントが前に詰まる", keyOf(0, 0) === 0x6100);
-    check("消去: 対象外ユニットは詰めない", kindsAt(240, 1, EventKind.VELOCITY)?.value === 80);
+    check(keyOf(0, 0) === 0x6100, "消去: 後続のイベントが前に詰まる");
+    check(kindsAt(240, 1, EventKind.VELOCITY)?.value === 80, "消去: 対象外ユニットは詰めない");
 
     // ---- コピー (単一ユニット) + 貼り付け ----
     s.evels.recordAddI(240, 0, EventKind.ON, 720); // 末尾をまたぐ ON ([0,480) 内)
     scopeCopy(0, 480);
     checkEq(scopeClipReady(), true, "コピー: クリップボードに載る");
     scopePaste(960);
-    check("貼り付け: KEY が載る", keyOf(960, 0) === 0x6100);
+    check(keyOf(960, 0) === 0x6100, "貼り付け: KEY が載る");
     checkEq(kindsAt(1200, 0, EventKind.ON)?.value, 240, "貼り付け: ON は範囲末尾でクリップされる (長さ = 480 - clock)");
     check(
-      "貼り付け: 対象外ユニットは載らない",
       getAllEvents().filter((e) => e.unitNo === 1).length === 1 &&
         kindsAt(240, 1, EventKind.VELOCITY)?.value === 80,
+      "貼り付け: 対象外ユニットは載らない",
     );
 
     // 書き込み領域の既存イベントは種別ごとに消してから載る (上書き貼り付け)
     s.evels.recordAddI(960, 0, EventKind.VELOCITY, 128);
     s.evels.recordAddI(1440, 0, EventKind.VELOCITY, 99); // 領域外は消えない
     scopePaste(960);
-    check("貼り付け: 上書きでクリップに無い VELOCITY も領域内から消える", !kindsAt(960, 0, EventKind.VELOCITY));
+    check(!kindsAt(960, 0, EventKind.VELOCITY), "貼り付け: 上書きでクリップに無い VELOCITY も領域内から消える");
     checkEq(kindsAt(1440, 0, EventKind.VELOCITY)?.value, 99, "貼り付け: 領域外の既存イベントは消えない");
 
     // ---- 種別フィルタ (コピーパネル) ----
@@ -2047,17 +2047,17 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     doc.copier[0] = false; // ON を外す (ON はコピーしない)
     scopeCopy(0, 480);
     scopePaste(960);
-    check("フィルタ: KEY は載る", keyOf(960, 0) === 0x6000);
-    check("フィルタ: ON は載らない", !kindsAt(960, 0, EventKind.ON));
+    check(keyOf(960, 0) === 0x6000, "フィルタ: KEY は載る");
+    check(!kindsAt(960, 0, EventKind.ON), "フィルタ: ON は載らない");
     doc.copier.fill(true);
 
     // ---- 切り取り (フィルタなしコピー + 消去 + コピーパネル全 ON) ----
     scopeCut(0, 480);
-    check("切り取り: 範囲のイベントが消える", !kindsAt(0, 0, EventKind.KEY) && !kindsAt(0, 0, EventKind.ON));
-    check("切り取り: 内容はクリップボードへ", scopeClipReady());
+    check(!kindsAt(0, 0, EventKind.KEY) && !kindsAt(0, 0, EventKind.ON), "切り取り: 範囲のイベントが消える");
+    check(scopeClipReady(), "切り取り: 内容はクリップボードへ");
     checkEq(doc.copier.every((v) => v), true, "切り取り: コピーパネルが全 ON になる");
     scopeInsert(0);
-    check("切り取り+挿入: 位置 0 に戻せる", keyOf(0, 0) === 0x6000);
+    check(keyOf(0, 0) === 0x6000, "切り取り+挿入: 位置 0 に戻せる");
 
     // ---- 単一ユニットコピーの振り直し (フォーカスユニット変更) ----
     s.evels.clear();
@@ -2071,7 +2071,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(keyOf(0, 0), 0x6000, "振り直し: コピーしても元ユニットは編集されない");
     doc.focusUnit = 1;
     scopePaste(960);
-    check("振り直し: 単独コピーはフォーカスユニットに載る", kindsAt(960, 1, EventKind.KEY)?.value === 0x6000);
+    check(kindsAt(960, 1, EventKind.KEY)?.value === 0x6000, "振り直し: 単独コピーはフォーカスユニットに載る");
 
     // ---- 移調 (KEY 値 0x100/半音、加算は上限クランプ) ----
     doc.focusUnit = 0;
@@ -2094,7 +2094,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     scopeCopy(0, 480);
     s.evels.recordAddI(480, 0, EventKind.KEY, 0x6100); // 挿入位置の後続 (ずらされる側)
     scopeInsert(480);
-    check("挿入: 貼り付け位置に載る", keyOf(480, 0) === 0x6000);
+    check(keyOf(480, 0) === 0x6000, "挿入: 貼り付け位置に載る");
     checkEq(keyOf(960, 0), 0x6100, "挿入: 後続が幅分ずれる (KEY@480 → 960)");
     checkEq(kindsAt(240, 1, EventKind.VELOCITY)?.value, 80, "挿入: 対象外ユニットは動かない");
 
@@ -2102,8 +2102,8 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     s.evels.clear();
     s.evels.recordAddI(0, 0, EventKind.KEY, 0x6000);
     scopeCut(0, 240);
-    check("切り取り: undo 前に消えている", !kindsAt(0, 0, EventKind.KEY));
-    check("切り取り: undo できる", undo());
+    check(!kindsAt(0, 0, EventKind.KEY), "切り取り: undo 前に消えている");
+    check(undo(), "切り取り: undo できる");
     checkEq(keyOf(0, 0), 0x6000, "切り取り: undo で戻る");
 
     // 後続テストのため編集対象とコピーパネルを戻す
@@ -2139,11 +2139,11 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     ws.evels.recordAddI(0, 0, EventKind.VELOCITY, 100);
     ws.evels.recordAddI(0, 0, EventKind.ON, 480 * 4);
     const wavBytes = exportBytes();
-    check("wavexport: ptcop を書き出し", wavBytes !== null);
+    check(wavBytes !== null, "wavexport: ptcop を書き出し");
 
     // 既定値 (最後まで / ステレオ / 44100Hz): 演奏データの末尾までの長さになる
     const def = await renderWav(wavBytes!, { ...WAV_EXPORT_DEFAULTS });
-    check("wavexport: 既定値でレンダリングできる", "wav" in def);
+    check("wav" in def, "wavexport: 既定値でレンダリングできる");
     if ("wav" in def) {
       const info = wavInfo(def.wav);
       checkEq(info.ch, 2, "wavexport: 既定はステレオ");
@@ -2156,7 +2156,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
         ws.master.beatTempo,
       );
       checkEq(info.dataSize, frames * 2 * 2, "wavexport: 最後までのデータ長");
-      check("wavexport: PCM が無音でない", wavHasSignal(def.wav));
+      check(wavHasSignal(def.wav), "wavexport: PCM が無音でない");
     }
 
     // モノラル / 22050Hz / 演奏時間 0.5 秒: ch と長さが指定どおりになる
@@ -2167,7 +2167,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       scope: "byTime",
       playTimeSec: 0.5,
     });
-    check("wavexport: モノラル + 時間指定でレンダリングできる", "wav" in mono);
+    check("wav" in mono, "wavexport: モノラル + 時間指定でレンダリングできる");
     if ("wav" in mono) {
       const info = wavInfo(mono.wav);
       checkEq(info.ch, 1, "wavexport: モノラル指定");
@@ -2183,19 +2183,19 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       playTimeSec: 1,
       extraFadeSec: 0.5,
     });
-    check("wavexport: フェードアウト付きでレンダリングできる", "wav" in faded);
+    check("wav" in faded, "wavexport: フェードアウト付きでレンダリングできる");
     if ("wav" in faded) {
       checkEq(wavInfo(faded.wav).dataSize, (22050 + 11025) * 2 * 2, "wavexport: フェード区間が末尾に加算される");
     }
 
     // ユニットミュート: muteByUnit=true ではミュート中のユニットが鳴らない
     const muted = await renderWav(wavBytes!, { ...WAV_EXPORT_DEFAULTS, muteByUnit: true, mutedUnits: [0] });
-    check("wavexport: ミュート有効でレンダリングできる", "wav" in muted);
+    check("wav" in muted, "wavexport: ミュート有効でレンダリングできる");
     if ("wav" in muted) {
-      check("wavexport: ミュート中のユニットは無音", !wavHasSignal(muted.wav));
+      check(!wavHasSignal(muted.wav), "wavexport: ミュート中のユニットは無音");
     }
     const unmuted = await renderWav(wavBytes!, { ...WAV_EXPORT_DEFAULTS, muteByUnit: false, mutedUnits: [0] });
-    check("wavexport: ミュート無効なら鳴る", "wav" in unmuted && wavHasSignal(unmuted.wav));
+    check("wav" in unmuted && wavHasSignal(unmuted.wav), "wavexport: ミュート無効なら鳴る");
   }
 
   // ---- 41. 音色プロパティ編集 (本家 dlg_Woice 相当) ----
@@ -2241,7 +2241,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(w.getVoice(0)!.basicKey, 108 * 0x100, "woiceprop: basicKey は 108 にクランプ");
 
     // 1 操作 = 1 undo (名前・プロパティがまとめて戻る)
-    check("woiceprop: undo できる", undo());
+    check(undo(), "woiceprop: undo できる");
     w = serviceMod.service.woiceGet(pIdx)!;
     checkEq(woiceNameRaw(w), "あいうえおかきく", "woiceprop: undo で編集前の名前へ戻る");
     checkEq(w.getVoice(0)!.tuning, 2.5, "woiceprop: undo で tuning も戻る");
