@@ -31,6 +31,7 @@ import { useHoldPreview } from "../../composables/useHoldPreview";
 import { capturePointer, releasePointerCapture } from "../../lib/field";
 import { t } from "../../i18n";
 import ChangeUnitDialog from "./ChangeUnitDialog.vue";
+import CtxMenuItem from "../shell/CtxMenuItem.vue";
 
 // チェックボックス列 (再生/表示/ピン/ソロ) の幅。CSS の --checks-w と同期
 const CHECKS_W = 76;
@@ -217,9 +218,9 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
       <div v-if="units.length === 0" class="tray-empty">{{ t("unit.empty") }}</div>
     </div>
     <div v-if="menu" class="ctxmenu popup" :style="{ left: menu.x + 'px', top: menu.y + 'px' }">
-      <button v-if="woices.length > 0" @click="onMenuAction('change')"><span class="menu-icon"><RefreshCw :size="14" /></span>{{ t("unit.changeWoice") }}</button>
-      <button @click="onMenuAction('edit')"><span class="menu-icon"><Pencil :size="14" /></span>{{ t("unit.editName") }}</button>
-      <button class="danger" @click="onMenuAction('remove')"><span class="menu-icon"><Trash2 :size="14" /></span>{{ t("common.delete") }}</button>
+      <CtxMenuItem v-if="woices.length > 0" :icon="RefreshCw" @click="onMenuAction('change')">{{ t("unit.changeWoice") }}</CtxMenuItem>
+      <CtxMenuItem :icon="Pencil" @click="onMenuAction('edit')">{{ t("unit.editName") }}</CtxMenuItem>
+      <CtxMenuItem :icon="Trash2" danger @click="onMenuAction('remove')">{{ t("common.delete") }}</CtxMenuItem>
     </div>
     <ChangeUnitDialog v-if="changeUnitIdx >= 0" :unit-idx="changeUnitIdx" @close="changeUnitIdx = -1" />
   </div>
@@ -367,9 +368,5 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
   color: var(--muted-foreground);
   line-height: 1.6;
   white-space: pre-line;
-}
-
-.ctxmenu .danger {
-  color: var(--destructive);
 }
 </style>

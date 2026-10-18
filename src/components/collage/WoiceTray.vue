@@ -27,6 +27,7 @@ import { capturePointer, releasePointerCapture } from "../../lib/field";
 import { openFileDialog, exportWoiceFile } from "../../engine/io";
 import { t } from "../../i18n";
 import WoicePropertyDialog from "./WoicePropertyDialog.vue";
+import CtxMenuItem from "../shell/CtxMenuItem.vue";
 
 const emit = defineEmits<{ (e: "open-editor", mode: "voice" | "noise"): void }>();
 
@@ -164,12 +165,12 @@ function woiceSummary(idx: number): string {
       </div>
     </div>
     <div v-if="menu" class="ctxmenu popup" :style="{ left: menu.x + 'px', top: menu.y + 'px' }">
-      <button v-if="!doc.readOnly" @click="onMenuAction('properties')"><span class="menu-icon"><SquarePen :size="14" /></span>{{ t("woice.edit") }}</button>
-      <button v-if="menuHasEditor" @click="onMenuAction('openEditor')"><span class="menu-icon"><ExternalLink :size="14" /></span>{{ t("woice.open") }}</button>
-      <button @click="onMenuAction('save')"><span class="menu-icon"><Download :size="14" /></span>{{ t("woice.save") }}</button>
+      <CtxMenuItem v-if="!doc.readOnly" :icon="SquarePen" @click="onMenuAction('properties')">{{ t("woice.edit") }}</CtxMenuItem>
+      <CtxMenuItem v-if="menuHasEditor" :icon="ExternalLink" @click="onMenuAction('openEditor')">{{ t("woice.open") }}</CtxMenuItem>
+      <CtxMenuItem :icon="Download" @click="onMenuAction('save')">{{ t("woice.save") }}</CtxMenuItem>
       <template v-if="!doc.readOnly">
-        <button @click="onMenuAction('replace')"><span class="menu-icon"><RefreshCw :size="14" /></span>{{ t("woice.replace") }}</button>
-        <button class="danger" @click="onMenuAction('remove')"><span class="menu-icon"><Trash2 :size="14" /></span>{{ t("common.delete") }}</button>
+        <CtxMenuItem :icon="RefreshCw" @click="onMenuAction('replace')">{{ t("woice.replace") }}</CtxMenuItem>
+        <CtxMenuItem :icon="Trash2" danger @click="onMenuAction('remove')">{{ t("common.delete") }}</CtxMenuItem>
       </template>
     </div>
     <WoicePropertyDialog v-if="propIdx >= 0" :woice-idx="propIdx" @close="propIdx = -1" />
@@ -247,9 +248,5 @@ function woiceSummary(idx: number): string {
   color: var(--muted-foreground);
   line-height: 1.6;
   white-space: pre-line;
-}
-
-.ctxmenu .danger {
-  color: var(--destructive);
 }
 </style>

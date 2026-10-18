@@ -26,6 +26,7 @@ import {
 import { currentClock, seekToClock, isPlaying as isPlayingNow } from "../../state/player";
 import { useCtxMenuClose } from "../../composables/useCtxMenu";
 import { t } from "../../i18n";
+import CtxMenuItem from "../shell/CtxMenuItem.vue";
 
 const emit = defineEmits<{ (e: "transpose"): void }>();
 
@@ -164,15 +165,15 @@ function onMenuAction(action: MenuAction): void {
     />
     <div v-if="menu" class="ctxmenu popup" :style="{ left: menu.x + 'px', top: menu.y + 'px' }">
       <template v-if="menu.kind === 'point'">
-        <button :disabled="!menu.canPaste" @click="onMenuAction('paste')"><span class="menu-icon"><ClipboardPaste :size="14" /></span>{{ t("scope.paste") }}</button>
-        <button :disabled="!menu.canPaste" @click="onMenuAction('insert')"><span class="menu-icon"><ListPlus :size="14" /></span>{{ t("scope.insert") }}</button>
+        <CtxMenuItem :icon="ClipboardPaste" :disabled="!menu.canPaste" @click="onMenuAction('paste')">{{ t("scope.paste") }}</CtxMenuItem>
+        <CtxMenuItem :icon="ListPlus" :disabled="!menu.canPaste" @click="onMenuAction('insert')">{{ t("scope.insert") }}</CtxMenuItem>
       </template>
       <template v-else>
-        <button @click="onMenuAction('copy')"><span class="menu-icon"><Copy :size="14" /></span>{{ t("scope.copy") }}</button>
-        <button @click="onMenuAction('cut')"><span class="menu-icon"><Scissors :size="14" /></span>{{ t("scope.cut") }}</button>
-        <button @click="onMenuAction('clear')"><span class="menu-icon"><Eraser :size="14" /></span>{{ t("scope.clear") }}</button>
-        <button @click="onMenuAction('delete')"><span class="menu-icon"><ArrowLeftToLine :size="14" /></span>{{ t("scope.delete") }}</button>
-        <button @click="onMenuAction('transpose')"><span class="menu-icon"><ChevronsUpDown :size="14" /></span>{{ t("scope.transpose") }}</button>
+        <CtxMenuItem :icon="Copy" @click="onMenuAction('copy')">{{ t("scope.copy") }}</CtxMenuItem>
+        <CtxMenuItem :icon="Scissors" @click="onMenuAction('cut')">{{ t("scope.cut") }}</CtxMenuItem>
+        <CtxMenuItem :icon="Eraser" @click="onMenuAction('clear')">{{ t("scope.clear") }}</CtxMenuItem>
+        <CtxMenuItem :icon="ArrowLeftToLine" @click="onMenuAction('delete')">{{ t("scope.delete") }}</CtxMenuItem>
+        <CtxMenuItem :icon="ChevronsUpDown" @click="onMenuAction('transpose')">{{ t("scope.transpose") }}</CtxMenuItem>
       </template>
     </div>
   </div>

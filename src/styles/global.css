@@ -274,6 +274,11 @@ textarea:disabled {
   background: transparent;
 }
 
+/* 削除系の項目 (危険色)。CtxMenuItem の danger 指定に対応する */
+.ctxmenu .danger {
+  color: var(--destructive);
+}
+
 .ctxmenu .sep {
   width: auto;
   height: 1px;
