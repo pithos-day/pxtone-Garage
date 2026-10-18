@@ -89,7 +89,7 @@ export const doc = reactive({
   scope2: 0,
   volumeVisible: false,
   volumeMode: 0, // VOLUMEMODE (0=Velocity..7=Tuning)
-  tool: "pen" as "pen" | "hand" | "smart", // ピアノロール用ツール (smart = スマート: 書込/移動/端は押した位置で切り替わる)
+  tool: "smart" as "pen" | "hand" | "smart", // ピアノロール用ツール (smart = スマート: 書込/移動/端は押した位置で切り替わる。既定はスマート)
   // コピー対象の種類フラグ。CopierPanel の KINDS (index 0..8) と対応
   copier: Array(COPIER_KIND_NUM).fill(true) as boolean[],
   muted: [] as number[], // ミュート中のユニット index

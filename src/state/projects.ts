@@ -112,7 +112,7 @@ function defaultState(): ProjectState {
     scope2: 0,
     volumeVisible: false,
     volumeMode: 0,
-    tool: "pen",
+    tool: "smart",
     muted: [],
     unitVisible: [],
     unitPinned: [],

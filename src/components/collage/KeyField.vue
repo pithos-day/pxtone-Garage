@@ -127,8 +127,10 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   // スマートドラッグ中は対象ノートの実描画を隠し、確定後の配置をゴーストで示す
   const dv = dragState.value;
   const smartDrag = dv?.smart && dv.smart.mode !== "write" ? dv : null;
-  // pen / スマート書き込みの確定前ノート (ゴースト)
-  const writeGhost = dv && !doc.readOnly && dv.button === 0 && dv.clock2 !== dv.clock1 && doc.tool !== "hand" ? dv : null;
+  // pen / スマート書き込みの確定前ノート (ゴースト)。
+  // スマートの掴み / 端調整は対象ノートのゴースト (smartDrag) で見せるため、
+  // 書き込みゴーストを重ねない (新規ノートが同時に書かれているように見える)
+  const writeGhost = dv && !smartDrag && !doc.readOnly && dv.button === 0 && dv.clock2 !== dv.clock1 && doc.tool !== "hand" ? dv : null;
   for (const u of rollUnits) {
     const hide = u === focus ? (smartDrag?.smart?.note ?? undefined) : undefined;
     drawNotes(ctx, s, u, field, u === focus, hide);
