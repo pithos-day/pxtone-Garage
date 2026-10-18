@@ -1,4 +1,21 @@
 // 複数プロジェクト管理のスモークテスト (node で直接実行)
+//
+// 節一覧 (実行順):
+//   1. 初期プロジェクト / 2. 編集 + タブ間の独立 / 3. タブ切替で状態が復元される / 4. タブごとの undo 独立 / 5. タブ1に追加 → タブ2はそのまま / 6. openProjectInTab
+//   7. pttune は再生専用タブとして開く (DENY_BEATCLOCK にならない) / 8. タブごとの undo 独立 (追加分) / 9. closeProject / 10. ソロ
+//   11. ソロ解除で元のミュート状態を復元 / 12. ソロの直接切替では元のバックアップを保持 / 13. ユニット削除・並べ替えでソロ/ミュートが追従 / 14. 再生中のミュート/ソロ変更が worklet に反映される
+//   15. 単音プレビュー停止時にリリースフェードがかかる / 16. 初期プロジェクトのみのとき、開くで置き換える / 17. themeParse (ジェネレーターCSS → トークンマップ)
+//   18. 小節コピー / イベント音量 / ユニット追加 / 19. VOICENO イベントからの音色解決 / Start-End 状態 / 20. 音声 (ptVoice) ドキュメント管理
+//   21. ノイズ (ptNoise) ドキュメント管理 / 22. Coordinate 波形の編集ルール (本家 ptuiWave 準拠)
+//   23. エンベロープ (本家 ptuiEnvelope 準拠: 区間長 x + 累積描画) / 24. プレビューの音程 (本家 ptVoice 準拠: 中央キー 441 Hz)
+//   25. 波形プリセット (本家 ptuiWavePreset 準拠) / 26. A/B 面コピー (本家 copy_ptv_voice 準拠)
+//   27. Repeat の undo で表示値 (1-based) がエンジンと一致する / 28. 抽出 lib の純関数 (リファクタ後の回帰テスト) / 29. MIDI (SMF) → ptcop 変換
+//   30. OGGV 音色 / 31. ファイル名ユーティリティ / 32. 音色タイプ判別 (マジックバイト) / 33. Collage への音色追加 (編集中の ptvoice / ptnoise)
+//   34. 音色を編集 (Collage の PTV/PTN をエディタで開く) / 35. 変更を適用 (リンク付き voice/noise → 元の Collage 音色) / 36. File メニューの「変更を適用」の位置
+//   37. 音量スライダーの永続化 (localStorage) / 38. ptnoise のレイヤー数 (ファイルに無いレイヤーも 4 つ表示する) / 39. ビルド履歴はタブごとに独立する
+//   40. リンクなしで音色を開く (pttune の「音色を開く」) / 41. 初期タブの置き換え (無題の音色を開いたタブは置き換えない)
+//   42. スコープ操作 (コピー / 切り取り / クリア / 消去 / 貼り付け / 挿入 / 移調) / 43. WAV書き出しオプション (本家 dlg_BuildOption 相当)
+//   44. 音色プロパティ編集 (本家 dlg_Woice 相当)
 import {
   projects,
   currentProjectId,
@@ -222,7 +239,7 @@ checkEq(
 checkEq(serviceMod.service.master.beatTempo, 120, "テンポ復元 (120)");
 checkEq(projects.value.length, 3, "タブ数 3");
 
-// ---- 6b. pttune は再生専用タブとして開く (DENY_BEATCLOCK にならない) ----
+// ---- 7. pttune は再生専用タブとして開く (DENY_BEATCLOCK にならない) ----
 const tuneSvc = new Service();
 checkEq(tuneSvc.init(), PxtnErr.OK, "tune: 非編集 Service 初期化");
 checkEq(tuneSvc.read(new MemoryIo(bytes!)), PxtnErr.OK, "tune: ptcop 読み込み");
@@ -249,7 +266,7 @@ switchProject(p3Id);
 checkEq(doc.readOnly, false, "tune: ptcop タブに戻すと readOnly 解除");
 checkEq(isTuneProject(), false, "tune: ptcop タブでは isTuneProject が偽");
 
-// ---- 7. タブごとの undo 独立 (追加分) ----
+// ---- 8. タブごとの undo 独立 (追加分) ----
 switchProject(p1Id);
 checkEq(units.value.length, 2, "1タブ目 units=2 に戻る");
 addUnit("C");
@@ -261,7 +278,7 @@ checkEq(canUndo.value, false, "2タブ目 undo は空のまま");
 switchProject(p1Id);
 checkEq(canUndo.value, true, "1タブ目 undo 復元 (true)");
 
-// ---- 8. closeProject ----
+// ---- 9. closeProject ----
 closeProject(p3Id);
 checkEq(projects.value.length, 2, "閉じると 2タブ");
 checkEq(currentProjectId.value, p1Id, "非アクティブを閉じても現在タブは p1");
@@ -272,7 +289,7 @@ check((() => {
 checkEq(currentProjectId.value, p2.id, "残ったタブは 1つ (p2)");
 checkEq(units.value.length, 0, "p2 は units=0");
 
-// ---- 9. ソロ ----
+// ---- 10. ソロ ----
 addUnit("A");
 addUnit("B");
 addUnit("C");
@@ -296,7 +313,7 @@ checkEq(doc.soloUnit, -1, "新タブはソロなし");
 switchProject(p2.id);
 checkEq(doc.soloUnit, soloP2, "元のタブのソロが復元");
 
-// ---- 10. ソロ解除で元のミュート状態を復元 ----
+// ---- 11. ソロ解除で元のミュート状態を復元 ----
 // ユニット0をミュート → ユニット1をソロ → 解除 → ユニット0だけミュートのまま
 toggleUnitMute(0);
 checkEq(doc.muted.length, 1, "手動ミュート: unit0のみ");
@@ -316,7 +333,7 @@ toggleUnitMute(0); // ソロ中に unit0 を再生に → ソロ解除、unit0 �
 checkEq(doc.soloUnit, -1, "ソロ中のミュート変更: ソロ解除");
 checkEq(doc.muted.length, 0, "ソロ中のミュート変更: unit0 ミュート解除が反映");
 
-// ---- 10b. ソロの直接切替では元のバックアップを保持 ----
+// ---- 12. ソロの直接切替では元のバックアップを保持 ----
 toggleUnitMute(0);
 checkEq(doc.muted.length, 1, "切替前: unit0 のみミュート");
 checkEq(doc.muted[0], 0, "切替前: 対象は unit0");
@@ -329,7 +346,7 @@ toggleUnitSolo(2); // 解除
 checkEq(doc.muted.length, 1, "切替後解除: unit0 のミュートが復元");
 checkEq(doc.muted[0], 0, "切替後解除: 残るのは unit0");
 
-// ---- 11. ユニット削除・並べ替えでソロ/ミュートが追従 ----
+// ---- 13. ユニット削除・並べ替えでソロ/ミュートが追従 ----
 toggleUnitSolo(1);
 checkEq(doc.soloUnit, 1, "削除前: soloUnit=1");
 removeUnit(0); // 削除で index がずれる
@@ -341,7 +358,7 @@ removeUnit(0); // ソロ対象の削除 → ソロ解除 + backup 復元 (空)
 checkEq(doc.soloUnit, -1, "ソロ対象削除: soloUnit=-1");
 checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
-// ---- 12. 再生中のミュート/ソロ変更が worklet に反映される ----
+// ---- 14. 再生中のミュート/ソロ変更が worklet に反映される ----
 (async () => {
   const mutedCalls: number[][] = [];
   const orig = player.setMutedUnits;
@@ -360,7 +377,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
   isPlaying.value = false;
   player.setMutedUnits = orig;
 
-  // ---- 13. 単音プレビュー停止時にリリースフェードがかかる ----
+  // ---- 15. 単音プレビュー停止時にリリースフェードがかかる ----
   {
     const pcm = buildPcmWav();
 
@@ -440,7 +457,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     );
   }
 
-  // ---- 14. 初期プロジェクトのみのとき、開くで置き換える ----
+  // ---- 16. 初期プロジェクトのみのとき、開くで置き換える ----
   {
     while (projects.value.length > 1) closeProject(projects.value[0]!.id);
     const cur = projects.value[0]!;
@@ -463,7 +480,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     closeProject(currentProjectId.value);
   }
 
-  // ---- 15. themeParse (ジェネレーターCSS → トークンマップ) ----
+  // ---- 17. themeParse (ジェネレーターCSS → トークンマップ) ----
   {
     // Tailwind ディレクティブ付きの shadcn ジェネレーター出力
     const gen = `@import "tailwindcss";
@@ -544,7 +561,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     check(!buildStandaloneThemeCss("Dark", { light: {}, dark: { "--background": "black" } }).includes(":root"), "エクスポートCSS: light が空ならブロック省略");
   }
 
-  // ---- 16. 小節コピー / イベント音量 / ユニット追加 ----
+  // ---- 18. 小節コピー / イベント音量 / ユニット追加 ----
   {
     const s = serviceMod.service;
     // イベントを用意 (unit0 に clock 0 で KEY+VELOCITY+ON, unit1 に clock 240 で VELOCITY)
@@ -627,7 +644,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     );
   }
 
-  // ---- 17. VOICENO イベントからの音色解決 / Start-End 状態 ----
+  // ---- 19. VOICENO イベントからの音色解決 / Start-End 状態 ----
   {
     // 音色を割り当てず VOICENO イベントだけのユニット (開いた直後相当)
     const wIdx = serviceMod.service.woiceNum - 1;
@@ -685,7 +702,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(loop.value, true, "REPEAT がデフォルトで ON");
   }
 
-  // ---- 18. 音声 (ptVoice) ドキュメント管理 ----
+  // ---- 20. 音声 (ptVoice) ドキュメント管理 ----
   {
     const pCount = projects.value.length;
     newVoice();
@@ -794,7 +811,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     check(pcm !== null && pcm.length > 0, "voice: renderWoice が PCM を返す", `len=${pcm?.length}`);
   }
 
-  // ---- 19. ノイズ (ptNoise) ドキュメント管理 ----
+  // ---- 21. ノイズ (ptNoise) ドキュメント管理 ----
   {
     newNoise();
     checkEq(noises.value.length, 1, "noise: 新規タブが1つ");
@@ -850,7 +867,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     check(pcm !== null && pcm.length === 44100 * 2, "noise: renderNoise が1秒ステレオ PCM を返す", `len=${pcm?.length}`);
   }
 
-  // ---- 20. Coordinate 波形の編集ルール (本家 ptuiWave 準拠) ----
+  // ---- 22. Coordinate 波形の編集ルール (本家 ptuiWave 準拠) ----
   {
     const pts = [
       { x: 0, y: 0 },
@@ -891,7 +908,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(insertWavePoint(pts3, 305, 0, 31), false, "coord: 31点を超えて追加不可");
   }
 
-  // ---- 21. エンベロープ (本家 ptuiEnvelope 準拠: 区間長 x + 累積描画) ----
+  // ---- 23. エンベロープ (本家 ptuiEnvelope 準拠: 区間長 x + 累積描画) ----
   {
     // デフォルト: points[0]={0,96}, points[31]={1,0} (リリース)
     const pts = Array.from({ length: 32 }, () => ({ x: 0, y: 0 }));
@@ -951,7 +968,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(enveDeletePoint(pts2, 31, 1), false, "enve: 有効点1つなら削除不可");
   }
 
-  // ---- 22. プレビューの音程 (本家 ptVoice 準拠: 中央キー 441 Hz) ----
+  // ---- 24. プレビューの音程 (本家 ptVoice 準拠: 中央キー 441 Hz) ----
   {
     const w = createDefaultWoice();
     // 倍音1のみの正弦波に置き換えて基本周波数をゼロ交差で計測する
@@ -975,7 +992,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     }
   }
 
-  // ---- 23. 波形プリセット (本家 ptuiWavePreset 準拠) ----
+  // ---- 25. 波形プリセット (本家 ptuiWavePreset 準拠) ----
   {
     const w = createDefaultWoice();
     const vc = w.getVoice(0)!;
@@ -1056,7 +1073,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     check(sorted, "preset: Random (座標) は x でソート");
   }
 
-  // ---- 24. A/B 面コピー (本家 copy_ptv_voice 準拠) ----
+  // ---- 26. A/B 面コピー (本家 copy_ptv_voice 準拠) ----
   {
     newVoice();
     editVoice(() => {
@@ -1086,7 +1103,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(w.getVoice(0)!.wave.points[1]!.y, 99, "copy: B→A で波形コピー");
   }
 
-  // ---- 25. Repeat の undo で表示値 (1-based) がエンジンと一致する ----
+  // ---- 27. Repeat の undo で表示値 (1-based) がエンジンと一致する ----
   {
     // sync() がエンジン値から 1-based 表示へ変換する (undo/redo 後の不整合の回帰テスト)
     const m = serviceMod.service.master;
@@ -1107,7 +1124,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(doc.repeatMeas, 5, "repeat: クリアの undo で表示値が 5 に戻る");
   }
 
-  // ---- 26. 抽出 lib の純関数 (リファクタ後の回帰テスト) ----
+  // ---- 28. 抽出 lib の純関数 (リファクタ後の回帰テスト) ----
   {
     // lib/clock: formatTime (mm:ss) / measStartClock
     checkEq(formatTime(0), "0:00", "lib: formatTime(0)");
@@ -1313,7 +1330,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkBytes(encodeShiftJis("あ"), new Uint8Array([0x82, 0xa0]), "lib: ひらがなは従来どおり");
   }
 
-  // ---- 25. MIDI (SMF) → ptcop 変換 ----
+  // ---- 29. MIDI (SMF) → ptcop 変換 ----
   {
     // SMF 組み立てヘルパー
     const vlq = (v: number): number[] => {
@@ -1487,7 +1504,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     }
   }
 
-  // ---- 27. OGGV 音色 ----
+  // ---- 30. OGGV 音色 ----
   {
     // pxtone-ts のテスト用 OGG フィクスチャ (2ch/44100Hz/1秒)
     const ogg = new Uint8Array(readFileSync(join(__dirname, "fixtures", "test-tone.ogg")));
@@ -1554,7 +1571,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(w.isOggvDecoded(), true, "oggv: デコード済みになる");
   }
 
-  // ---- 28. ファイル名ユーティリティ ----
+  // ---- 31. ファイル名ユーティリティ ----
   {
     checkEq(stripFileExt("song.ptcop"), "song", "fileutil: 拡張子を除去");
     checkEq(stripFileExt("song.tar.gz"), "song.tar", "fileutil: 最後の拡張子のみ除去");
@@ -1563,7 +1580,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(stripFileExt("untitled."), "untitled", "fileutil: 末尾ドットも除去 (先頭以外の最後のドット以降)");
   }
 
-  // ---- 29. 音色タイプ判別 (マジックバイト) ----
+  // ---- 32. 音色タイプ判別 (マジックバイト) ----
   {
     const enc = (s: string): Uint8Array => new Uint8Array([...new TextEncoder().encode(s), 0, 0, 0, 0]);
     checkEq(detectWoiceType(enc("PTVOICE-")), WoiceType.PTV, "woicetype: PTV を判別");
@@ -1572,7 +1589,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(detectWoiceType(enc("RIFF")), WoiceType.PCM, "woicetype: 不明なヘッダは PCM");
   }
 
-  // ---- 30. Collage への音色追加 (編集中の ptvoice / ptnoise) ----
+  // ---- 33. Collage への音色追加 (編集中の ptvoice / ptnoise) ----
   {
     // 追加先は編集可能な Collage タブ (読み取り専用の pttune タブでは追加されない)
     newProjectInTab();
@@ -1604,7 +1621,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(svc.woiceNum, woiceNum0 + 2, "collageadd: 読み戻した ptcop に追加した音色が残る");
   }
 
-  // ---- 31. 音色を編集 (Collage の PTV/PTN をエディタで開く) ----
+  // ---- 34. 音色を編集 (Collage の PTV/PTN をエディタで開く) ----
   {
     const s = serviceMod.service;
     // 30. で追加した PTV/PTN を対象にする (末尾2つ)
@@ -1649,7 +1666,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(woiceName(anon), "(no name)", "woiceedit: 名前なしは表示用に (no name)");
   }
 
-  // ---- 32. 変更を適用 (リンク付き voice/noise → 元の Collage 音色) ----
+  // ---- 35. 変更を適用 (リンク付き voice/noise → 元の Collage 音色) ----
   {
     // 書き戻し先になる Collage プロジェクト (現在のタブ)
     const projA = newProjectInTab();
@@ -1748,7 +1765,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     );
   }
 
-  // ---- 33. File メニューの「変更を適用」の位置 ----
+  // ---- 36. File メニューの「変更を適用」の位置 ----
   {
     const ops = {
       new: () => {},
@@ -1777,7 +1794,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     );
   }
 
-  // ---- 34. 音量スライダーの永続化 (localStorage) ----
+  // ---- 37. 音量スライダーの永続化 (localStorage) ----
   {
     // localStorage をスタブして往復させる (node には localStorage がないため)
     const store = new Map<string, string>();
@@ -1815,7 +1832,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     delete (globalThis as { localStorage?: unknown }).localStorage;
   }
 
-  // ---- 35. ptnoise のレイヤー数 (ファイルに無いレイヤーも 4 つ表示する) ----
+  // ---- 38. ptnoise のレイヤー数 (ファイルに無いレイヤーも 4 つ表示する) ----
   {
     // 1 ユニットだけの ptnoise を手組みする (本家 ptNoise で保存したファイル相当)
     const one = new Noise();
@@ -1873,7 +1890,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkBytes(snapshotNoise(d3)!, bytes3, "layers: 3ユニットでも保存バイト列は元と同じ");
   }
 
-  // ---- 36. ビルド履歴はタブごとに独立する ----
+  // ---- 39. ビルド履歴はタブごとに独立する ----
   {
     const a = newNoise();
     pushNoiseHistory(new Float32Array([0, 0]), "A1");
@@ -1900,7 +1917,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(currentNoise()!.history[0]!.label, "B1", "history: タブBの履歴は影響を受けない");
   }
 
-  // ---- 37. リンクなしで音色を開く (pttune の「音色を開く」) ----
+  // ---- 40. リンクなしで音色を開く (pttune の「音色を開く」) ----
   {
     // PTV 音色を用意して、リンクなしで開く (「変更を適用」の対象を持たない)
     const src = newVoice();
@@ -1917,7 +1934,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(currentVoice()!.link?.woiceIndex, 0, "open: link を持てる");
   }
 
-  // ---- 38. 初期タブの置き換え (無題の音色を開いたタブは置き換えない) ----
+  // ---- 41. 初期タブの置き換え (無題の音色を開いたタブは置き換えない) ----
   {
     // 起動直後 (初期タブだけ) の状態にする
     for (const v of [...voices.value]) closeVoice(v.id);
@@ -1954,7 +1971,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(noises.value.length, 2, "replace: noise も2つ目は新しいタブになる");
   }
 
-  // ---- 39. スコープ操作 (コピー / 切り取り / クリア / 消去 / 貼り付け / 挿入 / 移調) ----
+  // ---- 42. スコープ操作 (コピー / 切り取り / クリア / 消去 / 貼り付け / 挿入 / 移調) ----
   {
     // 直前のセクションが tune (再生専用) タブのままなので、編集可能な ptcop タブを用意する
     // (tune の Service は evels 容量 0 のためレコードを積めず、readOnly で mutate も無効。
@@ -2090,7 +2107,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     doc.mode = "U";
   }
 
-  // ---- 40. WAV書き出しオプション (本家 dlg_BuildOption 相当) ----
+  // ---- 43. WAV書き出しオプション (本家 dlg_BuildOption 相当) ----
   {
     // WAV ヘッダ (fmt ch / sps / data サイズ) を読む
     const wavInfo = (wav: Uint8Array): { ch: number; sps: number; dataSize: number } => {
@@ -2175,7 +2192,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     check("wav" in unmuted && wavHasSignal(unmuted.wav), "wavexport: ミュート無効なら鳴る");
   }
 
-  // ---- 41. 音色プロパティ編集 (本家 dlg_Woice 相当) ----
+  // ---- 44. 音色プロパティ編集 (本家 dlg_Woice 相当) ----
   {
     newProjectInTab();
     checkEq(await addWoice(buildPcmWav(), WoiceType.PCM, "Prop"), null, "woiceprop: PCM音色を追加");
