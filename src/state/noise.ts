@@ -28,6 +28,19 @@ export interface NoiseDoc extends TabDocBase {
   historyAtMs: number; // 直前エントリの記録時刻 (連続編集のまとめ用)
 }
 
+// 本家 NoiseTable_CopyUnit と同じフィールドをコピーする。
+// pxtone-ts の NoiseUnit に copy API が無いため、対象フィールドをここに列挙する
+function copyNoiseUnit(dst: NoiseUnit, src: NoiseUnit): void {
+  dst.bEnable = src.bEnable;
+  dst.pan = src.pan;
+  dst.main = src.main;
+  dst.freq = src.freq;
+  dst.volu = src.volu;
+  dst.enveNum = src.enveNum;
+  // 退避元のユニットは他から参照されないため、配列は共有してよい
+  dst.enves = src.enves;
+}
+
 // 読み込んだノイズを 4 レイヤー分 (本家 MAX_NOISETABLEUNIT) に広げる。
 // バイト列に無いレイヤーは無効な空レイヤーとして追加され、常に 4 レイヤー表示になる
 // (本家 dlg_Noise_Design::_Load_Design の Allocate + NoiseTable_CopyUnit と同じ)。
@@ -39,16 +52,7 @@ function padNoiseUnits(n: Noise): void {
   for (let u = 0; u < unitNum; u++) units.push(n.getUnit(u)!);
   n.allocate(NOISE_UNIT_NUM, NOISE_ENVE_NUM);
   for (let u = 0; u < unitNum; u++) {
-    // 退避したユニットは他から参照されないため、フィールドの代入でコピーする
-    const dst = n.getUnit(u)!;
-    const src = units[u]!;
-    dst.bEnable = src.bEnable;
-    dst.pan = src.pan;
-    dst.main = src.main;
-    dst.freq = src.freq;
-    dst.volu = src.volu;
-    dst.enveNum = src.enveNum;
-    dst.enves = src.enves;
+    copyNoiseUnit(n.getUnit(u)!, units[u]!);
   }
 }
 
