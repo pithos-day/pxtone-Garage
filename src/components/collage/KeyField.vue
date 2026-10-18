@@ -25,13 +25,19 @@ import {
 } from "../../lib/clock";
 import { EventKind } from "pxtone-ts";
 import { writeNote, eraseNote, dropShortPrevNote, paintKeyDrag } from "../../lib/editing";
+import {
+  smartPlacement,
+  commitSmartDrag,
+  shiftKeyValue,
+  type SmartDrag,
+  type SmartMode,
+  type SmartNote,
+} from "../../lib/smart-note";
 import { STRIP_W } from "../../lib/layout";
 import {
   doc,
   getService,
   clockContext,
-  addEvent,
-  deleteEvents,
   projectWriteOps,
   pianoRollUnits,
   mutate,
@@ -247,29 +253,9 @@ function drawNotes(
 // ドラッグの骨格 (pointerdown/move/up + キャプチャ + undo) は useCanvasDrag が担当し、
 // 鍵盤試聴・イベント書き換え・クリックシークのみを注入する
 
-// スマートツールの操作モード (押下位置の状態で確定する)
-// write: 空き地にノートを書き込む (pen と同じ)。grab: ノートを掴んで移動。
-// head: 左端の調整 (開始のみ。終了は固定)。tail: 右端の調整 (終了のみ。開始は固定)
-type SmartMode = "write" | "grab" | "head" | "tail";
-
-// 掴み / 端調整の対象ノート (drawn の ON)
-interface SmartNote {
-  head: number; // 先頭クロック (ON イベント位置)
-  end: number; // 末尾クロック (head + len)
-  key: number; // 描画上の音程 (KEY 値)
-}
-
-// スマートツールのドラッグ状態
-interface SmartState {
-  mode: SmartMode;
-  note: SmartNote | null;
-  // 掴み / 端調整で再配置するイベント列 (clock は絶対値)。
-  // 余韻で鳴っていた音程を保存するための KEY (実在しない) もここに載せる
-  evs: { clock: number; kind: EventKind; value: number }[];
-  // プレビュー状態。ドラッグ中はここを更新して見せるだけで、
-  // イベント列への反映は pointerup の commit で 1 回だけ行う
-  offset: number; // 押下位置からの移動量 (クロック)
-  rowDelta: number; // 掴みの音程移動量
+// スマートツールのドラッグ状態。配置計算と確定は lib/smart-note が持ち、
+// ここでは lastDelta (押下中サステインの再試聴判定) だけを UI 用に足す
+interface SmartState extends SmartDrag {
   lastDelta: number; // 直前の rowDelta (試聴の再トリガ判定用)
 }
 
@@ -330,14 +316,6 @@ function noteAt(u: number, clock: number, row: number): SmartNote | null {
 // スマートツールの端判定幅 (CSS px)。端からこれ以内は端の調整、それ以外は掴み。
 // グリッド基準の端判定だと書き込み 1 つ分の短いノートで端が掴めないため px 基準にする
 const EDGE_PX = 8;
-
-// KEY イベント値の上限 (音程移動のクランプ。本家の KEY 値域)
-const KEY_VALUE_MAX = 49151;
-
-// KEY 値を rowDelta 行ぶん移動する (KEY 値は 0x8700 - row*0x100 のため行が下がるほど減る)
-function shiftKeyValue(value: number, rowDelta: number): number {
-  return Math.max(0, Math.min(KEY_VALUE_MAX, value - rowDelta * 0x100));
-}
 
 // 押下 x (キャンバス px) で掴み / 開始 / 終了を決める。
 // ノート幅が端判定幅以下の短いノートは左右半分で開始/終了を分ける
@@ -443,97 +421,6 @@ function updateSmartPreview(d: KeyDrag, pt?: { x: number; y: number }): void {
   previewRev.value++;
 }
 
-// スマートドラッグの確定後の配置。確定 (commitSmartDrag) とプレビュー (drawSmartGhost) が
-// この 1 つの計算を共有し、見た目と実際の確定がずれないようにする
-interface SmartPlacement {
-  head: number; // ノート先頭クロック
-  len: number; // ノート長 (クロック)
-  rowKey: number; // 表示する代表 KEY 値 (掴みでは音程移動を反映)
-}
-
-function smartPlacement(st: SmartState, note: SmartNote, dragClock2: number): SmartPlacement {
-  // 余韻で鳴っている音程も保存用 KEY として配置に含める
-  const rowKey = st.evs.find((e) => e.kind === EventKind.KEY && e.clock === note.head)?.value ?? note.key;
-  if (st.mode === "tail") {
-    // 終了調整: 先頭は固定で押下クロックを末尾にする (最短 1 グリッド)
-    return { head: note.head, len: Math.max(beatGrid(), dragClock2 - note.head), rowKey };
-  }
-  if (st.mode === "head") {
-    // 開始調整: 終了は固定で押下クロックに開始を合わせる (最短 1 グリッド)
-    const head = Math.max(0, Math.min(note.end - beatGrid(), dragClock2));
-    return { head, len: note.end - head, rowKey };
-  }
-  // 掴み: 全体移動 + 音程移動
-  return { head: Math.max(0, note.head + st.offset), len: note.end - note.head, rowKey: shiftKeyValue(rowKey, st.rowDelta) };
-}
-
-// スマートドラッグの確定 (pointerup)。プレビューしていた配置をイベント列に反映する。
-// ドラッグ中は 1 度も書き換えていないため、周囲のノートを巻き込むのはこの 1 回だけ
-function commitSmartDrag(u: number, d: KeyDrag): void {
-  const st = d.smart!;
-  const note = st.note!;
-  const grid = beatGrid();
-  const s = getService();
-  if (!s) return;
-  const place = smartPlacement(st, note, d.clock2);
-  if (st.mode === "tail") {
-    // 終了位置: 押下クロックを新しい末尾にする (最短 1 グリッド)
-    if (place.len === note.end - note.head) return;
-    deleteEvents(note.head, note.head + 1, u, EventKind.ON);
-    // 延伸で呑み込まれるノート: ON は追加時 (テール連鎖処理) に消えるが
-    // 先頭成分 (KEY/VELOCITY) が孤児で残る。孤児 KEY は後続ノートの音程を
-    // 化けさせ、描画上の off (余韻) を ON に重ねて見せるため、自ノートの
-    // 先頭スロットを除いて掃除しておく
-    const tailEnd = place.head + place.len;
-    for (const e of s.evels.records) {
-      if (e.unitNo !== u || e.kind !== EventKind.ON) continue;
-      if (e.clock >= tailEnd) break;
-      if (e.clock <= note.head) continue;
-      for (const kind of [EventKind.KEY, EventKind.VELOCITY]) {
-        deleteEvents(e.clock, e.clock + 1, u, kind);
-      }
-    }
-    addEvent(note.head, u, EventKind.ON, place.len);
-    return;
-  }
-  if (st.mode === "head") {
-    // 開始位置: 終了 (note.end) は固定。押下クロックを新しい開始にし、
-    // 先頭クロックに置かれていたノート成分 (KEY/VELOCITY/ON) を移す
-    if (place.head === note.head) return;
-    for (const kind of [EventKind.KEY, EventKind.VELOCITY, EventKind.ON]) {
-      deleteEvents(note.head, note.head + 1, u, kind);
-    }
-    // 挿入位置の直前ノートが超短い断片になる (隣に張り付いて重なって見える) ときは消す
-    dropShortPrevNote(projectWriteOps, s.evels.records, place.head, u, grid);
-    for (const ev of st.evs) {
-      if (ev.clock !== note.head || ev.kind === EventKind.ON) continue;
-      addEvent(place.head, u, ev.kind, ev.value);
-    }
-    addEvent(place.head, u, EventKind.ON, place.len);
-    return;
-  }
-  // 掴み: 押下時の配置から移動がなければ何もしない。あればノート全体を
-  // 新しい位置へ載せ替える (移動元の範囲を消してから置く)
-  if (st.offset === 0 && st.rowDelta === 0) return;
-  for (const kind of [EventKind.KEY, EventKind.VELOCITY, EventKind.ON]) {
-    deleteEvents(note.head, Math.max(note.head + 1, note.end), u, kind);
-  }
-  // ドロップは完全置き換え。またぐ直前ノートは丸ごと消し (切り詰めの断片を
-  // 残さない)、呑み込まれたノートは ON が消えても先頭成分 (KEY/VELOCITY) が
-  // 孤児で残る (後続の音程を化けさせ、off を重ねて描かせる) ので範囲ごと消す。
-  // 自ノートの成分はこの後に st.evs から再配置する
-  const targetEnd = place.head + place.len;
-  dropShortPrevNote(projectWriteOps, s.evels.records, place.head, u, Number.MAX_SAFE_INTEGER);
-  for (const kind of [EventKind.KEY, EventKind.VELOCITY]) {
-    deleteEvents(place.head, Math.max(place.head + 1, targetEnd), u, kind);
-  }
-  for (const ev of st.evs) {
-    const clock = ev.clock + st.offset;
-    if (clock < 0) continue; // 負クロックには置けない
-    addEvent(clock, u, ev.kind, ev.kind === EventKind.KEY ? shiftKeyValue(ev.value, st.rowDelta) : ev.value);
-  }
-}
-
 // pen / スマート書き込みドラッグの確定前ノート (ゴースト) 描画。
 // ドラッグ中はイベント列を触らないため、[押下..現在] の範囲に置くノートを予告として描く
 function drawNoteGhost(ctx: CanvasRenderingContext2D, d: KeyDrag, field: FieldCtx, unitNo: number): void {
@@ -556,11 +443,12 @@ function drawNoteGhost(ctx: CanvasRenderingContext2D, d: KeyDrag, field: FieldCt
 }
 
 // スマートドラッグのゴースト (確定後の配置) 描画。
-// 配置 (head/len/KEY 値) は commitSmartDrag と smartPlacement を共有する
+// 配置 (head/len/KEY 値) は lib/smart-note の smartPlacement を commitSmartDrag と共有する
 function drawSmartGhost(ctx: CanvasRenderingContext2D, d: KeyDrag, field: FieldCtx, unitNo: number): void {
   const st = d.smart!;
-  const note = st.note!;
-  const place = smartPlacement(st, note, d.clock2);
+  const note = st.note;
+  const place = smartPlacement(st, d.clock2, beatGrid());
+  if (!note || !place) return;
   const color = getUnitColor(unitNo);
   const { w, top, h, view, scrollX, scrollY } = field;
 
@@ -712,9 +600,12 @@ const { onPointerDown, onPointerMove, onPointerUp, drag: dragState } = useCanvas
     const dd = dragState.value;
     if (dd && !doc.readOnly) {
       const u = doc.focusUnit;
-      if (u >= 0) {
+      const s = getService();
+      if (u >= 0 && s) {
         if (dd.smart && dd.smart.mode !== "write") {
-          commitSmartDrag(u, dd);
+          // 確定は lib/smart-note 側 (プレビューと同じ配置計算を使う)。
+          // またぐノートの探索は削除の反映後にやり直すため records は都度読む
+          commitSmartDrag(projectWriteOps, () => s.evels.records, u, dd.smart, dd.clock2, beatGrid());
           doc.rev++;
         } else if (dd.button === 0 && doc.tool !== "hand" && dd.clock2 !== dd.clock1) {
           // pen (スマート書き込み含む): 確定時に 1 回だけ書く
