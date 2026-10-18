@@ -24,7 +24,7 @@ import {
   keyValueToRow,
 } from "../../lib/clock";
 import { EventKind } from "pxtone-ts";
-import { writeNote, eraseNote, dropShortPrevNote } from "../../lib/editing";
+import { writeNote, eraseNote, dropShortPrevNote, paintKeyDrag } from "../../lib/editing";
 import { STRIP_W } from "../../lib/layout";
 import {
   doc,
@@ -32,7 +32,6 @@ import {
   clockContext,
   addEvent,
   deleteEvents,
-  setEventValue,
   projectWriteOps,
   pianoRollUnits,
   mutate,
@@ -281,6 +280,9 @@ type KeyDrag = {
   row: number;
   // スマートツール専用の状態 (pen/hand では省略)
   smart?: SmartState;
+  // 手ツールが左端に挿した KEY のクロック。ドラッグで左端が動くたびに
+  // 前の挿入 KEY を外して挿し直す (lib/editing の paintKeyDrag が更新する)
+  insertedKeyClock?: number;
 };
 
 // 今のグリッド幅 (divi で拍を分割したクロック数)
@@ -603,7 +605,8 @@ function commitNoteDrag(u: number, d: KeyDrag): void {
 function applyDrag(d: KeyDrag, pt?: { x: number; y: number }): void {
   // 読み取り専用タブでは書き込まない (シーク用の onClick のみ有効)
   if (doc.readOnly) return;
-  if (!getService()) return;
+  const s = getService();
+  if (!s) return;
   const u = doc.focusUnit;
   if (u < 0) return;
   // スマートのノート操作 (掴み / 端調整) はプレビュー更新のみ。実書き換えは
@@ -620,9 +623,9 @@ function applyDrag(d: KeyDrag, pt?: { x: number; y: number }): void {
   const keyOnly = doc.tool === "hand";
   if (d.button === 0) {
     if (keyOnly) {
-      // 手ツール: KEY の書き換えのみ (単純置換なのでプレビュー不要)
-      setEventValue(c1, c2, u, EventKind.KEY, value);
-      addEvent(c1, u, EventKind.KEY, value);
+      // 手ツール: KEY の書き換えのみ (単純置換なのでプレビュー不要)。
+      // 左端へ挿す KEY は 1 個だけ保つ (増やすとノートが細切れに見える)
+      d.insertedKeyClock = paintKeyDrag(projectWriteOps, s.evels.records, c1, c2, u, value, d.insertedKeyClock);
       doc.rev++;
       return;
     }

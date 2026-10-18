@@ -122,7 +122,7 @@ import { renderWoice, renderNoise } from "../src/engine/preview";
 import { parseMidi, convertMidiToPtcop } from "../src/engine/midi";
 import { formatTime, measStartClock } from "../src/lib/clock";
 import { scaleToWoice, scaleToGroup, VOLUME_EDIT_KIND } from "../src/lib/volume";
-import { writeNote, writeNoteLength, eraseNote, writeVolumeEvent, type EventWriteOps } from "../src/lib/editing";
+import { writeNote, writeNoteLength, eraseNote, writeVolumeEvent, paintKeyDrag, type EventWriteOps } from "../src/lib/editing";
 import { MENU_LABELS, menuNamesFor, buildFileMenu } from "../src/lib/menuItems";
 import { t } from "../src/i18n";
 import { secToEnveX, pctToEnveY, pushHistoryEntry } from "../src/lib/noise";
@@ -1212,6 +1212,82 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     log.length = 0;
     writeVolumeEvent(ops, 0, 480, 1, EventKind.VELOCITY, "setValue", 80, 4);
     checkEq(log.join(";"), "set 0-480 u1 VELOCITY 80", "lib: writeVolumeEvent setValue は値の書換のみ");
+
+    // lib/editing: 手ツールの KEY 塗り替え。左端に挿す KEY は 1 個だけ保つ
+    // (挿したまま左へ動かすとノートの途中に音程の変わり目が増えて細切れに見える)
+    {
+      const base: EveRecord[] = [
+        { unitNo: 0, clock: 0, kind: EventKind.KEY, value: 0x6000 },
+        { unitNo: 0, clock: 960, kind: EventKind.KEY, value: 0x6000 },
+      ];
+      log.length = 0;
+      let inserted: number | undefined;
+      // 押下 1920 から 480 まで 120 刻みで左へスイープ
+      for (let clock = 1800; clock >= 480; clock -= 120) {
+        inserted = paintKeyDrag(ops, base, clock, 1920, 0, 0x6800, inserted);
+      }
+      checkEq(inserted, 480, "lib: paintKeyDrag は挿入 KEY のクロックを返す");
+      const dels = log.filter((l) => l.startsWith("del"));
+      checkEq(dels.length, 10, "lib: paintKeyDrag は左端が動いた回数だけ挿入 KEY を外す");
+      check(!dels.some((l) => l.startsWith("del 960")), "lib: paintKeyDrag は既存 KEY を外さない", dels.join(";"));
+      checkEq(log[log.length - 1], "add 480 u0 KEY 26624", "lib: paintKeyDrag は左端へ KEY を挿す");
+
+      // 実イベント列で左ドラッグと右ドラッグの結果が一致する (同じ音程の範囲塗り)
+      const roll = (press: number, cursors: number[]): { keys: string; draws: string } => {
+        const s = new Service();
+        checkEq(s.initCollage(PXTN_MAX_EVENT_NUM), PxtnErr.OK, "lib: paintKeyDrag 用 Service init");
+        s.evels.clear();
+        const eops: EventWriteOps = {
+          deleteEvents: (c1, c2, unit, kind) => {
+            s.evels.recordDelete(c1, c2, unit, kind);
+          },
+          addEvent: (clock, unit, kind, value) => {
+            s.evels.recordAddI(clock, unit, kind, value);
+          },
+          setEventValue: (c1, c2, unit, kind, value) => {
+            s.evels.recordValueSet(c1, c2, unit, kind, value);
+          },
+        };
+        // ノート 2 つ (0..960 / 960..1920、ともに KEY 0x6000)
+        for (const head of [0, 960]) {
+          eops.addEvent(head, 0, EventKind.KEY, 0x6000);
+          eops.addEvent(head, 0, EventKind.VELOCITY, 100);
+          eops.addEvent(head, 0, EventKind.ON, 960);
+        }
+        let ins: number | undefined;
+        for (const clock of cursors) {
+          const c1 = Math.min(press, clock);
+          const c2 = Math.max(press, clock);
+          if (c2 <= c1) continue;
+          ins = paintKeyDrag(eops, s.evels.records, c1, c2, 0, 0x6800, ins);
+        }
+        return {
+          keys: s.evels.records
+            .filter((e) => e.kind === EventKind.KEY)
+            .map((e) => `${e.clock}=${e.value}`)
+            .join(" "),
+          draws: [...iterNoteDraws(s.evels.records, 0, { startClock: 0, endClock: 1920 }, 0x6000)]
+            .map((d) => (d.kind === "key" ? `key@${d.clock}` : `${d.kind}@${d.clock}+${d.len}=${d.key}`))
+            .join(","),
+        };
+      };
+      const sweep = (from: number, to: number): number[] => {
+        const step = from < to ? 120 : -120;
+        const out: number[] = [];
+        for (let c = from; step > 0 ? c <= to : c >= to; c += step) out.push(c);
+        return out;
+      };
+      const left = roll(1920, sweep(1800, 480));
+      const right = roll(480, sweep(600, 1920));
+      checkEq(left.keys, "0=24576 480=26624 960=26624", "lib: paintKeyDrag は左端に挿入 KEY を 1 個だけ残す");
+      checkEq(left.keys, right.keys, "lib: paintKeyDrag は左右どちらのドラッグでも同じイベント列になる");
+      checkEq(left.draws, right.draws, "lib: paintKeyDrag は左右どちらのドラッグでも同じ描画になる");
+      checkEq(
+        left.draws,
+        "key@0,on@0+960=24576,key@480,off@480+480=26624,key@960,on@960+960=26624",
+        "lib: paintKeyDrag 後の余韻は 1 本につながる (細切れにならない)",
+      );
+    }
 
     // lib/menuItems: トップメニュー定義
     checkEq(MENU_LABELS.file, "File", "lib: MENU_LABELS file");

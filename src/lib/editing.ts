@@ -81,6 +81,34 @@ export function eraseNote(
   }
 }
 
+// 手ツール (KEY のみ編集) のドラッグ書き込み。範囲 [c1, c2) の KEY 値を keyValue に
+// 揃え、左端 c1 に KEY を 1 個だけ置く (本家も確定時に左端へ 1 個だけ挿す)。
+// ドラッグ中は左端が動くため、前の適用で挿した KEY (prevInserted) を外してから
+// 挿し直す。挿した KEY を残したまま左へ動かすとノートの途中に音程の変わり目が
+// 増えてノートが細切れに見える。戻り値は今回挿した KEY のクロック (左端に既存
+// KEY があるときは挿さないため undefined)
+export function paintKeyDrag(
+  ops: EventWriteOps,
+  records: EveRecord[],
+  c1: number,
+  c2: number,
+  unit: number,
+  keyValue: number,
+  prevInserted: number | undefined,
+): number | undefined {
+  if (c2 <= c1) return prevInserted;
+  let inserted = prevInserted;
+  if (inserted !== c1) {
+    // 左端が動いた (または初回)。自分の挿した KEY だけを外す
+    if (inserted !== undefined) ops.deleteEvents(inserted, inserted + 1, unit, EventKind.KEY);
+    // 左端に既存の KEY があるなら挿さない (値の塗り替えで足りる)
+    inserted = records.some((e) => e.clock === c1 && e.unitNo === unit && e.kind === EventKind.KEY) ? undefined : c1;
+  }
+  ops.setEventValue(c1, c2, unit, EventKind.KEY, keyValue);
+  ops.addEvent(c1, unit, EventKind.KEY, keyValue);
+  return inserted;
+}
+
 // ボリュームオートメーションの方式別書き込み (ボリュームフィールドの左ドラッグ)。
 // 方式 (VolumeEditKind) ごとに delete+add+set の並びが変わる
 export function writeVolumeEvent(
