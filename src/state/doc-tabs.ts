@@ -22,6 +22,9 @@ export interface TabDocBase {
 // 実体のバイト列化・復元 (voice: ptvWrite/ptvRead、noise: write/read)
 export interface DocCodec<D extends TabDocBase> {
   snapshot(d: D): Uint8Array | null;
+  // ファイル保存用のバイト列。省略時は snapshot を使う (undo 用と同じバイト列)。
+  // 本家エディタが保存時にだけ行う正規化がある場合に実装する
+  snapshotForSave?(d: D): Uint8Array | null;
   restore(d: D, bytes: Uint8Array): boolean;
 }
 
@@ -114,7 +117,7 @@ export function createDocTabs<D extends TabDocBase>(codec: DocCodec<D>) {
         if (input === null) return false;
         name = input.trim() || "untitled";
       }
-      const bytes = codec.snapshot(d);
+      const bytes = codec.snapshotForSave ? codec.snapshotForSave(d) : codec.snapshot(d);
       if (!bytes) return false;
       // キャンセル時 (null) はファイル名を更新しない。ピッカーで変更された名前は反映する
       // (タブ表示は拡張子なしのため、拡張子を除いて記録する)

@@ -75,6 +75,8 @@ import {
   applyWaveTypeData,
   copyVoiceSide,
   snapshotVoice,
+  snapshotVoiceForSave,
+  normalizeVoiceUnitForSave,
   openWoiceAsVoice,
   markVoiceClean,
   ensureInitialVoice,
@@ -112,7 +114,7 @@ import { encodeShiftJis, truncateShiftJis } from "../src/lib/sjis";
 import { visibleClockWindow, iterVisibleRecords, iterNoteDraws, type NoteDraw } from "../src/lib/records";
 import { woiceSummary } from "../src/lib/woice";
 import { stripFileExt, renderWav, WAV_EXPORT_DEFAULTS } from "../src/engine/io";
-import { MemoryIo, VoiceType, WaveType, EventKind, type EveRecord } from "pxtone-ts";
+import { MemoryIo, VoiceType, WaveType, EventKind, PTV_DATAFLAG_ENVELOPE, type EveRecord } from "pxtone-ts";
 import { shiftJisToString } from "pxtone-ts";
 import { Service, PxtnErr, PXTN_MAX_EVENT_NUM, Woice, Noise, pxtnServiceMooCalcSampleNum } from "pxtone-ts";
 import { defaultOggvDecoder } from "pxtone-ts";
@@ -736,6 +738,43 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       checkEq(c0.volume, 64, "waveType: 座標のボリュームは 64 に戻る (本家準拠)");
       checkEq(c0.wave.reso, 256, "waveType: 座標の分解能は 256");
       checkEq(c0.wave.num, 3, "waveType: 座標は 3 点");
+    }
+
+    // ---- 保存時の正規化 (本家 ptVoice/VoiceFile.cpp の VoiceFile_Save 準拠) ----
+    {
+      // Slim: 空の B面 (座標で num<=1) は保存時に削除される
+      const saved = snapshotVoiceForSave(currentVoice()!);
+      check("voice: 保存スナップショットが取れる", saved !== null);
+      const wSaved = new Woice();
+      checkEq(wSaved.read(new MemoryIo(saved!), WoiceType.PTV), PxtnErr.OK, "voice: 保存バイト列を読み戻せる");
+      checkEq(wSaved.voiceNum, 1, "voice: 空の B面は保存時に削除される (Slim)");
+      checkEq(wSaved.getVoice(0)!.volume, 64, "voice: A面は残る");
+      checkEq(currentVoice()!.woice.voiceNum, 2, "voice: 保存しても編集中のデータは 2 面のまま");
+
+      // エンベロープ: 空ポイントを詰め、tail 点を詰めた位置へ移す
+      const savedVc = wSaved.getVoice(0)!;
+      checkEq(savedVc.envelope.headNum, 1, "voice: エンベロープの空ポイントが詰まる (head=1)");
+      checkEq(savedVc.envelope.points[0]!.y, 96, "voice: エンベロープ先頭点は保持される");
+      checkEq(savedVc.envelope.points[1]!.x, 1, "voice: tail 点が詰めた位置へ移る");
+
+      // 倍音: 未使用ポイント (y==0) を詰める
+      const ov = createDefaultWoice();
+      const ovc = ov.getVoice(0)!;
+      applyWaveTypeData(ovc, "overtone");
+      ovc.wave.points[5]!.y = 64;
+      ovc.wave.points[10]!.y = -32;
+      normalizeVoiceUnitForSave(ovc);
+      checkEq(ovc.wave.num, 3, "voice: 倍音の未使用ポイントが詰まる (y!=0 は 3 点)");
+      checkEq(ovc.wave.points[1]!.y, 64, "voice: 詰めた後も元の順序 (1)");
+      checkEq(ovc.wave.points[1]!.x, 6, "voice: 詰めた後も x が対応する");
+      checkEq(ovc.wave.points[2]!.y, -32, "voice: 詰めた後も元の順序 (2)");
+
+      // 既定の 1 点エンベロープ (y=128) はデータフラグが落ちる
+      const de = createDefaultWoice().getVoice(0)!;
+      de.envelope.points[0] = { x: 0, y: 128 };
+      normalizeVoiceUnitForSave(de);
+      checkEq(de.envelope.headNum, 1, "voice: 既定エンベロープは 1 点に詰まる");
+      check("voice: 既定エンベロープはフラグが落ちる", (de.dataFlags & PTV_DATAFLAG_ENVELOPE) === 0);
     }
 
     editVoice(() => {
