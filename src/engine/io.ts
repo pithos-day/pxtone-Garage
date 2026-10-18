@@ -166,8 +166,10 @@ export async function renderWav(bytes: Uint8Array, options: WavExportOptions): P
   const s = new Service();
   if (s.init() !== PxtnErr.OK) return { error: t("error.engineInit") };
   if (s.read(new MemoryIo(decoded)) !== PxtnErr.OK) return { error: t("error.loadFailed") };
-  if (s.tonesReady() !== PxtnErr.OK) return { error: t("error.tonesReady") };
+  // 本家 (ptCollage/MainProc.cpp) と同じく出力レートを確定してから tones_ready する。
+  // 逆順だとエンベロープ/ディレイが 44100 基準で前計算され、48kHz 環境で長さがずれる
   if (!s.setDestinationQuality(options.chNum, options.sps)) return { error: t("error.quality") };
+  if (s.tonesReady() !== PxtnErr.OK) return { error: t("error.tonesReady") };
 
   // 本家と同じ順序: mute / volume を設定してから preparation する
   s.mooSetMuteByUnit(options.muteByUnit);

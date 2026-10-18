@@ -124,6 +124,39 @@ void (async () => {
     console.log(`renderWoice: ${work1!.length} samples`);
   }
 
+  // ---- 出力レート確定 → tones_ready の順序: 減衰長が出力レートに依存しないこと ----
+  // (逆順だとエンベロープが 44100 基準で前計算され、48kHz で約 8.8% 短くなる)
+  {
+    const w = createDefaultWoice();
+    const vc = w.getVoice(0)!;
+    vc.envelope.fps = 1000;
+    vc.envelope.headNum = 2;
+    vc.envelope.bodyNum = 0;
+    vc.envelope.tailNum = 1;
+    vc.envelope.points = [
+      { x: 0, y: 128 },
+      { x: 500, y: 0 }, // 0.5 秒で減衰しきる
+      { x: 0, y: 0 },
+    ];
+    const decaySec = (sps: number): number => {
+      const work = renderWoice(w, 60, 104, 1.0, sps);
+      assert(work !== null && work.length >= sps, `env: ${sps}Hz で 1 秒以上レンダリングされる`);
+      let peak = 0;
+      for (let i = 0; i < work!.length; i++) peak = Math.max(peak, Math.abs(work![i]!));
+      // 減衰しきった後も envVolume の残留 (1/128) で微小な音が続くため、ピーク比 2% を閾値にする
+      const thr = peak * 0.02;
+      let last = -1;
+      for (let i = 0; i < work!.length / 2; i++) {
+        if (Math.abs(work![i * 2]!) >= thr) last = i;
+      }
+      return (last + 1) / sps;
+    };
+    const t44 = decaySec(44100);
+    const t48 = decaySec(48000);
+    assert(Math.abs(t44 - 0.5) < 0.02, `env: 44100 の減衰長 ${t44.toFixed(3)}s ≈ 0.5s`);
+    assert(Math.abs(t48 - 0.5) < 0.02, `env: 48000 の減衰長 ${t48.toFixed(3)}s ≈ 0.5s (レート非依存)`);
+  }
+
   // ---- 非同期集約レンダリング: 連続キー変更で最新キーのみレンダリング ----
   {
     clearWoicePreviewCache();

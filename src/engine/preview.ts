@@ -90,8 +90,10 @@ function renderEvents(
   s.evels.recordAddI(0, 0, EventKind.KEY, key);
   s.evels.recordAddI(0, 0, EventKind.VELOCITY, velocity);
   s.evels.recordAddI(0, 0, EventKind.ON, durClocks);
-  if (s.tonesReady() !== PxtnErr.OK) return null;
+  // 本家と同じく出力レートを確定してから tones_ready する
+  // (逆順だとエンベロープ/ディレイが 44100 基準で前計算され、長さがずれる)
   if (!s.setDestinationQuality(2, sps)) return null;
+  if (s.tonesReady() !== PxtnErr.OK) return null;
   if (!s.mooPreparation(null)) return null;
   const n = Math.min(Math.trunc(durSec * sps), s.mooGetSamplingEnd());
   const out = new Int16Array(n * 2);

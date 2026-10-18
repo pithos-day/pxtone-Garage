@@ -89,8 +89,10 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
     if (svc.init() !== PxtnErr.OK) return null;
     const io = new MemoryIo(new Uint8Array(bytes));
     if (svc.read(io) !== PxtnErr.OK) return null;
-    if (svc.tonesReady() !== PxtnErr.OK) return null;
+    // 本家 (pxtonewinXA2.cpp) と同じく出力レートを確定してから tones_ready する。
+    // 逆順だとエンベロープ/ディレイが 44100 基準で前計算され、48kHz 環境で長さがずれる
     if (!svc.setDestinationQuality(2, sps)) return null;
+    if (svc.tonesReady() !== PxtnErr.OK) return null;
     svc.mooSetLoop(this.loop);
     svc.mooSetMasterVolume(this.volume);
     return svc;
