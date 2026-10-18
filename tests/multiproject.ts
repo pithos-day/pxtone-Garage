@@ -105,7 +105,7 @@ import { writeNote, writeNoteLength, eraseNote, writeVolumeEvent, type EventWrit
 import { MENU_LABELS, menuNamesFor, buildFileMenu } from "../src/lib/menuItems";
 import { t } from "../src/i18n";
 import { secToEnveX, pctToEnveY, pushHistoryEntry } from "../src/lib/noise";
-import { nearestPoint } from "../src/lib/voice-geometry";
+import { nearestPoint, coordPxToX, coordPxToY, cursorToWaveY } from "../src/lib/voice-geometry";
 import { visibleClockWindow, iterVisibleRecords, iterNoteDraws, type NoteDraw } from "../src/lib/records";
 import { woiceSummary } from "../src/lib/woice";
 import { stripFileExt, renderWav, WAV_EXPORT_DEFAULTS } from "../src/engine/io";
@@ -825,7 +825,16 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(clampWavePointX(pts, 1, 300, 256), 192, "coord: 点1 は後ろの点 (192) を越えられない");
     checkEq(clampWavePointX(pts, 2, 10, 256), 64, "coord: 点2 は前の点 (64) より左へ行けない");
     checkEq(clampWavePointX(pts, 2, 64, 256), 64, "coord: 点2 は前の点と同 x まで");
-    checkEq(clampWavePointX(pts, 2, 300, 256), 256, "coord: 末尾の点は reso (256) まで");
+    checkEq(clampWavePointX(pts, 2, 300, 256), 255, "coord: 末尾の点は reso-1 (255) まで (本家 _pos_fix)");
+    // px → データ変換も本家の値域 (x ≤ reso-1 / y ≥ -127) に収まる
+    {
+      const unit = createDefaultWoice().getVoice(0)!;
+      checkEq(coordPxToX(unit, 256, 10000), 255, "coord: 右端クリックの x は 255 (256 を作らない)");
+      checkEq(coordPxToX(unit, 256, -10000), 0, "coord: 左端クリックの x は 0");
+      checkEq(coordPxToY(256, 10000), -127, "coord: 下端クリックの y は -127 (本家 _pos_fix)");
+      checkEq(coordPxToY(256, -10000), 127, "coord: 上端クリックの y は 127");
+      checkEq(cursorToWaveY(256, 10000, 64), -127, "coord: カーソル下端の y も -127");
+    }
     // 点追加: x でソートされた位置に挿入
     const pts2 = [
       { x: 0, y: 0 },

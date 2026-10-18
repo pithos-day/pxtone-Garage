@@ -17,18 +17,20 @@ export function coordY(h: number, y: number): number {
 }
 
 export function coordPxToX(c: VoiceUnit, w: number, px: number): number {
-  return Math.max(0, Math.min(c.wave.reso, Math.round(((px - WAVE_PAD) / (w - WAVE_PAD * 2)) * c.wave.reso)));
+  // 本家 _pos_fix は x を reso-1 にクランプする (x == reso の点があると
+  // ptVoice.exe は読込自体を拒否するため、生成側で作らない)
+  return Math.max(0, Math.min(c.wave.reso - 1, Math.round(((px - WAVE_PAD) / (w - WAVE_PAD * 2)) * c.wave.reso)));
 }
 
-// px → データ y。下限は -128、上限は 127 (本家の座標丸めに合わせた非対称値)
+// px → データ y。本家 _pos_fix 準拠で ±127 にクランプする
 export function coordPxToY(h: number, py: number): number {
-  return Math.max(-128, Math.min(127, Math.round(((h / 2 - py) / (h - WAVE_PAD * 2)) * 128)));
+  return Math.max(-127, Math.min(127, Math.round(((h / 2 - py) / (h - WAVE_PAD * 2)) * 128)));
 }
 
 // カーソル y → データ y。表示は volume スケールなので逆スケールする (volume=0 は不可)
 export function cursorToWaveY(h: number, py: number, volume: number): number {
   if (volume <= 0) return 0;
-  return Math.max(-128, Math.min(127, Math.round((coordPxToY(h, py) * 128) / volume)));
+  return Math.max(-127, Math.min(127, Math.round((coordPxToY(h, py) * 128) / volume)));
 }
 
 // ---- エンベロープ座標変換 (x は区間長ではなく累積描画座標。maxX はグラフ右端の累積 x) ----

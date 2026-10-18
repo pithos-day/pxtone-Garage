@@ -43,11 +43,11 @@ export function currentVoice(): VoiceDoc | null {
 // ---- Coordinate 波形の編集ルール (本家 ptuiWave.cpp 準拠) ----
 
 // 点ドラッグ: 前後の点を越えられないよう x をクランプする (本家 _point_set)。
-// idx 0 は x=0 固定 (動かせない)
+// idx 0 は x=0 固定 (動かせない)。末尾の上限は reso-1 (本家 _pos_fix 準拠)
 export function clampWavePointX(points: { x: number }[], idx: number, x: number, reso: number): number {
   if (idx <= 0) return points[0]!.x;
   const minX = points[idx - 1]!.x;
-  const maxX = idx < points.length - 1 ? points[idx + 1]!.x : reso;
+  const maxX = idx < points.length - 1 ? points[idx + 1]!.x : reso - 1;
   return Math.max(minX, Math.min(maxX, x));
 }
 
