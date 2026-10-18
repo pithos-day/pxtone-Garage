@@ -39,7 +39,8 @@ import {
 import { useDropdownMenu } from "../../composables/useDropdownMenu";
 import ModeTabs from "./ModeTabs.vue";
 
-const mode = defineModel<AppMode>({ required: true });const emit = defineEmits<{
+const mode = defineModel<AppMode>({ required: true });
+const emit = defineEmits<{
   (e: "project"): void;
   (e: "settings"): void;
   (e: "copyMeas"): void;
