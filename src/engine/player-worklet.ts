@@ -15,6 +15,8 @@ declare class AudioWorkletProcessor {
 declare const sampleRate: number;
 declare function registerProcessor(name: string, ctor: new () => AudioWorkletProcessor): void;
 
+// scratch のサイズ = 1 回の Moo で描画する最大サンプル数。
+// process() に来るブロック長 (レンダークォンタム) はこれより大きくてもよい (分割して描画する)
 const BLOCK_SIZE = 128;
 
 class PxtoneWorkletProcessor extends AudioWorkletProcessor {
@@ -150,10 +152,22 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
     }
 
     const svc = this.service;
-    svc.Moo(this.scratch.subarray(0, block * chNum), block);
-    for (let i = 0; i < block; i++) {
-      for (let ch = 0; ch < chNum; ch++) {
-        out[ch]![i] = this.scratch[i * chNum + ch]! / 32768;
+    // レンダークォンタムは通常 128 だが、環境によって変わりうる (仕様上も固定ではない)。
+    // scratch (BLOCK_SIZE サンプル) に収まる範囲で分割して描画する
+    let offset = 0;
+    while (offset < block) {
+      const n = Math.min(BLOCK_SIZE, block - offset);
+      svc.Moo(this.scratch.subarray(0, n * chNum), n);
+      for (let i = 0; i < n; i++) {
+        for (let ch = 0; ch < chNum; ch++) {
+          out[ch]![offset + i] = this.scratch[i * chNum + ch]! / 32768;
+        }
+      }
+      offset += n;
+      // 曲末に達したら残りは無音にする (Moo は endVomit 後は書き込まないため)
+      if (svc.mooIsEndVomit()) {
+        for (let ch = 0; ch < chNum; ch++) out[ch]!.fill(0, offset);
+        break;
       }
     }
 

@@ -27,3 +27,4 @@ public/worklet
 *.sw?
 tests/.multiproject.cjs
 tests/.preview-sim.cjs
+tests/.worklet-sim.cjs
