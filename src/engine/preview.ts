@@ -422,8 +422,7 @@ function cacheSet(k: string, w: Float32Array): void {
 export function clearWoicePreviewCache(): void {
   voicePreviewCache.clear();
   // 非同期レンダリングが保留中の場合、完了時に再生しないよう無効化する
-  pendingWoice = null;
-  pendingKey = -1;
+  pendingRender = null;
 }
 
 // テスト用: キャッシュされた AudioContext を破棄し、次回 getCtx() で新規作成させる
@@ -431,16 +430,21 @@ export function resetPreviewContext(): void {
   previewCtx = null;
 }
 
+// 非同期レンダリングの保留 1 件分 (キー変更で上書きされ、実行時は最新の内容だけを処理する)
+interface PendingRender {
+  woice: Woice;
+  key: number;
+  velocity: number;
+  durSec: number;
+  ctx: AudioContext;
+}
+
 // 非同期集約レンダリング: キー変更時は最新キーのみを 1 回レンダリングする。
 // 複数のキー変更がイベントループ内で積み上がった場合、最後のキーだけを処理する
-let pendingWoice: Woice | null = null;
-let pendingKey = -1;
-let pendingVelocity = EVENTDEFAULT_VELOCITY;
-let pendingDurSec = PREVIEW_SEC;
+let pendingRender: PendingRender | null = null;
 let renderTimer: ReturnType<typeof setTimeout> | null = null;
-// リリース後にレンダリング完了した場合、startHold 直後に停止するフラグ
-let pendingStopAfterStart = false;
-let pendingStopReleaseSec = 0;
+// リリース後にレンダリングが完了した場合の停止指示 (startHold 直後に stopHold する)
+let pendingStop: { releaseSec: number } | null = null;
 
 export function previewWoiceObjectHold(woice: Woice, key: number, velocity: number = EVENTDEFAULT_VELOCITY, durSec = PREVIEW_SEC): void {
   const ctx = getCtx();
@@ -449,41 +453,35 @@ export function previewWoiceObjectHold(woice: Woice, key: number, velocity: numb
   // キャッシュヒット: レンダリング不要で即時再生
   const work = cacheGet(k);
   if (work && work.length >= 2) {
-    pendingStopAfterStart = false;
+    pendingStop = null;
     startHold(work, ctx, woiceReleaseSec(woice));
     return;
   }
   // キャッシュミス: 前の音を即座に止め、最新キーのレンダリングを非同期でスケジュールする
   stopHoldForNewPreview();
-  pendingStopAfterStart = false;
-  pendingWoice = woice;
-  pendingKey = key;
-  pendingVelocity = velocity;
-  pendingDurSec = durSec;
+  pendingStop = null;
+  pendingRender = { woice, key, velocity, durSec, ctx };
   if (!renderTimer) {
     renderTimer = setTimeout(() => {
       renderTimer = null;
-      const w = pendingWoice;
-      const key2 = pendingKey;
-      if (!w || key2 < 0) return;
-      const vel = pendingVelocity;
-      const dur = pendingDurSec;
-      pendingWoice = null;
-      pendingKey = -1;
+      const p = pendingRender;
+      pendingRender = null;
+      if (!p) return;
       let work2: Float32Array | null = null;
       try {
-        work2 = renderWoice(w, key2, vel, dur, ctx.sampleRate);
+        work2 = renderWoice(p.woice, p.key, p.velocity, p.durSec, p.ctx.sampleRate);
       } catch {
         work2 = null;
       }
       if (work2 && work2.length >= 2) {
-        cacheSet(`${key2}-${vel}-${dur}`, work2);
-        startHold(work2, ctx, woiceReleaseSec(w));
+        cacheSet(`${p.key}-${p.velocity}-${p.durSec}`, work2);
+        startHold(work2, p.ctx, woiceReleaseSec(p.woice));
         // リリース後にレンダリング完了した場合: startHold 直後に停止して
         // タップ音 (短い攻撃 + リリース) が鳴るようにする
-        if (pendingStopAfterStart) {
-          pendingStopAfterStart = false;
-          stopHold(pendingStopReleaseSec);
+        if (pendingStop) {
+          const releaseSec = pendingStop.releaseSec;
+          pendingStop = null;
+          stopHold(releaseSec);
         }
       }
     }, 0);
@@ -543,10 +541,8 @@ function stopHold(releaseSec: number): void {
 // 非同期レンダリングが保留中の場合、完了後に startHold → 即 stopHold し、
 // タップ音 (短い攻撃 + リリース) が鳴るようにする
 export function stopPreview(): void {
-  if (pendingKey >= 0 && pendingWoice) {
-    pendingStopAfterStart = true;
-    pendingStopReleaseSec = woiceReleaseSec(pendingWoice);
-  }
+  // レンダリング保留中なら、完了後の startHold 直後に停止してタップ音を鳴らす
+  if (pendingRender) pendingStop = { releaseSec: woiceReleaseSec(pendingRender.woice) };
   stopHold(holdReleaseSec);
 }
 
