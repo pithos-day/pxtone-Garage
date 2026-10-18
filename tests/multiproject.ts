@@ -1368,6 +1368,57 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
         );
       }
 
+      // 確定: 開始調整は先頭成分を移し、新しい開始より左に残る KEY/VELOCITY を掃除する
+      {
+        const s = newService();
+        const ops = opsOf(s);
+        ops.addEvent(0, 0, EventKind.KEY, 0x6000);
+        ops.addEvent(0, 0, EventKind.VELOCITY, 100);
+        ops.addEvent(0, 0, EventKind.ON, 960);
+        ops.addEvent(240, 0, EventKind.KEY, 0x6800); // ノート内部の音程変化
+        const evs = [
+          { clock: 0, kind: EventKind.KEY, value: 0x6000 },
+          { clock: 240, kind: EventKind.KEY, value: 0x6800 },
+          { clock: 0, kind: EventKind.VELOCITY, value: 100 },
+          { clock: 0, kind: EventKind.ON, value: 960 },
+        ];
+        commitSmartDrag(ops, () => s.evels.records, 0, { mode: "head", note: { head: 0, end: 960, key: 0x6000 }, evs, offset: 0, rowDelta: 0 }, 480, 120);
+        checkEq(
+          s.evels.records
+            .map((e) => `${e.clock}:${kindName(e.kind)}:${e.value}`)
+            .sort()
+            .join(" "),
+          "480:KEY:24576 480:ON:480 480:VELOCITY:100",
+          "lib: 開始調整は先頭成分を移し、左に残る KEY を掃除する",
+        );
+        checkEq(drawsOf(s), "key@480,on@480+480=24576", "lib: 開始調整の描画は新しい開始から始まる");
+      }
+
+      // 確定: 新しい開始より左でも、他ノートの先頭成分 (同じクロックに ON) は残す
+      {
+        const log: string[] = [];
+        const spy: EventWriteOps = {
+          deleteEvents: (c1, c2, unit, kind) => log.push(`del ${c1}-${c2} u${unit} ${kindName(kind)}`),
+          addEvent: (clock, unit, kind, value) => log.push(`add ${clock} u${unit} ${kindName(kind)} ${value}`),
+          setEventValue: (c1, c2, unit, kind, value) => log.push(`set ${c1}-${c2} u${unit} ${kindName(kind)} ${value}`),
+        };
+        const records: EveRecord[] = [
+          { unitNo: 0, clock: 0, kind: EventKind.KEY, value: 0x6000 },
+          { unitNo: 0, clock: 0, kind: EventKind.VELOCITY, value: 100 },
+          { unitNo: 0, clock: 0, kind: EventKind.ON, value: 960 },
+          { unitNo: 0, clock: 240, kind: EventKind.KEY, value: 0x6800 },
+          { unitNo: 0, clock: 240, kind: EventKind.ON, value: 720 }, // 他ノートの先頭
+        ];
+        const evs = [
+          { clock: 0, kind: EventKind.KEY, value: 0x6000 },
+          { clock: 240, kind: EventKind.KEY, value: 0x6800 },
+          { clock: 0, kind: EventKind.ON, value: 960 },
+        ];
+        commitSmartDrag(spy, () => records, 0, { mode: "head", note: { head: 0, end: 960, key: 0x6000 }, evs, offset: 0, rowDelta: 0 }, 480, 120);
+        check(!log.includes("del 240-241 u0 KEY"), "lib: 開始調整は他ノートの先頭 KEY を消さない", log.join(";"));
+        check(log.includes("add 480 u0 ON 480"), "lib: 開始調整は新しい開始へ ON を置く", log.join(";"));
+      }
+
       // 確定: 掴みのドロップは移動先を完全置き換えにする (またぐノートは丸ごと消す)
       {
         const s = newService();

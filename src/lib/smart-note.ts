@@ -117,8 +117,17 @@ export function commitSmartDrag(
     for (const kind of [EventKind.KEY, EventKind.VELOCITY, EventKind.ON]) {
       ops.deleteEvents(note.head, note.head + 1, unit, kind);
     }
+    const records = getRecords();
+    // 開始を右へ動かすと、間にあった KEY/VELOCITY が新しい開始より左に残る。
+    // 残った KEY は単独マーカーとして描かれ、後続ノートの音程の元になるため掃除する
+    // (他ノートの先頭成分 = 同じクロックに ON があるものは残す)
+    for (const ev of d.evs) {
+      if (ev.clock <= note.head || ev.clock >= place.head) continue;
+      if (records.some((r) => r.unitNo === unit && r.kind === EventKind.ON && r.clock === ev.clock)) continue;
+      ops.deleteEvents(ev.clock, ev.clock + 1, unit, ev.kind);
+    }
     // 挿入位置の直前ノートが超短い断片になる (隣に張り付いて重なって見える) ときは消す
-    dropShortPrevNote(ops, getRecords(), place.head, unit, grid);
+    dropShortPrevNote(ops, records, place.head, unit, grid);
     for (const ev of d.evs) {
       if (ev.clock !== note.head || ev.kind === EventKind.ON) continue;
       ops.addEvent(place.head, unit, ev.kind, ev.value);
