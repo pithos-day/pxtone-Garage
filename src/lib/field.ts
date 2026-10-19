@@ -1,5 +1,5 @@
 // キャンバスフィールド共通のポインタ・ホイールヘルパ
-import { snapClock, xToClock, ZOOM_TABLE, type ClockView } from "./clock";
+import { clampZoom, snapClock, xToClock, type ClockView } from "./clock";
 
 // キャンバス内のマウス座標 (CSS ピクセル)
 export function fieldOffset(canvas: HTMLCanvasElement, e: PointerEvent): { x: number; y: number } {
@@ -16,15 +16,30 @@ export function clockAtX(view: ClockView, divi: number, scrollX: number, x: numb
   return Math.max(0, snapClock(view, divi, xToClock(view, x - offsetX + scrollX)));
 }
 
-// Ctrl+ホイールのズーム切替。新しいズーム倍率を返す (Ctrl 以外は null)
-// ZOOM_TABLE に現在値がない場合は最小ズームへ落とす
+// Ctrl+ホイールの連続ズーム。新しいズーム倍率を返す (Ctrl 以外は null)
+// deltaMode (0=px / 1=行 / 2=ページ) を px に正規化し、指数スケールで変化させる。
+// トラックパッドのピンチは小さな deltaY が連続して届くため、指数スケールだと自然に追従する
 export function zoomByWheel(e: WheelEvent, current: number): number | null {
   if (!e.ctrlKey) return null;
   e.preventDefault();
-  const idx = ZOOM_TABLE.indexOf(current as (typeof ZOOM_TABLE)[number]);
-  const base = idx < 0 ? 0 : idx;
-  const next = e.deltaY < 0 ? Math.min(ZOOM_TABLE.length - 1, base + 1) : Math.max(0, base - 1);
-  return ZOOM_TABLE[next]!;
+  const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1;
+  const delta = e.deltaY * unit;
+  if (delta === 0) return clampZoom(current);
+  return clampZoom(current * Math.exp(-delta * 0.002));
+}
+
+// ポインタ位置のクロックを保つ scrollX。
+// x はフィールド内のポインタ x (CSS px)、offsetX は鍵盤ストリップなど
+// 時間軸より左にある領域の幅。そちらを指しているときは左端基準にする。
+export function zoomAnchorScrollX(
+  currentZoom: number,
+  nextZoom: number,
+  scrollX: number,
+  x: number,
+  offsetX = 0,
+): number {
+  const anchor = Math.max(0, x - offsetX);
+  return Math.max(0, (scrollX + anchor) * (nextZoom / currentZoom) - anchor);
 }
 
 // Shift+ホイールの横スクロール量 (px)。Shift 以外は null

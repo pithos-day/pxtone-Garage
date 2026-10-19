@@ -7,7 +7,7 @@ import { useCanvasDrag, type CanvasDragState } from "../../composables/useCanvas
 import { useDragUndo } from "../../composables/useUndo";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText, drawPlayhead, fillPlayIcon, drawDragRange } from "../../lib/draw";
-import { clockAtX, zoomOrPan } from "../../lib/field";
+import { clockAtX, zoomAnchorScrollX, zoomOrPan } from "../../lib/field";
 import { clockToX, xToClock } from "../../lib/clock";
 import { RULER_H } from "../../lib/layout";
 import { VOLUME_EDIT_KIND } from "../../lib/volume";
@@ -276,11 +276,14 @@ function commitTuning(): void {
   tuningUndo.finish();
 }
 
-// ホイール: Ctrl=ズーム / Shift=横スクロール
+// ホイール: Ctrl=ズーム (カーソル位置基準) / Shift=横スクロール
 function onWheel(e: WheelEvent): void {
   const { zoom, pan } = zoomOrPan(e, doc.zoom);
-  if (zoom !== null) doc.zoom = zoom;
-  else if (pan !== null) doc.scrollX = Math.max(0, doc.scrollX + pan);
+  if (zoom !== null) {
+    const rect = canvasRef.value?.getBoundingClientRect();
+    if (rect) doc.scrollX = zoomAnchorScrollX(doc.zoom, zoom, doc.scrollX, e.clientX - rect.left);
+    doc.zoom = zoom;
+  } else if (pan !== null) doc.scrollX = Math.max(0, doc.scrollX + pan);
 }
 </script>
 

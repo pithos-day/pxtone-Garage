@@ -2,7 +2,7 @@
 // モード別メニュー定義の構築ロジックを SFC から分離する
 import { FilePlus2, FileSearch2, Save, SavePlus, SquareX, Undo, Redo, ZoomIn } from "@lucide/vue";
 import type { Component } from "vue";
-import { ZOOM_TABLE } from "./clock";
+import { ZOOM_MAX, ZOOM_MIN, ZOOM_TABLE } from "./clock";
 import type { ShortcutCommand } from "./shortcuts";
 import { t } from "../i18n";
 import type { AppMode } from "./modes";
@@ -31,6 +31,16 @@ export interface MenuItem {
   checked?: boolean;
   sep?: boolean;
   sub?: MenuItem[];
+  // 数値を直接編集するスライダー行 (ズームの微調整用)。
+  // メニュー項目クリックで閉じないよう、MenuItemRow 側で action とは別に描画する
+  slider?: {
+    min: number;
+    max: number;
+    step?: number;
+    value: number;
+    onInput: (value: number) => void;
+    format?: (value: number) => string;
+  };
   // ショートカット表示 (右寄せで併記する)。lib/shortcuts のコマンドを指す
   command?: ShortcutCommand;
 }
@@ -92,7 +102,24 @@ export function buildViewMenu(args: {
     {
       label: t("menu.view.zoom"),
       icon: ZoomIn,
-      sub: ZOOM_TABLE.map((z) => ({ label: `${z}px`, action: () => args.onZoom(z), checked: args.zoom === z })),
+      sub: [
+        ...ZOOM_TABLE.map((z) => ({
+          label: `${z}px`,
+          action: () => args.onZoom(z),
+          checked: Math.abs(args.zoom - z) < 0.5,
+        })),
+        { sep: true },
+        {
+          slider: {
+            min: ZOOM_MIN,
+            max: ZOOM_MAX,
+            step: 1,
+            value: args.zoom,
+            onInput: args.onZoom,
+            format: (z) => `${Math.round(z)}px`,
+          },
+        },
+      ],
     },
   ];
 }

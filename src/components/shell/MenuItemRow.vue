@@ -15,6 +15,19 @@ const emit = defineEmits<{
 
 <template>
   <div v-if="item.sep" class="menu-sep" />
+  <div v-else-if="item.slider" class="menu-slider" @click.stop>
+    <input
+      type="range"
+      :min="item.slider.min"
+      :max="item.slider.max"
+      :step="item.slider.step ?? 1"
+      :value="item.slider.value"
+      @input="item.slider.onInput(Number(($event.target as HTMLInputElement).value))"
+    />
+    <span class="menu-slider-value">
+      {{ item.slider.format ? item.slider.format(item.slider.value) : item.slider.value }}
+    </span>
+  </div>
   <div
     v-else
     class="menu-item"
@@ -97,6 +110,27 @@ const emit = defineEmits<{
   height: 1px;
   margin: 3px 6px;
   background: var(--border);
+}
+
+/* ズームの微調整スライダー。項目クリックでメニューを閉じないよう独立した行にする */
+.menu-slider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+}
+
+.menu-slider input {
+  width: 132px;
+  accent-color: var(--primary);
+}
+
+.menu-slider-value {
+  min-width: 38px;
+  text-align: right;
+  color: var(--muted-foreground);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
 }
 
 .menu-sub {

@@ -1,6 +1,18 @@
 // クロック ↔ ピクセル変換・グリッド計算
 
+// ズームは 1 拍あたりのピクセル幅。メニューのプリセットは ZOOM_TABLE に残し、
+// ホイールでは ZOOM_MIN..ZOOM_MAX の範囲で連続的に変化させる
 export const ZOOM_TABLE = [24, 48, 96, 192] as const;
+export const ZOOM_MIN = 8;
+export const ZOOM_MAX = 512;
+
+// ズーム倍率を有効範囲へ丸める (0 除算・NaN を避ける)。
+// 表示や保存を考えて小数 2 桁までに揃える
+export function clampZoom(zoom: number): number {
+  if (!Number.isFinite(zoom)) return ZOOM_TABLE[1];
+  return Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom)) * 100) / 100;
+}
+
 export const DIVI_TABLE = [1, 2, 3, 4, 6, 8, 12, 16, 24, 48] as const;
 
 // 本家 ptCollage のピアノロール規則を再現

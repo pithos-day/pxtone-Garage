@@ -122,7 +122,7 @@ import {
 } from "../src/state/noise";
 import { renderWoice, renderNoise } from "../src/engine/preview";
 import { parseMidi, convertMidiToPtcop } from "../src/engine/midi";
-import { formatTime, measStartClock } from "../src/lib/clock";
+import { formatTime, measStartClock, ZOOM_MAX, ZOOM_MIN } from "../src/lib/clock";
 import { scaleToWoice, scaleToGroup, VOLUME_EDIT_KIND } from "../src/lib/volume";
 import { writeNote, writeNoteLength, eraseNote, writeVolumeEvent, paintKeyDrag, type EventWriteOps } from "../src/lib/editing";
 import { smartPlacement, commitSmartDrag, clampSmartOffset, shiftKeyValue, type SmartDrag } from "../src/lib/smart-note";
@@ -137,7 +137,7 @@ import {
   type ShortcutCommand,
   type ShortcutEvent,
 } from "../src/lib/shortcuts";
-import { clockAtX } from "../src/lib/field";
+import { clockAtX, zoomAnchorScrollX, zoomByWheel } from "../src/lib/field";
 import { MENU_LABELS, menuNamesFor, buildFileMenu } from "../src/lib/menuItems";
 import { t } from "../src/i18n";
 import { secToEnveX, pctToEnveY, pushHistoryEntry } from "../src/lib/noise";
@@ -1361,6 +1361,32 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       checkEq(clockAtX(cv, 4, 0, -100), 0, "lib: clockAtX は負の x を 0 にクランプ");
       checkEq(clockAtX(cv, 4, 0, 0, 24), 0, "lib: clockAtX は除外幅ぶんの負も 0 にクランプ");
       checkEq(clockAtX(cv, 4, 0, 24), 480, "lib: clockAtX は通常の x をスナップ");
+
+      // Ctrl+ホイールの連続ズーム。deltaMode を px に正規化し、min/max でクランプする
+      const wheel = (deltaY: number, opts: { ctrl?: boolean; deltaMode?: number } = {}): WheelEvent =>
+        ({
+          ctrlKey: !!opts.ctrl,
+          deltaY,
+          deltaMode: opts.deltaMode ?? 0,
+          preventDefault: () => {},
+        }) as unknown as WheelEvent;
+      checkEq(zoomByWheel(wheel(-100), 48), null, "lib: Ctrl なしのホイールはズームしない");
+      checkEq(zoomByWheel(wheel(-100, { ctrl: true }), 48)! > 48, true, "lib: ホイール上で拡大する");
+      checkEq(zoomByWheel(wheel(100, { ctrl: true }), 48)! < 48, true, "lib: ホイール下で縮小する");
+      checkEq(zoomByWheel(wheel(-100000, { ctrl: true }), 48), ZOOM_MAX, "lib: ズーム上限でクランプ");
+      checkEq(zoomByWheel(wheel(100000, { ctrl: true }), 48), ZOOM_MIN, "lib: ズーム下限でクランプ");
+      // 行単位の deltaMode は 16px として扱う (Firefox のホイール)
+      checkEq(
+        Math.abs(zoomByWheel(wheel(-48, { ctrl: true }), 48)! - zoomByWheel(wheel(-3, { ctrl: true, deltaMode: 1 }), 48)!) < 0.01,
+        true,
+        "lib: deltaMode=行 を px に正規化する",
+      );
+      // カーソル下のクロックを保つ: scrollX + x がズーム倍率に比例する
+      const anchored = zoomAnchorScrollX(48, 96, 100, 200);
+      checkEq(anchored, 400, "lib: ズームはカーソル位置を基準に scrollX を補正する");
+      checkEq((anchored + 200) / (100 + 200), 2, "lib: カーソル下のクロックが変わらない");
+      checkEq(zoomAnchorScrollX(48, 96, 100, 50, 50), 200, "lib: 左の非時間領域では左端基準にする");
+      checkEq(zoomAnchorScrollX(48, 24, 10, 20), 0, "lib: ズームアウト時も scrollX は負にしない");
 
       // 配置のクランプ (純関数)。note は 960..1440 (1 拍 = 480 クロック、グリッド 120)
       const note = { head: 960, end: 1440, key: 0x6000 };
