@@ -28,7 +28,6 @@ const ja = {
   "menu.file.exportWav": "WAVを書き出し",
   "menu.file.addToCollage": "Collageに追加",
   "menu.file.project": "プロジェクト設定",
-  "menu.file.settings": "環境設定",
   "menu.file.close": "閉じる",
 
   // メニュー: Edit
@@ -61,8 +60,12 @@ const ja = {
   "menu.view.showAllUnits": "全ユニット表示",
   "menu.view.zoom": "ズーム",
 
+  // メニュー: Tools (環境設定フォルダ)
+  "menu.tools.settings": "環境設定",
+  "menu.tools.appearance": "外観設定",
+
   // 環境設定
-  "settings.title": "環境設定",
+  "settings.title": "外観設定",
   "settings.theme": "テーマ",
   "settings.builtinThemes": "内蔵テーマ",
   "settings.myThemes": "インポートされたテーマ",

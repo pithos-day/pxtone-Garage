@@ -1,4 +1,4 @@
-// File > 環境設定... のモーダルダイアログ。
+// Tools > 環境設定 > 外観設定 のモーダルダイアログ。
 // テーマ (リストボックス + インポート)・ライト/ダーク・言語・フォントを設定する。
 <script setup lang="ts">
 import { ref } from "vue";
@@ -43,7 +43,7 @@ async function onLoadLocalFonts(): Promise<void> {
 </script>
 
 <template>
-  <ModalDialog label="settings" width="460px" body-gap="10px" @close="emit('close')">
+  <ModalDialog label="appearance" width="460px" body-gap="10px" @close="emit('close')">
     <template #title>{{ t("settings.title") }}</template>
     <div class="row">
       <label>{{ t("settings.theme") }}</label>

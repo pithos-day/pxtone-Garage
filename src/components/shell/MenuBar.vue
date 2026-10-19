@@ -3,7 +3,7 @@
 // 右: モード別ドロップダウンメニュー (collage = File/Edit/View、voice/noise = File)
 <script setup lang="ts">
 import { computed } from "vue";
-import { FileUp, FileDown, Music, ListMusic, FileMusic, AudioLines, SlidersHorizontal, Settings, SquareStack, CircleGauge, Copy, Columns4, PackagePlus, Link2 } from "@lucide/vue";
+import { FileUp, FileDown, Music, ListMusic, FileMusic, AudioLines, SlidersHorizontal, SquareStack, CircleGauge, Copy, Columns4, PackagePlus, Link2 } from "@lucide/vue";
 import { DIVI_TABLE } from "../../lib/clock";
 import { doc, setAllUnitsVisible, exportBytes, addWoice, WoiceType } from "../../state/project";
 import {
@@ -30,6 +30,7 @@ import {
   buildFileMenu,
   buildEditMenu,
   buildViewMenu,
+  buildToolsMenu,
   MENU_LABELS,
   menuNamesFor,
   type MenuItem,
@@ -359,7 +360,6 @@ const fileMenu = computed<MenuItem[]>(() => {
           },
           { sep: true },
           { label: t("menu.file.project"), icon: SlidersHorizontal, action: () => emit("project") },
-          { label: t("menu.file.settings"), icon: Settings, action: () => emit("settings") },
           { sep: true },
         ]
       : [
@@ -379,8 +379,6 @@ const fileMenu = computed<MenuItem[]>(() => {
             action: mode.value === "voice" ? onAddVoiceToCollage : onAddNoiseToCollage,
             disabled: isTuneProject() || (mode.value === "voice" ? !currentVoice() : !currentNoise()),
           },
-          { sep: true },
-          { label: t("menu.file.settings"), icon: Settings, action: () => emit("settings") },
           { sep: true },
         ];
   return buildFileMenu(ops, extra, beforeSave);
@@ -428,10 +426,14 @@ const viewMenu = computed<MenuItem[]>(() =>
   }),
 );
 
+// Tools メニュー (環境設定フォルダ)。外観設定は AppShell のダイアログを開く
+const toolsMenu = computed<MenuItem[]>(() => buildToolsMenu({ onAppearance: () => emit("settings") }));
+
 const openItems = computed<MenuItem[]>(() => {
   if (openMenu.value === "file") return fileMenu.value;
   if (openMenu.value === "edit") return editMenu.value;
   if (openMenu.value === "view") return viewMenu.value;
+  if (openMenu.value === "tools") return toolsMenu.value;
   return [];
 });
 </script>

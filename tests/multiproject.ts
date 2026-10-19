@@ -138,7 +138,7 @@ import {
   type ShortcutEvent,
 } from "../src/lib/shortcuts";
 import { clockAtX, zoomAnchorScrollX, zoomByWheel } from "../src/lib/field";
-import { MENU_LABELS, menuNamesFor, buildFileMenu } from "../src/lib/menuItems";
+import { MENU_LABELS, menuNamesFor, buildFileMenu, buildToolsMenu } from "../src/lib/menuItems";
 import { t } from "../src/i18n";
 import { secToEnveX, pctToEnveY, pushHistoryEntry } from "../src/lib/noise";
 import { nearestPoint, coordPxToX, coordPxToY, cursorToWaveY } from "../src/lib/voice-geometry";
@@ -1506,9 +1506,15 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
     // lib/menuItems: トップメニュー定義
     checkEq(MENU_LABELS.file, "File", "lib: MENU_LABELS file");
-    checkEq(menuNamesFor("collage").join(","), "file,edit,view", "lib: menuNamesFor collage は File/Edit/View");
-    checkEq(menuNamesFor("voice").join(","), "file,edit", "lib: menuNamesFor voice は File/Edit");
-    checkEq(menuNamesFor("noise").join(","), "file,edit", "lib: menuNamesFor noise は File/Edit");
+    checkEq(MENU_LABELS.tools, "Tools", "lib: MENU_LABELS tools");
+    checkEq(menuNamesFor("collage").join(","), "file,edit,view,tools", "lib: menuNamesFor collage は File/Edit/View/Tools");
+    checkEq(menuNamesFor("voice").join(","), "file,edit,tools", "lib: menuNamesFor voice は File/Edit/Tools");
+    checkEq(menuNamesFor("noise").join(","), "file,edit,tools", "lib: menuNamesFor noise は File/Edit/Tools");
+    // Tools > 環境設定 は サブメニュー (フォルダ) として 外観設定 を持つ
+    const tools = buildToolsMenu({ onAppearance: () => {} });
+    checkEq(tools.length, 1, "lib: Tools メニューの項目数");
+    checkEq(tools[0]!.sub?.length ?? 0, 1, "lib: Tools > 環境設定 はサブメニュー");
+    checkEq(tools[0]!.sub?.[0]?.label, t("menu.tools.appearance"), "lib: Tools > 環境設定 > 外観設定");
 
     // lib/noise: エンベロープ変換と履歴追加
     checkEq(secToEnveX("1.5"), 1500, "lib: secToEnveX は秒を 1/1000 へ変換");
