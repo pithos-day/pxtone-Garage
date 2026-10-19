@@ -6,7 +6,7 @@ import { doc, addWoice, detectWoiceType } from "../../state/project";
 import { WOICE_FILE_ACCEPT, WOICE_FILE_EXT_RE } from "../../lib/woice";
 import AddUnitDialog from "./AddUnitDialog.vue";
 import { openFileDialog, readBlobAndApply } from "../../engine/io";
-import { formatShortcut } from "../../lib/shortcuts";
+import { formatShortcut } from "../../state/keybindings";
 import { t } from "../../i18n";
 
 const errorMsg = ref("");

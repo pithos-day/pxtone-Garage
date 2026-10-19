@@ -1,6 +1,7 @@
 // 上部メニューバー (Blockbench 風)。
 // 左: Collage/Voice/Noise のモードタブ (大きめフォント)
-// 右: モード別ドロップダウンメニュー (collage = File/Edit/View、voice/noise = File)
+// 右: モード別ドロップダウンメニュー (collage = File/Edit/View/Tools、
+//     voice/noise = File/Edit/Tools。Tools に環境設定フォルダがある)
 <script setup lang="ts">
 import { computed } from "vue";
 import { FileUp, FileDown, Music, ListMusic, FileMusic, AudioLines, SlidersHorizontal, SquareStack, CircleGauge, Copy, Columns4, PackagePlus, Link2 } from "@lucide/vue";
@@ -39,7 +40,8 @@ import {
 } from "../../lib/menuItems";
 import { useDropdownMenu } from "../../composables/useDropdownMenu";
 import { useGlobalKeys } from "../../composables/useGlobalKeys";
-import { shortcutAreaOf, shortcutCommand } from "../../lib/shortcuts";
+import { shortcutAreaOf } from "../../lib/shortcuts";
+import { shortcutCommand } from "../../state/keybindings";
 import { isModalOpen } from "../../state/ui";
 import ModeTabs from "./ModeTabs.vue";
 
@@ -48,6 +50,7 @@ const emit = defineEmits<{
   (e: "project"): void;
   (e: "settings"): void;
   (e: "openLink"): void;
+  (e: "keySettings"): void;
   (e: "requestClose", mode: AppMode, id: number): void;
   (e: "copyMeas"): void;
   (e: "eventVolume", kind: EventVolumeMode): void;
@@ -426,8 +429,10 @@ const viewMenu = computed<MenuItem[]>(() =>
   }),
 );
 
-// Tools メニュー (環境設定フォルダ)。外観設定は AppShell のダイアログを開く
-const toolsMenu = computed<MenuItem[]>(() => buildToolsMenu({ onAppearance: () => emit("settings") }));
+// Tools メニュー (環境設定フォルダ)。外観設定・キー設定は AppShell のダイアログを開く
+const toolsMenu = computed<MenuItem[]>(() =>
+  buildToolsMenu({ onAppearance: () => emit("settings"), onKeys: () => emit("keySettings") }),
+);
 
 const openItems = computed<MenuItem[]>(() => {
   if (openMenu.value === "file") return fileMenu.value;

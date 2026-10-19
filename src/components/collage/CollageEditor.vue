@@ -8,7 +8,8 @@ import { doc, units, ensureInit, pinnedUnits, VOLUME_MODES, setScope, scopeCopy,
 import { KEY_HEIGHT, KEYNUM, measStartClock } from "../../lib/clock";
 import { RULER_H, STRIP_W, LEFT_W, NAME_W } from "../../lib/layout";
 import { useGlobalKeys } from "../../composables/useGlobalKeys";
-import { arrowScrollRow, arrowScrollX, shortcutAreaOf, shortcutCommand, type ShortcutCommand } from "../../lib/shortcuts";
+import { arrowScrollRow, arrowScrollX, shortcutAreaOf, type ShortcutCommand } from "../../lib/shortcuts";
+import { shortcutCommand } from "../../state/keybindings";
 import { panels } from "../../state/panels";
 import { isModalOpen } from "../../state/ui";
 import { togglePlay, seekToClock } from "../../state/player";

@@ -4,7 +4,7 @@
 <script setup lang="ts">
 import { Check, ChevronRight } from "@lucide/vue";
 import type { MenuItem } from "../../lib/menuItems";
-import { formatShortcut } from "../../lib/shortcuts";
+import { formatShortcut } from "../../state/keybindings";
 
 defineProps<{ item: MenuItem; subOpen: boolean }>();
 const emit = defineEmits<{

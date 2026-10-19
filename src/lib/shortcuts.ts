@@ -14,6 +14,7 @@ export interface KeyBinding {
   key: string;
   ctrl?: boolean; // Ctrl (macOS は ⌘ も受け付ける)
   shift?: boolean;
+  alt?: boolean;
   label?: string; // 表示名 (省略時は key から生成。"←" / "Space" など)
 }
 
@@ -66,6 +67,18 @@ export interface ShortcutEntry extends ShortcutDef {
   command: ShortcutCommand;
 }
 
+// 実行時のキー割り当て (コマンド → 割り当て一覧。先頭が表示用の主割り当て)
+export type ShortcutBindings = Record<ShortcutCommand, KeyBinding[]>;
+
+// 既定の割り当て。DEFINITIONS から複製する (キー設定のリセット・未保存時の復元に使う)
+export const DEFAULT_BINDINGS: ShortcutBindings = (Object.keys(DEFINITIONS) as ShortcutCommand[]).reduce(
+  (acc, command) => {
+    acc[command] = DEFINITIONS[command].keys.map((b) => ({ ...b }));
+    return acc;
+  },
+  {} as ShortcutBindings,
+);
+
 // 定義順の一覧 (判定ループ・ヘルプ・将来のカスタム UI の並び順)
 export const SHORTCUTS: readonly ShortcutEntry[] = (Object.keys(DEFINITIONS) as ShortcutCommand[]).map((command) => ({
   command,
@@ -94,8 +107,13 @@ export interface ShortcutEvent {
 }
 
 // キー入力 → コマンド ID。前提 (ctx) を満たさない場合は null。
-// 修飾キーは完全一致で判定する (Ctrl+Delete など別物にマッチさせない)
-export function shortcutCommand(e: ShortcutEvent, ctx: ShortcutContext): ShortcutCommand | null {
+// 修飾キーは完全一致で判定する (Ctrl+Delete など別物にマッチさせない)。
+// bindings を省略すると既定の割り当てを使う (キー設定の上書きは state/keybindings が渡す)
+export function shortcutCommand(
+  e: ShortcutEvent,
+  ctx: ShortcutContext,
+  bindings: ShortcutBindings = DEFAULT_BINDINGS,
+): ShortcutCommand | null {
   if (ctx.modalOpen) return null;
   const key = e.key.toLowerCase();
   const ctrl = e.ctrlKey || e.metaKey;
@@ -103,35 +121,112 @@ export function shortcutCommand(e: ShortcutEvent, ctx: ShortcutContext): Shortcu
     if (e.repeat && !entry.repeat) continue;
     if (entry.edit && ctx.readOnly) continue;
     if (entry.clip && !ctx.clipReady) continue;
-    if (entry.keys.some((b) => bindingMatches(b, key, ctrl, e.shiftKey, e.altKey))) return entry.command;
+    const keys = bindings[entry.command] ?? [];
+    if (keys.some((b) => bindingMatches(b, key, ctrl, e.shiftKey, e.altKey))) return entry.command;
   }
   return null;
 }
 
 function bindingMatches(b: KeyBinding, key: string, ctrl: boolean, shift: boolean, alt: boolean): boolean {
-  return b.key === key && !!b.ctrl === ctrl && !!b.shift === shift && !alt;
+  return b.key === key && !!b.ctrl === ctrl && !!b.shift === shift && !!b.alt === alt;
+}
+
+// 2 つの割り当てが同じキー (修飾キー込み) か
+export function bindingEquals(a: KeyBinding, b: KeyBinding): boolean {
+  return a.key === b.key && !!a.ctrl === !!b.ctrl && !!a.shift === !!b.shift && !!a.alt === !!b.alt;
+}
+
+// KeyboardEvent から割り当てを作る。修飾キー単独・判別不能キーは null。
+// Ctrl は macOS の ⌘ (metaKey) も含める (判定側の bindingMatches と同じ扱い)
+export interface ShortcutKeyEvent {
+  key: string;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  shiftKey: boolean;
+  altKey: boolean;
+}
+
+export function bindingFromEvent(e: ShortcutKeyEvent): KeyBinding | null {
+  if (isModifierKey(e.key)) return null;
+  const key = e.key.toLowerCase();
+  if (!key || key === "dead" || key === "unidentified") return null;
+  const binding: KeyBinding = { key };
+  if (e.ctrlKey || e.metaKey) binding.ctrl = true;
+  if (e.shiftKey) binding.shift = true;
+  if (e.altKey) binding.alt = true;
+  return binding;
+}
+
+// command 以外のコマンドが同じ割り当てを使っていたら、そのコマンドを返す (競合検出)
+export function bindingConflict(
+  bindings: ShortcutBindings,
+  command: ShortcutCommand,
+  binding: KeyBinding,
+): ShortcutCommand | null {
+  for (const entry of SHORTCUTS) {
+    if (entry.command === command) continue;
+    if ((bindings[entry.command] ?? []).some((b) => bindingEquals(b, binding))) return entry.command;
+  }
+  return null;
 }
 
 // 主割り当ての表示 ("Ctrl+Shift+A" / "F1" / "←")。メニューやツールチップへの併記に使う。
 // isMac は ⌘ 表示の切替 (省略時は環境から判定)
-export function formatShortcut(command: ShortcutCommand, isMac = detectMac()): string {
-  return bindingLabel(shortcutEntry(command).keys[0]!, isMac);
+export function formatShortcut(
+  command: ShortcutCommand,
+  isMac = detectMac(),
+  bindings: ShortcutBindings = DEFAULT_BINDINGS,
+): string {
+  const keys = bindings[command] ?? [];
+  return keys.length > 0 ? bindingLabel(keys[0]!, isMac) : "";
+}
+
+// リアクティブな割り当てを渡す版 (state/keybindings のラッパー用)
+export function formatShortcutWithBindings(
+  command: ShortcutCommand,
+  bindings: ShortcutBindings,
+  isMac = detectMac(),
+): string {
+  const keys = bindings[command] ?? [];
+  return keys.length > 0 ? bindingLabel(keys[0]!, isMac) : "";
 }
 
 export function bindingLabel(b: KeyBinding, isMac = detectMac()): string {
   const key = b.label ?? defaultKeyLabel(b.key);
   if (isMac) {
     // macOS 流の表記 (⇧⌘S のように記号を連結する)
-    return `${b.shift ? "⇧" : ""}${b.ctrl ? "⌘" : ""}${key}`;
+    return `${b.shift ? "⇧" : ""}${b.ctrl ? "⌘" : ""}${b.alt ? "⌥" : ""}${key}`;
   }
   const parts: string[] = [];
   if (b.ctrl) parts.push("Ctrl");
   if (b.shift) parts.push("Shift");
+  if (b.alt) parts.push("Alt");
   parts.push(key);
   return parts.join("+");
 }
 
+// 特殊キーの表示名 (文字キーは大文字 1 文字)
+const KEY_LABELS: Record<string, string> = {
+  " ": "Space",
+  arrowleft: "←",
+  arrowright: "→",
+  arrowup: "↑",
+  arrowdown: "↓",
+  escape: "Esc",
+  enter: "Enter",
+  delete: "Delete",
+  backspace: "Backspace",
+  home: "Home",
+  end: "End",
+  pageup: "PageUp",
+  pagedown: "PageDown",
+  tab: "Tab",
+  insert: "Insert",
+};
+
 function defaultKeyLabel(key: string): string {
+  const mapped = KEY_LABELS[key];
+  if (mapped) return mapped;
   if (key.length === 1) return key.toUpperCase();
   return key.charAt(0).toUpperCase() + key.slice(1);
 }

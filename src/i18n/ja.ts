@@ -63,6 +63,23 @@ const ja = {
   // メニュー: Tools (環境設定フォルダ)
   "menu.tools.settings": "環境設定",
   "menu.tools.appearance": "外観設定",
+  "menu.tools.keys": "キー設定",
+
+  // キー設定ダイアログ
+  "keys.title": "キー設定",
+  "keys.search": "検索",
+  "keys.resetAll": "すべて初期化",
+  "keys.reset": "この項目を初期化",
+  "keys.add": "割り当てを追加",
+  "keys.remove": "この割り当てを削除",
+  "keys.press": "キーを押す…",
+  "keys.unassigned": "未設定",
+  "keys.conflict": "他の項目と競合しています",
+  "keys.duplicate": "同じ項目に既に割り当てられています",
+  "keys.areaApp": "アプリ",
+  "keys.areaCollage": "コラージュ",
+  "keys.empty": "該当する項目がありません",
+  "keys.hint": "キーをクリックしてから押したいキーを入力すると割り当てを変更できます (Escape でキャンセル)",
 
   // 環境設定
   "settings.title": "外観設定",

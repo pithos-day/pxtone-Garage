@@ -128,12 +128,17 @@ import { writeNote, writeNoteLength, eraseNote, writeVolumeEvent, paintKeyDrag, 
 import { smartPlacement, commitSmartDrag, clampSmartOffset, shiftKeyValue, type SmartDrag } from "../src/lib/smart-note";
 import {
   SHORTCUTS,
+  DEFAULT_BINDINGS,
   shortcutAreaOf,
   shortcutCommand,
   formatShortcut,
+  bindingLabel,
+  bindingFromEvent,
+  bindingConflict,
   isModifierKey,
   arrowScrollX,
   arrowScrollRow,
+  type ShortcutBindings,
   type ShortcutCommand,
   type ShortcutEvent,
 } from "../src/lib/shortcuts";
@@ -1510,11 +1515,12 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(menuNamesFor("collage").join(","), "file,edit,view,tools", "lib: menuNamesFor collage は File/Edit/View/Tools");
     checkEq(menuNamesFor("voice").join(","), "file,edit,tools", "lib: menuNamesFor voice は File/Edit/Tools");
     checkEq(menuNamesFor("noise").join(","), "file,edit,tools", "lib: menuNamesFor noise は File/Edit/Tools");
-    // Tools > 環境設定 は サブメニュー (フォルダ) として 外観設定 を持つ
-    const tools = buildToolsMenu({ onAppearance: () => {} });
+    // Tools > 環境設定 は サブメニュー (フォルダ) として 外観設定/キー設定 を持つ
+    const tools = buildToolsMenu({ onAppearance: () => {}, onKeys: () => {} });
     checkEq(tools.length, 1, "lib: Tools メニューの項目数");
-    checkEq(tools[0]!.sub?.length ?? 0, 1, "lib: Tools > 環境設定 はサブメニュー");
+    checkEq(tools[0]!.sub?.length ?? 0, 2, "lib: Tools > 環境設定 はサブメニュー");
     checkEq(tools[0]!.sub?.[0]?.label, t("menu.tools.appearance"), "lib: Tools > 環境設定 > 外観設定");
+    checkEq(tools[0]!.sub?.[1]?.label, t("menu.tools.keys"), "lib: Tools > 環境設定 > キー設定");
 
     // lib/noise: エンベロープ変換と履歴追加
     checkEq(secToEnveX("1.5"), 1500, "lib: secToEnveX は秒を 1/1000 へ変換");
@@ -2608,6 +2614,39 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(cmdOf(stroke("Delete", { ctrl: true })), null, "shortcut: Ctrl+Delete は対象外");
     checkEq(cmdOf(stroke("ArrowLeft", { ctrl: true })), null, "shortcut: Ctrl+← は対象外");
     checkEq(cmdOf(stroke("q")), null, "shortcut: 未割り当てキーは null");
+
+    // ---- キー設定による上書き (lib は割り当て表を引数で受け取る) ----
+    const custom: ShortcutBindings = { ...DEFAULT_BINDINGS, save: [{ key: "s", ctrl: true, alt: true }] };
+    checkEq(shortcutCommand(stroke("s", { ctrl: true, alt: true }), ctx, custom), "save", "shortcut: 上書きした Alt 付き割り当てが引ける");
+    checkEq(shortcutCommand(stroke("s", { ctrl: true }), ctx, custom), null, "shortcut: 上書きした既定キーは無効になる");
+    checkEq(shortcutCommand(stroke("z", { ctrl: true }), ctx, custom), "undo", "shortcut: 上書きしていないコマンドは既定のまま");
+    checkEq(bindingLabel({ key: "s", ctrl: true, alt: true }, false), "Ctrl+Alt+S", "shortcut: Alt 付きの表示");
+    checkEq(bindingLabel({ key: "s", ctrl: true, alt: true }, true), "⌘⌥S", "shortcut: Alt 付きの macOS 表示");
+
+    // ---- 入力からの割り当て生成と競合検出 ----
+    const keyEvt = (
+      key: string,
+      mods: { ctrl?: boolean; meta?: boolean; shift?: boolean; alt?: boolean } = {},
+    ): Parameters<typeof bindingFromEvent>[0] => ({
+      key,
+      ctrlKey: !!mods.ctrl,
+      metaKey: !!mods.meta,
+      shiftKey: !!mods.shift,
+      altKey: !!mods.alt,
+    });
+    checkEq(
+      JSON.stringify(bindingFromEvent(keyEvt("k", { ctrl: true }))),
+      JSON.stringify({ key: "k", ctrl: true }),
+      "shortcut: Ctrl+K の割り当てを生成",
+    );
+    checkEq(
+      JSON.stringify(bindingFromEvent(keyEvt("K", { meta: true, shift: true }))),
+      JSON.stringify({ key: "k", ctrl: true, shift: true }),
+      "shortcut: 大文字・⌘ は正規化する",
+    );
+    checkEq(bindingFromEvent(keyEvt("Control")), null, "shortcut: 修飾キー単独は割り当てにしない");
+    checkEq(bindingConflict(DEFAULT_BINDINGS, "save", { key: "z", ctrl: true }), "undo", "shortcut: 他コマンドとの競合を検出");
+    checkEq(bindingConflict(DEFAULT_BINDINGS, "save", { key: "s", ctrl: true, alt: true }), null, "shortcut: 未使用の組み合わせは競合なし");
 
     // ---- 読み取り専用タブ (pttune): 編集系は止め、コピー / 選択 / 再生は許可 ----
     const ro = { readOnly: true, clipReady: true, modalOpen: false };

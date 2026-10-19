@@ -1,4 +1,4 @@
-// アプリのシェル: メニューバー (モードタブ + File/Edit/View) → ファイルタブ →
+// アプリのシェル: メニューバー (モードタブ + File/Edit/View/Tools) → ファイルタブ →
 // 再生コントロール → コンテンツ。
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from "vue";
@@ -12,6 +12,7 @@ import EventVolumeDialog from "./EventVolumeDialog.vue";
 import WavExportDialog from "./WavExportDialog.vue";
 import OpenLinkDialog from "./OpenLinkDialog.vue";
 import UnsavedDialog from "./UnsavedDialog.vue";
+import KeySettingsDialog from "./KeySettingsDialog.vue";
 import ProgressDialog from "./ProgressDialog.vue";
 import type { EventVolumeMode } from "../../lib/eventVolume";
 import type { AppMode } from "../../lib/modes";
@@ -39,6 +40,7 @@ const restoredMode = restoreDrafts();
 const activeTab = ref<AppMode>(restoredMode ?? "collage");
 const projectDialogOpen = ref(false);
 const settingsDialogOpen = ref(false);
+const keySettingsDialogOpen = ref(false);
 const openLinkDialogOpen = ref(false);
 const copyMeasOpen = ref(false);
 const eventVolumeKind = ref<null | EventVolumeMode>(null);
@@ -258,6 +260,7 @@ onBeforeUnmount(() => {
       v-model="activeTab"
       @project="projectDialogOpen = true"
       @settings="settingsDialogOpen = true"
+      @key-settings="keySettingsDialogOpen = true"
       @open-link="openLinkDialogOpen = true"
       @request-close="requestClose"
       @copy-meas="copyMeasOpen = true"
@@ -280,6 +283,7 @@ onBeforeUnmount(() => {
     </main>
     <ProjectDialog v-if="projectDialogOpen" @close="projectDialogOpen = false" />
     <SettingsDialog v-if="settingsDialogOpen" @close="settingsDialogOpen = false" />
+    <KeySettingsDialog v-if="keySettingsDialogOpen" @close="keySettingsDialogOpen = false" />
     <OpenLinkDialog v-if="openLinkDialogOpen" :open="onOpenLink" @close="openLinkDialogOpen = false" />
     <UnsavedDialog
       v-if="closeRequest"

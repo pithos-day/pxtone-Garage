@@ -1,6 +1,6 @@
 // メニューバー (MenuBar.vue) のメニュー項目組み立て。
 // モード別メニュー定義の構築ロジックを SFC から分離する
-import { FilePlus2, FileSearch2, Link2, Palette, Save, SavePlus, Settings, SquareX, Undo, Redo, ZoomIn } from "@lucide/vue";
+import { FilePlus2, FileSearch2, Keyboard, Link2, Palette, Save, SavePlus, Settings, SquareX, Undo, Redo, ZoomIn } from "@lucide/vue";
 import type { Component } from "vue";
 import { ZOOM_MAX, ZOOM_MIN, ZOOM_TABLE } from "./clock";
 import type { ShortcutCommand } from "./shortcuts";
@@ -130,14 +130,15 @@ export function buildViewMenu(args: {
 }
 
 // Tools メニュー (collage/voice/noise 共通)。
-// 環境設定はフォルダのようにサブメニュー化し、外観設定をその中へ入れる
-export function buildToolsMenu(args: { onAppearance: () => void }): MenuItem[] {
+// 環境設定はフォルダのようにサブメニュー化し、外観設定・キー設定をその中へ入れる
+export function buildToolsMenu(args: { onAppearance: () => void; onKeys: () => void }): MenuItem[] {
   return [
     {
       label: t("menu.tools.settings"),
       icon: Settings,
       sub: [
         { label: t("menu.tools.appearance"), icon: Palette, action: args.onAppearance },
+        { label: t("menu.tools.keys"), icon: Keyboard, action: args.onKeys },
       ],
     },
   ];

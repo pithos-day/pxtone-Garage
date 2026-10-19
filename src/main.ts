@@ -4,6 +4,7 @@ import "./styles/canvas.css";
 import App from "./App.vue";
 import { initTheme } from "./state/theme";
 import { initFonts } from "./state/fonts";
+import { initKeybindings } from "./state/keybindings";
 import {
   openProject,
   newProject,
@@ -49,6 +50,7 @@ initTheme({
 });
 initFonts();
 initMasterVolume();
+initKeybindings();
 createApp(App).mount("#app");
 
 // 開発・テスト用フック

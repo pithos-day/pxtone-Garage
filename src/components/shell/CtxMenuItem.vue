@@ -3,7 +3,8 @@
 // ショートカットを持つ項目 (command) は右寄せでキーを併記する
 <script setup lang="ts">
 import type { Component } from "vue";
-import { formatShortcut, type ShortcutCommand } from "../../lib/shortcuts";
+import type { ShortcutCommand } from "../../lib/shortcuts";
+import { formatShortcut } from "../../state/keybindings";
 
 defineProps<{
   icon: Component;

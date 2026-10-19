@@ -6,7 +6,7 @@ import { isPlaying, togglePlay, stopAndRewind, loop, setLoop, masterVolume, setM
 import { doc, getService, clockContext } from "../../state/project";
 import { panels, PANEL_DEFS as PANELS } from "../../state/panels";
 import { formatClock, formatTime } from "../../lib/clock";
-import { formatShortcut } from "../../lib/shortcuts";
+import { formatShortcut } from "../../state/keybindings";
 import { t } from "../../i18n";
 
 function timeLabel(): string {
