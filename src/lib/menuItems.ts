@@ -1,6 +1,6 @@
 // メニューバー (MenuBar.vue) のメニュー項目組み立て。
 // モード別メニュー定義の構築ロジックを SFC から分離する
-import { FilePlus2, FileSearch2, Save, SavePlus, SquareX, Undo, Redo, ZoomIn } from "@lucide/vue";
+import { FilePlus2, FileSearch2, Link2, Save, SavePlus, SquareX, Undo, Redo, ZoomIn } from "@lucide/vue";
 import type { Component } from "vue";
 import { ZOOM_MAX, ZOOM_MIN, ZOOM_TABLE } from "./clock";
 import type { ShortcutCommand } from "./shortcuts";
@@ -49,6 +49,8 @@ export interface MenuItem {
 export interface ModeMenuOps {
   new: () => void;
   open: () => void;
+  // URL を入力して開く (省略時はメニューに出さない)
+  openFromLink?: () => void;
   save: () => void;
   saveAs: () => void;
   close: () => void;
@@ -70,6 +72,9 @@ export function buildFileMenu(ops: ModeMenuOps, extra: MenuItem[], beforeSave: M
   return [
     { label: t("menu.file.new"), icon: FilePlus2, action: ops.new },
     { label: t("menu.file.open"), icon: FileSearch2, action: ops.open },
+    ...(ops.openFromLink
+      ? [{ label: t("menu.file.openFromLink"), icon: Link2, action: ops.openFromLink }]
+      : []),
     { sep: true },
     ...beforeSave,
     { label: t("menu.file.save"), icon: Save, action: ops.save, disabled: saveDisabled, command: "save" },

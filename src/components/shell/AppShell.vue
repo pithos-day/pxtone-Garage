@@ -10,6 +10,7 @@ import SettingsDialog from "./SettingsDialog.vue";
 import CopyMeasDialog from "./CopyMeasDialog.vue";
 import EventVolumeDialog from "./EventVolumeDialog.vue";
 import WavExportDialog from "./WavExportDialog.vue";
+import OpenLinkDialog from "./OpenLinkDialog.vue";
 import ProgressDialog from "./ProgressDialog.vue";
 import type { EventVolumeMode } from "../../lib/eventVolume";
 import type { AppMode } from "../../lib/modes";
@@ -27,6 +28,7 @@ import { openNoise, ensureInitialNoise } from "../../state/noise";
 const activeTab = ref<AppMode>("collage");
 const projectDialogOpen = ref(false);
 const settingsDialogOpen = ref(false);
+const openLinkDialogOpen = ref(false);
 const copyMeasOpen = ref(false);
 const eventVolumeKind = ref<null | EventVolumeMode>(null);
 const wavExportOpen = ref(false);
@@ -90,6 +92,41 @@ async function onDrop(e: DragEvent): Promise<void> {
   }
   if (err) window.alert(err);
 }
+
+// URL から取得して、現在のモードのファイルとして開く。
+// 戻り値はダイアログに表示するエラー (成功時 null)。CORS 非対応の URL は fetch が失敗する
+async function onOpenLink(url: string): Promise<string | null> {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return t("error.urlInvalid");
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return t("error.urlInvalid");
+
+  let blob: Blob;
+  try {
+    const res = await fetch(parsed.href);
+    if (!res.ok) return `${t("error.urlFetch")} (HTTP ${res.status})`;
+    blob = await res.blob();
+  } catch {
+    return t("error.urlFetch");
+  }
+
+  let rawName = "";
+  try {
+    rawName = decodeURIComponent(parsed.pathname.split("/").pop() ?? "");
+  } catch {
+    // 不正なパーセントエンコードは無題として扱う
+  }
+  const name = rawName.replace(/\.(ptcop|pttune|ptvoice|ptnoise)$/i, "") || t("common.untitled");
+
+  if (activeTab.value === "collage") return openProjectFromBlob(blob, name);
+  if (activeTab.value === "voice") {
+    return readBlobAndApply(t("progress.openTitle"), blob, (bytes) => openVoice(bytes, name));
+  }
+  return readBlobAndApply(t("progress.openTitle"), blob, (bytes) => openNoise(bytes, name));
+}
 </script>
 
 <template>
@@ -98,6 +135,7 @@ async function onDrop(e: DragEvent): Promise<void> {
       v-model="activeTab"
       @project="projectDialogOpen = true"
       @settings="settingsDialogOpen = true"
+      @open-link="openLinkDialogOpen = true"
       @copy-meas="copyMeasOpen = true"
       @event-volume="(kind) => (eventVolumeKind = kind)"
       @export-wav="wavExportOpen = true"
@@ -118,6 +156,7 @@ async function onDrop(e: DragEvent): Promise<void> {
     </main>
     <ProjectDialog v-if="projectDialogOpen" @close="projectDialogOpen = false" />
     <SettingsDialog v-if="settingsDialogOpen" @close="settingsDialogOpen = false" />
+    <OpenLinkDialog v-if="openLinkDialogOpen" :open="onOpenLink" @close="openLinkDialogOpen = false" />
     <CopyMeasDialog v-if="copyMeasOpen" @close="copyMeasOpen = false" />
     <EventVolumeDialog v-if="eventVolumeKind" :kind="eventVolumeKind" @close="eventVolumeKind = null" />
     <WavExportDialog v-if="wavExportOpen" @close="wavExportOpen = false" />

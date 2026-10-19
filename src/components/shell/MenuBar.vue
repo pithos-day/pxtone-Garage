@@ -47,6 +47,7 @@ const mode = defineModel<AppMode>({ required: true });
 const emit = defineEmits<{
   (e: "project"): void;
   (e: "settings"): void;
+  (e: "openLink"): void;
   (e: "copyMeas"): void;
   (e: "eventVolume", kind: EventVolumeMode): void;
   (e: "exportWav"): void;
@@ -241,6 +242,7 @@ const modeOps: Record<AppMode, ModeMenuOps> = {
   collage: {
     new: onNew,
     open: onOpen,
+    openFromLink: () => emit("openLink"),
     save: () => runSave(saveProject()),
     saveAs: () => runSave(saveProjectAs()),
     close: onClose,
@@ -255,6 +257,7 @@ const modeOps: Record<AppMode, ModeMenuOps> = {
   voice: {
     new: () => newVoice(),
     open: onOpenVoice,
+    openFromLink: () => emit("openLink"),
     save: () => runSave(saveVoice(false)),
     saveAs: () => runSave(saveVoice(true)),
     close: onCloseVoice,
@@ -268,6 +271,7 @@ const modeOps: Record<AppMode, ModeMenuOps> = {
   noise: {
     new: () => newNoise(),
     open: onOpenNoise,
+    openFromLink: () => emit("openLink"),
     save: () => runSave(saveNoise(false)),
     saveAs: () => runSave(saveNoise(true)),
     close: onCloseNoise,

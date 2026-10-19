@@ -16,6 +16,7 @@ const ja = {
   // メニュー: File
   "menu.file.new": "新規作成",
   "menu.file.open": "プロジェクトを開く",
+  "menu.file.openFromLink": "リンクから開く",
   "menu.file.importMidi": "MIDIを読み込む",
   "menu.file.importMidiNormal": "そのまま読み込む",
   "menu.file.importMidiSplit": "和音を分解して読み込む",
@@ -85,6 +86,13 @@ const ja = {
   "settings.loadLocalFonts": "ローカルフォントを読み込む…",
   "settings.loadLocalFontsDone": "ローカルフォントを読み込みました ({n}件)",
   "settings.loadLocalFontsFallback": "このブラウザではシステムフォントの列挙ができないため、よく使われるフォントから検出しました",
+
+  // リンクから開く
+  "openLink.title": "リンクから開く",
+  "openLink.url": "URL",
+  "openLink.open": "開く",
+  "openLink.empty": "URLを入力してください",
+  "openLink.hint": "http:// または https:// のURLを指定してください。配信元の CORS 設定によっては開けない場合があります",
 
   // 再生コントロール
   "transport.play": "再生",
@@ -287,6 +295,8 @@ const ja = {
   "error.tooManyEvents": "イベント数が多すぎます",
   "error.noiseBuild": "ノイズのビルドに失敗しました",
   "error.midi": "MIDIファイルを読み込めませんでした",
+  "error.urlInvalid": "URL が不正です",
+  "error.urlFetch": "URL からファイルを読み込めませんでした",
   "error.save": "保存に失敗しました",
   "error.applyNoProject": "元の Collage プロジェクトが見つかりません",
   "error.applyNoWoice": "元の Collage の音色が見つかりません",
