@@ -1,10 +1,9 @@
 // 上部メニューバー (Blockbench 風)。
 // 左: Collage/Voice/Noise のモードタブ (大きめフォント)
-// 右: モード別ドロップダウンメニュー (collage = File/Edit/View/Tools、
-//     voice/noise = File/Edit/Tools。Tools に環境設定フォルダがある)
+// 右: モード別ドロップダウンメニュー (collage = File/Edit/View、voice/noise = File/Edit)
 <script setup lang="ts">
 import { computed } from "vue";
-import { FileUp, FileDown, Music, ListMusic, FileMusic, AudioLines, SlidersHorizontal, SquareStack, CircleGauge, Copy, Columns4, PackagePlus, Link2 } from "@lucide/vue";
+import { FileUp, FileDown, Music, ListMusic, FileMusic, AudioLines, SlidersHorizontal, SquareStack, CircleGauge, Copy, Columns4, PackagePlus, Link2, Settings, Palette, Keyboard } from "@lucide/vue";
 import { DIVI_TABLE } from "../../lib/clock";
 import { doc, setAllUnitsVisible, exportBytes, addWoice, WoiceType } from "../../state/project";
 import {
@@ -31,7 +30,6 @@ import {
   buildFileMenu,
   buildEditMenu,
   buildViewMenu,
-  buildToolsMenu,
   MENU_LABELS,
   menuNamesFor,
   type MenuItem,
@@ -49,7 +47,6 @@ const mode = defineModel<AppMode>({ required: true });
 const emit = defineEmits<{
   (e: "project"): void;
   (e: "settings"): void;
-  (e: "openLink"): void;
   (e: "keySettings"): void;
   (e: "requestClose", mode: AppMode, id: number): void;
   (e: "copyMeas"): void;
@@ -250,7 +247,6 @@ const modeOps: Record<AppMode, ModeMenuOps> = {
   collage: {
     new: onNew,
     open: onOpen,
-    openFromLink: () => emit("openLink"),
     save: () => runSave(saveProject()),
     saveAs: () => runSave(saveProjectAs()),
     close: onClose,
@@ -265,7 +261,6 @@ const modeOps: Record<AppMode, ModeMenuOps> = {
   voice: {
     new: () => newVoice(),
     open: onOpenVoice,
-    openFromLink: () => emit("openLink"),
     save: () => runSave(saveVoice(false)),
     saveAs: () => runSave(saveVoice(true)),
     close: onCloseVoice,
@@ -279,7 +274,6 @@ const modeOps: Record<AppMode, ModeMenuOps> = {
   noise: {
     new: () => newNoise(),
     open: onOpenNoise,
-    openFromLink: () => emit("openLink"),
     save: () => runSave(saveNoise(false)),
     saveAs: () => runSave(saveNoise(true)),
     close: onCloseNoise,
@@ -342,6 +336,15 @@ const fileMenu = computed<MenuItem[]>(() => {
             disabled: !currentLink.value,
           },
         ];
+  // 環境設定はフォルダのようにサブメニュー化する (外観設定 / キー設定)
+  const settingsFolder: MenuItem = {
+    label: t("menu.file.settings"),
+    icon: Settings,
+    sub: [
+      { label: t("menu.file.appearance"), icon: Palette, action: () => emit("settings") },
+      { label: t("menu.file.keys"), icon: Keyboard, action: () => emit("keySettings") },
+    ],
+  };
   const extra: MenuItem[] =
     mode.value === "collage"
       ? [
@@ -363,6 +366,7 @@ const fileMenu = computed<MenuItem[]>(() => {
           },
           { sep: true },
           { label: t("menu.file.project"), icon: SlidersHorizontal, action: () => emit("project") },
+          settingsFolder,
           { sep: true },
         ]
       : [
@@ -382,6 +386,8 @@ const fileMenu = computed<MenuItem[]>(() => {
             action: mode.value === "voice" ? onAddVoiceToCollage : onAddNoiseToCollage,
             disabled: isTuneProject() || (mode.value === "voice" ? !currentVoice() : !currentNoise()),
           },
+          { sep: true },
+          settingsFolder,
           { sep: true },
         ];
   return buildFileMenu(ops, extra, beforeSave);
@@ -429,16 +435,10 @@ const viewMenu = computed<MenuItem[]>(() =>
   }),
 );
 
-// Tools メニュー (環境設定フォルダ)。外観設定・キー設定は AppShell のダイアログを開く
-const toolsMenu = computed<MenuItem[]>(() =>
-  buildToolsMenu({ onAppearance: () => emit("settings"), onKeys: () => emit("keySettings") }),
-);
-
 const openItems = computed<MenuItem[]>(() => {
   if (openMenu.value === "file") return fileMenu.value;
   if (openMenu.value === "edit") return editMenu.value;
   if (openMenu.value === "view") return viewMenu.value;
-  if (openMenu.value === "tools") return toolsMenu.value;
   return [];
 });
 </script>

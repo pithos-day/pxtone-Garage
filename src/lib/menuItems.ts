@@ -1,6 +1,6 @@
 // メニューバー (MenuBar.vue) のメニュー項目組み立て。
 // モード別メニュー定義の構築ロジックを SFC から分離する
-import { FilePlus2, FileSearch2, Keyboard, Link2, Palette, Save, SavePlus, Settings, SquareX, Undo, Redo, ZoomIn } from "@lucide/vue";
+import { FilePlus2, FileSearch2, Save, SavePlus, SquareX, Undo, Redo, ZoomIn } from "@lucide/vue";
 import type { Component } from "vue";
 import { ZOOM_MAX, ZOOM_MIN, ZOOM_TABLE } from "./clock";
 import type { ShortcutCommand } from "./shortcuts";
@@ -8,19 +8,19 @@ import { t } from "../i18n";
 import type { AppMode } from "./modes";
 
 // トップメニューの名前 (表示ラベルとモード別表示順もここで定義)
-export type MenuName = "file" | "edit" | "view" | "tools";
+export type MenuName = "file" | "edit" | "view";
 
 // トップメニューの表示ラベル
 export const MENU_LABELS: Record<MenuName, string> = {
   file: "File",
   edit: "Edit",
   view: "View",
-  tools: "Tools",
 };
 
-// モード別のトップメニュー (voice/noise は View を持たないが、環境設定の Tools は共通)
+// モード別のトップメニュー (voice/noise は File + Edit。Edit には undo/redo と
+// A/B コピー (voice) があるため表示する)
 export function menuNamesFor(mode: AppMode): MenuName[] {
-  return mode === "collage" ? ["file", "edit", "view", "tools"] : ["file", "edit", "tools"];
+  return mode === "collage" ? ["file", "edit", "view"] : ["file", "edit"];
 }
 
 export interface MenuItem {
@@ -49,8 +49,6 @@ export interface MenuItem {
 export interface ModeMenuOps {
   new: () => void;
   open: () => void;
-  // URL を入力して開く (省略時はメニューに出さない)
-  openFromLink?: () => void;
   save: () => void;
   saveAs: () => void;
   close: () => void;
@@ -72,9 +70,6 @@ export function buildFileMenu(ops: ModeMenuOps, extra: MenuItem[], beforeSave: M
   return [
     { label: t("menu.file.new"), icon: FilePlus2, action: ops.new },
     { label: t("menu.file.open"), icon: FileSearch2, action: ops.open },
-    ...(ops.openFromLink
-      ? [{ label: t("menu.file.openFromLink"), icon: Link2, action: ops.openFromLink }]
-      : []),
     { sep: true },
     ...beforeSave,
     { label: t("menu.file.save"), icon: Save, action: ops.save, disabled: saveDisabled, command: "save" },
@@ -124,21 +119,6 @@ export function buildViewMenu(args: {
             format: (z) => `${Math.round(z)}px`,
           },
         },
-      ],
-    },
-  ];
-}
-
-// Tools メニュー (collage/voice/noise 共通)。
-// 環境設定はフォルダのようにサブメニュー化し、外観設定・キー設定をその中へ入れる
-export function buildToolsMenu(args: { onAppearance: () => void; onKeys: () => void }): MenuItem[] {
-  return [
-    {
-      label: t("menu.tools.settings"),
-      icon: Settings,
-      sub: [
-        { label: t("menu.tools.appearance"), icon: Palette, action: args.onAppearance },
-        { label: t("menu.tools.keys"), icon: Keyboard, action: args.onKeys },
       ],
     },
   ];

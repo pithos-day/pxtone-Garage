@@ -1,4 +1,4 @@
-// アプリのシェル: メニューバー (モードタブ + File/Edit/View/Tools) → ファイルタブ →
+// アプリのシェル: メニューバー (モードタブ + File/Edit/View) → ファイルタブ →
 // 再生コントロール → コンテンツ。
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from "vue";
@@ -10,7 +10,6 @@ import SettingsDialog from "./SettingsDialog.vue";
 import CopyMeasDialog from "./CopyMeasDialog.vue";
 import EventVolumeDialog from "./EventVolumeDialog.vue";
 import WavExportDialog from "./WavExportDialog.vue";
-import OpenLinkDialog from "./OpenLinkDialog.vue";
 import UnsavedDialog from "./UnsavedDialog.vue";
 import KeySettingsDialog from "./KeySettingsDialog.vue";
 import ProgressDialog from "./ProgressDialog.vue";
@@ -41,7 +40,6 @@ const activeTab = ref<AppMode>(restoredMode ?? "collage");
 const projectDialogOpen = ref(false);
 const settingsDialogOpen = ref(false);
 const keySettingsDialogOpen = ref(false);
-const openLinkDialogOpen = ref(false);
 const copyMeasOpen = ref(false);
 const eventVolumeKind = ref<null | EventVolumeMode>(null);
 const wavExportOpen = ref(false);
@@ -114,41 +112,6 @@ async function onDrop(e: DragEvent): Promise<void> {
     err = await readBlobAndApply(t("progress.openTitle"), file, (bytes) => openNoise(bytes, name));
   }
   if (err) window.alert(err);
-}
-
-// URL から取得して、現在のモードのファイルとして開く。
-// 戻り値はダイアログに表示するエラー (成功時 null)。CORS 非対応の URL は fetch が失敗する
-async function onOpenLink(url: string): Promise<string | null> {
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return t("error.urlInvalid");
-  }
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return t("error.urlInvalid");
-
-  let blob: Blob;
-  try {
-    const res = await fetch(parsed.href);
-    if (!res.ok) return `${t("error.urlFetch")} (HTTP ${res.status})`;
-    blob = await res.blob();
-  } catch {
-    return t("error.urlFetch");
-  }
-
-  let rawName = "";
-  try {
-    rawName = decodeURIComponent(parsed.pathname.split("/").pop() ?? "");
-  } catch {
-    // 不正なパーセントエンコードは無題として扱う
-  }
-  const name = rawName.replace(/\.(ptcop|pttune|ptvoice|ptnoise)$/i, "") || t("common.untitled");
-
-  if (activeTab.value === "collage") return openProjectFromBlob(blob, name);
-  if (activeTab.value === "voice") {
-    return readBlobAndApply(t("progress.openTitle"), blob, (bytes) => openVoice(bytes, name));
-  }
-  return readBlobAndApply(t("progress.openTitle"), blob, (bytes) => openNoise(bytes, name));
 }
 
 // ---- 未保存のタブを閉じる ----
@@ -261,7 +224,6 @@ onBeforeUnmount(() => {
       @project="projectDialogOpen = true"
       @settings="settingsDialogOpen = true"
       @key-settings="keySettingsDialogOpen = true"
-      @open-link="openLinkDialogOpen = true"
       @request-close="requestClose"
       @copy-meas="copyMeasOpen = true"
       @event-volume="(kind) => (eventVolumeKind = kind)"
@@ -284,7 +246,6 @@ onBeforeUnmount(() => {
     <ProjectDialog v-if="projectDialogOpen" @close="projectDialogOpen = false" />
     <SettingsDialog v-if="settingsDialogOpen" @close="settingsDialogOpen = false" />
     <KeySettingsDialog v-if="keySettingsDialogOpen" @close="keySettingsDialogOpen = false" />
-    <OpenLinkDialog v-if="openLinkDialogOpen" :open="onOpenLink" @close="openLinkDialogOpen = false" />
     <UnsavedDialog
       v-if="closeRequest"
       :name="closeRequest.name"

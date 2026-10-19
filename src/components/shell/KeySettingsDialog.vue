@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Tools > 環境設定 > キー設定 のモーダルダイアログ。
+// File > 環境設定 > キー設定 のモーダルダイアログ。
 // 外見の配置は Blockbench のキー設定ダイアログを参考にしている (コードは流用していない)。
 // 左に動作、右にキーのピルを並べ、ピルをクリックして次のキー入力で割り当てる。
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
