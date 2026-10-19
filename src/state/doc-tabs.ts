@@ -32,11 +32,18 @@ export interface DocCodec<D extends TabDocBase> {
 export function createDocTabs<D extends TabDocBase>(codec: DocCodec<D>) {
   const docs = ref<D[]>([]) as Ref<D[]>;
   const currentId = ref(-1);
+  const revision = ref(0);
   let nextId = 1;
+
+  // 編集・保存・タブ操作のたびに進む。未保存ドラフトの自動退避のトリガー
+  function bump(): void {
+    revision.value++;
+  }
 
   return {
     docs,
     currentId,
+    revision,
 
     current(): D | null {
       return docs.value.find((d) => d.id === currentId.value) ?? null;
@@ -47,6 +54,7 @@ export function createDocTabs<D extends TabDocBase>(codec: DocCodec<D>) {
       const doc = { ...d, id: nextId++ } as D;
       docs.value.push(doc);
       currentId.value = doc.id;
+      bump();
       return doc;
     },
 
@@ -58,10 +66,14 @@ export function createDocTabs<D extends TabDocBase>(codec: DocCodec<D>) {
         const next = docs.value[Math.min(idx, docs.value.length - 1)];
         currentId.value = next?.id ?? -1;
       }
+      bump();
     },
 
     switchTo(id: number): void {
-      if (currentId.value !== id) currentId.value = id;
+      if (currentId.value !== id) {
+        currentId.value = id;
+        bump();
+      }
     },
 
     // 編集前のスナップショットを undo スタックへ
@@ -78,11 +90,13 @@ export function createDocTabs<D extends TabDocBase>(codec: DocCodec<D>) {
       this.pushUndo(d);
       fn();
       d.dirty = true;
+      bump();
     },
 
     // 変更を適用済みにする (dirty の解除)。undo スタックはそのまま残す
     markClean(d: D): void {
       d.dirty = false;
+      bump();
     },
 
     // stack から pop したスナップショットへ戻し、現在状態を pushTo へ積む (undo/redo 共通)
@@ -93,6 +107,7 @@ export function createDocTabs<D extends TabDocBase>(codec: DocCodec<D>) {
       if (cur) pushTo.push(cur);
       if (!codec.restore(d, b)) return false;
       d.dirty = true;
+      bump();
       return true;
     },
 
@@ -104,6 +119,7 @@ export function createDocTabs<D extends TabDocBase>(codec: DocCodec<D>) {
         if (cur?.initial && !cur.dirty && !cur.fileName) {
           docs.value = [];
           currentId.value = -1;
+          bump();
         }
       }
     },
@@ -134,6 +150,7 @@ export function createDocTabs<D extends TabDocBase>(codec: DocCodec<D>) {
       // (タブ表示は拡張子なしのため、拡張子を除いて記録する)
       d.fileName = stripFileExt(saved);
       d.dirty = false;
+      bump();
       return true;
     },
   };

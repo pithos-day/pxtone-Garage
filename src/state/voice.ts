@@ -35,6 +35,8 @@ const tabs = createDocTabs<VoiceDoc>({
 
 export const voices = tabs.docs;
 export const currentVoiceId = tabs.currentId;
+// 編集・保存のたびに進む。未保存ドラフトの退避トリガー (drafts.ts が購読する)
+export const voiceRevision = tabs.revision;
 
 export function currentVoice(): VoiceDoc | null {
   // woice は markRaw で格納しているため実体は Woice のまま

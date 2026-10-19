@@ -79,6 +79,8 @@ export function snapshotNoise(d: NoiseDoc): Uint8Array | null {
 
 export const noises = tabs.docs;
 export const currentNoiseId = tabs.currentId;
+// 編集・保存のたびに進む。未保存ドラフトの退避トリガー (drafts.ts が購読する)
+export const noiseRevision = tabs.revision;
 
 export function currentNoise(): NoiseDoc | null {
   // noise は markRaw で格納しているため実体は Noise のまま

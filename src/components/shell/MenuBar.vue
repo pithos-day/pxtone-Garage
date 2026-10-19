@@ -10,7 +10,6 @@ import {
   newProjectInTab,
   openProjectInTab,
   openProjectFromBlob,
-  closeProject,
   saveProject,
   saveProjectAs,
   isTuneProject,
@@ -48,6 +47,7 @@ const emit = defineEmits<{
   (e: "project"): void;
   (e: "settings"): void;
   (e: "openLink"): void;
+  (e: "requestClose", mode: AppMode, id: number): void;
   (e: "copyMeas"): void;
   (e: "eventVolume", kind: EventVolumeMode): void;
   (e: "exportWav"): void;
@@ -124,9 +124,13 @@ function onExportWav(): void {
 }
 
 function onClose(): void {
-  const id = currentProjectId.value;
-  if (doc.dirty && !window.confirm(t("confirm.close"))) return;
-  closeProject(id);
+  const id =
+    mode.value === "collage"
+      ? currentProjectId.value
+      : mode.value === "voice"
+        ? currentVoiceId.value
+        : currentNoiseId.value;
+  if (id >= 0) emit("requestClose", mode.value, id);
 }
 
 // ---- 音声 (ptVoice) のアクション ----

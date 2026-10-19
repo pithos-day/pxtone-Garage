@@ -5,7 +5,7 @@ import { ref } from "vue";
 import { Service, PxtnErr, MemoryIo, PXTN_MAX_EVENT_NUM, Woice, WoiceType } from "pxtone-ts";
 import { setService } from "./service";
 import { setUndoStacks, undoStack, redoStack, snapshotService, pushUndoToStack, refreshUndoFlags, type UndoEntry } from "./undo";
-import { doc, sync, title, comment, ensureInit, pxtnErrorMessage, exportBytes } from "./project";
+import { doc, sync, title, comment, ensureInit, pxtnErrorMessage, exportBytes, uiRepeatToFile } from "./project";
 import { resetLoaded } from "./player";
 import {
   chooseSaveDestination,
@@ -182,6 +182,45 @@ function restore(p: Project): void {
   sync();
   doc.rev++;
   resetLoaded();
+}
+
+// 現在の doc 状態を現在のプロジェクトへ書き戻す。
+// 未保存ドラフトの退避前に呼ぶ (タブ切替時にしか更新されないため)
+export function persistCurrentProjectState(): void {
+  saveCurrent();
+}
+
+// 未保存ドラフト用のスナップショット。
+// ptcop の write/read は measNum・repeatMeas を保持しないため、バイト列と一緒に持つ
+export function projectDraftSnapshot(p: Project): UndoEntry | null {
+  const svc = services.get(p.id);
+  return svc ? snapshotService(svc) : null;
+}
+
+// ドラフトの measNum / Repeat をエンジンへ戻す (openProjectInTab の直後に呼ぶ)
+export function applyDraftProjectMeta(id: number, measNum: number, repeatMeasUi: number): void {
+  const svc = services.get(id);
+  if (!svc) return;
+  if (Number.isFinite(measNum) && measNum > 0) svc.master.setMeasNum(measNum);
+  if (Number.isFinite(repeatMeasUi) && repeatMeasUi >= 0) svc.master.setRepeatMeas(uiRepeatToFile(repeatMeasUi));
+  if (id === currentProjectId.value) {
+    sync();
+    doc.rev++;
+  }
+}
+
+// ドラフトから復元した状態をプロジェクトへ適用する。
+// 現在のタブなら doc にも反映し、次回のタブ切替で上書きされないようにする
+export function applyDraftProjectState(id: number, state: ProjectState): void {
+  const p = projects.value.find((x) => x.id === id);
+  if (!p) return;
+  p.state = state;
+  p.dirty = state.dirty;
+  if (id === currentProjectId.value) {
+    applyState(state);
+    sync();
+    doc.rev++;
+  }
 }
 
 export function switchProject(id: number): void {

@@ -279,6 +279,11 @@ const ja = {
   // 確認 / 入力ダイアログ
   "confirm.new": "未保存の変更は破棄されます。新規作成しますか?",
   "confirm.close": "未保存の変更は破棄されます。閉じますか?",
+  "unsaved.title": "未保存の変更",
+  "unsaved.message": "「{name}」には保存されていない変更があります。閉じる前に保存しますか?",
+  "unsaved.hint": "選択せずにタブを閉じた場合は、次回起動時に変更内容を復元します。",
+  "unsaved.discard": "保存しない",
+  "unsaved.saving": "保存中…",
   "confirm.waveType": "編集モードを変更します。波形とボリュームは初期値に戻ります。よろしいですか?",
   "prompt.fileName": "ファイル名を入力してください",
 

@@ -9,25 +9,25 @@ import {
   currentProjectId,
   switchProject,
   newProjectInTab,
-  closeProject,
 } from "../../state/projects";
 import {
   voices,
   currentVoiceId,
   switchVoice,
   newVoice,
-  closeVoice,
 } from "../../state/voice";
 import {
   noises,
   currentNoiseId,
   switchNoise,
   newNoise,
-  closeNoise,
 } from "../../state/noise";
 import { t } from "../../i18n";
 
 const props = defineProps<{ mode: AppMode }>();
+
+// 未保存確認は AppShell のダイアログで行うため、閉じる操作はイベントで委譲する
+const emit = defineEmits<{ (e: "requestClose", mode: AppMode, id: number): void }>();
 
 // モード別のタブ一覧 (id / title / dirty / linked / readonly / active / select / close)
 const tabs = computed(() => {
@@ -41,7 +41,6 @@ const tabs = computed(() => {
       readonly: false,
       active: v.id === currentVoiceId.value,
       select: () => switchVoice(v.id),
-      close: () => closeVoice(v.id),
     }));
   }
   if (props.mode === "noise") {
@@ -54,7 +53,6 @@ const tabs = computed(() => {
       readonly: false,
       active: n.id === currentNoiseId.value,
       select: () => switchNoise(n.id),
-      close: () => closeNoise(n.id),
     }));
   }
   return projects.value.map((p) => ({
@@ -66,7 +64,6 @@ const tabs = computed(() => {
     readonly: p.kind === "tune",
     active: p.id === currentProjectId.value,
     select: () => switchProject(p.id),
-    close: () => closeProject(p.id),
   }));
 });
 
@@ -77,13 +74,9 @@ function onNew(): void {
   else newProjectInTab();
 }
 
-// 閉じる前の未保存確認は各 close 側 (projects/voice/noise の closeProject 等) では
-// 行わないため、ここで dirty 確認してから呼ぶ
+// 閉じる前の未保存確認は AppShell が担当する (保存 / 保存しない / キャンセル)
 function onClose(id: number): void {
-  const entry = tabs.value.find((x) => x.id === id);
-  if (!entry) return;
-  if (entry.dirty && !window.confirm(t("confirm.close"))) return;
-  entry.close();
+  emit("requestClose", props.mode, id);
 }
 </script>
 

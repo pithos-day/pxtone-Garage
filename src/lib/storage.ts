@@ -8,9 +8,23 @@ export function readStorage(key: string): string | null {
   }
 }
 
-export function writeStorage(key: string, value: string): void {
+// 書き込みの成否が必要な用途 (未保存ドラフトの退避など) 向け
+export function tryWriteStorage(key: string, value: string): boolean {
   try {
     localStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function writeStorage(key: string, value: string): void {
+  tryWriteStorage(key, value);
+}
+
+export function removeStorage(key: string): void {
+  try {
+    localStorage.removeItem(key);
   } catch {
     // 無視
   }
