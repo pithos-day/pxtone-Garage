@@ -52,6 +52,7 @@ export interface ModeMenuOps {
   save: () => void;
   saveAs: () => void;
   close: () => void;
+  closeAll: () => void;
   undo: () => void;
   redo: () => void;
   canUndo: () => boolean;
@@ -60,13 +61,16 @@ export interface ModeMenuOps {
   canSave?: () => boolean;
   // 閉じる可否 (省略時は閉じられる。タブが 1 つで閉じられないときなど false)
   canClose?: () => boolean;
+  // 全て閉じる可否 (省略時は常に可。タブが 0 件のときなど false)
+  canCloseAll?: () => boolean;
 }
 
-// File メニュー。共通 5 項目 (new/open/save/saveAs + 区切り) + モード固有項目 (extra) + close。
+// File メニュー。共通 5 項目 (new/open/save/saveAs + 区切り) + モード固有項目 (extra) + close / closeAll。
 // saveItem を渡すと「プロジェクトを保存」を差し替える (リンク付き音色の「変更を適用」)
 export function buildFileMenu(ops: ModeMenuOps, extra: MenuItem[], saveItem?: MenuItem): MenuItem[] {
   const saveDisabled = ops.canSave ? !ops.canSave() : false;
   const closeDisabled = ops.canClose ? !ops.canClose() : false;
+  const closeAllDisabled = ops.canCloseAll ? !ops.canCloseAll() : false;
   return [
     { label: t("menu.file.new"), icon: FilePlus2, action: ops.new },
     { label: t("menu.file.open"), icon: FileSearch2, action: ops.open },
@@ -76,6 +80,7 @@ export function buildFileMenu(ops: ModeMenuOps, extra: MenuItem[], saveItem?: Me
     { sep: true },
     ...extra,
     { label: t("menu.file.close"), icon: SquareX, action: ops.close, disabled: closeDisabled },
+    { label: t("menu.file.closeAll"), icon: SquareX, action: ops.closeAll, disabled: closeAllDisabled },
   ];
 }
 

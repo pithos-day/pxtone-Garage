@@ -19,7 +19,7 @@ import CollageTab from "../collage/CollageEditor.vue";
 import VoiceTab from "../voice/VoiceEditor.vue";
 import NoiseTab from "../noise/NoiseEditor.vue";
 import VoiceCopyDialog from "../voice/VoiceCopyDialog.vue";
-import { closeProject, ensureInitialProject, openProjectFromBlob, projects, saveProject, switchProject } from "../../state/projects";
+import { closeAllProjects, closeProject, currentProjectId, ensureInitialProject, openProjectFromBlob, projects, saveProject, switchProject } from "../../state/projects";
 import { openSampleProject } from "../../state/samples";
 import { readBlobAndApply } from "../../engine/io";
 import { initLanguage, t } from "../../i18n";
@@ -56,6 +56,8 @@ interface CloseRequest {
 }
 const closeRequest = ref<CloseRequest | null>(null);
 const closeBusy = ref(false);
+// 「全て閉じる」で未保存確認を待っている残りのタブ (先頭から順に処理する)
+let pendingCloseAll: { mode: AppMode; ids: number[] } | null = null;
 
 function onVoiceCopyYes(): void {
   if (voiceCopyDir.value === "AB") copyVoiceSide(0, 1);
@@ -147,7 +149,9 @@ async function onDrop(e: DragEvent): Promise<void> {
 function closeTargetInfo(mode: AppMode, id: number): { name: string; dirty: boolean; canSave: boolean } | null {
   if (mode === "collage") {
     const p = projects.value.find((x) => x.id === id);
-    return p ? { name: p.fileName || t("common.untitled"), dirty: p.dirty, canSave: p.kind !== "tune" } : null;
+    // 現在のタブは doc が正本 (p.dirty はタブ切替/退避まで古いことがある)
+    const dirty = p && p.id === currentProjectId.value ? doc.dirty : p?.dirty;
+    return p ? { name: p.fileName || t("common.untitled"), dirty: !!dirty, canSave: p.kind !== "tune" } : null;
   }
   if (mode === "voice") {
     const v = voices.value.find((x) => x.id === id);
@@ -155,6 +159,12 @@ function closeTargetInfo(mode: AppMode, id: number): { name: string; dirty: bool
   }
   const n = noises.value.find((x) => x.id === id);
   return n ? { name: n.fileName || t("common.untitled"), dirty: n.dirty, canSave: true } : null;
+}
+
+function switchToTab(mode: AppMode, id: number): void {
+  if (mode === "collage") switchProject(id);
+  else if (mode === "voice") switchVoice(id);
+  else switchNoise(id);
 }
 
 function closeNow(mode: AppMode, id: number): void {
@@ -168,6 +178,7 @@ function closeNow(mode: AppMode, id: number): void {
 
 // タブの X / メニューの「閉じる」から呼ばれる。未保存なら 3 択ダイアログを出す
 function requestClose(mode: AppMode, id: number): void {
+  pendingCloseAll = null;
   const target = closeTargetInfo(mode, id);
   if (!target) return;
   if (!target.dirty) {
@@ -175,10 +186,63 @@ function requestClose(mode: AppMode, id: number): void {
     return;
   }
   // 非アクティブタブの「保存」は現在のタブを保存してしまうため、対象へ切り替える
-  if (mode === "collage") switchProject(id);
-  else if (mode === "voice") switchVoice(id);
-  else switchNoise(id);
+  switchToTab(mode, id);
   closeRequest.value = { mode, id, name: target.name, canSave: target.canSave };
+}
+
+// メニューの「全て閉じる」から呼ばれる。未保存のタブだけ順番に 3 択ダイアログを出し、
+// 全て解決したらまとめて閉じる (途中でキャンセルされたら何も閉じない)
+function requestCloseAll(mode: AppMode): void {
+  const ids =
+    mode === "collage"
+      ? projects.value.map((p) => p.id)
+      : mode === "voice"
+        ? voices.value.map((v) => v.id)
+        : noises.value.map((n) => n.id);
+  if (ids.length === 0) return;
+  pendingCloseAll = { mode, ids };
+  advanceCloseAll();
+}
+
+// 次の未保存タブを確認する。無くなったら実際に閉じる
+function advanceCloseAll(): void {
+  const job = pendingCloseAll;
+  if (!job) return;
+  while (job.ids.length > 0) {
+    const id = job.ids.shift()!;
+    const target = closeTargetInfo(job.mode, id);
+    if (!target?.dirty) continue;
+    // 非アクティブタブの「保存」は現在のタブを保存してしまうため、対象へ切り替える
+    switchToTab(job.mode, id);
+    closeRequest.value = { mode: job.mode, id, name: target.name, canSave: target.canSave };
+    return;
+  }
+  pendingCloseAll = null;
+  closeAllNow(job.mode);
+}
+
+function closeAllNow(mode: AppMode): void {
+  if (mode === "collage") {
+    // Collage は最低 1 タブ必要なため、閉じた後に空プロジェクトを開き直す
+    closeAllProjects();
+  } else if (mode === "voice") {
+    for (const id of voices.value.map((v) => v.id)) closeVoice(id);
+  } else {
+    for (const id of noises.value.map((n) => n.id)) closeNoise(id);
+  }
+  closeRequest.value = null;
+  // 閉じたタブを退避データからも消す (次回起動時に復活させない)
+  saveDraftsNow(activeTab.value);
+}
+
+// 未保存確認の結果を反映する。全て閉じるの途中なら次のタブへ進む
+function finishClose(req: CloseRequest): void {
+  if (pendingCloseAll) {
+    closeRequest.value = null;
+    advanceCloseAll();
+    return;
+  }
+  closeNow(req.mode, req.id);
 }
 
 async function onUnsavedSave(): Promise<void> {
@@ -196,12 +260,18 @@ async function onUnsavedSave(): Promise<void> {
     closeBusy.value = false;
   }
   // 保存ダイアログをキャンセルした場合はダイアログを開いたままにする
-  if (saved) closeNow(req.mode, req.id);
+  if (saved) finishClose(req);
 }
 
 function onUnsavedDiscard(): void {
   const req = closeRequest.value;
-  if (req) closeNow(req.mode, req.id);
+  if (req) finishClose(req);
+}
+
+// ダイアログのキャンセル。「全て閉じる」は途中から再開せず全体を中止する
+function onUnsavedCancel(): void {
+  closeRequest.value = null;
+  pendingCloseAll = null;
 }
 
 // ---- 未保存ドラフトの自動退避 ----
@@ -253,6 +323,7 @@ onBeforeUnmount(() => {
       @settings="settingsDialogOpen = true"
       @key-settings="keySettingsDialogOpen = true"
       @request-close="requestClose"
+      @request-close-all="requestCloseAll"
       @copy-meas="copyMeasOpen = true"
       @event-volume="(kind) => (eventVolumeKind = kind)"
       @export-wav="wavExportOpen = true"
@@ -281,7 +352,7 @@ onBeforeUnmount(() => {
       :busy="closeBusy"
       @save="onUnsavedSave"
       @discard="onUnsavedDiscard"
-      @cancel="closeRequest = null"
+      @cancel="onUnsavedCancel"
     />
     <CopyMeasDialog v-if="copyMeasOpen" @close="copyMeasOpen = false" />
     <EventVolumeDialog v-if="eventVolumeKind" :kind="eventVolumeKind" @close="eventVolumeKind = null" />

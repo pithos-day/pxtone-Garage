@@ -31,6 +31,7 @@ const ja = {
   "menu.file.appearance": "外観設定",
   "menu.file.keys": "キー設定",
   "menu.file.close": "閉じる",
+  "menu.file.closeAll": "全て閉じる",
 
   // メニュー: Edit
   "menu.edit.undo": "１つ戻す",

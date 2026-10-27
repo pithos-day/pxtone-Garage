@@ -18,7 +18,7 @@
 //   44. 音色プロパティ編集 (本家 dlg_Woice 相当) / 45. スマートツールの配置と確定 (lib/smart-note)
 //   46. キーボードショートカット (lib/shortcuts: 判定 / 表示 / スクロール)
 //   47. 進捗ダイアログ (state/progress) と IO の進捗・キャンセル
-//   48. 名前を付けて保存で Collage とのリンクを解除 / 49. 同梱サンプル楽曲
+//   48. 名前を付けて保存で Collage とのリンクを解除 / 49. 同梱サンプル楽曲 / 50. 全て閉じる
 import {
   projects,
   currentProjectId,
@@ -26,6 +26,7 @@ import {
   newProjectInTab,
   switchProject,
   closeProject,
+  closeAllProjects,
   openProjectInTab,
   isTuneProject,
   applyWoiceLink,
@@ -2074,6 +2075,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       save: () => {},
       saveAs: () => {},
       close: () => {},
+      closeAll: () => {},
       undo: () => {},
       redo: () => {},
       canUndo: () => false,
@@ -2081,8 +2083,20 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     };
     const labelsOf = (items: ReturnType<typeof buildFileMenu>): string[] => items.map((m) => (m.sep ? "-" : (m.label ?? "")));
     // 通常は「プロジェクトを保存」を出す
-    const normal = labelsOf(buildFileMenu(ops, []));
+    const normalItems = buildFileMenu(ops, []);
+    const normal = labelsOf(normalItems);
     check(normal.includes(t("menu.file.save")), "filemenu: 通常はプロジェクトを保存");
+    // 「全て閉じる」は「閉じる」の直後に同じアイコンで出す
+    const closeIdx = normal.indexOf(t("menu.file.close"));
+    const closeAllIdx = normal.indexOf(t("menu.file.closeAll"));
+    checkEq(closeAllIdx, closeIdx + 1, "filemenu: 全て閉じるは閉じるの直後");
+    check(
+      normalItems[closeAllIdx]?.icon === normalItems[closeIdx]?.icon,
+      "filemenu: 全て閉じるは閉じると同じアイコン",
+    );
+    // タブが 0 件のモードではグレーアウトする
+    const noTabs = buildFileMenu({ ...ops, canCloseAll: () => false }, []);
+    checkEq(noTabs.find((m) => m.label === t("menu.file.closeAll"))?.disabled, true, "filemenu: タブ 0 件は全て閉じるを無効化");
     // リンク付き音色は保存項目を「変更を適用」に差し替える (Ctrl+S も save コマンドのまま)
     const linked = labelsOf(buildFileMenu(ops, [], { label: "APPLY", command: "save" }));
     check(linked.includes("APPLY"), "filemenu: リンク付きは変更を適用を出す");
@@ -3178,6 +3192,21 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(serviceMod.service.master.beatClock, 480, "sample: beatClock=480");
     checkEq(doc.dirty, false, "sample: 開いた直後は dirty でない");
     check(units.value.length > 0, "sample: ユニットが読める");
+  }
+
+  // ---- 50. 全て閉じる (Collage は空の初期タブを開き直す) ----
+  {
+    newProjectInTab();
+    newProjectInTab();
+    check(projects.value.length >= 3, "closeall: 閉じる前は複数タブ");
+    closeAllProjects();
+    checkEq(projects.value.length, 1, "closeall: 閉じた後は 1 タブ");
+    checkEq(currentProjectId.value, projects.value[0]!.id, "closeall: 新しいタブが選択される");
+    checkEq(currentProject()?.fileName, "", "closeall: 新しいタブは無題");
+    checkEq(currentProject()?.initial, true, "closeall: 起動時と同じ初期タブ");
+    checkEq(doc.fileName, "", "closeall: doc も無題に戻る");
+    checkEq(doc.dirty, false, "closeall: 新しいタブは未編集");
+    checkEq(units.value.length, 0, "closeall: 空のプロジェクト");
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);

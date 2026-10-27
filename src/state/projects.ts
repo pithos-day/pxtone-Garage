@@ -329,6 +329,16 @@ export function closeProject(id: number): void {
   }
 }
 
+// 全てのプロジェクトを閉じ、空のプロジェクトを 1 つ開き直す。
+// Collage は最低 1 タブ必要なため、closeProject の「最後の 1 つは閉じない」制約を
+// 使わず、閉じた後に起動時と同じ初期タブを作る
+export function closeAllProjects(): void {
+  projects.value = [];
+  services.clear();
+  currentProjectId.value = -1;
+  ensureInitialProject();
+}
+
 // 現在のプロジェクトが pttune 形式 (再生専用) か
 export function isTuneProject(): boolean {
   return currentProject()?.kind === "tune";

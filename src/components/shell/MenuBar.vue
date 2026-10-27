@@ -49,6 +49,7 @@ const emit = defineEmits<{
   (e: "settings"): void;
   (e: "keySettings"): void;
   (e: "requestClose", mode: AppMode, id: number): void;
+  (e: "requestCloseAll", mode: AppMode): void;
   (e: "copyMeas"): void;
   (e: "eventVolume", kind: EventVolumeMode): void;
   (e: "exportWav"): void;
@@ -132,6 +133,10 @@ function onClose(): void {
         ? currentVoiceId.value
         : currentNoiseId.value;
   if (id >= 0) emit("requestClose", mode.value, id);
+}
+
+function onCloseAll(): void {
+  emit("requestCloseAll", mode.value);
 }
 
 // ---- 音声 (ptVoice) のアクション ----
@@ -267,6 +272,7 @@ const modeOps: Record<AppMode, ModeMenuOps> = {
     save: () => runSave(saveProject()),
     saveAs: () => runSave(saveProjectAs()),
     close: onClose,
+    closeAll: onCloseAll,
     undo,
     redo,
     canUndo: () => canUndo.value,
@@ -274,6 +280,7 @@ const modeOps: Record<AppMode, ModeMenuOps> = {
     canSave: () => !tuneReadOnly.value,
     // タブが 1 つだと閉じられない (closeProject が no-op) ためグレーアウトする
     canClose: () => projects.value.length > 1,
+    canCloseAll: () => projects.value.length > 0,
   },
   voice: {
     new: () => newVoice(),
@@ -281,12 +288,14 @@ const modeOps: Record<AppMode, ModeMenuOps> = {
     save: onSaveVoice,
     saveAs: () => runSave(saveVoice(true)),
     close: onCloseVoice,
+    closeAll: onCloseAll,
     undo: undoVoice,
     redo: redoVoice,
     canUndo: () => (currentVoice()?.undoStack.length ?? 0) > 0,
     canRedo: () => (currentVoice()?.redoStack.length ?? 0) > 0,
     // タブバーの X 表示 (2 つ以上) と揃える
     canClose: () => voices.value.length > 1,
+    canCloseAll: () => voices.value.length > 0,
   },
   noise: {
     new: () => newNoise(),
@@ -294,12 +303,14 @@ const modeOps: Record<AppMode, ModeMenuOps> = {
     save: onSaveNoise,
     saveAs: () => runSave(saveNoise(true)),
     close: onCloseNoise,
+    closeAll: onCloseAll,
     undo: undoNoise,
     redo: redoNoise,
     canUndo: () => (currentNoise()?.undoStack.length ?? 0) > 0,
     canRedo: () => (currentNoise()?.redoStack.length ?? 0) > 0,
     // タブバーの X 表示 (2 つ以上) と揃える
     canClose: () => noises.value.length > 1,
+    canCloseAll: () => noises.value.length > 0,
   },
 };
 
