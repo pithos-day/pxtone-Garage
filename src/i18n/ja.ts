@@ -310,6 +310,8 @@ const ja = {
   "error.tooManyEvents": "イベント数が多すぎます",
   "error.noiseBuild": "ノイズのビルドに失敗しました",
   "error.midi": "MIDIファイルを読み込めませんでした",
+  "error.sampleFetch": "サンプル楽曲を読み込めませんでした",
+  "error.sampleNotFound": "サンプル楽曲が見つかりません",
   "error.save": "保存に失敗しました",
   "error.applyNoProject": "元の Collage プロジェクトが見つかりません",
   "error.applyNoWoice": "元の Collage の音色が見つかりません",

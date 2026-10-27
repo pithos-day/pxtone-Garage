@@ -17,7 +17,8 @@
 //   42. スコープ操作 (コピー / 切り取り / クリア / 消去 / 貼り付け / 挿入 / 移調) / 43. WAV書き出しオプション (本家 dlg_BuildOption 相当)
 //   44. 音色プロパティ編集 (本家 dlg_Woice 相当) / 45. スマートツールの配置と確定 (lib/smart-note)
 //   46. キーボードショートカット (lib/shortcuts: 判定 / 表示 / スクロール)
-//   47. 進捗ダイアログ (state/progress) と IO の進捗・キャンセル / 48. 名前を付けて保存で Collage とのリンクを解除
+//   47. 進捗ダイアログ (state/progress) と IO の進捗・キャンセル
+//   48. 名前を付けて保存で Collage とのリンクを解除 / 49. 同梱サンプル楽曲
 import {
   projects,
   currentProjectId,
@@ -44,6 +45,7 @@ import {
   WoiceType,
   woiceName,
   woiceNameRaw,
+  title,
   copyMeas,
   changeEventValue,
   addUnitWithWoice,
@@ -69,6 +71,7 @@ import {
   scopeClipReady,
 } from "../src/state/project";
 import * as serviceMod from "../src/state/service";
+import { SAMPLE_SONGS } from "../src/state/samples";
 import { undo, redo, canUndo, canRedo } from "../src/state/undo";
 import { player, isPlaying, masterVolume, loop, initMasterVolume, setMasterVolume } from "../src/state/player";
 import { parseThemeCss, mergeTokens, buildThemeCss, buildStandaloneThemeCss } from "../src/lib/themeParse";
@@ -3161,6 +3164,20 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       if (prevWindow === undefined) delete g.window;
       else g.window = prevWindow;
     }
+  }
+
+  // ---- 49. 同梱サンプル楽曲 ----
+  {
+    const song = SAMPLE_SONGS.find((s) => s.id === "moldau");
+    check(song !== undefined, "sample: カタログに moldau がある");
+    const bytes = new Uint8Array(readFileSync(join(__dirname, "..", "public", song!.path)));
+    const err = openProjectInTab(bytes, song!.tabName);
+    checkEq(err, null, "sample: Moldau を開ける");
+    checkEq(currentProject()?.kind, "ptcop", "sample: 編集可能な ptcop");
+    check(title.value.includes("モルダウ"), "sample: 曲名が読める");
+    checkEq(serviceMod.service.master.beatClock, 480, "sample: beatClock=480");
+    checkEq(doc.dirty, false, "sample: 開いた直後は dirty でない");
+    check(units.value.length > 0, "sample: ユニットが読める");
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);

@@ -1,7 +1,7 @@
 // アプリのシェル: メニューバー (モードタブ + File/Edit/View) → ファイルタブ →
 // 再生コントロール → コンテンツ。
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from "vue";
+import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import MenuBar from "./MenuBar.vue";
 import FileTabs from "./FileTabs.vue";
 import TransportBar from "./TransportBar.vue";
@@ -20,6 +20,7 @@ import VoiceTab from "../voice/VoiceEditor.vue";
 import NoiseTab from "../noise/NoiseEditor.vue";
 import VoiceCopyDialog from "../voice/VoiceCopyDialog.vue";
 import { closeProject, ensureInitialProject, openProjectFromBlob, projects, saveProject, switchProject } from "../../state/projects";
+import { openSampleProject } from "../../state/samples";
 import { readBlobAndApply } from "../../engine/io";
 import { initLanguage, t } from "../../i18n";
 import { copyVoiceSide, openVoice, ensureInitialVoice, closeVoice, saveVoice, voiceRevision, voices, switchVoice } from "../../state/voice";
@@ -68,6 +69,33 @@ ensureInitialProject();
 ensureInitialVoice();
 ensureInitialNoise();
 initLanguage();
+
+// 読み込み後に URL から sample クエリを消す。
+// 残したままだとリロードのたびにサンプルタブが増えるため
+function clearSampleQuery(): void {
+  try {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("sample")) return;
+    url.searchParams.delete("sample");
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  } catch {
+    // URL を書き換えられなくても読み込み自体は成功している
+  }
+}
+
+// 起動時 URL の ?sample=<id> で同梱サンプルを開く。
+// サンプルが見えるよう Collage モードへ切り替える
+onMounted(() => {
+  const sampleId = new URLSearchParams(window.location.search).get("sample");
+  if (!sampleId) return;
+  activeTab.value = "collage";
+  void openSampleProject(sampleId)
+    .then((err) => {
+      if (err) window.alert(err);
+    })
+    .catch(() => window.alert(t("error.sampleFetch")))
+    .finally(clearSampleQuery);
+});
 
 // ブラウザのコンテキストメニューをアプリ全体で無効化
 // (アプリ独自の右クリックメニューは preventDefault だけで動作する)
