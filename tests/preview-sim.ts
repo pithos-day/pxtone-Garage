@@ -1,7 +1,7 @@
 // プレビュー音声制御 (preview.ts) のシミュレーションテスト。
 // AudioContext をモックして、キー変更時の「前の音の停止」を検証する。
 import { EventKind, MemoryIo, PXTN_MAX_EVENT_NUM, PxtnErr, SEEK_SET, Service, WoiceType, Woice, Noise, WaveType } from "pxtone-ts";
-import { previewWoiceObjectHold, stopPreview, renderWoice, clearWoicePreviewCache, resetPreviewContext, playPcmOnce } from "../src/engine/preview";
+import { previewWoiceObjectHold, stopPreview, renderWoice, renderPreview, clearWoicePreviewCache, resetPreviewContext, playPcmOnce } from "../src/engine/preview";
 import { createDefaultWoice } from "../src/state/voice";
 
 // ---- モック AudioContext ----
@@ -195,6 +195,38 @@ void (async () => {
       }
     }
     assert(same, "ptn: 2 回目も同じ結果");
+  }
+
+  // ---- renderPreview: init() で読んだプロジェクトも単音レンダリングできる ----
+  // (initCollage の固定 50 万イベントを避けた経路の回帰テスト)
+  {
+    const s = new Service();
+    assert(s.initCollage(PXTN_MAX_EVENT_NUM) === PxtnErr.OK, "renderPreview: 元プロジェクトを初期化");
+    const w = createDefaultWoice();
+    const wio = new MemoryIo();
+    assert(w.ptvWrite(wio) > 0, "renderPreview: 音色を書き出せる");
+    assert(wio.seek(SEEK_SET, 0), "renderPreview: 音色の読み込み位置を戻せる");
+    assert(s.woiceRead(0, wio, WoiceType.PTV) === PxtnErr.OK, "renderPreview: 音色を読める");
+    assert(s.unitAddNew(), "renderPreview: ユニットを追加できる");
+    s.master.set(4, 120, 480);
+    s.master.setMeasNum(2);
+    s.evels.clear();
+    s.evels.recordAddI(0, 0, EventKind.VOICENO, 0);
+    s.evels.recordAddI(0, 0, EventKind.KEY, 0x6000);
+    s.evels.recordAddI(0, 0, EventKind.VELOCITY, 104);
+    s.evels.recordAddI(0, 0, EventKind.ON, 480);
+    const pio = new MemoryIo();
+    assert(s.write(pio, false, 996) === PxtnErr.OK, "renderPreview: ptcop を書き出せる");
+    const work = await renderPreview(pio.toUint8Array(), { unitNo: 0, woiceIdx: null }, 60, 104, 0.2, 44100);
+    assert(work !== null && work.length >= 2, "renderPreview: init() 経路で結果が返る");
+    let signal = false;
+    for (const v of work!) {
+      if (v !== 0) {
+        signal = true;
+        break;
+      }
+    }
+    assert(signal, "renderPreview: 非ゼロの音が出る");
   }
 
   // ---- pxtone-ts の契約: initCollage 直後 (read() を経由しない) でも mooPreparation が通り音が出る ----

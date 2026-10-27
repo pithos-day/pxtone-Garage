@@ -2,7 +2,7 @@
 // worklet の preview メッセージは未実装のため、メインスレッドで
 // 一時 Service にプロジェクト全体を読み込み、対象ユニットのみの
 // ノートをオフライン短レンダリング → AudioBuffer 再生で実現する。
-import { Service, PxtnErr, MemoryIo, SEEK_SET, EventKind, PXTN_MAX_EVENT_NUM, EVENTDEFAULT_VELOCITY, WoiceType, NoiseBuilder, Pcm } from "pxtone-ts";
+import { Service, PxtnErr, MemoryIo, SEEK_SET, EventKind, EVENTDEFAULT_VELOCITY, WoiceType, NoiseBuilder, Pcm } from "pxtone-ts";
 import type { Woice, Noise } from "pxtone-ts";
 import { exportBytes } from "../state/project";
 import { decodeProjectBytes } from "./oggv";
@@ -47,7 +47,9 @@ export async function renderPreview(
   const decoded = await decodeProjectBytes(projectBytes, EXE_VER);
   if (!decoded) return null;
   const s = new Service();
-  if (s.initCollage(PXTN_MAX_EVENT_NUM) !== PxtnErr.OK) return null;
+  // initCollage (固定 50 万イベント) ではなく init を使う。read() が実際の
+  // イベント数だけ確保するため、プレビューごとの巨大な領域確保と clear を避けられる
+  if (s.init() !== PxtnErr.OK) return null;
   if (s.read(new MemoryIo(decoded)) !== PxtnErr.OK) return null;
 
   // 対象ユニットの音色番号 (VOICENO イベントの最後の値) を整理前に取得
@@ -369,12 +371,15 @@ watch(masterVolume, (v) => {
 // PTV 音色は ptvWrite のバイト列を、PTN 音色はノイズ波形を PCM 化してから
 // 音色スロット 0 に注入し、VOICENO/KEY/VELOCITY/ON イベントを置いてレンダリングする。
 // 毎回 clear() して 1 個の Service を使い回す (毎回の initCollage を省略)
+// 単音レンダリングは VOICENO/KEY/VELOCITY/ON の 4 イベントしか使わないため、
+// 50 万イベント分の領域を確保しない (clear() の走査も軽くなる)
+const PREVIEW_EVENT_NUM = 8;
 let renderSvc: Service | null = null;
 
 function getRenderService(): Service | null {
   if (renderSvc) return renderSvc;
   renderSvc = new Service();
-  if (renderSvc.initCollage(PXTN_MAX_EVENT_NUM) !== PxtnErr.OK) {
+  if (renderSvc.initCollage(PREVIEW_EVENT_NUM) !== PxtnErr.OK) {
     renderSvc = null;
     return null;
   }
