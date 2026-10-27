@@ -155,7 +155,7 @@ export function buildThemeCss(id: string, tokens: ThemeTokens): string {
 export function buildStandaloneThemeCss(name: string, tokens: ThemeTokens): string {
   // コメントを壊す "*/" は名前から除去する (パース時にスキップされる)
   const safeName = name.replace(/\*\//g, "");
-  const parts = [`/* pxtone-garage theme: ${safeName} */`];
+  const parts = [`/* pxtone Garage theme: ${safeName} */`];
   if (Object.keys(tokens.light).length > 0) parts.push(`:root {\n${tokenLines(tokens.light)}\n}`);
   if (Object.keys(tokens.dark).length > 0) parts.push(`.dark {\n${tokenLines(tokens.dark)}\n}`);
   return `${parts.join("\n\n")}\n`;

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-pxtone-garage はピストンコラージュ (ptCollage) 互換の Web DAW。
+pxtone Garage はピストンコラージュ (ptCollage) 互換の Web DAW。
 
 ## コマンド
 

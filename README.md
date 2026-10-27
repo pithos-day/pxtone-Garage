@@ -1,4 +1,4 @@
-# pxtone-garage
+# pxtone Garage
 
 [ピストンコラージュ](https://pxtone.org/) 互換の Web DAW アプリケーション。
 ページ内のタブで ptCollage(DAW) / ptVoice(PTV音源エディタ) / ptNoise(PTNノイズエディタ) を切り替えて制作する。

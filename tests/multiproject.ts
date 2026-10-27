@@ -590,7 +590,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
     // エクスポート CSS 生成 (単体 :root/.dark) → 再インポートの往復
     const standalone = buildStandaloneThemeCss("My Theme", merged);
-    check(standalone.includes("/* pxtone-garage theme: My Theme */"), "エクスポートCSS: テーマ名コメント");
+    check(standalone.includes("/* pxtone Garage theme: My Theme */"), "エクスポートCSS: テーマ名コメント");
     const reimported = parseThemeCss(standalone);
     check(
       reimported !== null &&

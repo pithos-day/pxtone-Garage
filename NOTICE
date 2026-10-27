@@ -2,7 +2,7 @@
 
 ## 同梱フォント (SIL Open Font License 1.1)
 
-pxtone-garage には以下のフォントを同梱しています。すべて SIL Open Font License 1.1
+pxtone Garage には以下のフォントを同梱しています。すべて SIL Open Font License 1.1
 (OFL-1.1) で提供され、商用利用・改変・再配布が許可されています。
 ライセンス全文は各パッケージ (`node_modules/@fontsource/*/LICENSE`) に含まれます。
 
