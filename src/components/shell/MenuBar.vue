@@ -280,7 +280,8 @@ const modeOps: Record<AppMode, ModeMenuOps> = {
     canSave: () => !tuneReadOnly.value,
     // タブが 1 つだと閉じられない (closeProject が no-op) ためグレーアウトする
     canClose: () => projects.value.length > 1,
-    canCloseAll: () => projects.value.length > 0,
+    // 閉じる (最後の 1 つは残す) と同じ条件でグレーアウトする
+    canCloseAll: () => projects.value.length > 1,
   },
   voice: {
     new: () => newVoice(),
@@ -295,7 +296,8 @@ const modeOps: Record<AppMode, ModeMenuOps> = {
     canRedo: () => (currentVoice()?.redoStack.length ?? 0) > 0,
     // タブバーの X 表示 (2 つ以上) と揃える
     canClose: () => voices.value.length > 1,
-    canCloseAll: () => voices.value.length > 0,
+    // 閉じる (最後の 1 つは残す) と同じ条件でグレーアウトする
+    canCloseAll: () => voices.value.length > 1,
   },
   noise: {
     new: () => newNoise(),
@@ -310,7 +312,8 @@ const modeOps: Record<AppMode, ModeMenuOps> = {
     canRedo: () => (currentNoise()?.redoStack.length ?? 0) > 0,
     // タブバーの X 表示 (2 つ以上) と揃える
     canClose: () => noises.value.length > 1,
-    canCloseAll: () => noises.value.length > 0,
+    // 閉じる (最後の 1 つは残す) と同じ条件でグレーアウトする
+    canCloseAll: () => noises.value.length > 1,
   },
 };
 

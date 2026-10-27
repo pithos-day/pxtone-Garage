@@ -2094,9 +2094,9 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       normalItems[closeAllIdx]?.icon === normalItems[closeIdx]?.icon,
       "filemenu: 全て閉じるは閉じると同じアイコン",
     );
-    // タブが 0 件のモードではグレーアウトする
+    // タブが 1 つ以下ではグレーアウトする (閉じると同じ条件)
     const noTabs = buildFileMenu({ ...ops, canCloseAll: () => false }, []);
-    checkEq(noTabs.find((m) => m.label === t("menu.file.closeAll"))?.disabled, true, "filemenu: タブ 0 件は全て閉じるを無効化");
+    checkEq(noTabs.find((m) => m.label === t("menu.file.closeAll"))?.disabled, true, "filemenu: タブ 1 つ以下は全て閉じるを無効化");
     // リンク付き音色は保存項目を「変更を適用」に差し替える (Ctrl+S も save コマンドのまま)
     const linked = labelsOf(buildFileMenu(ops, [], { label: "APPLY", command: "save" }));
     check(linked.includes("APPLY"), "filemenu: リンク付きは変更を適用を出す");

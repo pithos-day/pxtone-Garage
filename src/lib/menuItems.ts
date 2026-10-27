@@ -61,7 +61,7 @@ export interface ModeMenuOps {
   canSave?: () => boolean;
   // 閉じる可否 (省略時は閉じられる。タブが 1 つで閉じられないときなど false)
   canClose?: () => boolean;
-  // 全て閉じる可否 (省略時は常に可。タブが 0 件のときなど false)
+  // 全て閉じる可否 (省略時は常に可。タブが 1 つ以下のときなど false)
   canCloseAll?: () => boolean;
 }
 
