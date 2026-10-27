@@ -2,7 +2,7 @@
 // worklet の preview メッセージは未実装のため、メインスレッドで
 // 一時 Service にプロジェクト全体を読み込み、対象ユニットのみの
 // ノートをオフライン短レンダリング → AudioBuffer 再生で実現する。
-import { Service, PxtnErr, MemoryIo, SEEK_SET, EventKind, PXTN_MAX_EVENT_NUM, EVENTDEFAULT_VELOCITY, WoiceType, NoiseBuilder } from "pxtone-ts";
+import { Service, PxtnErr, MemoryIo, SEEK_SET, EventKind, PXTN_MAX_EVENT_NUM, EVENTDEFAULT_VELOCITY, WoiceType, NoiseBuilder, Pcm } from "pxtone-ts";
 import type { Woice, Noise } from "pxtone-ts";
 import { exportBytes } from "../state/project";
 import { decodeProjectBytes } from "./oggv";
@@ -366,8 +366,8 @@ watch(masterVolume, (v) => {
 });
 
 // 単体 Woice をオフライン短レンダリングして Float32Array (ステレオインターリーブ) を得る。
-// renderPreview と同一の手法で、音色スロット 0 に ptvWrite バイト列を注入してから
-// VOICENO/KEY/VELOCITY/ON イベントを置いてレンダリングする。
+// PTV 音色は ptvWrite のバイト列を、PTN 音色はノイズ波形を PCM 化してから
+// 音色スロット 0 に注入し、VOICENO/KEY/VELOCITY/ON イベントを置いてレンダリングする。
 // 毎回 clear() して 1 個の Service を使い回す (毎回の initCollage を省略)
 let renderSvc: Service | null = null;
 
@@ -379,6 +379,62 @@ function getRenderService(): Service | null {
     return null;
   }
   return renderSvc;
+}
+
+// PTN 音色を PCM 音色として Service へ読み込むための最小 WAV。
+// PTV は Sampling 波形を書き出せるが読み込み側が未対応のため、PCM として
+// 読み込んだ VoiceUnit の pcm / 音量 / パン / チューニング / エンベロープを差し替える。
+let tinyPcmWav: Uint8Array | null = null;
+
+function getTinyPcmWav(): Uint8Array | null {
+  if (tinyPcmWav) return tinyPcmWav;
+  const pcm = new Pcm();
+  if (pcm.create(2, NOISE_BUILT_SPS, 16, 1) !== PxtnErr.OK) return null;
+  const io = new MemoryIo();
+  if (!pcm.write(io)) return null;
+  tinyPcmWav = io.toUint8Array();
+  return tinyPcmWav;
+}
+
+let noiseBldr: NoiseBuilder | null = null;
+
+function getNoiseBuilder(): NoiseBuilder | null {
+  if (noiseBldr) return noiseBldr;
+  const bldr = new NoiseBuilder();
+  if (!bldr.init()) return null;
+  noiseBldr = bldr;
+  return bldr;
+}
+
+// PTN 音色のノイズ波形を 44100/16bit/ステレオの PCM へ構築する。
+// buildNoise はノイズ長×レイヤー数に比例して重いため、呼び出し側で結果を再利用する
+function buildPtnPcm(woice: Woice): Pcm | null {
+  const vc = woice.getVoice(0);
+  if (!vc) return null;
+  const bldr = getNoiseBuilder();
+  if (!bldr) return null;
+  return bldr.buildNoise(vc.ptn, 2, NOISE_BUILT_SPS, 16);
+}
+
+// PTN 音色を PCM 音色として Service へ読み込む。
+// 最小 WAV で PCM 音色を作ったあと VoiceUnit を PTN 側の値で差し替える
+// (toneReady は pcm と envelope を読むだけなので、この差し替えで PTN と同じ音になる)
+function readPtnAsPcm(s: Service, woice: Woice, pcm: Pcm): boolean {
+  const src = woice.getVoice(0);
+  if (!src) return false;
+  const wav = getTinyPcmWav();
+  if (!wav) return false;
+  if (s.woiceRead(0, new MemoryIo(wav), WoiceType.PCM) !== PxtnErr.OK) return false;
+  const dst = s.woiceGet(0)?.getVoice(0);
+  if (!dst) return false;
+  dst.pcm = pcm;
+  dst.basicKey = src.basicKey;
+  dst.volume = src.volume;
+  dst.pan = src.pan;
+  dst.tuning = src.tuning;
+  dst.voiceFlags = src.voiceFlags;
+  dst.envelope = src.envelope;
+  return true;
 }
 
 export function renderWoice(
@@ -394,11 +450,18 @@ export function renderWoice(
   // initCollage 済みの Service は moo 有効フラグが立っている (pxtone-ts 側) ため、
   // 以前のように ptcop へシリアライズして読み直す必要はない
   if (!s.clear()) return null;
-  const io = new MemoryIo();
-  if (woice.ptvWrite(io) < 0) return null;
-  // ptvWrite は位置を末尾へ進めるため、読み込み前に先頭へ戻す
-  if (!io.seek(SEEK_SET, 0)) return null;
-  if (s.woiceRead(0, io, WoiceType.PTV) !== PxtnErr.OK) return null;
+  if (woice.type === WoiceType.PTN) {
+    // PTN は ptvWrite が使えないため、ノイズ波形を PCM 化してから読み込む
+    const pcm = buildPtnPcm(woice);
+    if (!pcm) return null;
+    if (!readPtnAsPcm(s, woice, pcm)) return null;
+  } else {
+    const io = new MemoryIo();
+    if (woice.ptvWrite(io) < 0) return null;
+    // ptvWrite は位置を末尾へ進めるため、読み込み前に先頭へ戻す
+    if (!io.seek(SEEK_SET, 0)) return null;
+    if (s.woiceRead(0, io, WoiceType.PTV) !== PxtnErr.OK) return null;
+  }
   if (!s.unitAddNew()) return null;
   return renderEvents(s, 0, key, velocity, durSec, sps);
 }

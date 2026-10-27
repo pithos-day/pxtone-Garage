@@ -1,6 +1,6 @@
 // プレビュー音声制御 (preview.ts) のシミュレーションテスト。
 // AudioContext をモックして、キー変更時の「前の音の停止」を検証する。
-import { EventKind, MemoryIo, PXTN_MAX_EVENT_NUM, PxtnErr, SEEK_SET, Service, WoiceType, type Woice } from "pxtone-ts";
+import { EventKind, MemoryIo, PXTN_MAX_EVENT_NUM, PxtnErr, SEEK_SET, Service, WoiceType, Woice, Noise, WaveType } from "pxtone-ts";
 import { previewWoiceObjectHold, stopPreview, renderWoice, clearWoicePreviewCache, resetPreviewContext, playPcmOnce } from "../src/engine/preview";
 import { createDefaultWoice } from "../src/state/voice";
 
@@ -128,6 +128,30 @@ function longReleaseWoice(): Woice {
   return w;
 }
 
+// 1 秒の PTN (ノイズ) 音色。ptvWrite が使えないため PCM 化経路を通る
+function ptnWoice(): Woice {
+  const noise = new Noise();
+  noise.allocate(1, 2);
+  noise.setSmpNum44k(44100);
+  const unit = noise.getUnit(0)!;
+  unit.bEnable = true;
+  unit.pan = 0;
+  unit.enveNum = 2;
+  unit.enves = [
+    { x: 0, y: 100 },
+    { x: 1000, y: 0 },
+  ];
+  unit.main = { type: WaveType.Sine, freq: 440, volume: 50, offset: 0, bRev: false };
+  unit.freq = { type: WaveType.None, freq: 1, volume: 0, offset: 0, bRev: false };
+  unit.volu = { type: WaveType.None, freq: 1, volume: 100, offset: 0, bRev: false };
+  const w = new Woice();
+  const io = new MemoryIo();
+  if (!noise.write(io)) throw new Error("ptn: noise.write failed");
+  if (!io.seek(SEEK_SET, 0)) throw new Error("ptn: seek failed");
+  if (w.read(io, WoiceType.PTN) !== PxtnErr.OK) throw new Error("ptn: woice read failed");
+  return w;
+}
+
 // 非同期レンダリング完了を待つ (previewWoiceObjectHold は setTimeout(0) でスケジュール)
 function flush(): Promise<void> {
   return new Promise((r) => setTimeout(r, 0));
@@ -146,6 +170,31 @@ void (async () => {
     }
     assert(eq, "Service 再利用: 同一キーで内容一致");
     console.log(`renderWoice: ${work1!.length} samples`);
+  }
+
+  // ---- PTN 音色: ptvWrite が使えなくても PCM 化して高速パスでレンダリングできる ----
+  {
+    const w = ptnWoice();
+    const work1 = renderWoice(w, 60, 104, 0.5, 44100);
+    assert(work1 !== null && work1.length >= 2, "ptn: renderWoice が結果を返す");
+    let signal = false;
+    for (const v of work1!) {
+      if (v !== 0) {
+        signal = true;
+        break;
+      }
+    }
+    assert(signal, "ptn: 非ゼロの音が出る");
+    const work2 = renderWoice(w, 60, 104, 0.5, 44100);
+    assert(work2 !== null && work2.length === work1!.length, "ptn: 2 回目も同じ長さ");
+    let same = true;
+    for (let i = 0; i < work1!.length; i++) {
+      if (work1![i] !== work2![i]) {
+        same = false;
+        break;
+      }
+    }
+    assert(same, "ptn: 2 回目も同じ結果");
   }
 
   // ---- pxtone-ts の契約: initCollage 直後 (read() を経由しない) でも mooPreparation が通り音が出る ----
