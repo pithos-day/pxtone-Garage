@@ -2,8 +2,8 @@
 import { COLORS } from "./theme";
 import { getUnitColor } from "./theme";
 import { canvasFontStack } from "../state/fonts";
+import { clockToX, gridLineWidth } from "./clock";
 import type { ClockView } from "./clock";
-import { clockToX } from "./clock";
 
 export function fillRect(
   ctx: CanvasRenderingContext2D,
@@ -52,7 +52,7 @@ export function drawGrid(
     const measClock = m * view.beatClock * view.beatNum;
     const x0 = clockToX(view, measClock) - scrollX;
     ctx.strokeStyle = COLORS.measureLine;
-    ctx.lineWidth = 1;
+    ctx.lineWidth = gridLineWidth(view.zoom);
     ctx.beginPath();
     ctx.moveTo(x0 + 0.5, top);
     ctx.lineTo(x0 + 0.5, bottom);
@@ -68,6 +68,7 @@ export function drawGrid(
     for (let b = 1; b < view.beatNum; b++) {
       const bx = x0 + b * view.zoom;
       ctx.strokeStyle = COLORS.beatLine;
+      ctx.lineWidth = gridLineWidth(view.zoom);
       ctx.beginPath();
       ctx.moveTo(bx + 0.5, top);
       ctx.lineTo(bx + 0.5, bottom);

@@ -130,7 +130,7 @@ import {
 } from "../src/state/noise";
 import { renderWoice, renderNoise } from "../src/engine/preview";
 import { parseMidi, convertMidiToPtcop } from "../src/engine/midi";
-import { formatTime, measStartClock, ZOOM_MAX, ZOOM_MIN } from "../src/lib/clock";
+import { formatTime, measStartClock, ZOOM_MAX, ZOOM_MIN, gridLineWidth } from "../src/lib/clock";
 import { scaleToWoice, scaleToGroup, VOLUME_EDIT_KIND } from "../src/lib/volume";
 import { writeNote, writeNoteLength, eraseNote, writeVolumeEvent, paintKeyDrag, type EventWriteOps } from "../src/lib/editing";
 import { smartPlacement, commitSmartDrag, clampSmartOffset, shiftKeyValue, type SmartDrag } from "../src/lib/smart-note";
@@ -1400,6 +1400,13 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       checkEq((anchored + 200) / (100 + 200), 2, "lib: カーソル下のクロックが変わらない");
       checkEq(zoomAnchorScrollX(48, 96, 100, 50, 50), 200, "lib: 左の非時間領域では左端基準にする");
       checkEq(zoomAnchorScrollX(48, 24, 10, 20), 0, "lib: ズームアウト時も scrollX は負にしない");
+
+      // グリッド線幅。ズームアウト (縮小) 時は 1 拍あたりの px 幅に比例して薄くなる
+      checkEq(gridLineWidth(48), 1, "lib: 既定ズームのグリッド線は 1px");
+      checkEq(gridLineWidth(24), 0.5, "lib: ズーム半減でグリッド線は半分になる (薄くなる)");
+      checkEq(gridLineWidth(12), 0.25, "lib: ズーム 4 倍減でグリッド線は 1/4 になる (薄くなる)");
+      checkEq(gridLineWidth(ZOOM_MIN), 0.25, "lib: ズーム下限でグリッド線は視認性の下限に張り付く");
+      checkEq(gridLineWidth(ZOOM_MAX), 1, "lib: ズーム上限でグリッド線は上限 1px");
 
       // 配置のクランプ (純関数)。note は 960..1440 (1 拍 = 480 クロック、グリッド 120)
       const note = { head: 960, end: 1440, key: 0x6000 };

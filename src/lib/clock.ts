@@ -89,6 +89,13 @@ export function measBeatClockToClock(view: ClockView, meas: number, beat: number
   return (Math.max(1, meas) - 1) * view.beatNum * view.beatClock + (Math.max(1, beat) - 1) * view.beatClock + Math.max(0, clock);
 }
 
+// グリッド線幅。ズーム (1 拍あたりの px 幅) に比例して線を詰め、ズームアウト (縮小) 時は
+// 薄くなるようにする。既定の zoom (ZOOM_TABLE[1] = 1 拍 48px) で 1px、それ以外は線幅を
+// その比率にスケールする (上限 1px で打ち切り、下限 0.25px で視認性を保つ)
+export function gridLineWidth(zoom: number): number {
+  return Math.max(0.25, Math.min(1, zoom / ZOOM_TABLE[1]));
+}
+
 export function formatClock(view: ClockView, clock: number): string {
   const [m, b, c] = clockToMeasBeatClock(view, clock);
   return `${m + 1}:${b + 1}:${c}`;
