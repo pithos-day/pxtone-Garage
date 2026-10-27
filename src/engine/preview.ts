@@ -412,13 +412,59 @@ function getNoiseBuilder(): NoiseBuilder | null {
 }
 
 // PTN 音色のノイズ波形を 44100/16bit/ステレオの PCM へ構築する。
-// buildNoise はノイズ長×レイヤー数に比例して重いため、呼び出し側で結果を再利用する
+// buildNoise はノイズ長×レイヤー数に比例して重いため、内容が同じ間は結果を再利用する。
+// キーは PTNOISE バイト列 (エンベロープやレイヤー設定を含む) と出力 sps
+const NOISE_PCM_CACHE_MAX = 4;
+
+interface NoisePcmCacheEntry {
+  bytes: Uint8Array;
+  sps: number;
+  pcm: Pcm;
+}
+
+const noisePcmCache: NoisePcmCacheEntry[] = [];
+
+function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+// ノイズの内容を PTNOISE バイト列にする (エンベロープやレイヤー設定も含む)
+function noiseBytes(noise: Noise): Uint8Array | null {
+  noise.fix();
+  const io = new MemoryIo();
+  if (!noise.write(io)) return null;
+  return io.toUint8Array();
+}
+
+function getCachedNoisePcm(noise: Noise, sps: number): Pcm | null {
+  const bytes = noiseBytes(noise);
+  if (!bytes) return null;
+  for (let i = 0; i < noisePcmCache.length; i++) {
+    const entry = noisePcmCache[i]!;
+    if (entry.sps === sps && sameBytes(entry.bytes, bytes)) {
+      // LRU: 使用したエントリを末尾へ移動
+      noisePcmCache.splice(i, 1);
+      noisePcmCache.push(entry);
+      return entry.pcm;
+    }
+  }
+  const bldr = getNoiseBuilder();
+  if (!bldr) return null;
+  const pcm = bldr.buildNoise(noise, 2, sps, 16);
+  if (!pcm) return null;
+  noisePcmCache.push({ bytes, sps, pcm });
+  while (noisePcmCache.length > NOISE_PCM_CACHE_MAX) noisePcmCache.shift();
+  return pcm;
+}
+
 function buildPtnPcm(woice: Woice): Pcm | null {
   const vc = woice.getVoice(0);
   if (!vc) return null;
-  const bldr = getNoiseBuilder();
-  if (!bldr) return null;
-  return bldr.buildNoise(vc.ptn, 2, NOISE_BUILT_SPS, 16);
+  return getCachedNoisePcm(vc.ptn, NOISE_BUILT_SPS);
 }
 
 // PTN 音色を PCM 音色として Service へ読み込む。
@@ -473,8 +519,8 @@ export function renderWoice(
 
 // ノイズを NoiseBuilder で波形化して Float32Array (ステレオインターリーブ) を得る
 export function renderNoise(noise: Noise, sps: number): Float32Array | null {
-  const bldr = new NoiseBuilder();
-  if (!bldr.init()) return null;
+  const bldr = getNoiseBuilder();
+  if (!bldr) return null;
   const pcm = bldr.buildNoise(noise, 2, sps, 16);
   if (!pcm) return null;
   const buf = pcm.devolveSamplingBuffer();

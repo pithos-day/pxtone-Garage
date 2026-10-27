@@ -197,6 +197,37 @@ void (async () => {
     assert(same, "ptn: 2 回目も同じ結果");
   }
 
+  // ---- PTN ノイズ PCM キャッシュ: 内容が同じなら再利用し、変更すると更新される ----
+  {
+    const w = ptnWoice();
+    const work1 = renderWoice(w, 60, 104, 0.2, 44100);
+    assert(work1 !== null, "ptn cache: 初回レンダリング");
+    const unit = w.getVoice(0)!.ptn.getUnit(0)!;
+    const originalFreq = unit.main.freq;
+    unit.main.freq = 880;
+    const work2 = renderWoice(w, 60, 104, 0.2, 44100);
+    assert(work2 !== null, "ptn cache: ノイズ変更後もレンダリング");
+    let changed = false;
+    for (let i = 0; i < work1!.length; i++) {
+      if (work1![i] !== work2![i]) {
+        changed = true;
+        break;
+      }
+    }
+    assert(changed, "ptn cache: ノイズ変更が音に反映される");
+    unit.main.freq = originalFreq;
+    const work3 = renderWoice(w, 60, 104, 0.2, 44100);
+    assert(work3 !== null, "ptn cache: 元に戻したレンダリング");
+    let restored = true;
+    for (let i = 0; i < work1!.length; i++) {
+      if (work1![i] !== work3![i]) {
+        restored = false;
+        break;
+      }
+    }
+    assert(restored, "ptn cache: 元に戻すと初回と同じ結果 (キャッシュ再利用)");
+  }
+
   // ---- renderPreview: init() で読んだプロジェクトも単音レンダリングできる ----
   // (initCollage の固定 50 万イベントを避けた経路の回帰テスト)
   {
