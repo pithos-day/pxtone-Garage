@@ -537,6 +537,12 @@ export function closeVoice(id: number): void {
   tabs.close(id);
 }
 
+// 全ての音声タブを閉じ、起動時と同じ空の初期タブを開き直す
+export function closeAllVoices(): void {
+  for (const v of [...voices.value]) closeVoice(v.id);
+  ensureInitialVoice();
+}
+
 export function switchVoice(id: number): void {
   tabs.switchTo(id);
 }

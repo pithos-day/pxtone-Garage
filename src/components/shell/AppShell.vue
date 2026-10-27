@@ -23,8 +23,8 @@ import { closeAllProjects, closeProject, currentProjectId, ensureInitialProject,
 import { openSampleProject } from "../../state/samples";
 import { readBlobAndApply } from "../../engine/io";
 import { initLanguage, t } from "../../i18n";
-import { copyVoiceSide, openVoice, ensureInitialVoice, closeVoice, saveVoice, voiceRevision, voices, switchVoice } from "../../state/voice";
-import { openNoise, ensureInitialNoise, closeNoise, saveNoise, noiseRevision, noises, switchNoise } from "../../state/noise";
+import { copyVoiceSide, openVoice, ensureInitialVoice, closeVoice, closeAllVoices, saveVoice, voiceRevision, voices, switchVoice } from "../../state/voice";
+import { openNoise, ensureInitialNoise, closeNoise, closeAllNoises, saveNoise, noiseRevision, noises, switchNoise } from "../../state/noise";
 import { doc } from "../../state/project";
 import {
   cancelDraftSave,
@@ -226,9 +226,9 @@ function closeAllNow(mode: AppMode): void {
     // Collage は最低 1 タブ必要なため、閉じた後に空プロジェクトを開き直す
     closeAllProjects();
   } else if (mode === "voice") {
-    for (const id of voices.value.map((v) => v.id)) closeVoice(id);
+    closeAllVoices();
   } else {
-    for (const id of noises.value.map((n) => n.id)) closeNoise(id);
+    closeAllNoises();
   }
   closeRequest.value = null;
   // 閉じたタブを退避データからも消す (次回起動時に復活させない)

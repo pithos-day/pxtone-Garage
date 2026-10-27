@@ -199,6 +199,12 @@ export function closeNoise(id: number): void {
   tabs.close(id);
 }
 
+// 全てのノイズタブを閉じ、起動時と同じ空の初期タブを開き直す
+export function closeAllNoises(): void {
+  for (const n of [...noises.value]) closeNoise(n.id);
+  ensureInitialNoise();
+}
+
 export function switchNoise(id: number): void {
   tabs.switchTo(id);
 }

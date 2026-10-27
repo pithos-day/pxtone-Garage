@@ -18,7 +18,7 @@
 //   44. 音色プロパティ編集 (本家 dlg_Woice 相当) / 45. スマートツールの配置と確定 (lib/smart-note)
 //   46. キーボードショートカット (lib/shortcuts: 判定 / 表示 / スクロール)
 //   47. 進捗ダイアログ (state/progress) と IO の進捗・キャンセル
-//   48. 名前を付けて保存で Collage とのリンクを解除 / 49. 同梱サンプル楽曲 / 50. 全て閉じる
+//   48. 名前を付けて保存で Collage とのリンクを解除 / 49. 同梱サンプル楽曲 / 50. 全て閉じる / 51. Voice/Noise の全て閉じる
 import {
   projects,
   currentProjectId,
@@ -82,6 +82,7 @@ import {
   newVoice,
   openVoice,
   closeVoice,
+  closeAllVoices,
   switchVoice,
   currentVoice,
   editVoice,
@@ -111,6 +112,7 @@ import {
   newNoise,
   openNoise,
   closeNoise,
+  closeAllNoises,
   switchNoise,
   currentNoise,
   editNoise,
@@ -3207,6 +3209,29 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(doc.fileName, "", "closeall: doc も無題に戻る");
     checkEq(doc.dirty, false, "closeall: 新しいタブは未編集");
     checkEq(units.value.length, 0, "closeall: 空のプロジェクト");
+  }
+
+  // ---- 51. 全て閉じる (Voice / Noise も空の初期タブを開き直す) ----
+  {
+    newVoice();
+    newVoice();
+    check(voices.value.length > 1, "closeall: voice 閉じる前は複数タブ");
+    closeAllVoices();
+    checkEq(voices.value.length, 1, "closeall: voice 閉じた後は 1 タブ");
+    checkEq(currentVoiceId.value, voices.value[0]!.id, "closeall: voice 新しいタブが選択される");
+    checkEq(currentVoice()?.fileName, "", "closeall: voice 新しいタブは無題");
+    checkEq(currentVoice()?.initial, true, "closeall: voice 起動時と同じ初期タブ");
+    checkEq(currentVoice()?.dirty, false, "closeall: voice 新しいタブは未編集");
+
+    newNoise();
+    newNoise();
+    check(noises.value.length > 1, "closeall: noise 閉じる前は複数タブ");
+    closeAllNoises();
+    checkEq(noises.value.length, 1, "closeall: noise 閉じた後は 1 タブ");
+    checkEq(currentNoiseId.value, noises.value[0]!.id, "closeall: noise 新しいタブが選択される");
+    checkEq(currentNoise()?.fileName, "", "closeall: noise 新しいタブは無題");
+    checkEq(currentNoise()?.initial, true, "closeall: noise 起動時と同じ初期タブ");
+    checkEq(currentNoise()?.dirty, false, "closeall: noise 新しいタブは未編集");
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);
