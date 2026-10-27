@@ -541,9 +541,12 @@ export function switchVoice(id: number): void {
   tabs.switchTo(id);
 }
 
-// 現在の音声を .ptvoice として保存 (asNew でファイル名入力を促す)
+// 現在の音声を .ptvoice として保存 (asNew でファイル名入力を促す)。
+// 名前を付けて保存したら単独ファイルとして扱い、Collage とのリンクを解除する
 export async function saveVoice(asNew: boolean): Promise<boolean> {
   const v = currentVoice();
   if (!v) return false;
-  return tabs.save(v, asNew, ".ptvoice");
+  const saved = await tabs.save(v, asNew, ".ptvoice");
+  if (saved && asNew) v.link = undefined;
+  return saved;
 }

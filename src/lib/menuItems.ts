@@ -62,17 +62,16 @@ export interface ModeMenuOps {
   canClose?: () => boolean;
 }
 
-// File メニュー。共通 5 項目 (new/open/save/saveAs + 区切り) + 保存系の手前の固有項目
-// (beforeSave) + モード固有項目 (extra) + close
-export function buildFileMenu(ops: ModeMenuOps, extra: MenuItem[], beforeSave: MenuItem[] = []): MenuItem[] {
+// File メニュー。共通 5 項目 (new/open/save/saveAs + 区切り) + モード固有項目 (extra) + close。
+// saveItem を渡すと「プロジェクトを保存」を差し替える (リンク付き音色の「変更を適用」)
+export function buildFileMenu(ops: ModeMenuOps, extra: MenuItem[], saveItem?: MenuItem): MenuItem[] {
   const saveDisabled = ops.canSave ? !ops.canSave() : false;
   const closeDisabled = ops.canClose ? !ops.canClose() : false;
   return [
     { label: t("menu.file.new"), icon: FilePlus2, action: ops.new },
     { label: t("menu.file.open"), icon: FileSearch2, action: ops.open },
     { sep: true },
-    ...beforeSave,
-    { label: t("menu.file.save"), icon: Save, action: ops.save, disabled: saveDisabled, command: "save" },
+    saveItem ?? { label: t("menu.file.save"), icon: Save, action: ops.save, disabled: saveDisabled, command: "save" },
     { label: t("menu.file.saveAs"), icon: SavePlus, action: ops.saveAs, disabled: saveDisabled, command: "saveAs" },
     { sep: true },
     ...extra,

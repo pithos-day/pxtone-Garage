@@ -203,9 +203,12 @@ export function switchNoise(id: number): void {
   tabs.switchTo(id);
 }
 
-// 現在のノイズを .ptnoise として保存 (asNew でファイル名入力を促す)
+// 現在のノイズを .ptnoise として保存 (asNew でファイル名入力を促す)。
+// 名前を付けて保存したら単独ファイルとして扱い、Collage とのリンクを解除する
 export async function saveNoise(asNew: boolean): Promise<boolean> {
   const d = currentNoise();
   if (!d) return false;
-  return tabs.save(d, asNew, ".ptnoise");
+  const saved = await tabs.save(d, asNew, ".ptnoise");
+  if (saved && asNew) d.link = undefined;
+  return saved;
 }

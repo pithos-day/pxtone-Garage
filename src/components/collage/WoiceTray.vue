@@ -100,7 +100,7 @@ async function saveWoiceFile(idx: number): Promise<void> {
 
 // 音色を ptvoice/ptnoise エディタで開き、そちらのモードタブへ移動する。
 // 開くのはコピーで、元の Collage の音色は変化しない。
-// link を渡した場合のみ、File メニューの「変更を適用」で元の音色へ書き戻せる
+// link を渡した場合のみ、File メニューの「変更を適用」(保存位置) で元の音色へ書き戻せる
 function openWoiceInEditor(idx: number, link: WoiceLink | undefined): void {
   const w = getService()?.woiceGet(idx);
   if (!w) return;

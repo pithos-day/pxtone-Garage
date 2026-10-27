@@ -11,13 +11,13 @@
 //   25. 波形プリセット (本家 ptuiWavePreset 準拠) / 26. A/B 面コピー (本家 copy_ptv_voice 準拠)
 //   27. Repeat の undo で表示値 (1-based) がエンジンと一致する / 28. 抽出 lib の純関数 (リファクタ後の回帰テスト) / 29. MIDI (SMF) → ptcop 変換
 //   30. OGGV 音色 / 31. ファイル名ユーティリティ / 32. 音色タイプ判別 (マジックバイト) / 33. Collage への音色追加 (編集中の ptvoice / ptnoise)
-//   34. 音色を編集 (Collage の PTV/PTN をエディタで開く) / 35. 変更を適用 (リンク付き voice/noise → 元の Collage 音色) / 36. File メニューの「変更を適用」の位置
+//   34. 音色を編集 (Collage の PTV/PTN をエディタで開く) / 35. 変更を適用 (リンク付き voice/noise → 元の Collage 音色) / 36. File メニューの「変更を適用」(保存項目の差し替え)
 //   37. 音量スライダーの永続化 (localStorage) / 38. ptnoise のレイヤー数 (ファイルに無いレイヤーも 4 つ表示する) / 39. ビルド履歴はタブごとに独立する
 //   40. リンクなしで音色を開く (pttune の「音色を開く」) / 41. 初期タブの置き換え (無題の音色を開いたタブは置き換えない)
 //   42. スコープ操作 (コピー / 切り取り / クリア / 消去 / 貼り付け / 挿入 / 移調) / 43. WAV書き出しオプション (本家 dlg_BuildOption 相当)
 //   44. 音色プロパティ編集 (本家 dlg_Woice 相当) / 45. スマートツールの配置と確定 (lib/smart-note)
 //   46. キーボードショートカット (lib/shortcuts: 判定 / 表示 / スクロール)
-//   47. 進捗ダイアログ (state/progress) と IO の進捗・キャンセル
+//   47. 進捗ダイアログ (state/progress) と IO の進捗・キャンセル / 48. 名前を付けて保存で Collage とのリンクを解除
 import {
   projects,
   currentProjectId,
@@ -99,6 +99,7 @@ import {
   openWoiceAsVoice,
   markVoiceClean,
   ensureInitialVoice,
+  saveVoice,
 } from "../src/state/voice";
 import {
   noises,
@@ -119,6 +120,7 @@ import {
   NOISE_UNIT_NUM,
   NOISE_ENVE_NUM,
   ensureInitialNoise,
+  saveNoise,
 } from "../src/state/noise";
 import { renderWoice, renderNoise } from "../src/engine/preview";
 import { parseMidi, convertMidiToPtcop } from "../src/engine/midi";
@@ -2061,7 +2063,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     );
   }
 
-  // ---- 36. File メニューの「変更を適用」の位置 ----
+  // ---- 36. File メニューの「変更を適用」(保存項目の差し替え) ----
   {
     const ops = {
       new: () => {},
@@ -2074,20 +2076,18 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       canUndo: () => false,
       canRedo: () => false,
     };
-    // voice/noise は beforeSave に「変更を適用」を渡す (プロジェクトを保存の手前)
-    const labels = buildFileMenu(ops, [], [{ label: "APPLY" }]).map((m) => (m.sep ? "-" : (m.label ?? "")));
-    check(
-      labels.indexOf("APPLY") >= 0 && labels.indexOf("APPLY") < labels.indexOf(t("menu.file.save")),
-      "filemenu: 変更を適用はプロジェクトを保存の手前",
-    );
-    // collage (beforeSave 省略) では入らない
-    check(!buildFileMenu(ops, []).some((m) => m.label === "APPLY"), "filemenu: 省略時は変更を適用なし");
+    const labelsOf = (items: ReturnType<typeof buildFileMenu>): string[] => items.map((m) => (m.sep ? "-" : (m.label ?? "")));
+    // 通常は「プロジェクトを保存」を出す
+    const normal = labelsOf(buildFileMenu(ops, []));
+    check(normal.includes(t("menu.file.save")), "filemenu: 通常はプロジェクトを保存");
+    // リンク付き音色は保存項目を「変更を適用」に差し替える (Ctrl+S も save コマンドのまま)
+    const linked = labelsOf(buildFileMenu(ops, [], { label: "APPLY", command: "save" }));
+    check(linked.includes("APPLY"), "filemenu: リンク付きは変更を適用を出す");
+    check(!linked.includes(t("menu.file.save")), "filemenu: リンク付きはプロジェクトを保存を出さない");
+    checkEq(linked.indexOf("APPLY"), normal.indexOf(t("menu.file.save")), "filemenu: 保存項目と同じ位置に出す");
     // extra は従来どおり保存系の後ろ
-    const labels2 = buildFileMenu(ops, [{ label: "EXTRA" }], [{ label: "APPLY" }]).map((m) => (m.sep ? "-" : (m.label ?? "")));
-    check(
-      labels2.indexOf("EXTRA") > labels2.indexOf(t("menu.file.saveAs")),
-      "filemenu: extra は保存系の後ろ",
-    );
+    const labels2 = labelsOf(buildFileMenu(ops, [{ label: "EXTRA" }], { label: "APPLY" }));
+    check(labels2.indexOf("EXTRA") > labels2.indexOf(t("menu.file.saveAs")), "filemenu: extra は保存系の後ろ");
   }
 
   // ---- 37. 音量スライダーの永続化 (localStorage) ----
@@ -3104,6 +3104,62 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       const passthrough = noOgg ? await decodeProjectBytes(noOgg, 996, noOggTask) : null;
       checkEq(passthrough === noOgg, true, "progress: OGGV なしは元バイト列をそのまま返す");
       checkEq(noOggValues.length, 0, "progress: OGGV なしでは進捗を報告しない");
+    }
+  }
+
+  // ---- 48. 名前を付けて保存で Collage とのリンクを解除 ----
+  {
+    type Writable = {
+      write: (chunk: Uint8Array) => Promise<void>;
+      close: () => Promise<void>;
+      abort: () => Promise<void>;
+    };
+    type PickerWindow = {
+      showSaveFilePicker: () => Promise<{ name: string; createWritable: () => Promise<Writable> }>;
+    };
+    const g = globalThis as unknown as { window?: PickerWindow };
+    const prevWindow = g.window;
+    const writes: Uint8Array[] = [];
+    let pickerName = "saved.ptvoice";
+    // 保存ピッカーをスタブし、書き込み内容をメモリへ集める
+    g.window = {
+      showSaveFilePicker: async () => ({
+        name: pickerName,
+        createWritable: async () => ({
+          write: async (chunk) => {
+            writes.push(new Uint8Array(chunk));
+          },
+          close: async () => {},
+          abort: async () => {},
+        }),
+      }),
+    };
+    try {
+      const proj = newProjectInTab();
+
+      newVoice();
+      currentVoice()!.link = { projectId: proj.id, woiceIndex: 0 };
+      editVoice(() => {
+        currentVoice()!.woice.getVoice(0)!.volume = 90;
+      });
+      check(await saveVoice(true), "saveas: リンク付き音色を名前を付けて保存");
+      checkEq(currentVoice()!.link, undefined, "saveas: 保存後にリンクが解除される");
+      checkEq(currentVoice()!.dirty, false, "saveas: 保存後に dirty が解除される");
+      checkEq(currentVoice()!.fileName, "saved", "saveas: 保存名がタブに反映される");
+      check(writes.length > 0, "saveas: ptvoice のバイト列が書き込まれる");
+
+      pickerName = "saved.ptnoise";
+      newNoise();
+      currentNoise()!.link = { projectId: proj.id, woiceIndex: 0 };
+      editNoise(() => {
+        currentNoise()!.noise.getUnit(0)!.main.freq = 880;
+      });
+      check(await saveNoise(true), "saveas: リンク付きノイズを名前を付けて保存");
+      checkEq(currentNoise()!.link, undefined, "saveas: ノイズも保存後にリンクが解除される");
+      checkEq(currentNoise()!.dirty, false, "saveas: ノイズも保存後に dirty が解除される");
+    } finally {
+      if (prevWindow === undefined) delete g.window;
+      else g.window = prevWindow;
     }
   }
 

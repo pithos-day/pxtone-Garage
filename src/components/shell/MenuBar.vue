@@ -209,8 +209,13 @@ function onAddNoiseToCollage(): void {
 
 // ---- 変更を適用 (「音色を編集」で開いた voice/noise) ----
 
-// 「音色を編集」で開いたタブの書き戻し先 (通常のオープンでは undefined)
-const currentLink = computed(() => (mode.value === "voice" ? currentVoice()?.link : currentNoise()?.link));
+// 「音色を編集」で開いたタブの書き戻し先 (通常のオープンでは undefined)。
+// collage では voice/noise のどちらのリンクも使わない
+const currentLink = computed(() => {
+  if (mode.value === "voice") return currentVoice()?.link;
+  if (mode.value === "noise") return currentNoise()?.link;
+  return undefined;
+});
 
 // 編集した音色を、元の Collage プロジェクトの音色 index へ書き戻す。
 // 適用できたらタブの dirty を解除する (タブの link アイコンも通常色に戻る)
@@ -238,6 +243,18 @@ function onApplyLink(): void {
   }
 }
 
+// リンク付き (「音色を編集」で開いた) タブの保存は元の Collage へ適用する。
+// 単独ファイルとして保存する場合は「名前を付けて保存」を使う
+function onSaveVoice(): void {
+  if (currentVoice()?.link) onApplyLink();
+  else runSave(saveVoice(false));
+}
+
+function onSaveNoise(): void {
+  if (currentNoise()?.link) onApplyLink();
+  else runSave(saveNoise(false));
+}
+
 // ---- モード別メニュー ----
 
 const allVisible = computed(() => doc.unitVisible.length > 0 && doc.unitVisible.every(Boolean));
@@ -261,7 +278,7 @@ const modeOps: Record<AppMode, ModeMenuOps> = {
   voice: {
     new: () => newVoice(),
     open: onOpenVoice,
-    save: () => runSave(saveVoice(false)),
+    save: onSaveVoice,
     saveAs: () => runSave(saveVoice(true)),
     close: onCloseVoice,
     undo: undoVoice,
@@ -274,7 +291,7 @@ const modeOps: Record<AppMode, ModeMenuOps> = {
   noise: {
     new: () => newNoise(),
     open: onOpenNoise,
-    save: () => runSave(saveNoise(false)),
+    save: onSaveNoise,
     saveAs: () => runSave(saveNoise(true)),
     close: onCloseNoise,
     undo: undoNoise,
@@ -323,19 +340,11 @@ useGlobalKeys(() => true, { keydown: onShortcut });
 
 const fileMenu = computed<MenuItem[]>(() => {
   const ops = modeOps[mode.value];
-  // 「変更を適用」は「音色を編集」で開いたタブのみ有効 (collage では出さない)。
-  // buildFileMenu で保存系の手前に差し込む
-  const beforeSave: MenuItem[] =
-    mode.value === "collage"
-      ? []
-      : [
-          {
-            label: t("menu.file.applyChanges"),
-            icon: Link2,
-            action: onApplyLink,
-            disabled: !currentLink.value,
-          },
-        ];
+  // リンク付き音色は「プロジェクトを保存」の位置に「変更を適用」を出す (Ctrl+S も同じ)。
+  // リンクなしでは保存項目をそのまま使う
+  const saveItem: MenuItem | undefined = currentLink.value
+    ? { label: t("menu.file.applyChanges"), icon: Link2, action: onApplyLink, command: "save" }
+    : undefined;
   // 環境設定はフォルダのようにサブメニュー化する (外観設定 / キー設定)
   const settingsFolder: MenuItem = {
     label: t("menu.file.settings"),
@@ -390,7 +399,7 @@ const fileMenu = computed<MenuItem[]>(() => {
           settingsFolder,
           { sep: true },
         ];
-  return buildFileMenu(ops, extra, beforeSave);
+  return buildFileMenu(ops, extra, saveItem);
 });
 
 const editMenu = computed<MenuItem[]>(() => {
