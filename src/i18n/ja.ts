@@ -284,6 +284,7 @@ const ja = {
   "noise.envelope": "エンベロープ",
   "noise.envePoint": "点",
   "noise.wavePreview": "波形プレビュー",
+  "noise.zoom": "表示倍率",
   "noise.history": "History",
   "noise.historyHint": "クリックで再生 / ダブルクリックでエディタに反映",
 

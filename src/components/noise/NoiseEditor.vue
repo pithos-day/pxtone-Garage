@@ -4,15 +4,16 @@
 // ビルドボタンは廃止し、編集が 250ms デバウンスでリアルタイムに波形へ反映される。
 // 波形クリック / Space で単発再生 (ループしない。本家 PcmTable_BuildAndPlay 準拠)。
 // History リスト、WAV 書き出しを提供する。
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { useEditRev } from "../../composables/useEditRev";
 import { useGlobalKeys } from "../../composables/useGlobalKeys";
 import { useDebounced } from "../../composables/useDebounced";
 import { useUndoOnce } from "../../composables/useUndo";
 import { COLORS } from "../../lib/theme";
-import { fillRect, fillText } from "../../lib/draw";
+import { fillRect } from "../../lib/draw";
 import { NOISE_BUILT_SPS, secToEnveX, pctToEnveY } from "../../lib/noise";
+import { PCM_VIEW_ZOOM, PCM_VIEW_ZOOMS, pcmScrollMax, pcmScrollThumb, pcmViewWidth } from "../../lib/pcm-view";
 import { WaveType } from "pxtone-ts";
 import NoiseWaveTypeSelect from "./NoiseWaveTypeSelect.vue";
 import { currentNoise, newNoise, editNoise, readNoiseBytes, pushNoiseHistory, NOISE_UNIT_NUM, NOISE_ENVE_NUM, resizeNoiseEnves } from "../../state/noise";
@@ -185,39 +186,140 @@ onMounted(() => {
   schedulePreview();
 });
 
-// ---- 波形プレビュー描画 ----
+// ---- 波形プレビュー描画 (本家 ptNoise の PcmTable 準拠) ----
 const waveRef = ref<HTMLCanvasElement | null>(null);
+const waveWrapRef = ref<HTMLDivElement | null>(null);
+const scrollTrackRef = ref<HTMLDivElement | null>(null);
+
+// 本家同様、全体を横幅に押し込めず固定ズームで描き、はみ出した分は横スクロールする。
+// 押し込むと 1px に何百サンプルも入り、波形が単なる長方形になってしまうため。
+const waveViewW = ref(0);
+const waveScrollPx = ref(0);
+const waveZoom = ref(PCM_VIEW_ZOOM);
+// renderNoise はステレオ (L/R) を返す
+const PCM_CHANNELS = 2;
+const waveTotalPx = computed(() => {
+  const pcm = builtPcm.value;
+  return pcm ? pcmViewWidth(Math.floor(pcm.length / PCM_CHANNELS), waveZoom.value) : 0;
+});
+const maxWaveScroll = computed(() => pcmScrollMax(waveTotalPx.value, waveViewW.value));
+const waveScrollable = computed(() => maxWaveScroll.value > 0);
+const waveThumb = computed(() => pcmScrollThumb(waveTotalPx.value, waveViewW.value, waveScrollPx.value));
+
+// ズーム変更時は左端の時刻を保つ (本家 if_PcmTable_SetParameter の offset * old / new)
+watch(waveZoom, (zoom, oldZoom) => {
+  waveScrollPx.value = clampWaveScroll((waveScrollPx.value * oldZoom) / zoom);
+});
+
+// 波形の長さや表示幅が変わったら、スクロール位置を範囲内へ戻す
+watch([waveTotalPx, waveViewW], () => {
+  if (waveScrollPx.value > maxWaveScroll.value) waveScrollPx.value = maxWaveScroll.value;
+});
+
+let waveResizeObserver: ResizeObserver | null = null;
+onMounted(() => {
+  const el = waveWrapRef.value;
+  if (!el) return;
+  waveResizeObserver = new ResizeObserver(() => {
+    waveViewW.value = el.clientWidth;
+  });
+  waveResizeObserver.observe(el);
+  waveViewW.value = el.clientWidth;
+});
+onBeforeUnmount(() => {
+  waveResizeObserver?.disconnect();
+  waveResizeObserver = null;
+});
+
+function clampWaveScroll(v: number): number {
+  return Math.max(0, Math.min(maxWaveScroll.value, v));
+}
+
+function onWaveWheel(e: WheelEvent): void {
+  if (!waveScrollable.value) return;
+  // 横スクロールを優先し、縦ホイールでも波形を送れるようにする
+  const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+  if (delta === 0) return;
+  e.preventDefault();
+  waveScrollPx.value = clampWaveScroll(waveScrollPx.value + delta);
+}
+
+// スクロールバーのドラッグ。トラックのクリックはサムの中心をその位置へ移動する
+let scrollDrag: { startX: number; startScroll: number } | null = null;
+
+function onScrollPointerDown(e: PointerEvent): void {
+  if (!waveScrollable.value) return;
+  const track = scrollTrackRef.value;
+  if (!track) return;
+  const rect = track.getBoundingClientRect();
+  const thumb = waveThumb.value;
+  const x = e.clientX - rect.left;
+  if (x < thumb.left || x > thumb.left + thumb.width) {
+    // トラックのクリックはサムの中心をその位置へ移動する
+    const range = rect.width - thumb.width;
+    if (range <= 0) return;
+    waveScrollPx.value = clampWaveScroll(((x - thumb.width / 2) / range) * maxWaveScroll.value);
+  }
+  scrollDrag = { startX: e.clientX, startScroll: waveScrollPx.value };
+  track.setPointerCapture(e.pointerId);
+  e.preventDefault();
+}
+
+function onScrollPointerMove(e: PointerEvent): void {
+  if (!scrollDrag) return;
+  const track = scrollTrackRef.value;
+  if (!track) return;
+  const range = track.getBoundingClientRect().width - waveThumb.value.width;
+  if (range <= 0) return;
+  waveScrollPx.value = clampWaveScroll(
+    scrollDrag.startScroll + ((e.clientX - scrollDrag.startX) / range) * maxWaveScroll.value,
+  );
+}
+
+function onScrollPointerUp(e: PointerEvent): void {
+  scrollDrag = null;
+  const track = scrollTrackRef.value;
+  if (track?.hasPointerCapture(e.pointerId)) track.releasePointerCapture(e.pointerId);
+}
 
 function drawPcm(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   fillRect(ctx, 0, 0, w, h, COLORS.fieldBg);
   const pcm = builtPcm.value;
-  if (!pcm || pcm.length === 0) {
-    fillText(ctx, t("noise.wavePreview"), 8, h / 2, COLORS.textDim, 11);
-    return;
+  if (!pcm || pcm.length === 0) return;
+  const frames = Math.floor(pcm.length / PCM_CHANNELS);
+  const chH = h / PCM_CHANNELS;
+
+  // 本家 _PutSample と同じく、ズーム間隔で 1 サンプルを取り、中央から縦棒で塗る
+  ctx.fillStyle = COLORS.text;
+  const amp = chH / 2 - 2;
+  const startFrame = Math.floor(waveScrollPx.value * waveZoom.value);
+  for (let px = 0; px < w; px++) {
+    const f = startFrame + px * waveZoom.value;
+    if (f >= frames) break;
+    for (let c = 0; c < PCM_CHANNELS; c++) {
+      const center = chH * (c + 0.5);
+      const y = center - pcm[f * PCM_CHANNELS + c]! * amp;
+      const top = Math.min(y, center);
+      const bottom = Math.max(y, center);
+      ctx.fillRect(px, top, 1, Math.max(1, bottom - top));
+    }
   }
-  const n = pcm.length / 2;
-  const mid = h / 2;
-  const amp = h / 2 - 2;
-  ctx.strokeStyle = COLORS.accent;
+
+  // 各チャンネルの中央線 (本家の横線。色はテーマのマーカー色を薄く使う)
+  ctx.strokeStyle = COLORS.marker;
+  ctx.globalAlpha = 0.45;
   ctx.lineWidth = 1;
   ctx.beginPath();
-  for (let px = 0; px < w; px++) {
-    const i0 = Math.trunc((px / w) * n);
-    const i1 = Math.max(i0 + 1, Math.trunc(((px + 1) / w) * n));
-    let min = 1;
-    let max = -1;
-    for (let i = i0; i < i1; i++) {
-      const v = (pcm[i * 2]! + pcm[i * 2 + 1]!) / 2;
-      if (v < min) min = v;
-      if (v > max) max = v;
-    }
-    ctx.moveTo(px, mid - min * amp);
-    ctx.lineTo(px, mid - max * amp);
+  for (let c = 0; c < PCM_CHANNELS; c++) {
+    const y = Math.round(chH * (c + 0.5)) + 0.5;
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
   }
   ctx.stroke();
+  ctx.globalAlpha = 1;
 }
 
-useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
+useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrollPx.value, () => waveZoom.value]);
 </script>
 
 <template>
@@ -316,12 +418,35 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
         </div>
       </div>
       <div class="ne-preview">
-        <canvas
-          ref="waveRef"
-          class="field-canvas ne-wave"
-          @click="onPcmClick"
-          @contextmenu.prevent
-        />
+        <div ref="waveWrapRef" class="ne-wave-wrap">
+          <div class="ne-wave-head">
+            <span>{{ t("noise.wavePreview") }}</span>
+            <select v-model.number="waveZoom" class="ne-wave-zoom" :title="t('noise.zoom')" :aria-label="t('noise.zoom')">
+              <option v-for="z in PCM_VIEW_ZOOMS" :key="z.zoom" :value="z.zoom">{{ z.label }}</option>
+            </select>
+          </div>
+          <canvas
+            ref="waveRef"
+            class="field-canvas ne-wave"
+            @click="onPcmClick"
+            @wheel="onWaveWheel"
+            @contextmenu.prevent
+          />
+          <div
+            ref="scrollTrackRef"
+            class="ne-wave-scroll"
+            :class="{ disabled: !waveScrollable }"
+            @pointerdown="onScrollPointerDown"
+            @pointermove="onScrollPointerMove"
+            @pointerup="onScrollPointerUp"
+            @pointercancel="onScrollPointerUp"
+          >
+            <div
+              class="ne-wave-thumb"
+              :style="{ width: `${waveThumb.width}px`, transform: `translateX(${waveThumb.left}px)` }"
+            />
+          </div>
+        </div>
         <div class="ne-history">
           <div class="ne-history-title">
             {{ t("noise.history") }}
@@ -374,7 +499,8 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
 
 /* 全レイヤーを縦に並べる。収まらない場合はこの列だけスクロール */
 .ne-layers {
-  width: 600px;
+  /* 横幅が足りないときはプレビューを残すため、レイヤー列を縮める */
+  width: clamp(460px, 62%, 600px);
   flex: none;
   overflow-y: auto;
   display: flex;
@@ -509,13 +635,87 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
   gap: var(--space-md);
 }
 
-/* 波形は基本 140px。縦スペースが足りないときは 60px まで縮んで履歴リストを優先する */
-.ne-wave {
+/* 横幅が足りないとプレビューが潰れて波形が見えなくなるため、縦に積む */
+@media (max-width: 700px) {
+  .ne-main {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .ne-layers {
+    width: auto;
+    flex: none;
+    overflow-y: visible;
+  }
+
+  .ne-preview {
+    flex: none;
+    min-height: 280px;
+  }
+}
+
+/* 波形は基本 200px。縦スペースが足りないときは 90px まで縮んで履歴リストを優先する */
+.ne-wave-wrap {
   flex: 0 1 auto;
-  height: 140px;
-  max-height: 140px;
-  min-height: 60px;
+  height: 200px;
+  max-height: 220px;
+  min-height: 90px;
+  display: flex;
+  flex-direction: column;
+}
+
+.ne-wave-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: 0 2px 2px;
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+}
+
+.ne-wave-zoom {
+  flex: none;
+  height: 18px;
+  padding: 0 2px;
+  border: 1px solid var(--border);
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  font-size: var(--text-xs);
+}
+
+.ne-wave {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+  width: 100%;
   cursor: pointer;
+}
+
+/* 本家 PcmTable の横スクロールバー (10px) */
+.ne-wave-scroll {
+  flex: none;
+  height: 10px;
+  margin-top: 2px;
+  position: relative;
+  background: var(--muted);
+  cursor: pointer;
+  touch-action: none;
+}
+
+.ne-wave-scroll.disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.ne-wave-thumb {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: var(--muted-foreground);
+  opacity: 0.75;
 }
 
 .ne-history {

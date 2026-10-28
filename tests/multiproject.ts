@@ -157,6 +157,7 @@ import { MENU_LABELS, menuNamesFor, buildFileMenu } from "../src/lib/menuItems";
 import { t } from "../src/i18n";
 import { secToEnveX, pctToEnveY, pushHistoryEntry, NOISE_WAVE_TYPES } from "../src/lib/noise";
 import { noiseWaveSamplePath } from "../src/lib/noise-wave-samples";
+import { PCM_VIEW_ZOOM, PCM_VIEW_ZOOMS, pcmViewWidth, pcmScrollMax, pcmScrollThumb } from "../src/lib/pcm-view";
 import { nearestPoint, coordPxToX, coordPxToY, cursorToWaveY, waveY } from "../src/lib/voice-geometry";
 import { encodeShiftJis, truncateShiftJis } from "../src/lib/sjis";
 import { loopCrossfade } from "../src/lib/loop";
@@ -1616,6 +1617,30 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       true,
       "lib: Sine の波形見本が既知の座標を含む",
     );
+
+    // lib/pcm-view: 本家 PcmTable 準拠の固定ズームと横スクロール
+    checkEq(PCM_VIEW_ZOOM, 5, "lib: PCM表示の既定ズームは5サンプル/px");
+    checkEq(
+      PCM_VIEW_ZOOMS.map((z) => `${z.label}:${z.zoom}`).join(","),
+      "1/80:80,1/40:40,1/20:20,1/10:10,1/5:5,1/1:1",
+      "lib: ズームメニューは本家の並び",
+    );
+    checkEq(pcmViewWidth(0), 0, "lib: 0フレームの波形幅は0");
+    checkEq(pcmViewWidth(5), 1, "lib: 5フレームは1px");
+    checkEq(pcmViewWidth(6), 2, "lib: 6フレームは2px (切り上げ)");
+    checkEq(pcmViewWidth(44100), 8820, "lib: 44100フレームは8820px");
+    checkEq(pcmViewWidth(44100, 80), 552, "lib: 1/80 ズームの波形幅");
+    checkEq(pcmViewWidth(44100, 1), 44100, "lib: 1/1 ズームの波形幅");
+    checkEq(pcmScrollMax(100, 200), 0, "lib: 表示幅に収まる場合はスクロールなし");
+    checkEq(pcmScrollMax(300, 200), 100, "lib: はみ出し分が最大スクロール量");
+    const thumb0 = pcmScrollThumb(1000, 200, 0);
+    checkEq(`${thumb0.width},${thumb0.left}`, "40,0", "lib: サム幅は表示割合に比例");
+    const thumbMid = pcmScrollThumb(1000, 200, 400);
+    checkEq(`${thumbMid.width},${thumbMid.left}`, "40,80", "lib: サム位置はスクロール量に比例");
+    const thumbEnd = pcmScrollThumb(1000, 200, 9999);
+    checkEq(`${thumbEnd.width},${thumbEnd.left}`, "40,160", "lib: サム位置は右端でクランプ");
+    checkEq(pcmScrollThumb(100000, 200, 0).width, 24, "lib: サム幅の最小は24px");
+    checkEq(`${pcmScrollThumb(100, 200, 0).width},${pcmScrollThumb(100, 200, 0).left}`, "0,0", "lib: 収まる場合はサムなし");
 
     const hist: number[] = [];
     const t0 = pushHistoryEntry(hist, 0, 1000, 1);
