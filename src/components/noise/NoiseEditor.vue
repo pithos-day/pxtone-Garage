@@ -5,7 +5,6 @@
 // 波形クリック / Space で単発再生 (ループしない。本家 PcmTable_BuildAndPlay 準拠)。
 // History リスト、WAV 書き出しを提供する。
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { Search } from "@lucide/vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { useEditRev } from "../../composables/useEditRev";
 import { useGlobalKeys } from "../../composables/useGlobalKeys";
@@ -203,8 +202,6 @@ const PCM_CHANNELS = 2;
 // 本家 if_PcmTable の塗り (サンプル値からチャンネル下端) と中央線。
 // 背景は以前と同じテーマのフィールド色、波形は以前の緑 (テーマの accent) に戻す
 const PCM_LINE = "#a0a0ff";
-// 本家 if_gen_Scroll の SetMove(100, 100) に合わせたスクロール量
-const PCM_SCROLL_STEP = 100;
 const waveTotalPx = computed(() => {
   const pcm = builtPcm.value;
   return pcm ? pcmViewWidth(Math.floor(pcm.length / PCM_CHANNELS), waveZoom.value) : 0;
@@ -261,7 +258,7 @@ function onWaveWheel(e: WheelEvent): void {
   scrollWaveBy(delta);
 }
 
-// スクロールバーのドラッグ。トラックのクリックは本家同様 100px ページ送り
+// スクロールバーのドラッグ。トラックのクリックはサムの中心をその位置へ移動する
 let scrollDrag: { startX: number; startScroll: number } | null = null;
 
 function onScrollPointerDown(e: PointerEvent): void {
@@ -271,12 +268,13 @@ function onScrollPointerDown(e: PointerEvent): void {
   const rect = track.getBoundingClientRect();
   const thumb = waveThumb.value;
   const x = e.clientX - rect.left;
-  if (x >= thumb.left && x < thumb.left + thumb.width) {
-    scrollDrag = { startX: e.clientX, startScroll: waveScrollPx.value };
-    track.setPointerCapture(e.pointerId);
-  } else {
-    scrollWaveBy(x < thumb.left ? -PCM_SCROLL_STEP : PCM_SCROLL_STEP);
+  if (x < thumb.left || x > thumb.left + thumb.width) {
+    const range = rect.width - thumb.width;
+    if (range <= 0) return;
+    waveScrollPx.value = clampWaveScroll(((x - thumb.width / 2) / range) * maxWaveScroll.value);
   }
+  scrollDrag = { startX: e.clientX, startScroll: waveScrollPx.value };
+  track.setPointerCapture(e.pointerId);
   e.preventDefault();
 }
 
@@ -434,47 +432,30 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
       </div>
       <div class="ne-preview">
         <div ref="waveWrapRef" class="ne-wave-wrap">
-          <canvas
-            ref="waveRef"
-            class="field-canvas ne-wave"
-            :aria-label="t('noise.wavePreview')"
-            @click="onPcmClick"
-            @wheel="onWaveWheel"
-            @contextmenu.prevent
-          />
-          <div class="ne-wave-zoom-box">
-            <Search :size="11" />
+          <div class="ne-wave-head">
+            <span>{{ t("noise.wavePreview") }}</span>
             <select v-model.number="waveZoom" class="ne-wave-zoom" :title="t('noise.zoom')" :aria-label="t('noise.zoom')">
               <option v-for="z in PCM_VIEW_ZOOMS" :key="z.zoom" :value="z.zoom">{{ z.label }}</option>
             </select>
           </div>
-          <div class="ne-wave-scroll">
-            <button
-              type="button"
-              class="ne-wave-arrow left"
-              :disabled="!waveScrollable"
-              aria-label="左へスクロール"
-              @click="scrollWaveBy(-PCM_SCROLL_STEP)"
-            />
+          <canvas
+            ref="waveRef"
+            class="field-canvas ne-wave"
+            @click="onPcmClick"
+            @wheel="onWaveWheel"
+            @contextmenu.prevent
+          />
+          <div
+            ref="scrollTrackRef"
+            class="ne-wave-scroll"
+            @pointerdown="onScrollPointerDown"
+            @pointermove="onScrollPointerMove"
+            @pointerup="onScrollPointerUp"
+            @pointercancel="onScrollPointerUp"
+          >
             <div
-              ref="scrollTrackRef"
-              class="ne-wave-track"
-              @pointerdown="onScrollPointerDown"
-              @pointermove="onScrollPointerMove"
-              @pointerup="onScrollPointerUp"
-              @pointercancel="onScrollPointerUp"
-            >
-              <div
-                class="ne-wave-thumb"
-                :style="{ width: `${waveThumb.width}px`, transform: `translateX(${waveThumb.left}px)` }"
-              />
-            </div>
-            <button
-              type="button"
-              class="ne-wave-arrow right"
-              :disabled="!waveScrollable"
-              aria-label="右へスクロール"
-              @click="scrollWaveBy(PCM_SCROLL_STEP)"
+              class="ne-wave-thumb"
+              :style="{ width: `${waveThumb.width}px`, transform: `translateX(${waveThumb.left}px)` }"
             />
           </div>
         </div>
@@ -685,15 +666,37 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
   }
 }
 
-/* 本家 PcmTable と同じ 256px + 16px スクロールバー */
+/* 波形領域は本家 PcmTable と同じ 256px。スクロールバーはアプリ標準のテーマ色 */
 .ne-wave-wrap {
   flex: 0 1 auto;
-  height: 272px;
-  max-height: 300px;
-  min-height: 140px;
-  position: relative;
+  height: 288px;
+  max-height: 320px;
+  min-height: 180px;
   display: flex;
   flex-direction: column;
+}
+
+.ne-wave-head {
+  flex: none;
+  box-sizing: border-box;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: 0 2px;
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+}
+
+.ne-wave-zoom {
+  flex: none;
+  height: 18px;
+  padding: 0 2px;
+  border: 1px solid var(--border);
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  font-size: var(--text-xs);
 }
 
 .ne-wave {
@@ -704,105 +707,33 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
   cursor: pointer;
 }
 
-/* 本家ツールバーのズーム表示を PCM 右上に重ねる */
-.ne-wave-zoom-box {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  z-index: 2;
-  box-sizing: border-box;
-  height: 18px;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 0 2px;
-  background: #c0c0c0;
-  color: #000;
-  border: 1px solid;
-  border-color: #fff #404040 #404040 #fff;
-  font-size: 11px;
-  line-height: 1;
-}
-
-.ne-wave-zoom {
-  height: 16px;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: #000;
-  font-size: 11px;
-}
-
-/* 本家 if_gen_Scroll 風の横スクロールバー */
+/* アプリ標準のテーマ色スクロールバー */
 .ne-wave-scroll {
   flex: none;
-  box-sizing: border-box;
-  height: 16px;
-  display: flex;
-  background: #c0c0c0;
-  border-top: 1px solid #808080;
-  user-select: none;
-}
-
-.ne-wave-arrow {
-  flex: none;
-  box-sizing: border-box;
-  width: 16px;
-  height: 16px;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #c0c0c0;
-  border: 1px solid;
-  border-color: #fff #404040 #404040 #fff;
-  cursor: pointer;
-}
-
-.ne-wave-arrow:active:not(:disabled) {
-  border-color: #404040 #fff #fff #404040;
-}
-
-.ne-wave-arrow:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
-.ne-wave-arrow::before {
-  content: "";
-  width: 0;
-  height: 0;
-  border-top: 4px solid transparent;
-  border-bottom: 4px solid transparent;
-}
-
-.ne-wave-arrow.left::before {
-  border-right: 5px solid #000;
-}
-
-.ne-wave-arrow.right::before {
-  border-left: 5px solid #000;
-}
-
-.ne-wave-track {
-  flex: 1;
   position: relative;
-  margin: 1px 2px;
-  background-color: #c0c0c0;
-  background-image: repeating-linear-gradient(90deg, transparent 0 1px, rgb(0 0 0 / 0.08) 1px 2px);
+  box-sizing: border-box;
+  height: 10px;
+  margin-top: 2px;
+  background: var(--muted);
+  border: 1px solid var(--border);
   cursor: pointer;
+  user-select: none;
   touch-action: none;
 }
 
 .ne-wave-thumb {
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: 1px;
+  bottom: 1px;
   left: 0;
   box-sizing: border-box;
-  background: #c0c0c0;
-  border: 1px solid;
-  border-color: #fff #404040 #404040 #fff;
+  background: var(--border);
+  border: 1px solid color-mix(in srgb, var(--border) 60%, var(--background));
+}
+
+.ne-wave-thumb:hover,
+.ne-wave-thumb:active {
+  background: var(--primary);
 }
 
 .ne-history {
