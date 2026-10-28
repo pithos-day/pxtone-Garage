@@ -25,6 +25,7 @@ import {
   envePxToY,
   enveMaxX,
   nearestPoint,
+  waveY,
 } from "../../lib/voice-geometry";
 import { Oscillator, VoiceType } from "pxtone-ts";
 import {
@@ -197,7 +198,7 @@ function drawWave(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   for (let s = 0; s < SAMPLE_NUM; s++) {
     const x = WAVE_PAD + (s / (SAMPLE_NUM - 1)) * (w - WAVE_PAD * 2);
     const v = bOvertone ? osci.getOneSampleOvertone(s) : osci.getOneSampleCoodinate(s);
-    const y = h / 2 - v * (h - WAVE_PAD * 2);
+    const y = waveY(h, v, bOvertone);
     if (s === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
   }

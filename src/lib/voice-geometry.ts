@@ -16,6 +16,15 @@ export function coordY(h: number, y: number): number {
   return h / 2 - (y / 128) * (h - WAVE_PAD * 2);
 }
 
+// 波形モニターのサンプル値 → y。本家 ptuiWave::_try_update 同様、
+// Oscillator (倍音) は振幅 ±1 を半分の高さ、Coordinate は音量込みサンプル ±0.5 を
+// パディング間の全高にマッピングする。倍音は複数の倍音が重なると振幅 1 を超えるため、
+// 描画領域からはみ出さないよう上下をクランプする (本家の yy クランプ相当)
+export function waveY(h: number, v: number, overtone: boolean): number {
+  const scale = overtone ? h / 2 - WAVE_PAD : h - WAVE_PAD * 2;
+  return Math.max(WAVE_PAD, Math.min(h - WAVE_PAD, h / 2 - v * scale));
+}
+
 export function coordPxToX(c: VoiceUnit, w: number, px: number): number {
   // 本家 _pos_fix は x を reso-1 にクランプする (x == reso の点があると
   // ptVoice.exe は読込自体を拒否するため、生成側で作らない)

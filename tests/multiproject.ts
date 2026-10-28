@@ -154,7 +154,7 @@ import { clockAtX, zoomAnchorScrollX, zoomByWheel } from "../src/lib/field";
 import { MENU_LABELS, menuNamesFor, buildFileMenu } from "../src/lib/menuItems";
 import { t } from "../src/i18n";
 import { secToEnveX, pctToEnveY, pushHistoryEntry } from "../src/lib/noise";
-import { nearestPoint, coordPxToX, coordPxToY, cursorToWaveY } from "../src/lib/voice-geometry";
+import { nearestPoint, coordPxToX, coordPxToY, cursorToWaveY, waveY } from "../src/lib/voice-geometry";
 import { encodeShiftJis, truncateShiftJis } from "../src/lib/sjis";
 import { loopCrossfade } from "../src/lib/loop";
 import { visibleClockWindow, iterVisibleRecords, iterNoteDraws, type NoteDraw } from "../src/lib/records";
@@ -1206,6 +1206,13 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(nearestPoint(pts, 105, 2), 1, "lib: nearestPoint 中間の点");
     checkEq(nearestPoint(pts, 500, 500), -1, "lib: nearestPoint 範囲外は -1");
     checkEq(nearestPoint(pts, 0, 0, 1), 0, "lib: nearestPoint 閾値内の最近傍");
+
+    // lib/voice-geometry: 波形モニターの y (Coordinate は ±0.5、Oscillator は ±1 がパディング端)
+    checkEq(waveY(100, 0.5, false), 12, "lib: waveY 座標の最大振幅は上端パディング");
+    checkEq(waveY(100, -0.5, false), 88, "lib: waveY 座標の最小振幅は下端パディング");
+    checkEq(waveY(100, 1, true), 12, "lib: waveY 倍音の最大振幅は上端パディング");
+    checkEq(waveY(100, 2, true), 12, "lib: waveY 倍音の超過振幅は上端でクランプ");
+    checkEq(waveY(100, -2, true), 88, "lib: waveY 倍音の超過振幅は下端でクランプ");
 
     // lib/records: 可視範囲ウィンドウ (w と scrollX は px。zoom=48 で 1 拍 = 480 クロック)
     const win = visibleClockWindow(cv, 0, 48);
