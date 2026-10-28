@@ -14,7 +14,7 @@ import { COLORS } from "../../lib/theme";
 import { fillRect, fillText } from "../../lib/draw";
 import { NOISE_WAVE_TYPE_NAMES as WAVE_TYPE_NAMES, NOISE_BUILT_SPS, secToEnveX, pctToEnveY } from "../../lib/noise";
 import { WaveType } from "pxtone-ts";
-import { currentNoise, newNoise, editNoise, readNoiseBytes, pushNoiseHistory, NOISE_UNIT_NUM } from "../../state/noise";
+import { currentNoise, newNoise, editNoise, readNoiseBytes, pushNoiseHistory, NOISE_UNIT_NUM, NOISE_ENVE_NUM, resizeNoiseEnves } from "../../state/noise";
 import { isModalOpen } from "../../state/ui";
 import { renderNoise, playPcmOnce } from "../../engine/preview";
 import { t } from "../../i18n";
@@ -43,10 +43,13 @@ function unitAt(u: number) {
 }
 
 // レイヤー行モデル。テンプレートでの unitAt(u)! を script 側の非 null 保証に
-// 追い出し、v-for の対象を unitList (index のみ) から行オブジェクトに変える
-const unitRows = computed(() =>
-  unitList.value.map((u) => ({ index: u, unit: noise.value!.noise.getUnit(u)! })),
-);
+// 追い出し、v-for の対象を unitList (index のみ) から行オブジェクトに変える。
+// undo/redo や History の反映は readNoiseBytes でユニットを作り直すため、
+// rev を参照して行の unit 参照も更新する (markRaw のため自動追跡されない)
+const unitRows = computed(() => {
+  void rev.value;
+  return unitList.value.map((u) => ({ index: u, unit: noise.value!.noise.getUnit(u)! }));
+});
 
 // テーブル編集は直接 Noise を書き、undo はフォーカス時に1エントリ積む。
 // (markRaw なので reactive にならない。rev はテンプレートの :data-rev で再描画を駆動)
@@ -72,15 +75,14 @@ function setOsc(u: number, osc: (typeof OSC_IDS)[number], field: "type" | "bRev"
   onFieldChange();
 }
 
-// エンベロープ点数 (0..3) の変更 (undo 1エントリ + 配列長を合わせる)
+// エンベロープ点数 (1..3) の変更 (undo 1エントリ + 配列長を合わせる)。
+// 0 点はエンジン上で無音になるため許可しない (旧データは readNoiseBytes で 1 点へ正規化)
 function onEnveNumChange(u: number, v: number): void {
   const unit = unitAt(u);
   if (!unit) return;
   editNoise(() => {
-    const target = Math.max(0, Math.min(3, Math.round(v)));
-    unit.enveNum = target;
-    while (unit.enves.length < target) unit.enves.push({ x: 0, y: 0 });
-    unit.enves.length = target;
+    unit.enves = resizeNoiseEnves(unit.enves, v);
+    unit.enveNum = unit.enves.length;
   });
   touch();
   scheduleEditBuild();
@@ -284,10 +286,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
           <div class="ne-enve">
             <span class="ne-enve-title">{{ t("noise.envelope") }}</span>
             <select :value="row.unit.enveNum" @change="onEnveNumChange(row.index, Number(($event.target as HTMLSelectElement).value))">
-              <option :value="0">0</option>
-              <option :value="1">1</option>
-              <option :value="2">2</option>
-              <option :value="3">3</option>
+              <option v-for="n in NOISE_ENVE_NUM" :key="n" :value="n">{{ n }}</option>
             </select>
             <template v-for="(p, i) in row.unit.enves" :key="i">
               <span class="ne-enve-no">{{ t("noise.envePoint") }}{{ i + 1 }}</span>

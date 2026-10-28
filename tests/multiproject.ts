@@ -116,6 +116,7 @@ import {
   switchNoise,
   currentNoise,
   editNoise,
+  readNoiseBytes,
   undoNoise,
   redoNoise,
   createDefaultNoise,
@@ -125,6 +126,7 @@ import {
   pushNoiseHistory,
   NOISE_UNIT_NUM,
   NOISE_ENVE_NUM,
+  resizeNoiseEnves,
   ensureInitialNoise,
   saveNoise,
 } from "../src/state/noise";
@@ -878,6 +880,39 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(n.getUnit(0)!.main.freq, 440, "noise: main 周波数 440");
     checkEq(n.getUnit(0)!.volu.type, WaveType.None, "noise: volu は None");
     checkEq(n.getUnit(0)!.enveNum, 2, "noise: エンベロープ点 2");
+
+    // エンベロープ点数 0 はエンジン上で音量 0 になるため許可しない (1..3 に正規化)
+    {
+      const empty = resizeNoiseEnves([], 0);
+      checkEq(empty.length, 1, "noise: 0点は1点へ正規化");
+      checkEq(empty[0]!.y, 100, "noise: 正規化した点は100%");
+      checkEq(resizeNoiseEnves([], 2).length, 2, "noise: 追加した点数");
+      checkEq(resizeNoiseEnves([], 2)[1]!.y, 100, "noise: 追加点は直前の値を引き継ぐ");
+      checkEq(resizeNoiseEnves([], 4).length, NOISE_ENVE_NUM, "noise: 上限3点");
+      checkEq(resizeNoiseEnves([{ x: 0, y: 50 }], 2)[1]!.x, 1000, "noise: 追加点は1秒後");
+    }
+
+    // 旧データの 0 点エンベロープは読み込み時に 1 点 100% へ直し、無音のままにしない
+    {
+      const zero = new Noise();
+      zero.allocate(1, NOISE_ENVE_NUM);
+      zero.setSmpNum44k(44100);
+      const zu = zero.getUnit(0)!;
+      zu.bEnable = true;
+      zu.enveNum = 0;
+      zu.enves = [];
+      zu.main = { type: WaveType.Sine, freq: 440, volume: 50, offset: 0, bRev: false };
+      const zio = new MemoryIo();
+      check(zero.write(zio), "noise: 0点エンベロープを書き出せる");
+      const loaded = new Noise();
+      checkEq(readNoiseBytes(loaded, zio.toUint8Array()), PxtnErr.OK, "noise: 0点エンベロープを読み込める");
+      checkEq(loaded.getUnit(0)!.enveNum, 1, "noise: 0点は読込時に1点へ正規化");
+      checkEq(loaded.getUnit(0)!.enves[0]!.y, 100, "noise: 正規化した点は100%");
+      const zPcm = renderNoise(loaded, 44100);
+      let zPeak = 0;
+      for (const v of zPcm ?? []) zPeak = Math.max(zPeak, Math.abs(v));
+      check(zPeak > 0, "noise: 0点エンベロープのレイヤーも無音にならない", `peak=${zPeak}`);
+    }
 
     editNoise(() => {
       n.getUnit(0)!.main.freq = 880;

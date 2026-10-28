@@ -10,6 +10,25 @@ import { pushHistoryEntry } from "../lib/noise";
 
 export const NOISE_UNIT_NUM = 4; // 本家 MAX_NOISEEDITUNITNUM
 export const NOISE_ENVE_NUM = 3; // 本家 MAX_NOISEEDITENVELOPENUM
+export const NOISE_ENVE_X_MAX = 10000; // 本家 NOISEDESIGNLIMIT_ENVE_X
+
+// エンベロープ点数を 1..NOISE_ENVE_NUM に正規化する。
+// 点数 0 は本家エンジンでは音量 0 (enve_mag_start の初期値) になりレイヤーが無音になるため、
+// 本家 ptNoise と同じく 0 点は作らない。点を増やすときは直前の点を 1 秒後へ延長して
+// 引き継ぎ、点を追加しただけで 0% の点に上書きされて無音にならないようにする
+export function resizeNoiseEnves(
+  enves: { x: number; y: number }[],
+  target: number,
+): { x: number; y: number }[] {
+  const num = Number.isFinite(target) ? Math.max(1, Math.min(NOISE_ENVE_NUM, Math.round(target))) : 1;
+  const out = enves.slice(0, num).map((p) => ({ ...p }));
+  if (out.length === 0) out.push({ x: 0, y: 100 });
+  while (out.length < num) {
+    const last = out[out.length - 1]!;
+    out.push({ x: Math.min(NOISE_ENVE_X_MAX, last.x + 1000), y: last.y });
+  }
+  return out;
+}
 
 // ビルド履歴の1件。label は表示用の時刻、bytes はエディタへ戻す際のノイズデータ、
 // pcm はクリック時の再生用 (デバウンス後の波形)
@@ -56,12 +75,25 @@ function padNoiseUnits(n: Noise): void {
   }
 }
 
+// 旧データや旧 UI が保存したエンベロープ 0 点のレイヤーは、そのままだとエンジン上で
+// 音量 0 のままになる。読み込み時に 1 点 100% (= エンベロープなし) へ直して復帰させる
+function normalizeNoiseEnvelopes(n: Noise): void {
+  for (let u = 0; u < n.unitNum; u++) {
+    const unit = n.getUnit(u)!;
+    if (unit.enveNum < 1) {
+      unit.enves = resizeNoiseEnves(unit.enves, 1);
+      unit.enveNum = unit.enves.length;
+    }
+  }
+}
+
 // ノイズのバイト列を読み込む (タブを開く / undo 復元 / History の反映で共用)。
 // 読み込んだ後はレイヤー数が NOISE_UNIT_NUM になる
 export function readNoiseBytes(n: Noise, bytes: Uint8Array): PxtnErr {
   const res = n.read(new MemoryIo(bytes));
   if (res !== PxtnErr.OK) return res;
   padNoiseUnits(n);
+  normalizeNoiseEnvelopes(n);
   return PxtnErr.OK;
 }
 
