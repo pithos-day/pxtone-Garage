@@ -169,7 +169,7 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
       @click="doc.volumeVisible = !doc.volumeVisible"
     >
       <span class="vt-label">Volume</span>
-      <span class="vt-arrow"><ChevronDown v-if="doc.volumeVisible" :size="12" /><ChevronRight v-else :size="12" /></span>
+      <span class="vt-arrow"><ChevronDown v-if="doc.volumeVisible" :size="14" /><ChevronRight v-else :size="14" /></span>
     </button>
     <div v-if="doc.volumeVisible" class="collage-vol">
       <VolumePanel :modes="volumeModeLabels" />
@@ -243,7 +243,7 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
   border: none;
   border-top: 1px solid var(--border);
   font-size: var(--text-sm);
-  padding: 6px 10px;
+  padding: 7px 12px;
   cursor: pointer;
 }
 
@@ -299,7 +299,7 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
 }
 
 .collage-ruler-vspacer {
-  width: 14px;
+  width: 16px;
   flex: none;
   border-left: 1px solid var(--border);
 }
@@ -332,14 +332,14 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
 }
 
 .panel-popup {
-  width: 260px;
+  width: 310px;
   max-height: 70%;
   box-shadow: 2px 2px 10px rgb(0 0 0 / 0.35);
   pointer-events: auto;
 }
 
 .vscroll {
-  width: 14px;
+  width: 16px;
   flex: none;
   border-left: 1px solid var(--border);
 }
@@ -356,6 +356,6 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
 
 .hscroll {
   flex: 1;
-  height: 14px;
+  height: 16px;
 }
 </style>

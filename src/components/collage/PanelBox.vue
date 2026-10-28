@@ -13,7 +13,7 @@ const emit = defineEmits<{ close: [] }>();
   <section class="panelbox">
     <header class="panelbox-head">
       <span>{{ title }}</span>
-      <button class="panelbox-close" :title="t('common.close')" @click="emit('close')"><X :size="14" /></button>
+      <button class="panelbox-close" :title="t('common.close')" @click="emit('close')"><X :size="16" /></button>
     </header>
     <div class="panelbox-body">
       <slot />
@@ -34,7 +34,7 @@ const emit = defineEmits<{ close: [] }>();
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 3px 6px;
+  padding: 4px 7px;
   background: var(--background);
   border-bottom: 1px solid var(--border);
   font-size: var(--text-sm);
@@ -59,7 +59,7 @@ const emit = defineEmits<{ close: [] }>();
 }
 
 .panelbox-body {
-  padding: 6px;
+  padding: 7px;
   font-size: var(--text-md);
   overflow-y: auto;
   min-height: 0;

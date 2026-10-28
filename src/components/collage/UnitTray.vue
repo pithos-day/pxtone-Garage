@@ -34,8 +34,8 @@ import ChangeUnitDialog from "./ChangeUnitDialog.vue";
 import CtxMenuItem from "../shell/CtxMenuItem.vue";
 
 // チェックボックス列 (再生/表示/ピン/ソロ) の幅。CSS の --checks-w と同期
-const CHECKS_W = 76;
-const ROW_PAD_L = 4; // .unit-row の左パディング (チェックボックス列の開始位置)
+const CHECKS_W = 88;
+const ROW_PAD_L = 5; // .unit-row の左パディング (チェックボックス列の開始位置)
 
 const editing = ref<number | null>(null);
 const editText = ref("");
@@ -167,16 +167,16 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
     <div class="tray-title bar-header">
       {{ t("unit.title") }} ({{ units.length }})
       <span class="tray-tools">
-        <button class="btn btn-sm mode" :class="{ on: doc.tool === 'smart' }" :title="t('unit.smart')" @click="doc.tool = 'smart'"><MousePointer2 :size="14" /></button>
-        <button class="btn btn-sm mode" :class="{ on: doc.tool === 'pen' }" :title="t('unit.pen')" @click="doc.tool = 'pen'"><Pencil :size="14" /></button>
-        <button class="btn btn-sm mode" :class="{ on: doc.tool === 'hand' }" :title="t('unit.hand')" @click="doc.tool = 'hand'"><Pointer :size="14" /></button>
+        <button class="btn btn-sm mode" :class="{ on: doc.tool === 'smart' }" :title="t('unit.smart')" @click="doc.tool = 'smart'"><MousePointer2 :size="16" /></button>
+        <button class="btn btn-sm mode" :class="{ on: doc.tool === 'pen' }" :title="t('unit.pen')" @click="doc.tool = 'pen'"><Pencil :size="16" /></button>
+        <button class="btn btn-sm mode" :class="{ on: doc.tool === 'hand' }" :title="t('unit.hand')" @click="doc.tool = 'hand'"><Pointer :size="16" /></button>
       </span>
     </div>
     <div class="unit-header bar-header">
       <span class="unit-header-checks">
-        <span :title="t('unit.play')"><Headphones :size="12" /></span>
-        <span :title="t('unit.show')"><Eye :size="12" /></span>
-        <span :title="t('unit.pin')"><Pin :size="12" /></span>
+        <span :title="t('unit.play')"><Headphones :size="14" /></span>
+        <span :title="t('unit.show')"><Eye :size="14" /></span>
+        <span :title="t('unit.pin')"><Pin :size="14" /></span>
         <span :title="t('unit.solo')">S</span>
       </span>
       <span class="unit-header-name">{{ t("unit.headerName") }}</span>
@@ -239,7 +239,7 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 3px 6px;
+  padding: 4px 7px;
   font-size: var(--text-sm);
 }
 
@@ -252,7 +252,7 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
 .unit-header {
   display: flex;
   gap: var(--space-2xs);
-  padding: 2px 4px;
+  padding: 3px 5px;
   font-size: var(--text-2xs);
   flex: none;
 }
@@ -272,7 +272,7 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
+  width: 18px;
 }
 
 .unit-header-name {
@@ -292,7 +292,7 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
 .unit-row {
   display: flex;
   gap: var(--space-2xs);
-  padding: 2px 4px;
+  padding: 3px 5px;
   font-size: var(--text-sm);
   color: var(--muted-foreground);
   cursor: pointer;
@@ -326,8 +326,8 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
 }
 
 .unit-checks input {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   margin: 0;
   accent-color: var(--primary);
   cursor: pointer;
@@ -349,7 +349,7 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
 
 .unit-name-input {
   font-size: var(--text-sm);
-  padding: 0 2px;
+  padding: 1px 3px;
   background: var(--secondary);
   color: var(--secondary-foreground);
 }

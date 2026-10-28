@@ -189,7 +189,7 @@ function drawPcm(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   fillRect(ctx, 0, 0, w, h, COLORS.fieldBg);
   const pcm = builtPcm.value;
   if (!pcm || pcm.length === 0) {
-    fillText(ctx, t("noise.wavePreview"), 8, h / 2, COLORS.textDim, 10);
+    fillText(ctx, t("noise.wavePreview"), 8, h / 2, COLORS.textDim, 11);
     return;
   }
   const n = pcm.length / 2;
@@ -373,7 +373,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
 
 /* 全レイヤーを縦に並べる。収まらない場合はこの列だけスクロール */
 .ne-layers {
-  width: 520px;
+  width: 600px;
   flex: none;
   overflow-y: auto;
   display: flex;
@@ -386,7 +386,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
 .ne-layer {
   border: 1px solid var(--border);
   background: var(--card);
-  padding: 3px 5px;
+  padding: 4px 6px;
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
@@ -428,7 +428,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
 
 .ne-row {
   display: grid;
-  grid-template-columns: 46px 72px 22px 60px 60px 60px;
+  grid-template-columns: 54px 84px 26px 70px 70px 70px;
   align-items: center;
   gap: var(--space-sm);
   flex: 1;
@@ -443,7 +443,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
 }
 
 .ne-osc-name {
-  width: 46px;
+  width: 54px;
   flex: none;
   font-weight: bold;
   color: var(--card-foreground);
@@ -463,8 +463,8 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
 }
 
 .ne-row input[type="checkbox"] {
-  width: 13px;
-  height: 13px;
+  width: 15px;
+  height: 15px;
   justify-self: center;
 }
 
@@ -484,7 +484,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
 }
 
 .ne-enve select {
-  width: 30px;
+  width: 36px;
 }
 
 .ne-enve-no {
@@ -493,11 +493,11 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
 }
 
 .ne-enve .ne-enve-pct {
-  width: 34px;
+  width: 40px;
 }
 
 .ne-enve .ne-enve-sec {
-  width: 44px;
+  width: 52px;
 }
 
 .ne-preview {

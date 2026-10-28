@@ -16,19 +16,22 @@ textarea {
 }
 
 :root {
-  --text-2xs: 9px;
-  --text-xs: 10px;
-  --text-sm: 11px;
-  --text-md: 12px;
-  --text-base: 13px;
-  --text-lg: 14px;
-  --text-xl: 17px;
+  /* UI の基本サイズ。以前の値より約 15% 大きくして読みやすくする。
+   * 対象外: 上部メニューバー (MenuBar / ModeTabs / MenuItemRow が px 固定) と
+   * ルーラーの START/REPEAT タグ (PlayField.height から算出) */
+  --text-2xs: 10px;
+  --text-xs: 11px;
+  --text-sm: 13px;
+  --text-md: 14px;
+  --text-base: 15px;
+  --text-lg: 16px;
+  --text-xl: 20px;
   --space-2xs: 2px;
   --space-xs: 3px;
-  --space-sm: 4px;
-  --space-md: 6px;
-  --space-lg: 8px;
-  --space-xl: 10px;
+  --space-sm: 5px;
+  --space-md: 7px;
+  --space-lg: 9px;
+  --space-xl: 12px;
 }
 
 body {
@@ -70,11 +73,11 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 5px;
   background: var(--background);
   border: 1px solid var(--border);
   color: var(--foreground);
-  padding: 3px 10px;
+  padding: 4px 12px;
   font-size: var(--text-md);
   cursor: pointer;
   border-radius: var(--radius);
@@ -154,7 +157,7 @@ body {
 .row label {
   font-size: var(--text-sm);
   color: var(--muted-foreground);
-  min-width: 56px;
+  min-width: 64px;
 }
 
 /* 無効状態の行: ラベルと単位表示をグレーアウトする
@@ -183,12 +186,12 @@ body {
 }
 
 .range input {
-  width: 48px;
+  width: 56px;
 }
 
 input[type="range"] {
   accent-color: var(--primary);
-  width: 90px;
+  width: 100px;
 }
 
 input[type="text"],
@@ -199,7 +202,7 @@ textarea {
   border: 1px solid var(--border);
   color: var(--secondary-foreground);
   font-size: var(--text-md);
-  padding: 2px 4px;
+  padding: 3px 5px;
   border-radius: 2px;
 }
 
@@ -232,30 +235,30 @@ textarea:disabled {
   position: fixed;
   z-index: 100;
   background: var(--popover);
-  min-width: 140px;
+  min-width: 160px;
   padding: 2px 0;
 }
 
 .ctxmenu button {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
   width: 100%;
   text-align: left;
   border: none;
   background: transparent;
   color: var(--popover-foreground);
-  padding: 4px 12px;
+  padding: 5px 14px;
   font-size: var(--text-md);
   cursor: pointer;
 }
 
-/* アイコン列 (ツールバーメニューの .menu-check と同じ 18px で揃える) */
+/* アイコン列の幅 (右クリックメニューは UI 拡大の対象) */
 .ctxmenu .menu-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
+  width: 20px;
   flex: none;
 }
 

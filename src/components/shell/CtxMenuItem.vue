@@ -18,7 +18,7 @@ const emit = defineEmits<{ (e: "click"): void }>();
 
 <template>
   <button :class="{ danger }" :disabled="disabled" @click="emit('click')">
-    <span class="menu-icon"><component :is="icon" :size="14" /></span>
+    <span class="menu-icon"><component :is="icon" :size="16" /></span>
     <span class="menu-text"><slot /></span>
     <span v-if="command" class="menu-key">{{ formatShortcut(command) }}</span>
   </button>

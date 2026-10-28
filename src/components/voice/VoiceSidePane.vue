@@ -354,7 +354,7 @@ function drawEnve(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     ctx.lineTo(w - WAVE_PAD, enveY(h, last.y));
   }
   ctx.stroke();
-  fillText(ctx, t("voice.envelope"), WAVE_PAD + 2, WAVE_PAD + 8, COLORS.textDim, 9);
+  fillText(ctx, t("voice.envelope"), WAVE_PAD + 2, WAVE_PAD + 8, COLORS.textDim, 10);
 }
 
 useCanvas(enveRef, drawEnve, [() => rev.value, () => voice.value]);

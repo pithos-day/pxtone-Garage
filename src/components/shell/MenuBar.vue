@@ -508,7 +508,8 @@ const openItems = computed<MenuItem[]>(() => {
   border-right: 1px solid var(--border);
   background: transparent;
   color: var(--muted-foreground);
-  font-size: var(--text-xl);
+  /* メニューバーは UI 拡大の対象外 (従来の見た目を維持) */
+  font-size: 17px;
   font-weight: bold;
   cursor: pointer;
 }
@@ -535,7 +536,8 @@ const openItems = computed<MenuItem[]>(() => {
   border: none;
   background: transparent;
   color: var(--muted-foreground);
-  font-size: var(--text-lg);
+  /* メニューバーは UI 拡大の対象外 (従来の見た目を維持) */
+  font-size: 14px;
   cursor: pointer;
 }
 

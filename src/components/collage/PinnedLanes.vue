@@ -153,7 +153,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     const isFocus = u === doc.focusUnit;
     const bg = isFocus ? COLORS.focusRow : i % 2 === 0 ? "transparent" : COLORS.zebra;
     fillRect(ctx, 0, y, NAME_W, KEY_HEIGHT, bg);
-    fillText(ctx, `${u}: ${units.value[u]?.name ?? ""}`, 2, y + 11, isFocus ? COLORS.focusText : COLORS.text, 10);
+    fillText(ctx, `${u}: ${units.value[u]?.name ?? ""}`, 2, y + 11, isFocus ? COLORS.focusText : COLORS.text, 12);
   }
 }
 

@@ -29,16 +29,16 @@ async function onAddWoice(): Promise<void> {
 <template>
   <div class="toolpanel">
     <div class="tool-mode">
-      <button class="btn btn-sm mode" :class="{ on: doc.mode === 'W' }" :title="`${t('tool.woiceManage')} (${formatShortcut('modeW')})`" @click="doc.mode = 'W'"><Music2 :size="16" /></button>
-      <button class="btn btn-sm mode" :class="{ on: doc.mode === 'U' }" :title="`${t('tool.unitManage')} (${formatShortcut('modeU')})`" @click="doc.mode = 'U'"><Piano :size="16" /></button>
+      <button class="btn btn-sm mode" :class="{ on: doc.mode === 'W' }" :title="`${t('tool.woiceManage')} (${formatShortcut('modeW')})`" @click="doc.mode = 'W'"><Music2 :size="18" /></button>
+      <button class="btn btn-sm mode" :class="{ on: doc.mode === 'U' }" :title="`${t('tool.unitManage')} (${formatShortcut('modeU')})`" @click="doc.mode = 'U'"><Piano :size="18" /></button>
     </div>
     <div class="tool-buttons">
       <template v-if="doc.mode === 'W'">
-        <button class="btn btn-sm" :disabled="doc.readOnly" @click="onAddWoice"><Plus :size="16" /></button>
+        <button class="btn btn-sm" :disabled="doc.readOnly" @click="onAddWoice"><Plus :size="18" /></button>
         <span v-if="errorMsg" class="tool-err">{{ errorMsg }}</span>
       </template>
       <template v-else>
-        <button class="btn btn-sm" :disabled="doc.readOnly" @click="showAddUnit = true"><Plus :size="16" /></button>
+        <button class="btn btn-sm" :disabled="doc.readOnly" @click="showAddUnit = true"><Plus :size="18" /></button>
       </template>
     </div>
     <AddUnitDialog v-if="showAddUnit" @close="showAddUnit = false" />
@@ -51,7 +51,7 @@ async function onAddWoice(): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
-  padding: 4px 6px 6px;
+  padding: 5px 7px 7px;
   border-bottom: 1px solid var(--border);
   background: var(--background);
   user-select: none;

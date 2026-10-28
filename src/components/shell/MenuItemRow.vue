@@ -60,7 +60,8 @@ const emit = defineEmits<{
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
-  font-size: var(--text-lg);
+  /* メニューバー (ドロップダウン含む) は UI 拡大の対象外 (従来の見た目を維持) */
+  font-size: 14px;
   color: var(--card-foreground);
   cursor: pointer;
   position: relative;
@@ -86,7 +87,7 @@ const emit = defineEmits<{
   align-items: center;
   justify-content: center;
   width: 18px;
-  font-size: var(--text-sm);
+  font-size: 11px;
   flex: none;
 }
 
@@ -99,11 +100,11 @@ const emit = defineEmits<{
   flex: none;
   margin-left: 16px;
   opacity: 0.6;
-  font-size: var(--text-sm);
+  font-size: 11px;
 }
 
 .menu-arrow {
-  font-size: var(--text-sm);
+  font-size: 11px;
 }
 
 .menu-sep {
@@ -129,7 +130,7 @@ const emit = defineEmits<{
   min-width: 38px;
   text-align: right;
   color: var(--muted-foreground);
-  font-size: var(--text-sm);
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
 

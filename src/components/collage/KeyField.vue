@@ -169,7 +169,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   for (let i = 0; i <= 8; i++) {
     const y = fieldTop + i * (KEY_HEIGHT * 12) - scrollY + 4;
     if (y >= fieldTop - 12 && y <= fieldTop + fieldH + 4) {
-      fillText(ctx, String(7 - i), 6, y, COLORS.octaveText, 11);
+      fillText(ctx, String(7 - i), 6, y, COLORS.octaveText, 13);
     }
   }
 

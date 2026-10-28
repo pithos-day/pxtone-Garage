@@ -22,11 +22,11 @@ function timeLabel(): string {
 <template>
   <div class="transport">
     <button class="btn btn-accent play-btn" @click="togglePlay" :title="`${isPlaying ? t('transport.pause') : t('transport.play')} (${formatShortcut('playToggle')})`">
-      <Pause v-if="isPlaying" :size="16" /><Play v-else :size="16" />
+      <Pause v-if="isPlaying" :size="18" /><Play v-else :size="18" />
     </button>
-    <button class="btn" @click="stopAndRewind" :title="t('transport.stop')"><Square :size="14" /></button>
-    <button class="btn" :class="{ on: loop }" @click="setLoop(!loop)" :title="t('transport.loop')"><Repeat :size="14" /></button>
-    <button class="btn" :class="{ on: followPlayback }" @click="followPlayback = !followPlayback" :title="t('transport.followPlayback')"><ArrowBigRightDash :size="14" /></button>
+    <button class="btn" @click="stopAndRewind" :title="t('transport.stop')"><Square :size="16" /></button>
+    <button class="btn" :class="{ on: loop }" @click="setLoop(!loop)" :title="t('transport.loop')"><Repeat :size="16" /></button>
+    <button class="btn" :class="{ on: followPlayback }" @click="followPlayback = !followPlayback" :title="t('transport.followPlayback')"><ArrowBigRightDash :size="16" /></button>
     <span class="sep" />
     <label class="vol-label">{{ t("transport.volume") }}</label>
     <input
@@ -61,7 +61,7 @@ function timeLabel(): string {
   display: flex;
   align-items: center;
   gap: var(--space-md);
-  height: 34px;
+  height: 40px;
   padding: 0 8px;
   background: var(--background);
   border-bottom: 1px solid var(--border);
@@ -77,7 +77,7 @@ function timeLabel(): string {
 }
 
 .play-btn {
-  width: 38px;
+  width: 44px;
 }
 
 /* 値切替 (ループ / 追従 / パネル開閉)。モード切替とは別に塗りで選択を示す */
@@ -89,7 +89,7 @@ function timeLabel(): string {
 
 .sep {
   width: 1px;
-  height: 18px;
+  height: 21px;
   background: var(--border);
   margin: 0 4px;
 }
@@ -102,7 +102,7 @@ function timeLabel(): string {
 .pct {
   font-size: var(--text-xs);
   color: var(--muted-foreground);
-  width: 30px;
+  width: 36px;
 }
 
 .time {
@@ -128,7 +128,7 @@ function timeLabel(): string {
 }
 
 .btn-sm {
-  padding: 1px 8px;
+  padding: 2px 10px;
   font-size: var(--text-sm);
 }
 

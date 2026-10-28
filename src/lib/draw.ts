@@ -59,11 +59,11 @@ export function drawGrid(
     ctx.stroke();
     if (showNumber) {
       const ny = numberTop ?? top;
-      fillRect(ctx, x0, ny, 26, 10, COLORS.measureBox);
+      fillRect(ctx, x0, ny, 30, 11, COLORS.measureBox);
       ctx.fillStyle = COLORS.measureText;
-      ctx.font = `8px ${canvasFontStack()}`;
+      ctx.font = `9px ${canvasFontStack()}`;
       ctx.textBaseline = "middle";
-      ctx.fillText(String(m + 1), x0 + 2, ny + 5);
+      ctx.fillText(String(m + 1), x0 + 2, ny + 5.5);
     }
     for (let b = 1; b < view.beatNum; b++) {
       const bx = x0 + b * view.zoom;

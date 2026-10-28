@@ -44,7 +44,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   for (let v = 0; v <= 128; v += 16) {
     const y = fTop + fH - (v / 128) * fH;
     fillRect(ctx, 0, y, w, 1, COLORS.scaleLine);
-    fillText(ctx, String(v), 2, y - 2, COLORS.textDim, 8);
+    fillText(ctx, String(v), 2, y - 2, COLORS.textDim, 9);
   }
 
   if (focus < 0 || !s.unitGet(focus)) return;
@@ -123,7 +123,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
           fillRect(ctx, x, fTop + 4, 26, fH - 8, COLORS.panelLight);
           fillRect(ctx, x, fTop + 4, 26, 1, COLORS.borderLight);
           const label = mode === 5 ? woices.value[e.value]?.name ?? `#${e.value}` : `G${e.value}`;
-          fillText(ctx, label, x + 3, fTop + 14, COLORS.textBright, 9);
+          fillText(ctx, label, x + 3, fTop + 14, COLORS.textBright, 10);
         }
       }
       break;
@@ -137,7 +137,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
           const fv = int32ToFloat(e.value);
           fillRect(ctx, x, fTop + 4, 44, fH - 8, COLORS.panelLight);
           fillRect(ctx, x, fTop + 4, 44, 1, COLORS.borderLight);
-          fillText(ctx, fv.toFixed(4), x + 3, fTop + 14, COLORS.textBright, 9);
+          fillText(ctx, fv.toFixed(4), x + 3, fTop + 14, COLORS.textBright, 10);
         }
       }
       break;

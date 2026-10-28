@@ -188,7 +188,7 @@ function woiceSummary(idx: number): string {
 }
 
 .tray-title {
-  padding: 3px 6px;
+  padding: 4px 7px;
   font-size: var(--text-sm);
   color: var(--muted-foreground);
   border-bottom: 1px solid var(--border);
@@ -204,7 +204,7 @@ function woiceSummary(idx: number): string {
 .woice-row {
   display: flex;
   flex-direction: column;
-  padding: 2px 4px;
+  padding: 3px 5px;
   font-size: var(--text-sm);
   color: var(--muted-foreground);
   border-bottom: 1px solid color-mix(in srgb, var(--border) 40%, transparent);

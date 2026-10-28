@@ -47,7 +47,7 @@ function onSubmit(): void {
 </script>
 
 <template>
-  <ModalDialog label="event-volume" width="460px" body-gap="10px" @close="emit('close')">
+  <ModalDialog label="event-volume" width="620px" body-gap="10px" @close="emit('close')">
     <template #title>{{ title }}</template>
     <div class="range">
       <MeasBeatClockRange

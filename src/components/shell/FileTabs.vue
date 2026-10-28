@@ -90,8 +90,8 @@ function onClose(id: number): void {
       :title="p.title"
       @click="p.select"
     >
-      <Eye v-if="p.readonly" :size="12" class="tab-ro-icon" />
-      <Link2 v-if="p.linked" :size="12" class="tab-link-icon" :class="{ dirty: p.dirty }" />
+      <Eye v-if="p.readonly" :size="14" class="tab-ro-icon" />
+      <Link2 v-if="p.linked" :size="14" class="tab-link-icon" :class="{ dirty: p.dirty }" />
       <!-- link アイコン付きタブはアイコン自体の色で dirty を示すため ● は出さない -->
       <span v-if="p.dirty && !p.linked" class="dirty-dot" />
       <span class="tab-name">{{ p.title }}</span>
@@ -99,9 +99,9 @@ function onClose(id: number): void {
         v-if="tabs.length > 1"
         class="tab-close"
         @click.stop="onClose(p.id)"
-      ><X :size="12" /></span>
+      ><X :size="14" /></span>
     </button>
-    <button class="tab-new" :title="t('common.newProject')" @click="onNew"><Plus :size="14" /></button>
+    <button class="tab-new" :title="t('common.newProject')" @click="onNew"><Plus :size="16" /></button>
   </div>
 </template>
 
@@ -109,7 +109,7 @@ function onClose(id: number): void {
 .file-tabs {
   display: flex;
   align-items: stretch;
-  height: 32px;
+  height: 36px;
   background: var(--background);
   border-bottom: 1px solid var(--border);
   user-select: none;
@@ -120,14 +120,14 @@ function onClose(id: number): void {
   display: flex;
   align-items: center;
   gap: var(--space-md);
-  padding: 0 10px;
+  padding: 0 12px;
   border: none;
   border-right: 1px solid var(--border);
   background: transparent;
   color: var(--muted-foreground);
   font-size: var(--text-md);
   cursor: pointer;
-  max-width: 200px;
+  max-width: 230px;
 }
 
 .file-tab:hover {
@@ -163,8 +163,8 @@ function onClose(id: number): void {
 }
 
 .dirty-dot {
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: var(--primary);
   flex: none;
@@ -176,7 +176,7 @@ function onClose(id: number): void {
   justify-content: center;
   /* タブタイトルと同色にする (非アクティブ/ホバー/アクティブの各状態に追従) */
   color: inherit;
-  padding: 0 3px;
+  padding: 0 4px;
   border-radius: 2px;
   flex: none;
 }
