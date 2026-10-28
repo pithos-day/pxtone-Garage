@@ -12,8 +12,9 @@ import { useDebounced } from "../../composables/useDebounced";
 import { useUndoOnce } from "../../composables/useUndo";
 import { COLORS } from "../../lib/theme";
 import { fillRect, fillText } from "../../lib/draw";
-import { NOISE_WAVE_TYPES as WAVE_TYPES, NOISE_BUILT_SPS, secToEnveX, pctToEnveY } from "../../lib/noise";
+import { NOISE_BUILT_SPS, secToEnveX, pctToEnveY } from "../../lib/noise";
 import { WaveType } from "pxtone-ts";
+import NoiseWaveTypeSelect from "./NoiseWaveTypeSelect.vue";
 import { currentNoise, newNoise, editNoise, readNoiseBytes, pushNoiseHistory, NOISE_UNIT_NUM, NOISE_ENVE_NUM, resizeNoiseEnves } from "../../state/noise";
 import { isModalOpen } from "../../state/ui";
 import { renderNoise, playPcmOnce } from "../../engine/preview";
@@ -249,9 +250,10 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value]);
             </div>
             <div v-for="osc in OSC_IDS" :key="osc" class="ne-row">
               <span class="ne-osc-name">{{ t(`noise.${osc}`) }}</span>
-              <select :value="row.unit[osc].type" @change="setOsc(row.index, osc, 'type', Number(($event.target as HTMLSelectElement).value))">
-                <option v-for="wt in WAVE_TYPES" :key="wt.value" :value="wt.value">{{ wt.label }}</option>
-              </select>
+              <NoiseWaveTypeSelect
+                :model-value="row.unit[osc].type"
+                @update:model-value="setOsc(row.index, osc, 'type', $event)"
+              />
               <input
                 type="checkbox"
                 :checked="row.unit[osc].bRev"

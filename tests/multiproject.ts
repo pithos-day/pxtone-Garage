@@ -156,6 +156,7 @@ import { clockAtX, zoomAnchorScrollX, zoomByWheel } from "../src/lib/field";
 import { MENU_LABELS, menuNamesFor, buildFileMenu } from "../src/lib/menuItems";
 import { t } from "../src/i18n";
 import { secToEnveX, pctToEnveY, pushHistoryEntry, NOISE_WAVE_TYPES } from "../src/lib/noise";
+import { noiseWaveSamplePath } from "../src/lib/noise-wave-samples";
 import { nearestPoint, coordPxToX, coordPxToY, cursorToWaveY, waveY } from "../src/lib/voice-geometry";
 import { encodeShiftJis, truncateShiftJis } from "../src/lib/sjis";
 import { loopCrossfade } from "../src/lib/loop";
@@ -1591,6 +1592,30 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(NOISE_WAVE_TYPES[8]!.label, "random2", "lib: random2 の表示名");
     checkEq(NOISE_WAVE_TYPES[9]!.label, "Rect-3", "lib: Rect-3 の表示名");
     checkEq(NOISE_WAVE_TYPES[16]!.label, "Saw-8", "lib: Saw-8 の表示名");
+
+    // lib/noise-wave-samples: 本家 img_patt.bmp 由来の波形見本 (64x24 の矩形パス)
+    checkEq(noiseWaveSamplePath(WaveType.None), null, "lib: None は波形見本なし");
+    let sampleCount = 0;
+    for (let i = WaveType.Sine; i <= WaveType.Saw8; i++) {
+      const path = noiseWaveSamplePath(i);
+      if (!path) continue;
+      sampleCount++;
+      // 水平ラン (M x y h len v1 h -len z) のみで構成されること
+      if (!/^M[\d hMvz-]+$/.test(path)) throw new Error(`波形見本の形式が不正: ${i}`);
+      // 座標が 64x24 の viewBox に収まること
+      for (const m of path.matchAll(/M(\d+) (\d+)h(\d+)v1h-\3z/g)) {
+        const x = Number(m[1]);
+        const y = Number(m[2]);
+        const w = Number(m[3]);
+        if (x + w > 64 || y > 23) throw new Error(`波形見本が viewBox 外: ${i} (${x},${y},${w})`);
+      }
+    }
+    checkEq(sampleCount, 16, "lib: None 以外の16種すべてに波形見本がある");
+    checkEq(
+      noiseWaveSamplePath(WaveType.Sine)!.includes("M0 11h16v1h-16z"),
+      true,
+      "lib: Sine の波形見本が既知の座標を含む",
+    );
 
     const hist: number[] = [];
     const t0 = pushHistoryEntry(hist, 0, 1000, 1);
