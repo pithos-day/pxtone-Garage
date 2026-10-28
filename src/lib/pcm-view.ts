@@ -26,16 +26,19 @@ export function pcmScrollMax(totalWidth: number, viewWidth: number): number {
 }
 
 // スクロールバーのサム (つまみ) の幅と左位置。
-// 表示領域に全体が収まるときは幅 0 (スクロール不要) を返す。
+// 表示領域に全体が収まるときはトラック全体を埋める (本家の無効時と同じ)。
+// trackWidth は矢印ボタンを除いたトラックの幅。
 export function pcmScrollThumb(
   totalWidth: number,
   viewWidth: number,
   scroll: number,
+  trackWidth = viewWidth,
 ): { width: number; left: number } {
-  if (viewWidth <= 0 || totalWidth <= viewWidth) return { width: 0, left: 0 };
-  // 表示割合に比例させつつ、掴めるよう最小 24px を確保する
-  const width = Math.min(viewWidth, Math.max(24, (viewWidth * viewWidth) / totalWidth));
+  if (trackWidth <= 0 || totalWidth <= 0) return { width: 0, left: 0 };
+  if (totalWidth <= viewWidth) return { width: trackWidth, left: 0 };
+  // 本家 if_gen_Scroll と同じ比率 (トラック幅 * 表示幅 / 全体幅)。掴めるよう最小 24px
+  const width = Math.min(trackWidth, Math.max(24, (trackWidth * viewWidth) / totalWidth));
   const max = totalWidth - viewWidth;
   const clamped = Math.max(0, Math.min(max, scroll));
-  return { width, left: (clamped / max) * (viewWidth - width) };
+  return { width, left: (clamped / max) * (trackWidth - width) };
 }

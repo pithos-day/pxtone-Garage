@@ -1639,8 +1639,10 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(`${thumbMid.width},${thumbMid.left}`, "40,80", "lib: サム位置はスクロール量に比例");
     const thumbEnd = pcmScrollThumb(1000, 200, 9999);
     checkEq(`${thumbEnd.width},${thumbEnd.left}`, "40,160", "lib: サム位置は右端でクランプ");
+    const thumbTrack = pcmScrollThumb(1000, 200, 400, 160);
+    checkEq(`${thumbTrack.width},${thumbTrack.left}`, "32,64", "lib: サムはトラック幅で計算する");
     checkEq(pcmScrollThumb(100000, 200, 0).width, 24, "lib: サム幅の最小は24px");
-    checkEq(`${pcmScrollThumb(100, 200, 0).width},${pcmScrollThumb(100, 200, 0).left}`, "0,0", "lib: 収まる場合はサムなし");
+    checkEq(`${pcmScrollThumb(100, 200, 0).width},${pcmScrollThumb(100, 200, 0).left}`, "200,0", "lib: 収まる場合はサムがトラック全体を埋める");
 
     const hist: number[] = [];
     const t0 = pushHistoryEntry(hist, 0, 1000, 1);
