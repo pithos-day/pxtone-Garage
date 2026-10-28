@@ -155,7 +155,7 @@ import {
 import { clockAtX, zoomAnchorScrollX, zoomByWheel } from "../src/lib/field";
 import { MENU_LABELS, menuNamesFor, buildFileMenu } from "../src/lib/menuItems";
 import { t } from "../src/i18n";
-import { secToEnveX, pctToEnveY, pushHistoryEntry } from "../src/lib/noise";
+import { secToEnveX, pctToEnveY, pushHistoryEntry, NOISE_WAVE_TYPES } from "../src/lib/noise";
 import { nearestPoint, coordPxToX, coordPxToY, cursorToWaveY, waveY } from "../src/lib/voice-geometry";
 import { encodeShiftJis, truncateShiftJis } from "../src/lib/sjis";
 import { loopCrossfade } from "../src/lib/loop";
@@ -1579,6 +1579,19 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(pctToEnveY("50"), 50, "lib: pctToEnveY は % をそのまま");
     checkEq(pctToEnveY("150"), 100, "lib: pctToEnveY は上限 100 でクランプ");
     checkEq(pctToEnveY("x"), null, "lib: pctToEnveY は無効値で null");
+
+    // lib/noise: 波形タイプの表示名と並び (本家 dlg_Noise_Design の type_table 準拠)
+    checkEq(NOISE_WAVE_TYPES.length, 17, "lib: 波形タイプは17種");
+    checkEq(
+      NOISE_WAVE_TYPES.map((w) => w.value).join(","),
+      Array.from({ length: 17 }, (_, i) => i).join(","),
+      "lib: 波形タイプは本家の値順",
+    );
+    checkEq(NOISE_WAVE_TYPES[7]!.label, "Triangle", "lib: Triangle の表示名");
+    checkEq(NOISE_WAVE_TYPES[8]!.label, "random2", "lib: random2 の表示名");
+    checkEq(NOISE_WAVE_TYPES[9]!.label, "Rect-3", "lib: Rect-3 の表示名");
+    checkEq(NOISE_WAVE_TYPES[16]!.label, "Saw-8", "lib: Saw-8 の表示名");
+
     const hist: number[] = [];
     const t0 = pushHistoryEntry(hist, 0, 1000, 1);
     checkEq(hist.join(","), "1", "lib: pushHistoryEntry は最初のエントリを追加");

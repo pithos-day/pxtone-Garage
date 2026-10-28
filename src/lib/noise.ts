@@ -1,11 +1,27 @@
 // ノイズエディタの共通定数
 import { WaveType } from "pxtone-ts";
 
-// 波形タイプの表示名。pxtone-ts の WaveType enum 定義順 (None..Saw8) に一致させる
-// (enum の値側は数値のため、名前だけを列挙する)
-export const NOISE_WAVE_TYPE_NAMES = Object.values(WaveType).filter(
-  (v): v is string => typeof v === "string" && v !== "num",
-);
+// 波形タイプの表示名と並び。本家 ptNoise の dlg_Noise_Design.cpp (type_table) と同一。
+// 値は pxWAVETYPE / pxtone-ts の WaveType に対応する (enum の定義順も本家と同じ)
+export const NOISE_WAVE_TYPES: readonly { value: WaveType; label: string }[] = [
+  { value: WaveType.None, label: "None" },
+  { value: WaveType.Sine, label: "Sine" },
+  { value: WaveType.Saw, label: "Saw" },
+  { value: WaveType.Rect, label: "Rect" },
+  { value: WaveType.Random, label: "Random" },
+  { value: WaveType.Saw2, label: "Saw2" },
+  { value: WaveType.Rect2, label: "Rect2" },
+  { value: WaveType.Tri, label: "Triangle" },
+  { value: WaveType.Random2, label: "random2" },
+  { value: WaveType.Rect3, label: "Rect-3" },
+  { value: WaveType.Rect4, label: "Rect-4" },
+  { value: WaveType.Rect8, label: "Rect-8" },
+  { value: WaveType.Rect16, label: "Rect-16" },
+  { value: WaveType.Saw3, label: "Saw-3" },
+  { value: WaveType.Saw4, label: "Saw-4" },
+  { value: WaveType.Saw6, label: "Saw-6" },
+  { value: WaveType.Saw8, label: "Saw-8" },
+];
 
 export const NOISE_BUILT_SPS = 44100;
 
