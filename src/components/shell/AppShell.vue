@@ -23,6 +23,7 @@ import VoiceCopyDialog from "../voice/VoiceCopyDialog.vue";
 import { closeAllProjects, closeProject, currentProjectId, ensureInitialProject, openProjectFromBlob, projects, saveProject, switchProject } from "../../state/projects";
 import { openSampleProject } from "../../state/samples";
 import { readBlobAndApply } from "../../engine/io";
+import { appAlert } from "../../state/dialog";
 import { initLanguage, t } from "../../i18n";
 import { copyVoiceSide, openVoice, ensureInitialVoice, closeVoice, closeAllVoices, saveVoice, voiceRevision, voices, switchVoice } from "../../state/voice";
 import { openNoise, ensureInitialNoise, closeNoise, closeAllNoises, saveNoise, noiseRevision, noises, switchNoise } from "../../state/noise";
@@ -94,9 +95,9 @@ onMounted(() => {
   activeTab.value = "collage";
   void openSampleProject(sampleId)
     .then((err) => {
-      if (err) window.alert(err);
+      if (err) void appAlert(err);
     })
-    .catch(() => window.alert(t("error.sampleFetch")))
+    .catch(() => void appAlert(t("error.sampleFetch")))
     .finally(clearSampleQuery);
 });
 
@@ -142,7 +143,7 @@ async function onDrop(e: DragEvent): Promise<void> {
   } else if (activeTab.value === "noise" && ext === "ptnoise") {
     err = await readBlobAndApply(t("progress.openTitle"), file, (bytes) => openNoise(bytes, name));
   }
-  if (err) window.alert(err);
+  if (err) void appAlert(err);
 }
 
 // ---- 未保存のタブを閉じる ----
@@ -256,7 +257,7 @@ async function onUnsavedSave(): Promise<void> {
     else if (req.mode === "voice") saved = await saveVoice(false);
     else saved = await saveNoise(false);
   } catch {
-    window.alert(t("error.save"));
+    void appAlert(t("error.save"));
   } finally {
     closeBusy.value = false;
   }

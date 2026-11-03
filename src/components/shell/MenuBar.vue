@@ -22,7 +22,7 @@ import { newNoise, openNoise, saveNoise, closeNoise, undoNoise, redoNoise, curre
 import { exportPttune, exportVoiceWav, exportNoiseWav, openFileDialog, readBlobAndApply } from "../../engine/io";
 import { convertMidiToPtcop } from "../../engine/midi";
 import { undo, redo, canUndo, canRedo } from "../../state/undo";
-import { appConfirm } from "../../state/dialog";
+import { appAlert, appConfirm } from "../../state/dialog";
 import { t } from "../../i18n";
 import type { EventVolumeMode } from "../../lib/eventVolume";
 import type { AppMode } from "../../lib/modes";
@@ -83,14 +83,14 @@ async function onNew(): Promise<void> {
 
 // 保存系アクション: 書き込み失敗時だけエラー表示 (キャンセルは何もしない)
 function runSave(p: Promise<unknown>): void {
-  void p.catch(() => window.alert(t("error.save")));
+  void p.catch(() => void appAlert(t("error.save")));
 }
 
 function onOpen(): void {
   void openFileDialog(".ptcop,.pttune").then(async (opened) => {
     if (!opened) return;
     const err = await openProjectFromBlob(opened.file, opened.name);
-    if (err) window.alert(err);
+    if (err) void appAlert(err);
   });
 }
 
@@ -116,7 +116,7 @@ function onImportMidi(split: boolean): void {
       },
       { apply: t("progress.midiConvert") },
     );
-    if (err) window.alert(err);
+    if (err) void appAlert(err);
   });
 }
 
@@ -146,7 +146,7 @@ function onOpenVoice(): void {
   void openFileDialog(".ptvoice", /\.ptvoice$/i).then(async (opened) => {
     if (!opened) return;
     const err = await readBlobAndApply(t("progress.openTitle"), opened.file, (bytes) => openVoice(bytes, opened.name));
-    if (err) window.alert(err);
+    if (err) void appAlert(err);
   });
 }
 
@@ -162,7 +162,7 @@ function onOpenNoise(): void {
   void openFileDialog(".ptnoise", /\.ptnoise$/i).then(async (opened) => {
     if (!opened) return;
     const err = await readBlobAndApply(t("progress.openTitle"), opened.file, (bytes) => openNoise(bytes, opened.name));
-    if (err) window.alert(err);
+    if (err) void appAlert(err);
   });
 }
 
@@ -178,7 +178,7 @@ function onExportVoiceWav(): void {
   const v = currentVoice();
   if (!v) return;
   void exportVoiceWav(v.woice, v.fileName || "untitled").then((err) => {
-    if (err) window.alert(err);
+    if (err) void appAlert(err);
   });
 }
 
@@ -186,7 +186,7 @@ function onExportNoiseWav(): void {
   const d = currentNoise();
   if (!d) return;
   void exportNoiseWav(d.noise, d.fileName || "untitled").then((err) => {
-    if (err) window.alert(err);
+    if (err) void appAlert(err);
   });
 }
 
@@ -197,7 +197,7 @@ function onExportNoiseWav(): void {
 function addToCollage(bytes: Uint8Array | null, type: WoiceType, name: string): void {
   if (!bytes || isTuneProject()) return;
   void addWoice(bytes, type, name || undefined).then((err) => {
-    if (err) window.alert(err);
+    if (err) void appAlert(err);
   });
 }
 
@@ -232,7 +232,7 @@ function onApplyLink(): void {
     if (!v?.link || !bytes) return;
     const err = applyWoiceLink(v.link, bytes, WoiceType.PTV);
     if (err) {
-      window.alert(err);
+      void appAlert(err);
       return;
     }
     markVoiceClean();
@@ -242,7 +242,7 @@ function onApplyLink(): void {
     if (!d?.link || !bytes) return;
     const err = applyWoiceLink(d.link, bytes, WoiceType.PTN);
     if (err) {
-      window.alert(err);
+      void appAlert(err);
       return;
     }
     markNoiseClean();

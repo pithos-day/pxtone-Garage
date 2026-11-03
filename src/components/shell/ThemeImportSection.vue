@@ -6,6 +6,7 @@ import { reactive } from "vue";
 import { ChevronDown, ChevronRight } from "@lucide/vue";
 import { addUserTheme, currentThemeForExport, setThemeName } from "../../state/theme";
 import { downloadBytes, sanitizeFileName } from "../../engine/io";
+import { appAlert } from "../../state/dialog";
 import { t } from "../../i18n";
 
 const importState = reactive({
@@ -63,7 +64,7 @@ async function onExport(): Promise<void> {
       usePicker: false,
     });
   } catch {
-    window.alert(t("error.save"));
+    void appAlert(t("error.save"));
   }
 }
 </script>

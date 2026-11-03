@@ -15,6 +15,7 @@ import {
 } from "../../engine/io";
 import { withProgress } from "../../state/progress";
 import { readStorage, writeStorage } from "../../lib/storage";
+import { appAlert } from "../../state/dialog";
 import { t } from "../../i18n";
 import ModalDialog from "./ModalDialog.vue";
 
@@ -85,20 +86,20 @@ async function onSubmit(): Promise<void> {
   const vol = Number(volume.value);
   // 本家 _AlarmParameter と同じ検証
   if (!Number.isFinite(fade) || fade < 0) {
-    window.alert(t("wav.errFade"));
+    void appAlert(t("wav.errFade"));
     return;
   }
   if (scope.value === "byTime" && (!Number.isFinite(time) || time <= 0)) {
-    window.alert(t("wav.errPlayTime"));
+    void appAlert(t("wav.errPlayTime"));
     return;
   }
   if (!Number.isFinite(vol) || vol < 0.01 || vol > 1) {
-    window.alert(t("wav.errVolume"));
+    void appAlert(t("wav.errVolume"));
     return;
   }
   const bytes = exportBytes();
   if (!bytes) {
-    window.alert(t("error.save"));
+    void appAlert(t("error.save"));
     return;
   }
   const options: WavExportOptions = {
@@ -151,7 +152,7 @@ async function onSubmit(): Promise<void> {
   }
   busy.value = false;
   // キャンセル (null) は何も表示しない
-  if (err) window.alert(err);
+  if (err) void appAlert(err);
 }
 </script>
 
