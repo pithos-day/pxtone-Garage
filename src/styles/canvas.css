@@ -98,3 +98,11 @@
 .dark[data-theme="studio"] {
   --canvas-field-bg: oklch(0.13 0.005 60);
 }
+
+:root[data-theme="ocean"] {
+  --canvas-field-bg: oklch(0.985 0.01 210);
+}
+
+.dark[data-theme="ocean"] {
+  --canvas-field-bg: oklch(0.14 0.035 225);
+}

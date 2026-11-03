@@ -42,6 +42,7 @@ import roseTheme from "./themes/rose.css?raw";
 import gameboyTheme from "./themes/gameboy.css?raw";
 import synthwaveTheme from "./themes/synthwave.css?raw";
 import studioTheme from "./themes/studio.css?raw";
+import oceanTheme from "./themes/ocean.css?raw";
 
 initTheme({
   pxtone: pxtoneTheme,
@@ -53,6 +54,7 @@ initTheme({
   gameboy: gameboyTheme,
   synthwave: synthwaveTheme,
   studio: studioTheme,
+  ocean: oceanTheme,
 });
 initFonts();
 initMasterVolume();
