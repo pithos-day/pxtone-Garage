@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // ptNoise (PTN ノイズエディタ)。
-// レイヤー1..4 を全て縦に表示 (1画面に収まるようコンパクト化)。
+// 上段にレイヤー1..4 を縦に並べ (収まらない分はスクロール)、下段に波形と History を置く。
 // ビルドボタンは廃止し、編集が 250ms デバウンスでリアルタイムに波形へ反映される。
 // 波形クリック / Space で単発再生 (ループしない。本家 PcmTable_BuildAndPlay 準拠)。
 // History リスト、WAV 書き出しを提供する。
@@ -15,6 +15,7 @@ import { fillRect } from "../../lib/draw";
 import { NOISE_BUILT_SPS, secToEnveX, pctToEnveY } from "../../lib/noise";
 import { PCM_VIEW_ZOOM, PCM_VIEW_ZOOMS, pcmScrollMax, pcmScrollThumb, pcmViewWidth } from "../../lib/pcm-view";
 import { WaveType } from "pxtone-ts";
+import { Play } from "@lucide/vue";
 import NoiseWaveTypeSelect from "./NoiseWaveTypeSelect.vue";
 import { currentNoise, newNoise, editNoise, readNoiseBytes, pushNoiseHistory, NOISE_UNIT_NUM, NOISE_ENVE_NUM, resizeNoiseEnves } from "../../state/noise";
 import { isModalOpen } from "../../state/ui";
@@ -431,49 +432,53 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
         </div>
       </div>
       <div class="ne-preview">
-        <div ref="waveWrapRef" class="ne-wave-wrap">
-          <div class="ne-wave-head">
-            <span>{{ t("noise.wavePreview") }}</span>
-            <select v-model.number="waveZoom" class="ne-wave-zoom" :title="t('noise.zoom')" :aria-label="t('noise.zoom')">
-              <option v-for="z in PCM_VIEW_ZOOMS" :key="z.zoom" :value="z.zoom">{{ z.label }}</option>
-            </select>
-          </div>
-          <canvas
-            ref="waveRef"
-            class="field-canvas ne-wave"
-            @click="onPcmClick"
-            @wheel="onWaveWheel"
-            @contextmenu.prevent
-          />
-          <div
-            ref="scrollTrackRef"
-            class="ne-wave-scroll"
-            @pointerdown="onScrollPointerDown"
-            @pointermove="onScrollPointerMove"
-            @pointerup="onScrollPointerUp"
-            @pointercancel="onScrollPointerUp"
-          >
-            <div
-              class="ne-wave-thumb"
-              :style="{ width: `${waveThumb.width}px`, transform: `translateX(${waveThumb.left}px)` }"
+        <div class="ne-wave-card">
+          <div ref="waveWrapRef" class="ne-wave-wrap">
+            <div class="ne-wave-head">
+              <span>{{ t("noise.wavePreview") }}</span>
+              <select v-model.number="waveZoom" class="ne-wave-zoom" :title="t('noise.zoom')" :aria-label="t('noise.zoom')">
+                <option v-for="z in PCM_VIEW_ZOOMS" :key="z.zoom" :value="z.zoom">{{ z.label }}</option>
+              </select>
+            </div>
+            <canvas
+              ref="waveRef"
+              class="field-canvas ne-wave"
+              @click="onPcmClick"
+              @wheel="onWaveWheel"
+              @contextmenu.prevent
             />
+            <div
+              ref="scrollTrackRef"
+              class="ne-wave-scroll"
+              @pointerdown="onScrollPointerDown"
+              @pointermove="onScrollPointerMove"
+              @pointerup="onScrollPointerUp"
+              @pointercancel="onScrollPointerUp"
+            >
+              <div
+                class="ne-wave-thumb"
+                :style="{ width: `${waveThumb.width}px`, transform: `translateX(${waveThumb.left}px)` }"
+              />
+            </div>
           </div>
         </div>
         <div class="ne-history">
-          <div class="ne-history-title">
-            {{ t("noise.history") }}
-            <span class="ne-hint">{{ t("noise.historyHint") }}</span>
+          <div class="ne-history-title">{{ t("noise.history") }}</div>
+          <div class="ne-hint">{{ t("noise.historyHint") }}</div>
+          <div class="ne-history-list">
+            <button
+              v-for="(h, i) in noise.history"
+              :key="i"
+              type="button"
+              class="ne-history-item"
+              :title="t('noise.historyHint')"
+              @click="playHistory(i)"
+              @dblclick="applyHistory(i)"
+            >
+              <Play :size="11" class="ne-history-play" />
+              {{ h.label }}
+            </button>
           </div>
-          <button
-            v-for="(h, i) in noise.history"
-            :key="i"
-            class="ne-history-item"
-            :title="t('noise.historyHint')"
-            @click="playHistory(i)"
-            @dblclick="applyHistory(i)"
-          >
-            {{ h.label }}
-          </button>
         </div>
       </div>
     </div>
@@ -506,14 +511,14 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
   flex: 1;
   min-height: 0;
   display: flex;
-  gap: var(--space-lg);
+  flex-direction: column;
+  gap: var(--space-md);
 }
 
 /* 全レイヤーを縦に並べる。収まらない場合はこの列だけスクロール */
 .ne-layers {
-  /* 横幅が足りないときはプレビューを残すため、レイヤー列を縮める */
-  width: clamp(460px, 62%, 600px);
-  flex: none;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -529,8 +534,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
-  /* 全レイヤーで列の高さを埋める (下余白を消す)。縮小はせず、足りない分は列がスクロール */
-  flex: 1 0 auto;
+  flex: none;
 }
 
 .ne-layer-head {
@@ -640,29 +644,37 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
 }
 
 .ne-preview {
-  flex: 1;
-  min-width: 0;
+  flex: none;
   display: flex;
-  flex-direction: column;
   gap: var(--space-md);
 }
 
-/* 横幅が足りないとプレビューが潰れて波形が見えなくなるため、縦に積む */
+.ne-wave-card {
+  flex: 1;
+  min-width: 0;
+  background: var(--muted);
+  border-radius: var(--radius);
+  padding: var(--space-md);
+}
+
+/* 横幅が足りないと波形が潰れるため、レイヤーごと縦スクロールにして波形と History を積む */
 @media (max-width: 700px) {
   .ne-main {
-    flex-direction: column;
     overflow-y: auto;
   }
 
   .ne-layers {
-    width: auto;
     flex: none;
     overflow-y: visible;
   }
 
   .ne-preview {
-    flex: none;
-    min-height: 360px;
+    flex-direction: column;
+  }
+
+  .ne-history {
+    width: auto;
+    height: 200px;
   }
 }
 
@@ -670,8 +682,6 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
 .ne-wave-wrap {
   flex: 0 1 auto;
   height: 288px;
-  max-height: 320px;
-  min-height: 180px;
   display: flex;
   flex-direction: column;
 }
@@ -686,7 +696,8 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
   gap: var(--space-sm);
   padding: 0 2px;
   font-size: var(--text-xs);
-  color: var(--muted-foreground);
+  font-weight: 600;
+  color: var(--foreground);
 }
 
 .ne-wave-zoom {
@@ -737,42 +748,66 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
 }
 
 .ne-history {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  border: 1px solid var(--border);
-  background: var(--background);
-  padding: 4px;
+  flex: none;
+  width: 240px;
+  /* 波形カード (波形領域 288px + 上下の余白) と高さを揃える */
+  height: calc(288px + 2 * var(--space-md));
+  background: var(--muted);
+  border-radius: var(--radius);
+  padding: var(--space-md);
   display: flex;
   flex-direction: column;
   gap: var(--space-2xs);
 }
 
 .ne-history-title {
-  font-size: var(--text-sm);
-  font-weight: bold;
+  font-size: var(--text-xs);
+  font-weight: 600;
   color: var(--foreground);
-  display: flex;
-  gap: var(--space-lg);
 }
 
 .ne-hint {
-  font-size: var(--text-xs);
-  color: var(--muted-foreground);
+  font-size: var(--text-2xs);
+  color: var(--foreground);
+}
+
+.ne-history-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  margin-top: var(--space-xs);
 }
 
 .ne-history-item {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
   text-align: left;
   border: none;
+  border-radius: calc(var(--radius) - 2px);
   background: transparent;
-  color: var(--muted-foreground);
+  color: var(--foreground);
   font-size: var(--text-sm);
-  padding: 1px 4px;
+  font-variant-numeric: tabular-nums;
+  padding: 2px 6px;
   cursor: pointer;
+}
+
+.ne-history-play {
+  flex: none;
+  color: var(--primary);
 }
 
 .ne-history-item:hover {
   background: var(--accent);
   color: var(--accent-foreground);
+}
+
+.ne-history-item:hover .ne-history-play {
+  color: inherit;
 }
 </style>
