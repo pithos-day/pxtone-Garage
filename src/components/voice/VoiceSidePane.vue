@@ -443,15 +443,16 @@ function canvasRect(ref: { value: HTMLCanvasElement | null }): { el: HTMLCanvasE
   <div class="vsp" :data-rev="rev">
     <div class="vsp-header">
       <span class="vsp-side">{{ side === 0 ? t("voice.sideA") : t("voice.sideB") }}</span>
-      <div class="vsp-wavetype">
-        <button class="btn btn-sm mode" :class="{ on: waveType === 'coord' }" @click="setWaveType('coord')">Coordinate</button>
-        <button class="btn btn-sm mode" :class="{ on: waveType === 'overtone' }" @click="setWaveType('overtone')">Oscillator</button>
+      <div class="seg" role="group" :aria-label="t('voice.waveType')">
+        <button type="button" :class="{ on: waveType === 'coord' }" :aria-pressed="waveType === 'coord'" @click="setWaveType('coord')">Coordinate</button>
+        <button type="button" :class="{ on: waveType === 'overtone' }" :aria-pressed="waveType === 'overtone'" @click="setWaveType('overtone')">Oscillator</button>
       </div>
       <div class="vsp-presets">
         <button
           v-for="(label, i) in WAVE_PRESET_LABELS"
           :key="i"
-          class="btn btn-sm vsp-preset"
+          type="button"
+          class="chip"
           :title="WAVE_PRESET_TITLES[i]"
           @click="applyPreset(i as WavePreset)"
         >
@@ -524,10 +525,10 @@ function canvasRect(ref: { value: HTMLCanvasElement | null }): { el: HTMLCanvasE
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
-  border: 1px solid var(--border);
-  background: var(--background);
-  padding: 4px;
+  gap: var(--space-lg);
+  background: var(--muted);
+  border-radius: var(--radius);
+  padding: var(--space-lg);
 }
 
 .vsp-header {
@@ -545,19 +546,11 @@ function canvasRect(ref: { value: HTMLCanvasElement | null }): { el: HTMLCanvasE
   color: var(--foreground);
 }
 
-.vsp-wavetype {
-  display: flex;
-  gap: var(--space-2xs);
-}
-
 .vsp-presets {
   display: flex;
-  gap: var(--space-2xs);
-}
-
-.vsp-preset {
-  font-size: var(--text-xs);
-  padding: 0 5px;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-left: auto;
 }
 
 /* 面ごとのパラメータ (Vol/Pan/補正値/Release のスライダー) */
@@ -603,6 +596,7 @@ function canvasRect(ref: { value: HTMLCanvasElement | null }): { el: HTMLCanvasE
 .vsp-enve {
   flex: 1;
   min-height: 50px;
+  border-radius: calc(var(--radius) - 2px);
 }
 
 /* スライダーは常時表示。高さが足りなければ内部スクロール */

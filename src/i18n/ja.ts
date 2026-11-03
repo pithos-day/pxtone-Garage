@@ -263,6 +263,7 @@ const ja = {
   "voice.release": "リリースタイム",
   "voice.envelope": "エンベロープ",
   "voice.velocity": "ベロシティ",
+  "voice.waveType": "波形タイプ",
   "voice.copyTitle": "A/B コピー",
   "voice.copyABMessage": "A を B にコピーしますか?",
   "voice.copyBAMessage": "B を A にコピーしますか?",
