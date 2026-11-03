@@ -31,7 +31,10 @@ function onAccept(): void {
 
 function onInputEnter(e: KeyboardEvent): void {
   // IME の変換確定の Enter では閉じない
-  if (!e.isComposing) onAccept();
+  if (e.isComposing) return;
+  // 既定動作を止めないと、次のダイアログの OK へ移ったフォーカスが同じ Enter で押されてしまう
+  e.preventDefault();
+  onAccept();
 }
 
 // Esc はフォーカス位置によらず最前面のこのダイアログだけを閉じる
