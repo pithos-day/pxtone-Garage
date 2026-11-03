@@ -106,3 +106,11 @@
 .dark[data-theme="ocean"] {
   --canvas-field-bg: oklch(0.14 0.035 225);
 }
+
+:root[data-theme="contrast"] {
+  --canvas-field-bg: oklch(1 0 0);
+}
+
+.dark[data-theme="contrast"] {
+  --canvas-field-bg: oklch(0 0 0);
+}

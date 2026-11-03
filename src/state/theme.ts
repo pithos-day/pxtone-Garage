@@ -40,6 +40,7 @@ export const BUILTIN_THEMES: { id: string; name: string }[] = [
   { id: "synthwave", name: "Synthwave" },
   { id: "studio", name: "Studio" },
   { id: "ocean", name: "Ocean" },
+  { id: "contrast", name: "High Contrast" },
 ];
 
 export const DEFAULT_THEME = "pxtone";
