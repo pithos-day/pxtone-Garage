@@ -21,7 +21,7 @@ export interface TabDocBase {
   redoStack: Uint8Array[];
 }
 
-// 実体のバイト列化・復元 (voice: ptvWrite/ptvRead、noise: write/read)
+// 実体のバイト列化・復元 (voice: ptvWrite/ptvRead、noise: 全レイヤーの JSON)
 export interface DocCodec<D extends TabDocBase> {
   snapshot(d: D): Uint8Array | null;
   // ファイル保存用のバイト列。省略時は snapshot を使う (undo 用と同じバイト列)。

@@ -19,7 +19,7 @@ import { ChevronLeft, ChevronRight, Play } from "@lucide/vue";
 import KnobControl from "../common/KnobControl.vue";
 import NoiseEnvelopeGraph from "./NoiseEnvelopeGraph.vue";
 import NoiseWaveTypeSelect from "./NoiseWaveTypeSelect.vue";
-import { currentNoise, newNoise, editNoise, readNoiseBytes, pushNoiseHistory, NOISE_UNIT_NUM, NOISE_ENVE_NUM, resizeNoiseEnves } from "../../state/noise";
+import { currentNoise, newNoise, editNoise, restoreNoiseHistory, pushNoiseHistory, NOISE_UNIT_NUM, NOISE_ENVE_NUM, resizeNoiseEnves } from "../../state/noise";
 import { isModalOpen } from "../../state/ui";
 import { renderNoise, playPcmOnce } from "../../engine/preview";
 import { t } from "../../i18n";
@@ -50,7 +50,7 @@ function unitAt(u: number) {
 
 // レイヤー行モデル。テンプレートでの unitAt(u)! を script 側の非 null 保証に
 // 追い出し、v-for の対象を unitList (index のみ) から行オブジェクトに変える。
-// undo/redo や History の反映は readNoiseBytes でユニットを作り直すため、
+// undo/redo や History の反映はユニットを作り直すため、
 // rev を参照して行の unit 参照も更新する (markRaw のため自動追跡されない)
 const unitRows = computed(() => {
   void rev.value;
@@ -187,7 +187,7 @@ function applyHistory(i: number): void {
   const e = d?.history[i];
   if (!d || !e) return;
   editNoise(() => {
-    readNoiseBytes(d.noise, e.bytes);
+    restoreNoiseHistory(d, e);
   });
   touch();
   scheduleEditBuild();

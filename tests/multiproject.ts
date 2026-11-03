@@ -19,6 +19,7 @@
 //   46. キーボードショートカット (lib/shortcuts: 判定 / 表示 / スクロール)
 //   47. 進捗ダイアログ (state/progress) と IO の進捗・キャンセル
 //   48. 名前を付けて保存で Collage とのリンクを解除 / 49. 同梱サンプル楽曲 / 50. 全て閉じる / 51. Voice/Noise の全て閉じる
+//   52. Noise の undo / History は編集状態をそのまま戻す
 import {
   projects,
   currentProjectId,
@@ -124,6 +125,7 @@ import {
   openPtnAsNoise,
   markNoiseClean,
   pushNoiseHistory,
+  restoreNoiseHistory,
   NOISE_UNIT_NUM,
   NOISE_ENVE_NUM,
   resizeNoiseEnves,
@@ -2334,7 +2336,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     // 無効レイヤーは書き出されないため、保存バイト列は元のまま
     checkBytes(snapshotNoise(d1)!, bytes1, "layers: 保存バイト列は元と同じ");
 
-    // undo (バイト列からの復元) でも 4 レイヤーのまま
+    // undo でも 4 レイヤーのまま
     editNoise(() => {
       d1.noise.getUnit(0)!.pan = 10;
     });
@@ -3388,6 +3390,48 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(currentNoise()?.fileName, "", "closeall: noise 新しいタブは無題");
     checkEq(currentNoise()?.initial, true, "closeall: noise 起動時と同じ初期タブ");
     checkEq(currentNoise()?.dirty, false, "closeall: noise 新しいタブは未編集");
+  }
+
+  // ---- 52. Noise の undo / History は編集状態をそのまま戻す ----
+  // ファイル形式は無効レイヤーと None のオシレータを書き出さないが、編集中の値は失わない
+  {
+    const d = newNoise();
+    const unitJson = (u: number): string => JSON.stringify(d.noise.getUnit(u));
+    // 無効レイヤーを挟んだ状態にする (レイヤー 1 が無効、レイヤー 2 が有効)
+    const third = d.noise.getUnit(2)!;
+    third.bEnable = true;
+    third.main.freq = 880;
+    third.freq.freq = 5;
+    d.noise.getUnit(1)!.main.freq = 330;
+    const before = [0, 1, 2, 3].map(unitJson);
+
+    editNoise(() => {
+      d.noise.getUnit(0)!.pan = 10;
+    });
+    const edited = [0, 1, 2, 3].map(unitJson);
+    check(undoNoise(), "noise-state: undo できる");
+    checkEq([0, 1, 2, 3].map(unitJson).join(), before.join(), "noise-state: undo で全レイヤーの値が戻る");
+    checkEq(d.noise.getUnit(0)!.volu.volume, 100, "noise-state: None の Volume のボリュームが 0 にならない");
+    checkEq(d.noise.getUnit(2)!.main.freq, 880, "noise-state: 無効レイヤーを挟んでもレイヤーが詰まらない");
+    checkEq(d.noise.getUnit(1)!.main.freq, 330, "noise-state: 無効レイヤーの値が残る");
+    checkEq(d.noise.smpNum44k, 44100, "noise-state: サンプル数が戻る");
+    check(redoNoise(), "noise-state: redo できる");
+    checkEq([0, 1, 2, 3].map(unitJson).join(), edited.join(), "noise-state: redo で編集後へ戻る");
+
+    // History の反映でも同じ
+    pushNoiseHistory(new Float32Array([0, 0]), "H");
+    d.noise.getUnit(1)!.main.freq = 110;
+    d.noise.getUnit(0)!.pan = -10;
+    restoreNoiseHistory(d, d.history[0]!);
+    checkEq([0, 1, 2, 3].map(unitJson).join(), edited.join(), "noise-state: History の反映で全レイヤーが戻る");
+
+    // 保存するバイト列はこれまでどおりファイル形式
+    const io = new MemoryIo();
+    d.noise.write(io);
+    checkBytes(snapshotNoise(d)!, io.toUint8Array(), "noise-state: snapshotNoise はファイル形式のまま");
+    const reopened = new Noise();
+    checkEq(readNoiseBytes(reopened, snapshotNoise(d)!), PxtnErr.OK, "noise-state: 保存バイト列を読み直せる");
+    closeNoise(d.id);
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);

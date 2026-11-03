@@ -30,11 +30,11 @@ export function resizeNoiseEnves(
   return out;
 }
 
-// ビルド履歴の1件。label は表示用の時刻、bytes はエディタへ戻す際のノイズデータ、
+// ビルド履歴の1件。label は表示用の時刻、snapshot はエディタへ戻す際の編集状態、
 // pcm はクリック時の再生用 (デバウンス後の波形)
 export interface NoiseHistoryEntry {
   label: string;
-  bytes: Uint8Array;
+  snapshot: Uint8Array;
   pcm: Float32Array;
 }
 
@@ -87,7 +87,7 @@ function normalizeNoiseEnvelopes(n: Noise): void {
   }
 }
 
-// ノイズのバイト列を読み込む (タブを開く / undo 復元 / History の反映で共用)。
+// ノイズのファイル形式のバイト列を読み込む (タブを開くときに使う)。
 // 読み込んだ後はレイヤー数が NOISE_UNIT_NUM になる
 export function readNoiseBytes(n: Noise, bytes: Uint8Array): PxtnErr {
   const res = n.read(new MemoryIo(bytes));
@@ -97,12 +97,32 @@ export function readNoiseBytes(n: Noise, bytes: Uint8Array): PxtnErr {
   return PxtnErr.OK;
 }
 
+// undo / History 用の編集状態スナップショット。ファイル形式 (Noise.write) は無効レイヤーと
+// タイプ None のオシレータを書き出さないため、経由すると値が 0 に変わり、無効レイヤーの後ろの
+// レイヤーが前に詰まる。全レイヤーの値をそのまま JSON で保持する
+function snapshotNoiseState(n: Noise): Uint8Array {
+  const units: NoiseUnit[] = [];
+  for (let u = 0; u < n.unitNum; u++) units.push(n.getUnit(u)!);
+  return new TextEncoder().encode(JSON.stringify({ smpNum44k: n.smpNum44k, units }));
+}
+
+function restoreNoiseState(n: Noise, snapshot: Uint8Array): void {
+  const state = JSON.parse(new TextDecoder().decode(snapshot)) as { smpNum44k: number; units: NoiseUnit[] };
+  n.allocate(state.units.length, NOISE_ENVE_NUM);
+  n.setSmpNum44k(state.smpNum44k);
+  state.units.forEach((unit, u) => copyNoiseUnit(n.getUnit(u)!, unit));
+}
+
 const tabs = createDocTabs<NoiseDoc>({
-  snapshot: snapshotNoise,
-  restore: (d, bytes) => readNoiseBytes(d.noise, bytes) === PxtnErr.OK,
+  snapshot: (d) => snapshotNoiseState(d.noise),
+  snapshotForSave: snapshotNoise,
+  restore: (d, snapshot) => {
+    restoreNoiseState(d.noise, snapshot);
+    return true;
+  },
 });
 
-// ノイズのバイト列スナップショット (undo / Collage への追加で共用)
+// ノイズのファイル形式のバイト列 (保存 / ドラフト / Collage への追加で共用)
 export function snapshotNoise(d: NoiseDoc): Uint8Array | null {
   const io = new MemoryIo();
   if (!d.noise.write(io)) return null;
@@ -159,10 +179,13 @@ export function markNoiseClean(): void {
 export function pushNoiseHistory(pcm: Float32Array, label: string): void {
   const d = currentNoise();
   if (!d) return;
-  const io = new MemoryIo();
-  if (!d.noise.write(io)) return;
-  const entry: NoiseHistoryEntry = { label, bytes: io.toUint8Array(), pcm };
+  const entry: NoiseHistoryEntry = { label, snapshot: snapshotNoiseState(d.noise), pcm };
   d.historyAtMs = pushHistoryEntry(d.history, d.historyAtMs, Date.now(), entry);
+}
+
+// ビルド履歴の編集状態をエディタへ戻す
+export function restoreNoiseHistory(d: NoiseDoc, entry: NoiseHistoryEntry): void {
+  restoreNoiseState(d.noise, entry.snapshot);
 }
 
 export function undoNoise(): boolean {
