@@ -1,5 +1,6 @@
 // Canvas フィールドの共通セットアップ (DPR対応・リサイズ・再描画スケジューリング)
 import { onBeforeUnmount, watch, type Ref } from "vue";
+import { themeRev } from "../lib/theme";
 
 export function useCanvas(
   canvasRef: Ref<HTMLCanvasElement | null>,
@@ -51,6 +52,9 @@ export function useCanvas(
   for (const d of deps) {
     watch(d, () => schedule(), { immediate: true });
   }
+
+  // 描画色が変わるため、呼び出し側の deps によらずテーマ切替で再描画する
+  watch(themeRev, () => schedule());
 
   onBeforeUnmount(() => {
     observer?.disconnect();

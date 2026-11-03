@@ -1,6 +1,6 @@
 // テーマ色の定義。Canvas 描画用の COLORS は src/themes/*.css が定義する
 // CSS 変数 (shadcn 形式) から読み取る。テーマ切替時は syncThemeColors() を呼ぶ。
-import { reactive } from "vue";
+import { reactive, ref } from "vue";
 import { EVENTDEFAULT_VELOCITY, EVENTDEFAULT_VOLUME, WoiceType } from "pxtone-ts";
 
 // Canvas 用の色。apply 時に CSS 変数から取り込まれる (テーマ非依存の
@@ -50,6 +50,10 @@ export const COLORS = reactive({
   markerPreview: "",
   markerPreviewText: "",
 });
+
+// テーマ色を取り込むたびに進む。Canvas は draw 内で COLORS を読むだけで依存が追跡されないため、
+// useCanvas がこれを監視してテーマ切替時に再描画する
+export const themeRev = ref(0);
 
 // <html> の data-theme / .dark に対応する CSS 変数を COLORS へ取り込む
 export function syncThemeColors(): void {
@@ -107,6 +111,7 @@ export function syncThemeColors(): void {
   COLORS.markerText = v("--canvas-marker-text");
   COLORS.markerPreview = v("--canvas-marker-preview");
   COLORS.markerPreviewText = v("--canvas-marker-preview-text");
+  themeRev.value++;
 }
 
 // ユニット7色 (ptweb colors.js の note/key 3色) — アイデンティティ色のためテーマ非依存
