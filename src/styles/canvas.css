@@ -90,3 +90,11 @@
 .dark[data-theme="synthwave"] {
   --canvas-field-bg: oklch(0.12 0.07 285);
 }
+
+:root[data-theme="studio"] {
+  --canvas-field-bg: oklch(0.97 0.002 80);
+}
+
+.dark[data-theme="studio"] {
+  --canvas-field-bg: oklch(0.13 0.005 60);
+}

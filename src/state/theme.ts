@@ -38,6 +38,7 @@ export const BUILTIN_THEMES: { id: string; name: string }[] = [
   { id: "rose", name: "Rose" },
   { id: "gameboy", name: "Game Boy" },
   { id: "synthwave", name: "Synthwave" },
+  { id: "studio", name: "Studio" },
 ];
 
 export const DEFAULT_THEME = "pxtone";

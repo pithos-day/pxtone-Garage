@@ -41,6 +41,7 @@ import vintageTheme from "./themes/vintage.css?raw";
 import roseTheme from "./themes/rose.css?raw";
 import gameboyTheme from "./themes/gameboy.css?raw";
 import synthwaveTheme from "./themes/synthwave.css?raw";
+import studioTheme from "./themes/studio.css?raw";
 
 initTheme({
   pxtone: pxtoneTheme,
@@ -51,6 +52,7 @@ initTheme({
   rose: roseTheme,
   gameboy: gameboyTheme,
   synthwave: synthwaveTheme,
+  studio: studioTheme,
 });
 initFonts();
 initMasterVolume();
