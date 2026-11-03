@@ -39,6 +39,7 @@ import caffeineTheme from "./themes/caffeine.css?raw";
 import zenTheme from "./themes/zen.css?raw";
 import vintageTheme from "./themes/vintage.css?raw";
 import roseTheme from "./themes/rose.css?raw";
+import gameboyTheme from "./themes/gameboy.css?raw";
 
 initTheme({
   pxtone: pxtoneTheme,
@@ -47,6 +48,7 @@ initTheme({
   zen: zenTheme,
   vintage: vintageTheme,
   rose: roseTheme,
+  gameboy: gameboyTheme,
 });
 initFonts();
 initMasterVolume();

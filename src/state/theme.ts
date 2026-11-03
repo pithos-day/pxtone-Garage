@@ -36,6 +36,7 @@ export const BUILTIN_THEMES: { id: string; name: string }[] = [
   { id: "zen", name: "Zen" },
   { id: "vintage", name: "Vintage" },
   { id: "rose", name: "Rose" },
+  { id: "gameboy", name: "Game Boy" },
 ];
 
 export const DEFAULT_THEME = "pxtone";

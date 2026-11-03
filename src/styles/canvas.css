@@ -73,3 +73,12 @@
   --canvas-zebra: oklch(1 0 0 / 2%);
   --canvas-scale-line: oklch(0.602 0 0 / 15%);
 }
+
+/* テーマ固有のフィールド背景 (波形の世界観を保つテーマのみ上書きする) */
+:root[data-theme="gameboy"] {
+  --canvas-field-bg: oklch(0.93 0.06 120);
+}
+
+.dark[data-theme="gameboy"] {
+  --canvas-field-bg: oklch(0.16 0.04 135);
+}
