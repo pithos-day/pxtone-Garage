@@ -15,7 +15,8 @@ import { fillRect } from "../../lib/draw";
 import { NOISE_BUILT_SPS, secToEnveX, pctToEnveY } from "../../lib/noise";
 import { PCM_VIEW_ZOOM, PCM_VIEW_ZOOMS, pcmScrollMax, pcmScrollThumb, pcmViewWidth } from "../../lib/pcm-view";
 import { WaveType } from "pxtone-ts";
-import { Play } from "@lucide/vue";
+import { ChevronLeft, ChevronRight, Play } from "@lucide/vue";
+import KnobControl from "../common/KnobControl.vue";
 import NoiseWaveTypeSelect from "./NoiseWaveTypeSelect.vue";
 import { currentNoise, newNoise, editNoise, readNoiseBytes, pushNoiseHistory, NOISE_UNIT_NUM, NOISE_ENVE_NUM, resizeNoiseEnves } from "../../state/noise";
 import { isModalOpen } from "../../state/ui";
@@ -29,7 +30,8 @@ const noise = computed(() => currentNoise());
 // 編集リビジョン。undo/redo 後はリアルタイム反映のため再ビルドを予約する
 const { rev, touch } = useEditRev(() => noise.value, undefined, () => scheduleEditBuild());
 
-const OSC_IDS = ["main", "freq", "volu"] as const;
+// 変調の流れに合わせて Frequency → Main ← Volume の順に並べる
+const OSC_IDS = ["freq", "main", "volu"] as const;
 
 // 全レイヤーを縦に並べる (read 直後は有効ユニット数ぶん)
 const unitList = computed(() => {
@@ -75,6 +77,19 @@ function setOsc(u: number, osc: (typeof OSC_IDS)[number], field: "type" | "bRev"
   if (field === "type") o.type = v as WaveType;
   else if (field === "bRev") o.bRev = v as boolean;
   else o[field] = v as number;
+  onFieldChange();
+}
+
+// ノブのドラッグは 1 ジェスチャごとに undo を積む (フォーカスが残っていても別エントリにする)
+function onKnobBegin(): void {
+  fieldUndo.reset();
+  fieldUndo.onBegin();
+}
+
+function setPan(u: number, v: number): void {
+  const unit = unitAt(u);
+  if (!unit) return;
+  unit.pan = v;
   onFieldChange();
 }
 
@@ -346,62 +361,74 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
     <div v-else class="ne-main" :data-rev="rev">
       <div class="ne-layers" @focusin="fieldUndo.onBegin" @focusout="fieldUndo.reset">
         <div v-for="row in unitRows" :key="row.index" class="ne-layer">
-          <div class="ne-layer-head">
-            <span class="ne-layer-name">{{ t("noise.layer") }} {{ row.index + 1 }}</span>
-            <label class="chk">{{ t("noise.enable") }}
-              <input v-model="row.unit.bEnable" type="checkbox" @change="onFieldChange" />
+          <div class="ne-module ne-layer-head">
+            <label class="ne-layer-title">
+              <input v-model="row.unit.bEnable" class="switch" type="checkbox" :aria-label="t('noise.enable')" @change="onFieldChange" />
+              <span class="ne-layer-name">{{ t("noise.layer") }} {{ row.index + 1 }}</span>
             </label>
-            <label>{{ t("noise.pan") }}
-              <input v-model.number="row.unit.pan" type="number" min="-100" max="100" class="num" @change="onFieldChange" />
-            </label>
+            <KnobControl
+              :model-value="row.unit.pan"
+              :min="-100"
+              :max="100"
+              :center="0"
+              :label="t('noise.pan')"
+              @begin="onKnobBegin"
+              @update:model-value="setPan(row.index, $event)"
+            />
           </div>
-          <div class="ne-grid">
-            <div class="ne-row ne-head">
-              <span class="ne-osc-name" />
-              <span>{{ t("noise.type") }}</span>
-              <span>{{ t("noise.reverse") }}</span>
-              <span>{{ t("noise.freqValue") }}</span>
-              <span>{{ t("noise.oscVolume") }}</span>
-              <span>{{ t("noise.offset") }}</span>
+          <template v-for="osc in OSC_IDS" :key="osc">
+            <ChevronRight v-if="osc === 'main'" :size="16" class="ne-flow" aria-hidden="true" />
+            <ChevronLeft v-else-if="osc === 'volu'" :size="16" class="ne-flow" aria-hidden="true" />
+            <div class="ne-module ne-osc" :class="{ 'is-main': osc === 'main' }">
+              <div class="ne-osc-head">
+                <span class="ne-osc-name">{{ t(`noise.${osc}`) }}</span>
+                <div class="ne-osc-type">
+                  <NoiseWaveTypeSelect
+                    :model-value="row.unit[osc].type"
+                    @update:model-value="setOsc(row.index, osc, 'type', $event)"
+                  />
+                </div>
+                <label class="ne-osc-rev" :title="t('noise.reverse')">
+                  {{ t("noise.reverse") }}
+                  <input
+                    class="switch"
+                    type="checkbox"
+                    :checked="row.unit[osc].bRev"
+                    @change="setOsc(row.index, osc, 'bRev', ($event.target as HTMLInputElement).checked)"
+                  />
+                </label>
+              </div>
+              <div class="ne-osc-knobs">
+                <KnobControl
+                  :model-value="row.unit[osc].freq"
+                  :min="0"
+                  :max="44100"
+                  log
+                  :label="t('noise.freqValue')"
+                  @begin="onKnobBegin"
+                  @update:model-value="setOsc(row.index, osc, 'freq', $event)"
+                />
+                <KnobControl
+                  :model-value="row.unit[osc].volume"
+                  :min="0"
+                  :max="200"
+                  :label="t('noise.oscVolume')"
+                  @begin="onKnobBegin"
+                  @update:model-value="setOsc(row.index, osc, 'volume', $event)"
+                />
+                <KnobControl
+                  :model-value="row.unit[osc].offset"
+                  :min="0"
+                  :max="100"
+                  :label="t('noise.offset')"
+                  @begin="onKnobBegin"
+                  @update:model-value="setOsc(row.index, osc, 'offset', $event)"
+                />
+              </div>
             </div>
-            <div v-for="osc in OSC_IDS" :key="osc" class="ne-row">
-              <span class="ne-osc-name">{{ t(`noise.${osc}`) }}</span>
-              <NoiseWaveTypeSelect
-                :model-value="row.unit[osc].type"
-                @update:model-value="setOsc(row.index, osc, 'type', $event)"
-              />
-              <input
-                type="checkbox"
-                :checked="row.unit[osc].bRev"
-                @change="setOsc(row.index, osc, 'bRev', ($event.target as HTMLInputElement).checked)"
-              />
-              <input
-                type="number"
-                :value="row.unit[osc].freq"
-                min="0"
-                max="44100"
-                class="num"
-                @change="setOsc(row.index, osc, 'freq', Number(($event.target as HTMLInputElement).value))"
-              />
-              <input
-                type="number"
-                :value="row.unit[osc].volume"
-                min="0"
-                max="200"
-                class="num"
-                @change="setOsc(row.index, osc, 'volume', Number(($event.target as HTMLInputElement).value))"
-              />
-              <input
-                type="number"
-                :value="row.unit[osc].offset"
-                min="0"
-                max="100"
-                class="num"
-                @change="setOsc(row.index, osc, 'offset', Number(($event.target as HTMLInputElement).value))"
-              />
-            </div>
-          </div>
-          <div class="ne-enve">
+          </template>
+          <ChevronRight :size="16" class="ne-flow" aria-hidden="true" />
+          <div class="ne-module ne-enve">
             <span class="ne-enve-title">{{ t("noise.envelope") }}</span>
             <select :value="row.unit.enveNum" @change="onEnveNumChange(row.index, Number(($event.target as HTMLSelectElement).value))">
               <option v-for="n in NOISE_ENVE_NUM" :key="n" :value="n">{{ n }}</option>
@@ -524,105 +551,117 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
   flex-direction: column;
   gap: var(--space-sm);
   font-size: var(--text-sm);
-  color: var(--card-foreground);
 }
 
+/* 1 レイヤー = 横一列のラック。幅が足りなければモジュールを折り返す */
 .ne-layer {
-  border: 1px solid var(--border);
-  background: var(--card);
-  padding: 4px 6px;
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  align-items: stretch;
   gap: var(--space-xs);
   flex: none;
+}
+
+.ne-module {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: var(--muted);
+  border-radius: var(--radius);
 }
 
 .ne-layer-head {
+  flex: 0 0 118px;
+  align-items: center;
+}
+
+.ne-layer-title {
   display: flex;
   align-items: center;
-  gap: var(--space-xl);
+  gap: var(--space-sm);
+  cursor: pointer;
 }
 
 .ne-layer-name {
+  font-size: var(--text-xs);
   font-weight: bold;
-  color: var(--card-foreground);
-}
-
-.chk {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-}
-
-.ne-layer label {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
   white-space: nowrap;
+  color: var(--foreground);
 }
 
-.ne-grid {
+.ne-flow {
+  flex: none;
+  align-self: center;
+  color: var(--primary);
+}
+
+.ne-osc {
+  flex: 1 1 220px;
+}
+
+/* 変調を受ける Main を周囲より目立たせる */
+.ne-osc.is-main {
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.ne-osc-head {
   display: flex;
-  flex-direction: column;
-  gap: 1px;
-  /* レイヤー枠の余った高さはグリッド行が吸収して拡大する */
-  flex: 1;
-}
-
-.ne-row {
-  display: grid;
-  grid-template-columns: 54px 84px 26px 70px 70px 70px;
   align-items: center;
   gap: var(--space-sm);
-  flex: 1;
-}
-
-.ne-head {
-  font-size: var(--text-2xs);
-  color: var(--card-foreground);
-  border-bottom: 1px dashed var(--border);
-  padding-bottom: 1px;
-  flex: none;
+  height: 24px;
 }
 
 .ne-osc-name {
-  width: 54px;
   flex: none;
-  font-weight: bold;
-  color: var(--card-foreground);
+  width: 58px;
   font-size: var(--text-xs);
+  font-weight: bold;
+  color: var(--foreground);
 }
 
-.ne-layer select,
-.ne-layer input {
-  font-size: var(--text-sm);
-  background: var(--secondary);
-  color: var(--secondary-foreground);
-  border: 1px solid var(--border);
-  padding: 0 2px;
-  width: 100%;
-  /* 行の高さに合わせて入力欄も縦へ拡大する (レイヤー内の余白を消す) */
+.ne-osc-type {
+  flex: 1;
+  min-width: 0;
   height: 100%;
 }
 
-.ne-row input[type="checkbox"] {
-  width: 15px;
-  height: 15px;
-  justify-self: center;
+.ne-osc-rev {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--text-2xs);
+  color: var(--foreground);
+  cursor: pointer;
+}
+
+.ne-osc-knobs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-sm);
 }
 
 .ne-enve {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
+  flex: 1 1 240px;
+  flex-direction: row;
   flex-wrap: wrap;
-  border-top: 1px dashed var(--border);
-  padding-top: 2px;
+  align-items: center;
+  align-content: flex-start;
+  color: var(--foreground);
+}
+
+.ne-enve input,
+.ne-enve select {
+  height: 22px;
+  padding: 0 2px;
+  border: none;
+  font-size: var(--text-xs);
 }
 
 .ne-enve-title {
   font-weight: bold;
-  color: var(--card-foreground);
   font-size: var(--text-xs);
 }
 
@@ -631,7 +670,6 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
 }
 
 .ne-enve-no {
-  color: var(--card-foreground);
   font-size: var(--text-xs);
 }
 

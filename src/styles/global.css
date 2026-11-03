@@ -164,6 +164,47 @@ body {
   color: var(--accent-foreground);
 }
 
+/* ---- トグルスイッチ (チェックボックスの見た目を差し替える) ---- */
+.switch {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex: none;
+  width: 30px;
+  height: 18px;
+  margin: 0;
+  border-radius: 9px;
+  background: var(--secondary);
+  cursor: pointer;
+}
+
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--secondary-foreground);
+  opacity: 0.6;
+}
+
+.switch:checked {
+  background: var(--primary);
+}
+
+.switch:checked::after {
+  left: 14px;
+  background: var(--primary-foreground);
+  opacity: 1;
+}
+
+.switch:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
 /* ---- プレースホルダ ---- */
 .placeholder {
   flex: 1;

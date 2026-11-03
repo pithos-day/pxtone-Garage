@@ -156,6 +156,7 @@ import { clockAtX, zoomAnchorScrollX, zoomByWheel } from "../src/lib/field";
 import { MENU_LABELS, menuNamesFor, buildFileMenu } from "../src/lib/menuItems";
 import { t } from "../src/i18n";
 import { secToEnveX, pctToEnveY, pushHistoryEntry, NOISE_WAVE_TYPES } from "../src/lib/noise";
+import { knobNorm, knobValue, knobAngle, KNOB_SWEEP } from "../src/lib/knob";
 import { noiseWaveSamplePath } from "../src/lib/noise-wave-samples";
 import { PCM_VIEW_ZOOM, PCM_VIEW_ZOOMS, pcmViewWidth, pcmScrollMax, pcmScrollThumb } from "../src/lib/pcm-view";
 import { nearestPoint, coordPxToX, coordPxToY, cursorToWaveY, waveY } from "../src/lib/voice-geometry";
@@ -1575,6 +1576,12 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(menuNamesFor("noise").join(","), "file,edit", "lib: menuNamesFor noise は File/Edit");
 
     // lib/noise: エンベロープ変換と履歴追加
+    checkEq(knobNorm(0, -100, 100), 0.5, "lib: knobNorm は線形範囲の中央で 0.5");
+    checkEq(knobNorm(0, 0, 44100, true), 0, "lib: knobNorm は対数でも下端 0");
+    checkEq(knobNorm(44100, 0, 44100, true), 1, "lib: knobNorm は対数でも上端 1");
+    checkEq(knobValue(knobNorm(440, 0, 44100, true), 0, 44100, true), 440, "lib: 対数ノブの値は往復で保たれる");
+    checkEq(knobValue(2, 0, 100), 100, "lib: knobValue は範囲外の位置をクランプ");
+    checkEq(knobAngle(0), -KNOB_SWEEP, "lib: knobAngle は下端で左端の角度");
     checkEq(secToEnveX("1.5"), 1500, "lib: secToEnveX は秒を 1/1000 へ変換");
     checkEq(secToEnveX("12"), 10000, "lib: secToEnveX は上限 10000 でクランプ");
     checkEq(secToEnveX("abc"), null, "lib: secToEnveX は無効値で null");
