@@ -218,9 +218,9 @@ watch(
   justify-content: space-between;
   gap: 2px;
   padding: 0 2px;
-  border: 1px solid var(--border);
-  background: var(--secondary);
-  color: var(--secondary-foreground);
+  border: none;
+  background: var(--control-surface);
+  color: var(--foreground);
   font-size: var(--text-sm);
   text-align: left;
   cursor: pointer;

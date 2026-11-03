@@ -623,7 +623,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
 .ne-flow {
   flex: none;
   align-self: center;
-  color: var(--primary);
+  color: var(--control-fill);
 }
 
 .ne-osc {
@@ -632,7 +632,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
 
 /* 変調を受ける Main を周囲より目立たせる */
 .ne-osc.is-main {
-  box-shadow: inset 0 0 0 1px var(--primary);
+  box-shadow: inset 0 0 0 1px var(--control-fill);
 }
 
 .ne-osc-head {
@@ -707,6 +707,8 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
   height: 20px;
   padding: 0 2px;
   border: none;
+  background: var(--control-surface);
+  color: var(--foreground);
   font-size: var(--text-xs);
 }
 
@@ -787,9 +789,9 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
   flex: none;
   height: 18px;
   padding: 0 2px;
-  border: 1px solid var(--border);
-  background: var(--secondary);
-  color: var(--secondary-foreground);
+  border: none;
+  background: var(--control-surface);
+  color: var(--foreground);
   font-size: var(--text-xs);
 }
 
@@ -808,8 +810,8 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
   box-sizing: border-box;
   height: 10px;
   margin-top: 2px;
-  background: var(--muted);
-  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--control-surface);
   cursor: pointer;
   user-select: none;
   touch-action: none;
@@ -820,14 +822,13 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
   top: 1px;
   bottom: 1px;
   left: 0;
-  box-sizing: border-box;
-  background: var(--border);
-  border: 1px solid color-mix(in srgb, var(--border) 60%, var(--background));
+  border-radius: 4px;
+  background: var(--control-thumb);
 }
 
 .ne-wave-thumb:hover,
 .ne-wave-thumb:active {
-  background: var(--primary);
+  background: var(--control-fill);
 }
 
 .ne-history {
@@ -882,7 +883,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
 
 .ne-history-play {
   flex: none;
-  color: var(--primary);
+  color: var(--control-fill);
 }
 
 .ne-history-item:hover {
