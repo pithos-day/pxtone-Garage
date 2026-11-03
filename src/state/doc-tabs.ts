@@ -5,6 +5,7 @@
 import { ref, type Ref } from "vue";
 import { chooseSaveDestination, sanitizeFileName, stripFileExt, supportsSavePicker, writeSaveDestination } from "../engine/io";
 import { withProgress } from "./progress";
+import { appPrompt } from "./dialog";
 import { t } from "../i18n";
 
 const MAX_UNDO = 100;
@@ -131,7 +132,7 @@ export function createDocTabs<D extends TabDocBase>(codec: DocCodec<D>) {
     async save(d: D, asNew: boolean, ext: string): Promise<boolean> {
       let name = d.fileName || "untitled";
       if (asNew && !supportsSavePicker()) {
-        const input = window.prompt(t("prompt.fileName"), name);
+        const input = await appPrompt(t("prompt.fileName"), name);
         if (input === null) return false;
         name = input.trim() || "untitled";
       }

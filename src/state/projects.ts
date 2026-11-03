@@ -19,6 +19,7 @@ import {
   type BlobLike,
 } from "../engine/io";
 import { withProgress } from "./progress";
+import { appPrompt } from "./dialog";
 import { t } from "../i18n";
 
 export interface ProjectState {
@@ -386,7 +387,7 @@ export async function saveProjectAs(): Promise<boolean> {
   if (supportsSavePicker()) {
     return saveProjectFile(doc.fileName || "untitled", { usePicker: true });
   }
-  const input = window.prompt(t("prompt.fileName"), doc.fileName || "untitled");
+  const input = await appPrompt(t("prompt.fileName"), doc.fileName || "untitled");
   if (input === null) return false;
   return saveProjectFile(input.trim() || "untitled", { usePicker: false });
 }
