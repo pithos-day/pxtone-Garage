@@ -167,7 +167,7 @@ onBeforeUnmount(() => stopPreview());
         <span>{{ t("voice.velocity") }}</span>
         <span class="vpr-vel-val">{{ velocity }}</span>
       </span>
-      <FillSlider v-model="velocity" :min="0" :max="128" class="vpr-vel-slider" />
+      <FillSlider v-model="velocity" :min="0" :max="128" />
     </label>
   </div>
 </template>
@@ -212,9 +212,5 @@ onBeforeUnmount(() => stopPreview());
 
 .vpr-vel-val {
   font-variant-numeric: tabular-nums;
-}
-
-.vpr-vel-slider {
-  flex: none;
 }
 </style>

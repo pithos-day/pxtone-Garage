@@ -45,7 +45,8 @@ const fillStyle = computed(() => {
 .fill-slider {
   position: relative;
   display: block;
-  flex: 1;
+  /* 横並びでは余白を埋め、縦並びでは 18px の高さを保つ */
+  flex: 1 1 auto;
   min-width: 0;
   height: 18px;
 }
