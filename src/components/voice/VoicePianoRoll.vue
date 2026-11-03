@@ -4,6 +4,7 @@
 // クリック (短い押下) でも必ず鳴るよう、最低 250ms は再生を継続する。
 // Space は最後に触れたキーのホールド再生 (本家 ptuiOrganKey の VK_SPACE 準拠)。
 import { computed, onBeforeUnmount, ref, watch } from "vue";
+import FillSlider from "../common/FillSlider.vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { COLORS } from "../../lib/theme";
 import { fillRect, fillText } from "../../lib/draw";
@@ -161,23 +162,26 @@ onBeforeUnmount(() => stopPreview());
         @contextmenu.prevent
       />
     </div>
-    <div class="vpr-vel">
-      <span class="vpr-vel-label">{{ t("voice.velocity") }}</span>
-      <input type="range" class="vpr-vel-range" min="0" max="128" step="1" v-model.number="velocity" />
-      <span class="vpr-vel-val">{{ velocity }}</span>
-    </div>
+    <label class="vpr-vel">
+      <span class="vpr-vel-head">
+        <span>{{ t("voice.velocity") }}</span>
+        <span class="vpr-vel-val">{{ velocity }}</span>
+      </span>
+      <FillSlider v-model="velocity" :min="0" :max="128" class="vpr-vel-slider" />
+    </label>
   </div>
 </template>
 
 <style scoped>
 .vpr {
   flex: none;
-  width: 76px;
+  width: 130px;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border);
-  background: var(--background);
-  padding: 4px;
+  gap: var(--space-lg);
+  background: var(--muted);
+  border-radius: var(--radius);
+  padding: var(--space-lg);
 }
 
 .vpr-scroll {
@@ -185,6 +189,7 @@ onBeforeUnmount(() => stopPreview());
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+  border-radius: calc(var(--radius) - 2px);
 }
 
 .vpr-canvas {
@@ -193,29 +198,23 @@ onBeforeUnmount(() => stopPreview());
 
 .vpr-vel {
   display: flex;
-  align-items: center;
-  gap: var(--space-sm);
+  flex-direction: column;
+  gap: var(--space-2xs);
   flex: none;
-  padding-top: 4px;
-  border-top: 1px solid var(--border);
+  font-size: var(--text-xs);
+  color: var(--foreground);
 }
 
-.vpr-vel-label {
-  font-size: var(--text-2xs);
-  color: var(--muted-foreground);
-  writing-mode: vertical-rl;
-}
-
-.vpr-vel-range {
-  flex: 1;
-  min-width: 0;
-  accent-color: var(--primary);
+.vpr-vel-head {
+  display: flex;
+  justify-content: space-between;
 }
 
 .vpr-vel-val {
-  font-size: var(--text-xs);
-  color: var(--muted-foreground);
-  width: 22px;
-  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.vpr-vel-slider {
+  flex: none;
 }
 </style>
