@@ -292,6 +292,9 @@ const ja = {
   "noise.historyHint": "クリックで再生 / ダブルクリックでエディタに反映",
 
   // 確認 / 入力ダイアログ
+  "dialog.alertTitle": "お知らせ",
+  "dialog.confirmTitle": "確認",
+  "dialog.promptTitle": "入力",
   "confirm.new": "未保存の変更は破棄されます。新規作成しますか?",
   "confirm.close": "未保存の変更は破棄されます。閉じますか?",
   "unsaved.title": "未保存の変更",

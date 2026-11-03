@@ -13,6 +13,7 @@ import WavExportDialog from "./WavExportDialog.vue";
 import UnsavedDialog from "./UnsavedDialog.vue";
 import KeySettingsDialog from "./KeySettingsDialog.vue";
 import ProgressDialog from "./ProgressDialog.vue";
+import AppDialogHost from "./AppDialogHost.vue";
 import type { EventVolumeMode } from "../../lib/eventVolume";
 import type { AppMode } from "../../lib/modes";
 import CollageTab from "../collage/CollageEditor.vue";
@@ -365,6 +366,7 @@ onBeforeUnmount(() => {
     />
     <!-- IO 中の進捗ダイアログ (state/progress を購読する) -->
     <ProgressDialog />
+    <AppDialogHost />
   </div>
 </template>
 

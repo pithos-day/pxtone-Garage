@@ -157,6 +157,7 @@ import { MENU_LABELS, menuNamesFor, buildFileMenu } from "../src/lib/menuItems";
 import { t } from "../src/i18n";
 import { secToEnveX, pctToEnveY, pushHistoryEntry, NOISE_WAVE_TYPES, noiseEnveCumulative, noiseEnveMove, noiseEnveInsert, noiseEnveDelete } from "../src/lib/noise";
 import { knobNorm, knobValue, knobAngle, KNOB_SWEEP } from "../src/lib/knob";
+import { appAlert, appConfirm, appPrompt, acceptAppDialog, dismissAppDialog, currentAppDialog } from "../src/state/dialog";
 import { noiseWaveSamplePath } from "../src/lib/noise-wave-samples";
 import { PCM_VIEW_ZOOM, PCM_VIEW_ZOOMS, pcmViewWidth, pcmScrollMax, pcmScrollThumb } from "../src/lib/pcm-view";
 import { nearestPoint, coordPxToX, coordPxToY, cursorToWaveY, waveY } from "../src/lib/voice-geometry";
@@ -1595,6 +1596,26 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       checkEq(noiseEnveCumulative(noiseEnveInsert(two, 500, 80, 3)!).join(), "100,300,500", "lib: noiseEnveInsert は末尾にも追加");
       checkEq(noiseEnveCumulative(noiseEnveDelete(enves, 1)!).join(), "100,600", "lib: noiseEnveDelete は後ろの点の位置を保つ");
       checkEq(noiseEnveDelete([{ x: 0, y: 100 }], 0), null, "lib: noiseEnveDelete は最後の 1 点を消さない");
+    }
+    {
+      const confirmed = appConfirm("a");
+      const dismissed = appConfirm("b");
+      const prompted = appPrompt("c", "name");
+      const canceled = appPrompt("d");
+      const alerted = appAlert("e");
+      checkEq(currentAppDialog.value?.message, "a", "dialog: 要求は先頭から順に表示");
+      acceptAppDialog();
+      checkEq(await confirmed, true, "dialog: confirm の OK は true");
+      checkEq(currentAppDialog.value?.message, "b", "dialog: 閉じると次の要求を表示");
+      dismissAppDialog();
+      checkEq(await dismissed, false, "dialog: confirm のキャンセルは false");
+      acceptAppDialog("typed");
+      checkEq(await prompted, "typed", "dialog: prompt の OK は入力文字列");
+      dismissAppDialog();
+      checkEq(await canceled, null, "dialog: prompt のキャンセルは null");
+      dismissAppDialog();
+      await alerted;
+      checkEq(currentAppDialog.value, null, "dialog: 全て閉じるとキューが空になる");
     }
     checkEq(secToEnveX("1.5"), 1500, "lib: secToEnveX は秒を 1/1000 へ変換");
     checkEq(secToEnveX("12"), 10000, "lib: secToEnveX は上限 10000 でクランプ");
