@@ -168,19 +168,19 @@ function onNumberChange(e: Event): void {
 }
 
 .knob-bg {
-  stroke: var(--secondary);
+  stroke: var(--control-track);
 }
 
 .knob-value {
-  stroke: var(--primary);
+  stroke: var(--control-fill);
 }
 
 .knob-cap {
-  fill: var(--secondary);
+  fill: var(--control-surface);
 }
 
 .knob-pointer {
-  stroke: var(--secondary-foreground);
+  stroke: var(--foreground);
   stroke-width: 2;
   stroke-linecap: round;
 }
@@ -197,6 +197,8 @@ function onNumberChange(e: Event): void {
   height: 20px;
   padding: 0 2px;
   border: none;
+  background: var(--control-surface);
+  color: var(--foreground);
   font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
   text-align: center;
