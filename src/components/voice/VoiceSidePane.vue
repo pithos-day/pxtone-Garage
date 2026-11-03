@@ -491,20 +491,21 @@ function canvasRect(ref: { value: HTMLCanvasElement | null }): { el: HTMLCanvasE
       @pointercancel="onWavePointerUp"
       @contextmenu.prevent
     />
-    <div class="vsp-sines" @focusin="sineUndo.onBegin" @focusout="sineUndo.reset">
-      <div v-for="(p, i) in sinePoints" :key="i" class="vsp-sine-row">
-        <span class="vsp-sine-no">{{ i + 1 }}</span>
-        <input
-          type="range"
-          class="vsp-sine-range"
-          min="-128"
-          max="128"
-          step="1"
-          :value="p.y"
-          :disabled="waveType === 'coord' && i === 0"
-          @input="setSine(i, Number(($event.target as HTMLInputElement).value))"
-        />
-        <span class="vsp-sine-val">{{ p.y }}</span>
+    <div class="vsp-sines-wrap">
+      <div class="vsp-sines-title">{{ waveType === "coord" ? t("voice.pointY") : t("voice.overtone") }}</div>
+      <div class="vsp-sines" @focusin="sineUndo.onBegin" @focusout="sineUndo.reset">
+        <label v-for="(p, i) in sinePoints" :key="i" class="vsp-sine-row">
+          <span class="vsp-sine-no">{{ i + 1 }}</span>
+          <FillSlider
+            :model-value="p.y"
+            :min="-128"
+            :max="128"
+            :center="0"
+            :disabled="waveType === 'coord' && i === 0"
+            @update:model-value="setSine(i, $event)"
+          />
+          <span class="vsp-sine-val">{{ p.y }}</span>
+        </label>
       </div>
     </div>
     <canvas
@@ -592,14 +593,25 @@ function canvasRect(ref: { value: HTMLCanvasElement | null }): { el: HTMLCanvasE
 }
 
 /* スライダーは常時表示。高さが足りなければ内部スクロール */
-.vsp-sines {
+.vsp-sines-wrap {
   flex: none;
-  max-height: 150px;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  border-top: 1px dashed var(--border);
-  border-bottom: 1px dashed var(--border);
+  gap: var(--space-2xs);
+}
+
+.vsp-sines-title {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.vsp-sines {
+  max-height: 132px;
+  overflow-y: auto;
+  padding-right: var(--space-xs);
+  display: flex;
+  flex-direction: column;
 }
 
 .vsp-sine-row {
@@ -614,25 +626,17 @@ function canvasRect(ref: { value: HTMLCanvasElement | null }): { el: HTMLCanvasE
   width: 20px;
   text-align: right;
   font-size: var(--text-xs);
-  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
   flex: none;
-}
-
-.vsp-sine-range {
-  flex: 1;
-  min-width: 0;
-  accent-color: var(--primary);
-}
-
-.vsp-sine-range:disabled {
-  opacity: 0.4;
 }
 
 .vsp-sine-val {
   width: 30px;
   text-align: right;
   font-size: var(--text-xs);
-  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
   flex: none;
 }
 </style>

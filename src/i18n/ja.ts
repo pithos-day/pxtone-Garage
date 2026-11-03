@@ -264,6 +264,8 @@ const ja = {
   "voice.envelope": "エンベロープ",
   "voice.velocity": "ベロシティ",
   "voice.waveType": "波形タイプ",
+  "voice.pointY": "点の y 座標",
+  "voice.overtone": "倍音",
   "voice.copyTitle": "A/B コピー",
   "voice.copyABMessage": "A を B にコピーしますか?",
   "voice.copyBAMessage": "B を A にコピーしますか?",
