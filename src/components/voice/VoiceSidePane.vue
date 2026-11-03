@@ -1,8 +1,8 @@
 <script setup lang="ts">
 // Voice エディタの1面分 (A面/B面)。
-// 波形の上に Coordinate/Oscillator 切替ボタンと Vol/Pan/補正値/Release のスライダー、
-// 波形モニター (本家 ptuiWave 準拠の生成波形表示)、スライダー (本家 ptuiSines 準拠。
-// Coordinate では n 番目の点の y 座標表示として常時表示)、下にエンベロープ。
+// 上から Coordinate/Oscillator 切替とプリセット、波形モニター (本家 ptuiWave 準拠の生成波形表示)、
+// Vol/Pan/補正値/Release のスライダー、点スライダー (本家 ptuiSines 準拠。
+// Coordinate では n 番目の点の y 座標表示として常時表示)、エンベロープ。
 // エンベロープは本家 ptuiEnvelope 準拠の「区間長 x + 累積描画」。
 import { computed, ref, watch } from "vue";
 import FillSlider from "../common/FillSlider.vue";
@@ -460,6 +460,15 @@ function canvasRect(ref: { value: HTMLCanvasElement | null }): { el: HTMLCanvasE
         </button>
       </div>
     </div>
+    <canvas
+      ref="waveRef"
+      class="field-canvas vsp-wave"
+      @pointerdown="onWavePointerDown"
+      @pointermove="onWavePointerMove"
+      @pointerup="onWavePointerUp"
+      @pointercancel="onWavePointerUp"
+      @contextmenu.prevent
+    />
     <div class="vsp-params">
       <label class="vsp-param">
         <span class="vsp-plabel">{{ t("voice.volume") }}</span>
@@ -482,15 +491,6 @@ function canvasRect(ref: { value: HTMLCanvasElement | null }): { el: HTMLCanvasE
         <span class="vsp-pval">{{ releaseModel }}</span>
       </label>
     </div>
-    <canvas
-      ref="waveRef"
-      class="field-canvas vsp-wave"
-      @pointerdown="onWavePointerDown"
-      @pointermove="onWavePointerMove"
-      @pointerup="onWavePointerUp"
-      @pointercancel="onWavePointerUp"
-      @contextmenu.prevent
-    />
     <div class="vsp-sines-wrap">
       <div class="vsp-sines-title">{{ waveType === "coord" ? t("voice.pointY") : t("voice.overtone") }}</div>
       <div class="vsp-sines" @focusin="sineUndo.onBegin" @focusout="sineUndo.reset">
@@ -557,7 +557,7 @@ function canvasRect(ref: { value: HTMLCanvasElement | null }): { el: HTMLCanvasE
 /* 面ごとのパラメータ (Vol/Pan/補正値/Release のスライダー) */
 .vsp-params {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-xs) var(--space-xl);
   flex: none;
   font-size: var(--text-xs);
@@ -606,8 +606,9 @@ function canvasRect(ref: { value: HTMLCanvasElement | null }): { el: HTMLCanvasE
   color: var(--foreground);
 }
 
+/* 点数が違っても A面 / B面 の波形とエンベロープの位置が揃うよう高さを固定する */
 .vsp-sines {
-  max-height: 132px;
+  height: 90px;
   overflow-y: auto;
   padding-right: var(--space-xs);
   display: flex;
