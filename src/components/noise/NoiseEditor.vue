@@ -370,14 +370,15 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
     </div>
     <div v-else class="ne-main" :data-rev="rev">
       <div class="ne-layers" @focusin="fieldUndo.onBegin" @focusout="fieldUndo.reset">
-        <div v-for="row in unitRows" :key="row.index" class="ne-layer">
-          <div class="ne-module ne-layer-head" :class="{ 'is-off': !row.unit.bEnable }">
+        <div v-for="row in unitRows" :key="row.index" class="ne-layer" :class="{ 'is-off': !row.unit.bEnable }">
+          <div class="ne-module ne-layer-head">
             <label class="ne-layer-title">
               <input v-model="row.unit.bEnable" class="switch" type="checkbox" :aria-label="t('noise.enable')" @change="onFieldChange" />
               <span class="ne-layer-name">{{ t("noise.layer") }} {{ row.index + 1 }}</span>
             </label>
               <KnobControl
-                v-if="row.unit.bEnable"
+                class="ne-off-target"
+              :inert="!row.unit.bEnable"
                 :model-value="row.unit.pan"
                 :min="-100"
                 :max="100"
@@ -387,99 +388,97 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
                 @update:model-value="setPan(row.index, $event)"
               />
           </div>
-          <template v-if="row.unit.bEnable">
-            <template v-for="osc in OSC_IDS" :key="osc">
-              <ChevronRight v-if="osc === 'main'" :size="16" class="ne-flow" aria-hidden="true" />
-              <ChevronLeft v-else-if="osc === 'volu'" :size="16" class="ne-flow" aria-hidden="true" />
-              <div class="ne-module ne-osc" :class="{ 'is-main': osc === 'main' }">
-                <div class="ne-osc-head">
-                  <span class="ne-osc-name">{{ t(`noise.${osc}`) }}</span>
-                  <div class="ne-osc-type">
-                    <NoiseWaveTypeSelect
-                      :model-value="row.unit[osc].type"
-                      @update:model-value="setOsc(row.index, osc, 'type', $event)"
-                    />
-                  </div>
-                  <label class="ne-osc-rev" :title="t('noise.reverse')">
-                    {{ t("noise.reverse") }}
-                    <input
-                      class="switch"
-                      type="checkbox"
-                      :checked="row.unit[osc].bRev"
-                      @change="setOsc(row.index, osc, 'bRev', ($event.target as HTMLInputElement).checked)"
-                    />
-                  </label>
-                </div>
-                <div class="ne-osc-knobs">
-                  <KnobControl
-                    :model-value="row.unit[osc].freq"
-                    :min="0"
-                    :max="44100"
-                    log
-                    :label="t('noise.freqValue')"
-                    @begin="onKnobBegin"
-                    @update:model-value="setOsc(row.index, osc, 'freq', $event)"
-                  />
-                  <KnobControl
-                    :model-value="row.unit[osc].volume"
-                    :min="0"
-                    :max="200"
-                    :label="t('noise.oscVolume')"
-                    @begin="onKnobBegin"
-                    @update:model-value="setOsc(row.index, osc, 'volume', $event)"
-                  />
-                  <KnobControl
-                    :model-value="row.unit[osc].offset"
-                    :min="0"
-                    :max="100"
-                    :label="t('noise.offset')"
-                    @begin="onKnobBegin"
-                    @update:model-value="setOsc(row.index, osc, 'offset', $event)"
+          <template v-for="osc in OSC_IDS" :key="osc">
+            <ChevronRight v-if="osc === 'main'" :size="16" class="ne-flow ne-off-target" aria-hidden="true" />
+            <ChevronLeft v-else-if="osc === 'volu'" :size="16" class="ne-flow ne-off-target" aria-hidden="true" />
+            <div class="ne-module ne-osc ne-off-target" :class="{ 'is-main': osc === 'main' }" :inert="!row.unit.bEnable">
+              <div class="ne-osc-head">
+                <span class="ne-osc-name">{{ t(`noise.${osc}`) }}</span>
+                <div class="ne-osc-type">
+                  <NoiseWaveTypeSelect
+                    :model-value="row.unit[osc].type"
+                    @update:model-value="setOsc(row.index, osc, 'type', $event)"
                   />
                 </div>
-              </div>
-            </template>
-            <ChevronRight :size="16" class="ne-flow" aria-hidden="true" />
-            <div class="ne-module ne-enve">
-              <div class="ne-enve-head">
-                <span class="ne-enve-title">{{ t("noise.envelope") }}</span>
-                <select :value="row.unit.enveNum" :aria-label="t('noise.envePoint')" @change="onEnveNumChange(row.index, Number(($event.target as HTMLSelectElement).value))">
-                  <option v-for="n in NOISE_ENVE_NUM" :key="n" :value="n">{{ n }}</option>
-                </select>
-              </div>
-              <NoiseEnvelopeGraph
-                :enves="row.unit.enves"
-                :max-points="NOISE_ENVE_NUM"
-                :rev="rev"
-                @begin="onKnobBegin"
-                @update="setEnves(row.index, $event)"
-              />
-              <div class="ne-enve-points">
-                <div v-for="(p, i) in row.unit.enves" :key="i" class="ne-enve-point">
-                  <span class="ne-enve-no">{{ t("noise.envePoint") }}{{ i + 1 }}</span>
+                <label class="ne-osc-rev" :title="t('noise.reverse')">
+                  {{ t("noise.reverse") }}
                   <input
-                    type="number"
-                    class="ne-enve-pct"
-                    :value="p.y"
-                    min="0"
-                    max="100"
-                    title="%"
-                    @change="setEnvePct(row.index, i, ($event.target as HTMLInputElement).value)"
+                    class="switch"
+                    type="checkbox"
+                    :checked="row.unit[osc].bRev"
+                    @change="setOsc(row.index, osc, 'bRev', ($event.target as HTMLInputElement).checked)"
                   />
-                  <input
-                    type="number"
-                    class="ne-enve-sec"
-                    :value="p.x / 1000"
-                    min="0"
-                    max="10"
-                    step="0.001"
-                    title="秒"
-                    @change="setEnveSec(row.index, i, ($event.target as HTMLInputElement).value)"
-                  />
-                </div>
+                </label>
+              </div>
+              <div class="ne-osc-knobs">
+                <KnobControl
+                  :model-value="row.unit[osc].freq"
+                  :min="0"
+                  :max="44100"
+                  log
+                  :label="t('noise.freqValue')"
+                  @begin="onKnobBegin"
+                  @update:model-value="setOsc(row.index, osc, 'freq', $event)"
+                />
+                <KnobControl
+                  :model-value="row.unit[osc].volume"
+                  :min="0"
+                  :max="200"
+                  :label="t('noise.oscVolume')"
+                  @begin="onKnobBegin"
+                  @update:model-value="setOsc(row.index, osc, 'volume', $event)"
+                />
+                <KnobControl
+                  :model-value="row.unit[osc].offset"
+                  :min="0"
+                  :max="100"
+                  :label="t('noise.offset')"
+                  @begin="onKnobBegin"
+                  @update:model-value="setOsc(row.index, osc, 'offset', $event)"
+                />
               </div>
             </div>
           </template>
+          <ChevronRight :size="16" class="ne-flow ne-off-target" aria-hidden="true" />
+          <div class="ne-module ne-enve ne-off-target" :inert="!row.unit.bEnable">
+            <div class="ne-enve-head">
+              <span class="ne-enve-title">{{ t("noise.envelope") }}</span>
+              <select :value="row.unit.enveNum" :aria-label="t('noise.envePoint')" @change="onEnveNumChange(row.index, Number(($event.target as HTMLSelectElement).value))">
+                <option v-for="n in NOISE_ENVE_NUM" :key="n" :value="n">{{ n }}</option>
+              </select>
+            </div>
+            <NoiseEnvelopeGraph
+              :enves="row.unit.enves"
+              :max-points="NOISE_ENVE_NUM"
+              :rev="rev"
+              @begin="onKnobBegin"
+              @update="setEnves(row.index, $event)"
+            />
+            <div class="ne-enve-points">
+              <div v-for="(p, i) in row.unit.enves" :key="i" class="ne-enve-point">
+                <span class="ne-enve-no">{{ t("noise.envePoint") }}{{ i + 1 }}</span>
+                <input
+                  type="number"
+                  class="ne-enve-pct"
+                  :value="p.y"
+                  min="0"
+                  max="100"
+                  title="%"
+                  @change="setEnvePct(row.index, i, ($event.target as HTMLInputElement).value)"
+                />
+                <input
+                  type="number"
+                  class="ne-enve-sec"
+                  :value="p.x / 1000"
+                  min="0"
+                  max="10"
+                  step="0.001"
+                  title="秒"
+                  @change="setEnveSec(row.index, i, ($event.target as HTMLInputElement).value)"
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       <div class="ne-preview">
@@ -601,10 +600,10 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
   align-items: center;
 }
 
-/* 無効レイヤーは見出しだけの 1 行に畳む */
-.ne-layer-head.is-off {
-  flex: 1 1 100%;
-  align-items: flex-start;
+/* 無効レイヤーは有効スイッチ以外をグレーアウトして操作不可にする (inert と併用) */
+.ne-layer.is-off .ne-off-target {
+  opacity: 0.4;
+  filter: grayscale(1);
 }
 
 .ne-layer-title {
