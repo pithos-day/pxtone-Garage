@@ -62,11 +62,11 @@ const fillStyle = computed(() => {
 .fill-slider-track {
   left: 0;
   right: 0;
-  background: var(--secondary);
+  background: var(--control-track);
 }
 
 .fill-slider-fill {
-  background: var(--primary);
+  background: var(--control-fill);
 }
 
 .fill-slider.off {
@@ -95,7 +95,7 @@ const fillStyle = computed(() => {
   height: 12px;
   border-radius: 50%;
   background: var(--foreground);
-  border: 2px solid var(--secondary);
+  border: 2px solid var(--muted);
 }
 
 .fill-slider input::-moz-range-thumb {
@@ -104,7 +104,7 @@ const fillStyle = computed(() => {
   height: 12px;
   border-radius: 50%;
   background: var(--foreground);
-  border: 2px solid var(--secondary);
+  border: 2px solid var(--muted);
 }
 
 .fill-slider input:focus-visible {

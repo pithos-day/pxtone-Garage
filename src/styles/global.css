@@ -32,6 +32,14 @@ textarea {
   --space-md: 7px;
   --space-lg: 9px;
   --space-xl: 12px;
+  /* --muted のカード上に置く操作部品の色。--secondary は多くのテーマで --muted と同色に
+   * なるため使わず、テーマが必ず持つ文字色との混色で全テーマのコントラストを確保する。
+   * ユーザーテーマでも効くよう、テーマ側には追加のトークンを要求しない */
+  --control-surface: color-mix(in oklch, var(--foreground) 12%, var(--muted));
+  --control-track: color-mix(in oklch, var(--foreground) 25%, var(--muted));
+  --control-thumb: color-mix(in oklch, var(--foreground) 60%, var(--muted));
+  /* --primary はボタンの塗り用で、暗いテーマでは線としては沈むため文字色で持ち上げる */
+  --control-fill: color-mix(in oklch, var(--primary) 55%, var(--foreground));
 }
 
 body {
@@ -123,14 +131,14 @@ body {
   display: inline-flex;
   gap: var(--space-2xs);
   padding: var(--space-2xs);
-  background: var(--secondary);
+  background: var(--control-surface);
   border-radius: var(--radius);
 }
 
 .seg button {
   border: none;
   background: transparent;
-  color: var(--secondary-foreground);
+  color: var(--foreground);
   padding: 2px 10px;
   border-radius: calc(var(--radius) - 2px);
   font-size: var(--text-xs);
@@ -139,7 +147,7 @@ body {
 }
 
 .seg button:hover {
-  background: color-mix(in srgb, var(--secondary-foreground) 16%, transparent);
+  background: var(--control-track);
 }
 
 .seg button.on {
@@ -174,7 +182,7 @@ body {
   height: 18px;
   margin: 0;
   border-radius: 9px;
-  background: var(--secondary);
+  background: var(--control-track);
   cursor: pointer;
 }
 
@@ -186,18 +194,16 @@ body {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--secondary-foreground);
-  opacity: 0.6;
+  background: var(--foreground);
 }
 
 .switch:checked {
-  background: var(--primary);
+  background: var(--control-fill);
 }
 
 .switch:checked::after {
   left: 14px;
   background: var(--primary-foreground);
-  opacity: 1;
 }
 
 .switch:focus-visible {
