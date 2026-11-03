@@ -5,7 +5,7 @@
 // Coordinate では n 番目の点の y 座標表示として常時表示)、下にエンベロープ。
 // エンベロープは本家 ptuiEnvelope 準拠の「区間長 x + 累積描画」。
 import { computed, ref, watch } from "vue";
-import { Volume2, CircleGauge, SlidersVertical, MoveDownRight } from "@lucide/vue";
+import FillSlider from "../common/FillSlider.vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { useEditRev } from "../../composables/useEditRev";
 import { useUndoOnce } from "../../composables/useUndo";
@@ -461,26 +461,26 @@ function canvasRect(ref: { value: HTMLCanvasElement | null }): { el: HTMLCanvasE
       </div>
     </div>
     <div class="vsp-params">
-      <div class="vsp-param">
-        <span class="vsp-plabel" :title="t('voice.volume')"><Volume2 :size="12" /></span>
-        <input type="range" class="vsp-prange" min="0" max="64" step="1" v-model.number="volumeModel" @contextmenu.prevent="resetVolume" />
+      <label class="vsp-param">
+        <span class="vsp-plabel">{{ t("voice.volume") }}</span>
+        <FillSlider v-model="volumeModel" :min="0" :max="64" @contextmenu.prevent="resetVolume" />
         <span class="vsp-pval">{{ volumeModel }}</span>
-      </div>
-      <div class="vsp-param">
-        <span class="vsp-plabel" :title="t('voice.pan')"><CircleGauge :size="12" /></span>
-        <input type="range" class="vsp-prange" min="0" max="128" step="1" v-model.number="panModel" @contextmenu.prevent="resetPan" />
+      </label>
+      <label class="vsp-param">
+        <span class="vsp-plabel">{{ t("voice.pan") }}</span>
+        <FillSlider v-model="panModel" :min="0" :max="128" :center="64" @contextmenu.prevent="resetPan" />
         <span class="vsp-pval">{{ panModel }}</span>
-      </div>
-      <div class="vsp-param">
-        <span class="vsp-plabel" :title="t('voice.correct')"><SlidersVertical :size="12" /></span>
-        <input type="range" class="vsp-prange" min="-128" max="128" step="1" v-model.number="correctModel" @contextmenu.prevent="resetCorrect" />
+      </label>
+      <label class="vsp-param">
+        <span class="vsp-plabel">{{ t("voice.correct") }}</span>
+        <FillSlider v-model="correctModel" :min="-128" :max="128" :center="0" @contextmenu.prevent="resetCorrect" />
         <span class="vsp-pval">{{ correctModel }}</span>
-      </div>
-      <div class="vsp-param">
-        <span class="vsp-plabel" :title="t('voice.release')"><MoveDownRight :size="12" /></span>
-        <input type="range" class="vsp-prange" min="0" max="100" step="1" v-model.number="releaseModel" @contextmenu.prevent="resetRelease" />
+      </label>
+      <label class="vsp-param">
+        <span class="vsp-plabel">{{ t("voice.release") }}</span>
+        <FillSlider v-model="releaseModel" :min="0" :max="100" @contextmenu.prevent="resetRelease" />
         <span class="vsp-pval">{{ releaseModel }}</span>
-      </div>
+      </label>
     </div>
     <canvas
       ref="waveRef"
@@ -555,34 +555,25 @@ function canvasRect(ref: { value: HTMLCanvasElement | null }): { el: HTMLCanvasE
 
 /* 面ごとのパラメータ (Vol/Pan/補正値/Release のスライダー) */
 .vsp-params {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2xs);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: var(--space-xs) var(--space-xl);
   flex: none;
   font-size: var(--text-xs);
-  color: var(--muted-foreground);
+  color: var(--foreground);
 }
 
 .vsp-param {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: var(--space-md);
+  min-width: 0;
 }
 
 .vsp-plabel {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 14px;
+  width: 84px;
   flex: none;
-  color: var(--foreground);
-}
-
-.vsp-prange,
-.vsp-sine-range {
-  flex: 1;
-  min-width: 0;
-  accent-color: var(--primary);
+  white-space: nowrap;
 }
 
 .vsp-pval {
@@ -590,6 +581,7 @@ function canvasRect(ref: { value: HTMLCanvasElement | null }): { el: HTMLCanvasE
   flex: none;
   text-align: right;
   font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
 }
 
 .vsp-wave,
