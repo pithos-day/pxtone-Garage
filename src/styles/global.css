@@ -35,11 +35,12 @@ textarea {
   /* --muted のカード上に置く操作部品の色。--secondary は多くのテーマで --muted と同色に
    * なるため使わず、テーマが必ず持つ文字色との混色で全テーマのコントラストを確保する。
    * ユーザーテーマでも効くよう、テーマ側には追加のトークンを要求しない */
-  --control-surface: color-mix(in oklch, var(--foreground) 12%, var(--muted));
-  --control-track: color-mix(in oklch, var(--foreground) 25%, var(--muted));
-  --control-thumb: color-mix(in oklch, var(--foreground) 60%, var(--muted));
-  /* --primary はボタンの塗り用で、暗いテーマでは線としては沈むため文字色で持ち上げる */
-  --control-fill: color-mix(in oklch, var(--primary) 55%, var(--foreground));
+  --control-surface: color-mix(in oklab, var(--foreground) 12%, var(--muted));
+  --control-track: color-mix(in oklab, var(--foreground) 25%, var(--muted));
+  --control-thumb: color-mix(in oklab, var(--foreground) 60%, var(--muted));
+  /* --primary はボタンの塗り用で、暗いテーマでは線としては沈むため文字色で持ち上げる。
+   * oklch で混ぜると無彩色に近い文字色の色相へ回って別の色になるため oklab で混ぜる */
+  --control-fill: color-mix(in oklab, var(--primary) 55%, var(--foreground));
 }
 
 body {
@@ -194,7 +195,7 @@ body {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--foreground);
+  background: var(--control-thumb);
 }
 
 .switch:checked {
