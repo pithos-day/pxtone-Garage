@@ -19,6 +19,8 @@ pxtone Garage はピストンコラージュ (ptCollage) 互換の Web DAW。
   (`lib/async`) でチャンク分割し、各チャンクで `throwIfCancelled()` を呼ぶ。
   保存ダイアログは生成より先に開く (File System Access API はユーザー操作が必要で、
   長い処理の後に呼ぶと SecurityError になる)
+- `--muted` のカード上の操作部品 (スライダー / ノブ / 入力欄など) は `--control-*`
+  (`styles/global.css`) を使う。`--secondary` は多くのテーマで `--muted` と同色になる
 - ブラウザ標準の `alert` / `confirm` / `prompt` は使わず、`state/dialog` の `appAlert` /
   `appConfirm` / `appPrompt` (Promise を返す) でアプリ固有のダイアログを表示する
 - キーボードショートカットは `src/lib/shortcuts.ts` の表 (コマンド / キー / 動作説明 /
