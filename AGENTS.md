@@ -19,6 +19,8 @@ pxtone Garage はピストンコラージュ (ptCollage) 互換の Web DAW。
   (`lib/async`) でチャンク分割し、各チャンクで `throwIfCancelled()` を呼ぶ。
   保存ダイアログは生成より先に開く (File System Access API はユーザー操作が必要で、
   長い処理の後に呼ぶと SecurityError になる)
+- ブラウザ標準の `alert` / `confirm` / `prompt` は使わず、`state/dialog` の `appAlert` /
+  `appConfirm` / `appPrompt` (Promise を返す) でアプリ固有のダイアログを表示する
 - キーボードショートカットは `src/lib/shortcuts.ts` の表 (コマンド / キー / 動作説明 /
   実行担当 `area`) に集約する。判定 (`shortcutCommand`) とメニュー併記 (`formatShortcut`) は
   表から導出し、コンポーネント側に個別のキー判定を書かない (`area` ごとに 1 か所で実行する)
