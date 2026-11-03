@@ -22,6 +22,7 @@ import { newNoise, openNoise, saveNoise, closeNoise, undoNoise, redoNoise, curre
 import { exportPttune, exportVoiceWav, exportNoiseWav, openFileDialog, readBlobAndApply } from "../../engine/io";
 import { convertMidiToPtcop } from "../../engine/midi";
 import { undo, redo, canUndo, canRedo } from "../../state/undo";
+import { appConfirm } from "../../state/dialog";
 import { t } from "../../i18n";
 import type { EventVolumeMode } from "../../lib/eventVolume";
 import type { AppMode } from "../../lib/modes";
@@ -75,8 +76,8 @@ function runMenuItem(item: MenuItem): void {
 
 // ---- コラージュのアクション ----
 
-function onNew(): void {
-  if (doc.dirty && !window.confirm(t("confirm.new"))) return;
+async function onNew(): Promise<void> {
+  if (doc.dirty && !(await appConfirm(t("confirm.new")))) return;
   newProjectInTab();
 }
 
@@ -149,9 +150,9 @@ function onOpenVoice(): void {
   });
 }
 
-function onCloseVoice(): void {
+async function onCloseVoice(): Promise<void> {
   const id = currentVoiceId.value;
-  if (currentVoice()?.dirty && !window.confirm(t("confirm.close"))) return;
+  if (currentVoice()?.dirty && !(await appConfirm(t("confirm.close")))) return;
   closeVoice(id);
 }
 
@@ -165,9 +166,9 @@ function onOpenNoise(): void {
   });
 }
 
-function onCloseNoise(): void {
+async function onCloseNoise(): Promise<void> {
   const id = currentNoiseId.value;
-  if (currentNoise()?.dirty && !window.confirm(t("confirm.close"))) return;
+  if (currentNoise()?.dirty && !(await appConfirm(t("confirm.close")))) return;
   closeNoise(id);
 }
 

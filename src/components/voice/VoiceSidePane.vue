@@ -43,6 +43,7 @@ import {
   WAVE_PRESET_TITLES,
 } from "../../state/voice";
 import type { WavePreset } from "../../state/voice";
+import { appConfirm } from "../../state/dialog";
 import { t } from "../../i18n";
 
 const props = defineProps<{ side: number }>();
@@ -154,10 +155,10 @@ function resetRelease(): void {
 }
 
 // ---- 波形タイプ切替 (本家 ptuiWaveHead::_set_wave_tool 準拠。切替時に波形とボリュームをリセット) ----
-function setWaveType(type: "coord" | "overtone"): void {
+async function setWaveType(type: "coord" | "overtone"): Promise<void> {
   if (waveType.value === type) return;
   // 本家同様、切替前に確認する (波形とボリュームが初期値に戻るため)
-  if (!window.confirm(t("confirm.waveType"))) return;
+  if (!(await appConfirm(t("confirm.waveType")))) return;
   editVoice(() => {
     const c = currentVoiceUnit();
     if (!c) return;
