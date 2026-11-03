@@ -12,11 +12,12 @@ import { useDebounced } from "../../composables/useDebounced";
 import { useUndoOnce } from "../../composables/useUndo";
 import { COLORS } from "../../lib/theme";
 import { fillRect } from "../../lib/draw";
-import { NOISE_BUILT_SPS, secToEnveX, pctToEnveY } from "../../lib/noise";
+import { NOISE_BUILT_SPS, secToEnveX, pctToEnveY, type NoiseEnvePoint } from "../../lib/noise";
 import { PCM_VIEW_ZOOM, PCM_VIEW_ZOOMS, pcmScrollMax, pcmScrollThumb, pcmViewWidth } from "../../lib/pcm-view";
 import { WaveType } from "pxtone-ts";
 import { ChevronLeft, ChevronRight, Play } from "@lucide/vue";
 import KnobControl from "../common/KnobControl.vue";
+import NoiseEnvelopeGraph from "./NoiseEnvelopeGraph.vue";
 import NoiseWaveTypeSelect from "./NoiseWaveTypeSelect.vue";
 import { currentNoise, newNoise, editNoise, readNoiseBytes, pushNoiseHistory, NOISE_UNIT_NUM, NOISE_ENVE_NUM, resizeNoiseEnves } from "../../state/noise";
 import { isModalOpen } from "../../state/ui";
@@ -104,6 +105,15 @@ function onEnveNumChange(u: number, v: number): void {
   });
   touch();
   scheduleEditBuild();
+}
+
+// グラフ操作の反映 (undo は begin で onKnobBegin が積む)
+function setEnves(u: number, enves: NoiseEnvePoint[]): void {
+  const unit = unitAt(u);
+  if (!unit) return;
+  unit.enves = enves;
+  unit.enveNum = enves.length;
+  onFieldChange();
 }
 
 // エンベロープ: 秒 (x/1000) と % (y)。変換と範囲クランプは lib/noise が担当
@@ -431,32 +441,43 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
             </template>
             <ChevronRight :size="16" class="ne-flow" aria-hidden="true" />
             <div class="ne-module ne-enve">
-              <span class="ne-enve-title">{{ t("noise.envelope") }}</span>
-              <select :value="row.unit.enveNum" @change="onEnveNumChange(row.index, Number(($event.target as HTMLSelectElement).value))">
-                <option v-for="n in NOISE_ENVE_NUM" :key="n" :value="n">{{ n }}</option>
-              </select>
-              <template v-for="(p, i) in row.unit.enves" :key="i">
-                <span class="ne-enve-no">{{ t("noise.envePoint") }}{{ i + 1 }}</span>
-                <input
-                  type="number"
-                  class="num ne-enve-pct"
-                  :value="p.y"
-                  min="0"
-                  max="100"
-                  title="%"
-                  @change="setEnvePct(row.index, i, ($event.target as HTMLInputElement).value)"
-                />
-                <input
-                  type="number"
-                  class="num ne-enve-sec"
-                  :value="p.x / 1000"
-                  min="0"
-                  max="10"
-                  step="0.001"
-                  title="秒"
-                  @change="setEnveSec(row.index, i, ($event.target as HTMLInputElement).value)"
-                />
-              </template>
+              <div class="ne-enve-head">
+                <span class="ne-enve-title">{{ t("noise.envelope") }}</span>
+                <select :value="row.unit.enveNum" :aria-label="t('noise.envePoint')" @change="onEnveNumChange(row.index, Number(($event.target as HTMLSelectElement).value))">
+                  <option v-for="n in NOISE_ENVE_NUM" :key="n" :value="n">{{ n }}</option>
+                </select>
+              </div>
+              <NoiseEnvelopeGraph
+                :enves="row.unit.enves"
+                :max-points="NOISE_ENVE_NUM"
+                :rev="rev"
+                @begin="onKnobBegin"
+                @update="setEnves(row.index, $event)"
+              />
+              <div class="ne-enve-points">
+                <div v-for="(p, i) in row.unit.enves" :key="i" class="ne-enve-point">
+                  <span class="ne-enve-no">{{ t("noise.envePoint") }}{{ i + 1 }}</span>
+                  <input
+                    type="number"
+                    class="ne-enve-pct"
+                    :value="p.y"
+                    min="0"
+                    max="100"
+                    title="%"
+                    @change="setEnvePct(row.index, i, ($event.target as HTMLInputElement).value)"
+                  />
+                  <input
+                    type="number"
+                    class="ne-enve-sec"
+                    :value="p.x / 1000"
+                    min="0"
+                    max="10"
+                    step="0.001"
+                    title="秒"
+                    @change="setEnveSec(row.index, i, ($event.target as HTMLInputElement).value)"
+                  />
+                </div>
+              </div>
             </div>
           </template>
         </div>
@@ -653,24 +674,40 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
 }
 
 .ne-enve {
-  flex: 1 1 240px;
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: center;
-  align-content: flex-start;
+  flex: 1 1 400px;
   color: var(--foreground);
 }
 
-.ne-enve input,
-.ne-enve select {
-  height: 22px;
-  padding: 0 2px;
-  border: none;
-  font-size: var(--text-xs);
+.ne-enve-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
 }
 
 .ne-enve-title {
   font-weight: bold;
+  font-size: var(--text-xs);
+}
+
+.ne-enve-points {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-md);
+}
+
+.ne-enve-point {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.ne-enve input,
+.ne-enve select {
+  height: 20px;
+  padding: 0 2px;
+  border: none;
   font-size: var(--text-xs);
 }
 
@@ -679,15 +716,15 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
 }
 
 .ne-enve-no {
-  font-size: var(--text-xs);
+  font-size: var(--text-2xs);
 }
 
 .ne-enve .ne-enve-pct {
-  width: 40px;
+  width: 48px;
 }
 
 .ne-enve .ne-enve-sec {
-  width: 52px;
+  width: 60px;
 }
 
 .ne-preview {

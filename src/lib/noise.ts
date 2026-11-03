@@ -42,6 +42,75 @@ export function pctToEnveY(raw: string): number | null {
   return Math.max(0, Math.min(100, Math.round(v)));
 }
 
+// ---- エンベロープグラフの編集 ----
+// x は「直前の点からの区間長 (ms)」で、エンジンは振幅 0 から始めて最後の点の値を保持する。
+// グラフでは累積座標で扱い、ここで区間長へ戻す
+
+export interface NoiseEnvePoint {
+  x: number;
+  y: number;
+}
+
+const NOISE_ENVE_X_LIMIT = 10000;
+
+function clampEnveX(v: number): number {
+  return Math.max(0, Math.min(NOISE_ENVE_X_LIMIT, Math.round(v)));
+}
+
+function clampEnveY(v: number): number {
+  return Math.max(0, Math.min(100, Math.round(v)));
+}
+
+export function noiseEnveCumulative(enves: readonly NoiseEnvePoint[]): number[] {
+  let sum = 0;
+  return enves.map((p) => (sum += p.x));
+}
+
+// グラフの横軸の最大値 (最後の点の右にサステインを見せる余白を取る)
+export function noiseEnveViewMax(enves: readonly NoiseEnvePoint[]): number {
+  const total = enves.reduce((sum, p) => sum + p.x, 0);
+  return Math.max(100, total * 1.15);
+}
+
+// 点 index を累積座標 cumX へ動かす。前の点は越えられず、後ろの点は区間長を保って一緒に動く
+export function noiseEnveMove(enves: readonly NoiseEnvePoint[], index: number, cumX: number, y: number): NoiseEnvePoint[] {
+  const prev = index > 0 ? noiseEnveCumulative(enves)[index - 1]! : 0;
+  return enves.map((p, i) => (i === index ? { x: clampEnveX(cumX - prev), y: clampEnveY(y) } : { ...p }));
+}
+
+// 累積座標 cumX に点を追加する。後ろの点の位置は変えない。上限に達していれば null
+export function noiseEnveInsert(
+  enves: readonly NoiseEnvePoint[],
+  cumX: number,
+  y: number,
+  maxPoints: number,
+): NoiseEnvePoint[] | null {
+  if (enves.length >= maxPoints) return null;
+  const cum = noiseEnveCumulative(enves);
+  const target = Math.max(0, cumX);
+  const at = cum.findIndex((c) => c >= target);
+  const out = enves.map((p) => ({ ...p }));
+  if (at < 0) {
+    out.push({ x: clampEnveX(target - (cum[cum.length - 1] ?? 0)), y: clampEnveY(y) });
+    return out;
+  }
+  const prev = at > 0 ? cum[at - 1]! : 0;
+  const x = clampEnveX(target - prev);
+  out[at]!.x = clampEnveX(out[at]!.x - x);
+  out.splice(at, 0, { x, y: clampEnveY(y) });
+  return out;
+}
+
+// 点 index を削除する。後ろの点の位置は変えない。最後の 1 点は消せないので null
+export function noiseEnveDelete(enves: readonly NoiseEnvePoint[], index: number): NoiseEnvePoint[] | null {
+  if (enves.length <= 1 || index < 0 || index >= enves.length) return null;
+  const out = enves.map((p) => ({ ...p }));
+  const next = out[index + 1];
+  if (next) next.x = clampEnveX(next.x + out[index]!.x);
+  out.splice(index, 1);
+  return out;
+}
+
 // ---- ビルド履歴の追加 ----
 // 連続編集 (2 秒以内の再ビルド) は直前エントリを置き換え、30 件で打ち切り。
 // 新しい最終記録時刻 (ms) を返す

@@ -155,7 +155,7 @@ import {
 import { clockAtX, zoomAnchorScrollX, zoomByWheel } from "../src/lib/field";
 import { MENU_LABELS, menuNamesFor, buildFileMenu } from "../src/lib/menuItems";
 import { t } from "../src/i18n";
-import { secToEnveX, pctToEnveY, pushHistoryEntry, NOISE_WAVE_TYPES } from "../src/lib/noise";
+import { secToEnveX, pctToEnveY, pushHistoryEntry, NOISE_WAVE_TYPES, noiseEnveCumulative, noiseEnveMove, noiseEnveInsert, noiseEnveDelete } from "../src/lib/noise";
 import { knobNorm, knobValue, knobAngle, KNOB_SWEEP } from "../src/lib/knob";
 import { noiseWaveSamplePath } from "../src/lib/noise-wave-samples";
 import { PCM_VIEW_ZOOM, PCM_VIEW_ZOOMS, pcmViewWidth, pcmScrollMax, pcmScrollThumb } from "../src/lib/pcm-view";
@@ -1582,6 +1582,20 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(knobValue(knobNorm(440, 0, 44100, true), 0, 44100, true), 440, "lib: 対数ノブの値は往復で保たれる");
     checkEq(knobValue(2, 0, 100), 100, "lib: knobValue は範囲外の位置をクランプ");
     checkEq(knobAngle(0), -KNOB_SWEEP, "lib: knobAngle は下端で左端の角度");
+    {
+      const enves = [{ x: 100, y: 100 }, { x: 200, y: 50 }, { x: 300, y: 0 }];
+      checkEq(noiseEnveCumulative(enves).join(), "100,300,600", "lib: noiseEnveCumulative は区間長を累積");
+      const moved = noiseEnveMove(enves, 1, 250, 75);
+      checkEq(moved[1]!.x, 150, "lib: noiseEnveMove は累積座標を区間長へ戻す");
+      checkEq(moved[1]!.y, 75, "lib: noiseEnveMove は y を反映");
+      checkEq(noiseEnveMove(enves, 1, 10, 50)[1]!.x, 0, "lib: noiseEnveMove は前の点を越えない");
+      checkEq(noiseEnveInsert(enves, 200, 10, 3), null, "lib: noiseEnveInsert は上限で null");
+      const two = [{ x: 100, y: 100 }, { x: 200, y: 50 }];
+      checkEq(noiseEnveCumulative(noiseEnveInsert(two, 150, 80, 3)!).join(), "100,150,300", "lib: noiseEnveInsert は後ろの点の位置を保つ");
+      checkEq(noiseEnveCumulative(noiseEnveInsert(two, 500, 80, 3)!).join(), "100,300,500", "lib: noiseEnveInsert は末尾にも追加");
+      checkEq(noiseEnveCumulative(noiseEnveDelete(enves, 1)!).join(), "100,600", "lib: noiseEnveDelete は後ろの点の位置を保つ");
+      checkEq(noiseEnveDelete([{ x: 0, y: 100 }], 0), null, "lib: noiseEnveDelete は最後の 1 点を消さない");
+    }
     checkEq(secToEnveX("1.5"), 1500, "lib: secToEnveX は秒を 1/1000 へ変換");
     checkEq(secToEnveX("12"), 10000, "lib: secToEnveX は上限 10000 でクランプ");
     checkEq(secToEnveX("abc"), null, "lib: secToEnveX は無効値で null");
