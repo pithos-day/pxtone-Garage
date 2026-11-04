@@ -24,6 +24,7 @@ import {
   clockContext,
   projectWriteOps,
   pinnedUnits,
+  setFocusUnit,
   EVENTDEFAULT_VOLUME,
   EVENTDEFAULT_VELOCITY,
   EVENTDEFAULT_KEY,
@@ -218,6 +219,11 @@ const { onPointerDown, onPointerMove, onPointerUp } = useCanvasDrag<LanesDrag>({
     const u = unitAt(pt.y);
     const s = getService();
     if (!s || u < 0) return null;
+    // ユニット名領域はフォーカスの切り替えのみ (clockAt が左端へ丸めるので編集へ進めない)
+    if (pt.x < NAME_W) {
+      if (e.button === 0) setFocusUnit(u);
+      return null;
+    }
     const clock = clockAt(pt.x);
     if (e.button === 0) {
       if (doc.readOnly) {
