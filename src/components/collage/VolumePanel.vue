@@ -1,8 +1,6 @@
 // ボリュームモード切替パネル (縦に8モード)
 <script setup lang="ts">
-import { X } from "@lucide/vue";
 import { doc } from "../../state/project";
-import { t } from "../../i18n";
 
 defineProps<{ modes: string[] }>();
 </script>
@@ -19,7 +17,6 @@ defineProps<{ modes: string[] }>();
     >
       {{ m }}
     </button>
-    <button class="btn btn-sm vol-close" :title="t('common.close')" @click="doc.volumeVisible = false"><X :size="12" /></button>
   </div>
 </template>
 
@@ -41,9 +38,5 @@ defineProps<{ modes: string[] }>();
   text-align: left;
   font-size: var(--text-xs);
   padding: 2px 6px;
-}
-
-.vol-close {
-  margin-top: auto;
 }
 </style>

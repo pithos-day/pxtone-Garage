@@ -236,7 +236,10 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
   display: flex;
 }
 
+/* VolumeField は absolute なので、ここで高さを決める */
 .collage-vol {
+  flex: none;
+  height: 222px;
   display: flex;
   border-bottom: 1px solid var(--border);
   background: var(--background);
