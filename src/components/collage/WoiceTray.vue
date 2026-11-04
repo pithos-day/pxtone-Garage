@@ -2,7 +2,7 @@
 <script setup lang="ts">
 import { createRowDragGhost } from "../../lib/drag-ghost";
 import { computed, ref } from "vue";
-import { Download, ExternalLink, SquarePen, RefreshCw, Trash2 } from "@lucide/vue";
+import { Download, ExternalLink, Plus, SquarePen, RefreshCw, Trash2 } from "@lucide/vue";
 import {
   doc,
   woices,
@@ -27,7 +27,7 @@ import { useCtxMenuClose } from "../../composables/useCtxMenu";
 import { useHoldPreview } from "../../composables/useHoldPreview";
 import { useDragUndo } from "../../composables/useUndo";
 import { capturePointer, releasePointerCapture } from "../../lib/field";
-import { namedFiles, openFileDialog, exportWoiceFile, readBlobAndApply } from "../../engine/io";
+import { namedFiles, openFileDialog, openFilesDialog, exportWoiceFile, readBlobAndApply } from "../../engine/io";
 import { addWoiceFiles } from "../../state/open-files";
 import { t } from "../../i18n";
 import WoicePropertyDialog from "./WoicePropertyDialog.vue";
@@ -156,6 +156,12 @@ function openWoiceInEditor(idx: number, link: WoiceLink | undefined): void {
   }
 }
 
+// ファイル選択ダイアログで選んだ音色を追加する (複数可)
+async function onAddWoice(): Promise<void> {
+  const files = await openFilesDialog(WOICE_FILE_ACCEPT, WOICE_FILE_EXT_RE);
+  if (files.length > 0) await addWoiceFiles(files);
+}
+
 // ファイル選択ダイアログで選んだ別の音色で、指定 index の音色を置き換える
 async function replaceByDialog(idx: number): Promise<void> {
   const opened = await openFileDialog(WOICE_FILE_ACCEPT, WOICE_FILE_EXT_RE);
@@ -185,7 +191,10 @@ function woiceSummary(idx: number): string {
 
 <template>
   <div class="tray">
-    <div class="tray-title">{{ t("woice.title") }} ({{ woices.length }})</div>
+    <div class="tray-title">
+      {{ t("woice.title") }} ({{ woices.length }})
+      <button class="btn btn-sm tray-add" :disabled="doc.readOnly" :title="t('woice.add')" @click="onAddWoice"><Plus :size="16" /></button>
+    </div>
     <div ref="trayListRef" class="tray-list" @contextmenu.prevent @pointerup="onPointerUp" @pointercancel="onPointerUp" @dragover.prevent @drop.prevent="onDrop">
       <div
         v-for="w in woices"
@@ -226,11 +235,18 @@ function woiceSummary(idx: number): string {
 }
 
 .tray-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 4px 7px;
   font-size: var(--text-sm);
   color: var(--muted-foreground);
   border-bottom: 1px solid var(--border);
   background: var(--background);
+}
+
+.tray-add {
+  display: inline-flex;
 }
 
 .tray-list {

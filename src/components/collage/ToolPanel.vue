@@ -1,21 +1,9 @@
 <script setup lang="ts">
-// モード切替 (W/U) + ツールボタン
-import { ref } from "vue";
-import { Plus, Music2, Piano, MousePointer2, Pencil, Pointer } from "@lucide/vue";
+// モード切替 (W/U) + ピアノロールのツール
+import { Music2, Piano, MousePointer2, Pencil, Pointer } from "@lucide/vue";
 import { doc } from "../../state/project";
-import { addWoiceFiles } from "../../state/open-files";
-import { WOICE_FILE_ACCEPT, WOICE_FILE_EXT_RE } from "../../lib/woice";
-import AddUnitDialog from "./AddUnitDialog.vue";
-import { openFilesDialog } from "../../engine/io";
 import { formatShortcut } from "../../state/keybindings";
 import { t } from "../../i18n";
-
-const showAddUnit = ref(false);
-
-async function onAddWoice(): Promise<void> {
-  const files = await openFilesDialog(WOICE_FILE_ACCEPT, WOICE_FILE_EXT_RE);
-  if (files.length > 0) await addWoiceFiles(files);
-}
 </script>
 
 <template>
@@ -29,15 +17,6 @@ async function onAddWoice(): Promise<void> {
       <button class="btn btn-sm mode" :class="{ on: doc.tool === 'pen' }" :title="`${t('tool.pen')} (${formatShortcut('toolPen')})`" @click="doc.tool = 'pen'"><Pencil :size="18" /></button>
       <button class="btn btn-sm mode" :class="{ on: doc.tool === 'hand' }" :title="`${t('tool.hand')} (${formatShortcut('toolHand')})`" @click="doc.tool = 'hand'"><Pointer :size="18" /></button>
     </div>
-    <div class="tool-buttons">
-      <template v-if="doc.mode === 'W'">
-        <button class="btn btn-sm" :disabled="doc.readOnly" @click="onAddWoice"><Plus :size="18" /></button>
-      </template>
-      <template v-else>
-        <button class="btn btn-sm" :disabled="doc.readOnly" @click="showAddUnit = true"><Plus :size="18" /></button>
-      </template>
-    </div>
-    <AddUnitDialog v-if="showAddUnit" @close="showAddUnit = false" />
   </div>
 </template>
 
@@ -45,9 +24,7 @@ async function onAddWoice(): Promise<void> {
 .toolpanel {
   flex: none;
   display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  padding: 5px 7px 7px;
+  padding: 5px 7px;
   border-bottom: 1px solid var(--border);
   background: var(--background);
   user-select: none;
@@ -68,12 +45,6 @@ async function onAddWoice(): Promise<void> {
 
 .tool-mode .btn {
   flex: 1;
-}
-
-.tool-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
 }
 
 </style>

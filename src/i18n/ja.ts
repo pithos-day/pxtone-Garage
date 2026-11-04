@@ -178,6 +178,7 @@ const ja = {
 
   // 音色一覧
   "woice.title": "音色",
+  "woice.add": "音色を追加",
   "woice.edit": "音色を編集",
   "woice.save": "音色を保存",
   "woice.open": "音色エディタで開く",

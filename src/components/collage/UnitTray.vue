@@ -4,7 +4,7 @@
 <script setup lang="ts">
 import { createRowDragGhost } from "../../lib/drag-ghost";
 import { ref } from "vue";
-import { Eye, Pin, Headphones, Pencil, RefreshCw, Trash2 } from "@lucide/vue";
+import { Eye, Pin, Headphones, Pencil, Plus, RefreshCw, Trash2 } from "@lucide/vue";
 import {
   doc,
   units,
@@ -31,6 +31,7 @@ import { useDragUndo } from "../../composables/useUndo";
 import { useHoldPreview } from "../../composables/useHoldPreview";
 import { capturePointer, releasePointerCapture } from "../../lib/field";
 import { t } from "../../i18n";
+import AddUnitDialog from "./AddUnitDialog.vue";
 import ChangeUnitDialog from "./ChangeUnitDialog.vue";
 import CtxMenuItem from "../shell/CtxMenuItem.vue";
 
@@ -42,6 +43,7 @@ const editing = ref<number | null>(null);
 const editText = ref("");
 const menu = ref<{ x: number; y: number; unit: number } | null>(null);
 const changeUnitIdx = ref(-1);
+const showAddUnit = ref(false);
 const trayRef = ref<HTMLElement | null>(null);
 
 useCtxMenuClose(menu);
@@ -176,6 +178,7 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
   <div class="tray" :style="{ '--checks-w': CHECKS_W + 'px' }">
     <div class="tray-title bar-header">
       {{ t("unit.title") }} ({{ units.length }})
+      <button class="btn btn-sm tray-add" :disabled="doc.readOnly" :title="t('unit.addTitle')" @click="showAddUnit = true"><Plus :size="16" /></button>
     </div>
     <div class="unit-header bar-header">
       <span class="unit-header-checks">
@@ -227,6 +230,7 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
       <CtxMenuItem :icon="Pencil" @click="onMenuAction('edit')">{{ t("unit.editName") }}</CtxMenuItem>
       <CtxMenuItem :icon="Trash2" danger @click="onMenuAction('remove')">{{ t("common.delete") }}</CtxMenuItem>
     </div>
+    <AddUnitDialog v-if="showAddUnit" @close="showAddUnit = false" />
     <ChangeUnitDialog v-if="changeUnitIdx >= 0" :unit-idx="changeUnitIdx" @close="changeUnitIdx = -1" />
   </div>
 </template>
@@ -246,6 +250,10 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
   justify-content: space-between;
   padding: 4px 7px;
   font-size: var(--text-sm);
+}
+
+.tray-add {
+  display: inline-flex;
 }
 
 /* 列ヘッダー (再生/表示/ピン/ソロ/名前) */
