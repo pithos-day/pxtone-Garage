@@ -14,7 +14,7 @@ import { clockAtX, zoomAnchorScrollX, zoomOrPan } from "../../lib/field";
 import { clockToX } from "../../lib/clock";
 import { iterVisibleRecords, visibleClockWindow } from "../../lib/records";
 import { KEY_HEIGHT } from "../../lib/clock";
-import { RULER_H, NAME_W } from "../../lib/layout";
+import { RULER_H, NAME_W, PINNED_MAX_ROWS } from "../../lib/layout";
 import { EventKind } from "pxtone-ts";
 import { writeNoteLength, eraseNote } from "../../lib/editing";
 import {
@@ -37,6 +37,24 @@ import { previewUnitHold } from "../../engine/preview";
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 
+// 先頭に表示するピン留め行。ピン留めが減ったときは rowOffset() が範囲内へ丸める
+const rawRowOffset = ref(0);
+
+function maxRowOffset(): number {
+  return Math.max(0, pinnedUnits().length - PINNED_MAX_ROWS);
+}
+
+function rowOffset(): number {
+  return Math.min(rawRowOffset.value, maxRowOffset());
+}
+
+// ピン留めリスト内の位置 → 行の上端 y。スクロールで隠れている行は null
+function rowTop(rowIdx: number): number | null {
+  const row = rowIdx - rowOffset();
+  if (rowIdx < 0 || row < 0 || row >= PINNED_MAX_ROWS) return null;
+  return RULER_H + row * KEY_HEIGHT;
+}
+
 useCanvas(
   canvasRef,
   (ctx, w, h) => draw(ctx, w, h),
@@ -51,6 +69,7 @@ useCanvas(
     () => currentClock.value,
     () => units.value.length,
     () => doc.unitPinned.join(","),
+    () => rawRowOffset.value,
   ],
 );
 
@@ -110,9 +129,8 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 
   // ノートバー (行 index = ピン留めリスト内の位置)
   for (const n of notes) {
-    const rowIdx = pinned.indexOf(n.unit);
-    if (rowIdx < 0) continue;
-    const y = fieldTop + rowIdx * KEY_HEIGHT;
+    const y = rowTop(pinned.indexOf(n.unit));
+    if (y === null) continue;
     const x = clockToX(view, n.clock) - scrollX;
     const xw = Math.max(2, clockToX(view, n.length));
     const play = currentClock.value >= n.clock && currentClock.value < n.clock + n.length;
@@ -125,9 +143,8 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 
   // その他イベントマーク
   for (const m of marks) {
-    const rowIdx = pinned.indexOf(m.unit);
-    if (rowIdx < 0) continue;
-    const y = fieldTop + rowIdx * KEY_HEIGHT;
+    const y = rowTop(pinned.indexOf(m.unit));
+    if (y === null) continue;
     const x = clockToX(view, m.clock) - scrollX;
     if (x < 0 || x > fieldW) continue;
     fillRect(ctx, x, y + 4, 1, KEY_HEIGHT - 8, COLORS.accentDark);
@@ -149,12 +166,20 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 
   // 左のユニット名 (translate 外)
   for (let i = 0; i < pinned.length; i++) {
-    const y = fieldTop + i * KEY_HEIGHT;
+    const y = rowTop(i);
+    if (y === null) continue;
     const u = pinned[i]!;
     const isFocus = u === doc.focusUnit;
     const bg = isFocus ? COLORS.focusRow : i % 2 === 0 ? "transparent" : COLORS.zebra;
     fillRect(ctx, 0, y, NAME_W, KEY_HEIGHT, bg);
     fillText(ctx, `${u}: ${units.value[u]?.name ?? ""}`, 2, y + 11, isFocus ? COLORS.focusText : COLORS.text, 12);
+  }
+
+  // スクロール位置のインジケータ (隠れた行があるときだけ)
+  if (maxRowOffset() > 0) {
+    const thumbH = (PINNED_MAX_ROWS / pinned.length) * fieldH;
+    const thumbY = fieldTop + (rowOffset() / pinned.length) * fieldH;
+    fillRect(ctx, w - 4, thumbY, 4, thumbH, COLORS.accentDark);
   }
 }
 
@@ -169,7 +194,9 @@ function clockAt(x: number): number {
 }
 
 function unitAt(y: number): number {
-  const i = Math.floor((y - RULER_H) / KEY_HEIGHT);
+  const row = Math.floor((y - RULER_H) / KEY_HEIGHT);
+  if (row >= PINNED_MAX_ROWS) return -1;
+  const i = row + rowOffset();
   const pinned = pinnedUnits();
   if (i < 0 || i >= pinned.length) return -1;
   return pinned[i]!;
@@ -252,7 +279,7 @@ const { onPointerDown, onPointerMove, onPointerUp } = useCanvasDrag<LanesDrag>({
   },
 });
 
-// ホイール: Ctrl=ズーム (カーソル位置基準) / Shift=横スクロール
+// ホイール: Ctrl=ズーム (カーソル位置基準) / Shift=横スクロール / 修飾なし=行スクロール
 function onWheel(e: WheelEvent): void {
   const { zoom, pan } = zoomOrPan(e, doc.zoom);
   if (zoom !== null) {
@@ -260,6 +287,7 @@ function onWheel(e: WheelEvent): void {
     if (rect) doc.scrollX = zoomAnchorScrollX(doc.zoom, zoom, doc.scrollX, e.clientX - rect.left, NAME_W);
     doc.zoom = zoom;
   } else if (pan !== null) doc.scrollX = Math.max(0, doc.scrollX + pan);
+  else if (e.deltaY !== 0) rawRowOffset.value = Math.max(0, Math.min(maxRowOffset(), rowOffset() + Math.sign(e.deltaY)));
 }
 </script>
 

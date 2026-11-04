@@ -6,7 +6,7 @@ import { computed } from "vue";
 import { ChevronDown, ChevronRight } from "@lucide/vue";
 import { doc, units, ensureInit, pinnedUnits, VOLUME_MODES, setScope, scopeCopy, scopeCut, scopeClear, scopeDelete, scopePaste, scopeClipReady, clockContext, getService, hasNoteSelection, clearNoteSelection, noteCopy, noteCut, noteDelete, clipboardHasNotes } from "../../state/project";
 import { KEY_HEIGHT, KEYNUM, measStartClock } from "../../lib/clock";
-import { RULER_H, STRIP_W, LEFT_W, NAME_W } from "../../lib/layout";
+import { RULER_H, STRIP_W, LEFT_W, NAME_W, PINNED_MAX_ROWS } from "../../lib/layout";
 import { useGlobalKeys } from "../../composables/useGlobalKeys";
 import { arrowScrollRow, arrowScrollX, shortcutAreaOf, type ShortcutCommand } from "../../lib/shortcuts";
 import { shortcutCommand } from "../../state/keybindings";
@@ -146,7 +146,7 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
   <div class="collage" :style="{ '--left-w': LEFT_W + 'px', '--strip-w': STRIP_W + 'px', '--name-w': NAME_W + 'px', '--key-h': KEY_HEIGHT + 'px' }">
     <div class="collage-body">
       <!-- ピン留めユニットのレーン (上部固定) -->
-      <div v-if="pinned.length > 0" class="collage-pinned" :style="{ height: (RULER_H + pinned.length * KEY_HEIGHT) + 'px' }">
+      <div v-if="pinned.length > 0" class="collage-pinned" :style="{ height: (RULER_H + Math.min(pinned.length, PINNED_MAX_ROWS) * KEY_HEIGHT) + 'px' }">
         <PinnedLanes />
       </div>
       <div class="collage-main">
