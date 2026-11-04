@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // ptNoise (PTN ノイズエディタ)。
-// 上段にレイヤー1..4 を縦に並べ (収まらない分はスクロール)、下段に波形と History を置く。
+// 上段にレイヤー1..4 を縦に並べ、下段に波形と History を置く。
+// 画面が低いときは波形側を縮め、レイヤーはスクロールなしで全て見せる。
 // ビルドボタンは廃止し、編集が 250ms デバウンスでリアルタイムに波形へ反映される。
 // 波形クリック / Space で単発再生 (ループしない。本家 PcmTable_BuildAndPlay 準拠)。
 // History リスト、WAV 書き出しを提供する。
@@ -401,10 +402,11 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
                   />
                 </div>
                 <label class="ne-osc-rev" :title="t('noise.reverse')">
-                  {{ t("noise.reverse") }}
+                  <span class="ne-osc-rev-text">{{ t("noise.reverse") }}</span>
                   <input
                     class="switch"
                     type="checkbox"
+                    :aria-label="t('noise.reverse')"
                     :checked="row.unit[osc].bRev"
                     @change="setOsc(row.index, osc, 'bRev', ($event.target as HTMLInputElement).checked)"
                   />
@@ -563,23 +565,22 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
+  /* 極端に低い画面でレイヤーと波形の最小高さすら入らないときだけスクロールする */
+  overflow-y: auto;
 }
 
-/* 全レイヤーを縦に並べる。収まらない場合はこの列だけスクロール */
+/* 全レイヤーを縦に並べる。常に全高を確保し、足りない高さは波形側が譲る */
 .ne-layers {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
+  flex: 1 0 auto;
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
   font-size: var(--text-sm);
 }
 
-/* 1 レイヤー = 横一列のラック。幅が足りなければモジュールを折り返す */
+/* 1 レイヤー = 横一列のラック。折り返すと高さが倍になるため 1 行に保つ */
 .ne-layer {
   display: flex;
-  flex-wrap: wrap;
   align-items: stretch;
   gap: var(--space-xs);
   flex: none;
@@ -627,7 +628,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
 }
 
 .ne-osc {
-  flex: 1 1 220px;
+  flex: 1 1 0;
 }
 
 /* 変調を受ける Main を周囲より目立たせる */
@@ -673,7 +674,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
 }
 
 .ne-enve {
-  flex: 1 1 400px;
+  flex: 1.8 1 0;
   color: var(--foreground);
 }
 
@@ -729,7 +730,9 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
 }
 
 .ne-preview {
-  flex: none;
+  /* 基本の高さは波形領域 288px + 上下の余白。レイヤーが入らない分だけ縮む */
+  flex: 0 1 calc(288px + 2 * var(--space-md));
+  min-height: 100px;
   display: flex;
   gap: var(--space-md);
 }
@@ -737,36 +740,18 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
 .ne-wave-card {
   flex: 1;
   min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   background: var(--muted);
   border-radius: var(--radius);
   padding: var(--space-md);
 }
 
-/* 横幅が足りないと波形が潰れるため、レイヤーごと縦スクロールにして波形と History を積む */
-@media (max-width: 700px) {
-  .ne-main {
-    overflow-y: auto;
-  }
-
-  .ne-layers {
-    flex: none;
-    overflow-y: visible;
-  }
-
-  .ne-preview {
-    flex-direction: column;
-  }
-
-  .ne-history {
-    width: auto;
-    height: 200px;
-  }
-}
-
-/* 波形領域は本家 PcmTable と同じ 256px。スクロールバーはアプリ標準のテーマ色 */
+/* 波形領域は高さに余裕があれば本家 PcmTable と同じ 256px。スクロールバーはアプリ標準のテーマ色 */
 .ne-wave-wrap {
-  flex: 0 1 auto;
-  height: 288px;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
@@ -834,8 +819,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
 .ne-history {
   flex: none;
   width: 240px;
-  /* 波形カード (波形領域 288px + 上下の余白) と高さを揃える */
-  height: calc(288px + 2 * var(--space-md));
+  min-height: 0;
   background: var(--muted);
   border-radius: var(--radius);
   padding: var(--space-md);
@@ -893,5 +877,85 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
 
 .ne-history-item:hover .ne-history-play {
   color: inherit;
+}
+
+/* 幅が狭いときは反転の文字を省き、周波数などのノブに幅を譲る (title と aria-label は残る) */
+@media (max-width: 1100px) {
+  .ne-osc-rev-text {
+    display: none;
+  }
+}
+
+/* 低い画面では各モジュールを詰めて、波形に回せる高さを増やす */
+@media (max-height: 800px) and (min-width: 701px) {
+  .ne-layers {
+    gap: var(--space-xs);
+  }
+
+  .ne-module {
+    gap: var(--space-xs);
+    padding: var(--space-sm);
+  }
+
+  .ne-osc-head {
+    height: 20px;
+  }
+
+  .ne-module :deep(.knob-dial) {
+    width: 30px;
+    height: 30px;
+  }
+
+  .ne-module :deep(.knob-num),
+  .ne-enve input,
+  .ne-enve select {
+    height: 16px;
+  }
+
+  .ne-enve-points {
+    gap: var(--space-2xs) var(--space-md);
+  }
+
+  .ne-enve .noise-enve-graph {
+    flex-basis: 32px;
+    height: 32px;
+    min-height: 32px;
+  }
+}
+
+/* 横幅が足りないと波形が潰れるため、レイヤーを折り返して全体を縦スクロールにし、波形と History を積む */
+@media (max-width: 900px) {
+  .ne-layer {
+    flex-wrap: wrap;
+  }
+
+  .ne-osc {
+    flex-basis: 220px;
+  }
+
+  .ne-enve {
+    flex-basis: 400px;
+  }
+}
+
+@media (max-width: 700px) {
+  .ne-layers {
+    flex: none;
+  }
+
+  .ne-preview {
+    flex: none;
+    flex-direction: column;
+  }
+
+  .ne-wave-wrap {
+    flex: none;
+    height: 288px;
+  }
+
+  .ne-history {
+    width: auto;
+    height: 200px;
+  }
 }
 </style>
