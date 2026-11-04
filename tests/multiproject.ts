@@ -75,6 +75,8 @@ import {
   beginEdit,
   commitEdit,
   addWoices,
+  removeWoice,
+  replaceWoiceRaw,
   markSaved,
   prepareWoiceFile,
   selectedNoteList,
@@ -93,9 +95,7 @@ import {
 import * as serviceMod from "../src/state/service";
 import { SAMPLE_SONGS } from "../src/state/samples";
 import { undo, redo, canUndo, canRedo, undoStack } from "../src/state/undo";
-import { applyDraftProjectState } from "../src/state/projects";
-import { moveWoiceRaw } from "../src/state/woice-order";
-import { movedIndex } from "../src/lib/woice";
+import { applyDraftProjectState, linkedWoiceIndex, woiceLinkAt } from "../src/state/projects";
 import { droppedFiles, namedFiles, readBlobsAndApply, toArrayBuffer } from "../src/engine/io";
 import { pushRecent, dropRecent } from "../src/lib/recent-list";
 import { metronomeHits } from "../src/lib/metronome";
@@ -2122,11 +2122,11 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(woiceNameRaw(ptvW), "AddA", "woiceedit: 名前をそのまま取り出せる (raw)");
 
     // 書き戻し先 (リンク) を付けて開く
-    const link = { projectId: currentProjectId.value, woiceIndex: s.woiceNum - 2 };
+    const link = woiceLinkAt(currentProjectId.value, s.woiceNum - 2);
     check(openWoiceAsVoice(ptvW, woiceNameRaw(ptvW), link), "woiceedit: PTV を ptvoice エディタで開く");
     checkEq(currentVoice()?.fileName, "AddA", "woiceedit: ptvoice タブ名が音色名になる");
     checkEq(currentVoice()?.link?.projectId, link.projectId, "woiceedit: ptvoice の書き戻し先 projectId (reactive)");
-    checkEq(currentVoice()?.link?.woiceIndex, link.woiceIndex, "woiceedit: ptvoice の書き戻し先 woiceIndex (reactive)");
+    checkEq(linkedWoiceIndex(currentVoice()!.link!), s.woiceNum - 2, "woiceedit: ptvoice の書き戻し先 woiceIndex (reactive)");
     checkEq(
       currentVoice()?.woice.getVoice(0)?.wave.num,
       ptvW.getVoice(0)?.wave.num,
@@ -2134,11 +2134,11 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     );
 
     const ptn = ptnW.getVoice(0)!.ptn;
-    const ptnLink = { projectId: currentProjectId.value, woiceIndex: s.woiceNum - 1 };
+    const ptnLink = woiceLinkAt(currentProjectId.value, s.woiceNum - 1);
     check(openPtnAsNoise(ptn, woiceNameRaw(ptnW), ptnLink), "woiceedit: PTN を ptnoise エディタで開く");
     checkEq(currentNoise()?.fileName, "AddB", "woiceedit: ptnoise タブ名が音色名になる");
     checkEq(currentNoise()?.link?.projectId, ptnLink.projectId, "woiceedit: ptnoise の書き戻し先 projectId (reactive)");
-    checkEq(currentNoise()?.link?.woiceIndex, ptnLink.woiceIndex, "woiceedit: ptnoise の書き戻し先 woiceIndex (reactive)");
+    checkEq(linkedWoiceIndex(currentNoise()!.link!), s.woiceNum - 1, "woiceedit: ptnoise の書き戻し先 woiceIndex (reactive)");
     checkEq(
       currentNoise()?.noise.getUnit(0)?.main.freq,
       ptn.getUnit(0)?.main.freq,
@@ -2170,7 +2170,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     vDoc.woice.getVoice(0)!.volume = 77;
     const undoLen = projA.undoStack.length;
     checkEq(
-      applyWoiceLink({ projectId: projA.id, woiceIndex: idxA }, snapshotVoice(vDoc)!, WoiceType.PTV),
+      applyWoiceLink(woiceLinkAt(projA.id, idxA), snapshotVoice(vDoc)!, WoiceType.PTV),
       null,
       "apply: 現在のタブへ適用",
     );
@@ -2184,7 +2184,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     const projB = newProjectInTab();
     vDoc.woice.getVoice(0)!.volume = 55;
     checkEq(
-      applyWoiceLink({ projectId: projA.id, woiceIndex: idxA }, snapshotVoice(vDoc)!, WoiceType.PTV),
+      applyWoiceLink(woiceLinkAt(projA.id, idxA), snapshotVoice(vDoc)!, WoiceType.PTV),
       null,
       "apply: 別プロジェクトへ適用",
     );
@@ -2203,7 +2203,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     const idxB = serviceMod.service.woiceNum - 1;
     nDoc.noise.getUnit(0)!.main.freq = 660;
     checkEq(
-      applyWoiceLink({ projectId: projB.id, woiceIndex: idxB }, snapshotNoise(nDoc)!, WoiceType.PTN),
+      applyWoiceLink(woiceLinkAt(projB.id, idxB), snapshotNoise(nDoc)!, WoiceType.PTN),
       null,
       "apply: PTN を適用",
     );
@@ -2228,16 +2228,16 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
     // エラー系: 対象の音色を壊さない
     check(
-      applyWoiceLink({ projectId: projB.id, woiceIndex: 999 }, snapshotNoise(nDoc)!, WoiceType.PTN) !== null,
+      applyWoiceLink(woiceLinkAt(projB.id, 999), snapshotNoise(nDoc)!, WoiceType.PTN) !== null,
       "apply: 範囲外 index はエラー",
     );
     check(
-      applyWoiceLink({ projectId: 99999, woiceIndex: 0 }, snapshotNoise(nDoc)!, WoiceType.PTN) !== null,
+      applyWoiceLink(woiceLinkAt(99999, 0), snapshotNoise(nDoc)!, WoiceType.PTN) !== null,
       "apply: 存在しないプロジェクトはエラー",
     );
     const woiceNum = serviceMod.service.woiceNum;
     check(
-      applyWoiceLink({ projectId: projB.id, woiceIndex: idxB }, new Uint8Array([1, 2, 3]), WoiceType.PTN) !== null,
+      applyWoiceLink(woiceLinkAt(projB.id, idxB), new Uint8Array([1, 2, 3]), WoiceType.PTN) !== null,
       "apply: 不正なバイト列はエラー",
     );
     checkEq(serviceMod.service.woiceNum, woiceNum, "apply: 不正なバイト列でも音色は消えない");
@@ -2250,7 +2250,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     // pttune (再生専用) へは適用できない
     const projTune = newProjectInTab("tune");
     check(
-      applyWoiceLink({ projectId: projTune.id, woiceIndex: 0 }, snapshotNoise(nDoc)!, WoiceType.PTN) !== null,
+      applyWoiceLink(woiceLinkAt(projTune.id, 0), snapshotNoise(nDoc)!, WoiceType.PTN) !== null,
       "apply: 読み取り専用プロジェクトはエラー",
     );
   }
@@ -2431,8 +2431,8 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(currentVoice()!.link, undefined, "open: link を持たない (書き戻し先なし)");
 
     // link 付きで開けば書き戻し先を持つ (ptcop の「音色を編集」)
-    check(openWoiceAsVoice(w, "Linked", { projectId: 1, woiceIndex: 0 }), "open: リンク付きでも開ける");
-    checkEq(currentVoice()!.link?.woiceIndex, 0, "open: link を持てる");
+    check(openWoiceAsVoice(w, "Linked", woiceLinkAt(1, 0)), "open: リンク付きでも開ける");
+    check(currentVoice()!.link !== undefined, "open: link を持てる");
   }
 
   // ---- 41. 初期タブの置き換え (無題の音色を開いたタブは置き換えない) ----
@@ -3343,7 +3343,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       const proj = newProjectInTab();
 
       newVoice();
-      currentVoice()!.link = { projectId: proj.id, woiceIndex: 0 };
+      currentVoice()!.link = woiceLinkAt(proj.id, 0);
       editVoice(() => {
         currentVoice()!.woice.getVoice(0)!.volume = 90;
       });
@@ -3355,7 +3355,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
       pickerName = "saved.ptnoise";
       newNoise();
-      currentNoise()!.link = { projectId: proj.id, woiceIndex: 0 };
+      currentNoise()!.link = woiceLinkAt(proj.id, 0);
       editNoise(() => {
         currentNoise()!.noise.getUnit(0)!.main.freq = 880;
       });
@@ -3477,25 +3477,58 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       const e = svc.evels.records.find((r) => r.unitNo === u && r.kind === EventKind.VOICENO && r.clock === 0);
       return woiceName(svc.woiceGet(e ? e.value : 0)!);
     };
-    const link = { projectId: currentProjectId.value, woiceIndex: 0 };
+    const link = woiceLinkAt(currentProjectId.value, 0);
     const linked = openWoiceAsVoice(createDefaultWoice(), "linked", link);
     check(linked, "woice-order: リンク付きタブを開ける");
     const undoDepth = undoStack.length;
 
     beginEdit();
-    moveWoiceRaw(0, 2);
+    replaceWoiceRaw(0, 2);
     commitEdit();
     checkEq([0, 1, 2].map((i) => woiceName(svc.woiceGet(i)!)).join(), "B,C,A", "woice-order: 音色が並べ替わる");
     checkEq([0, 1, 2].map(voiceOf).join(), "A,C,A", "woice-order: 各ユニットの音色が変わらない");
-    checkEq(currentVoice()!.link!.woiceIndex, 2, "woice-order: リンクの音色番号が追従する");
+    checkEq(linkedWoiceIndex(currentVoice()!.link!), 2, "woice-order: リンクの音色番号が追従する");
     checkEq(undoStack.length, undoDepth + 1, "woice-order: undo は 1 エントリ");
 
     check(undo(), "woice-order: undo できる");
     checkEq([0, 1, 2].map((i) => woiceName(svc.woiceGet(i)!)).join(), "A,B,C", "woice-order: undo で順序が戻る");
-    closeVoice(currentVoiceId.value);
+    checkEq(linkedWoiceIndex(currentVoice()!.link!), 0, "woice-order: undo でリンクも戻る");
+    check(redo(), "woice-order: redo できる");
+    checkEq(linkedWoiceIndex(currentVoice()!.link!), 2, "woice-order: redo でリンクも追従する");
+    check(undo(), "woice-order: もう一度 undo できる");
 
-    checkEq([0, 1, 2, 3].map((i) => movedIndex(i, 3, 1)).join(), "0,2,3,1", "woice-order: movedIndex (後ろから前)");
-    checkEq([0, 1, 2, 3].map((i) => movedIndex(i, 0, 2)).join(), "2,0,1,3", "woice-order: movedIndex (前から後ろ)");
+    // 音色の削除: 前の音色を消すと番号が詰まり、対象の音色を消すと書き戻せない。undo で元に戻る
+    const links = [0, 1, 2].map((i) => woiceLinkAt(currentProjectId.value, i));
+    const indexes = (): string => links.map(linkedWoiceIndex).join();
+    removeWoice(0);
+    checkEq(indexes(), "-1,0,1", "woice-link: 削除で番号が詰まり、削除した音色は -1");
+    const ptv = snapshotVoice(currentVoice()!)!;
+    check(applyWoiceLink(links[0]!, ptv, WoiceType.PTV) !== null, "woice-link: 削除した音色へは適用できない");
+    undo();
+    checkEq(indexes(), "0,1,2", "woice-link: 削除の undo で戻る");
+    redo();
+    checkEq(indexes(), "-1,0,1", "woice-link: 削除の redo でも追従する");
+    undo();
+
+    // undo の後の適用は、並べ替え前と同じ音色を書き換える
+    beginEdit();
+    replaceWoiceRaw(0, 2);
+    commitEdit();
+    undo();
+    checkEq(applyWoiceLink(links[1]!, ptv, WoiceType.PTV), null, "woice-link: undo 後も適用できる");
+    checkEq(svc.woiceGet(1)!.type, WoiceType.PTV, "woice-link: 指していた音色が書き換わる");
+    checkEq(svc.woiceGet(0)!.type, WoiceType.PCM, "woice-link: 別の音色は書き換わらない");
+    checkEq(indexes(), "0,1,2", "woice-link: 適用で音色のキーは変わらない");
+    undo();
+    checkEq(indexes(), "0,1,2", "woice-link: 適用の undo でも変わらない");
+
+    // リンク先のプロジェクト以外のタブで操作しても影響しない
+    const projectId = currentProjectId.value;
+    const other = newProjectInTab();
+    checkEq(indexes(), "0,1,2", "woice-link: 別タブでも index を解決できる");
+    closeProject(other.id);
+    switchProject(projectId);
+    closeVoice(currentVoiceId.value);
   }
 
   // ---- 複数ファイルの一括読み込み ----
@@ -3883,7 +3916,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(await addWoice(bytes, WoiceType.PTN, "RevA"), null, "revision: 適用先の音色を用意");
     markSaved();
     const b = newProjectInTab();
-    checkEq(applyWoiceLink({ projectId: a.id, woiceIndex: 0 }, bytes, WoiceType.PTN), null, "revision: 別タブへ適用できる");
+    checkEq(applyWoiceLink(woiceLinkAt(a.id, 0), bytes, WoiceType.PTN), null, "revision: 別タブへ適用できる");
     switchProject(a.id);
     checkEq(doc.dirty, true, "revision: 適用先へ切り替えても dirty");
     undo();

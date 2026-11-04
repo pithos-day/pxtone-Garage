@@ -4,6 +4,7 @@
 import { ref } from "vue";
 import { Service, PxtnErr, MemoryIo, PXTN_MAX_EVENT_NUM, Woice, WoiceType } from "pxtone-ts";
 import { setService } from "./service";
+import { findWoiceIndex, NO_WOICE_KEY, woiceKeyAt } from "./woice-keys";
 import { setUndoStacks, undoStack, redoStack, snapshotService, pushUndoToStack, refreshUndoFlags, type UndoEntry } from "./undo";
 import { doc, sync, title, comment, ensureInit, pxtnErrorMessage, exportBytes, uiRepeatToFile } from "./project";
 import { resetLoaded } from "./player";
@@ -68,7 +69,19 @@ export interface Project {
 // 適用 (変更を適用) 時にこの情報で書き戻し先を決める
 export interface WoiceLink {
   projectId: number; // 元の Collage プロジェクト (Project.id)
-  woiceIndex: number; // 元の音色 index
+  woiceKey: number; // 元の音色 (woice-keys の識別子)
+}
+
+// 指定プロジェクトの音色 index を指す書き戻し先を作る
+export function woiceLinkAt(projectId: number, woiceIndex: number): WoiceLink {
+  const svc = services.get(projectId);
+  return { projectId, woiceKey: svc ? woiceKeyAt(svc, woiceIndex) : NO_WOICE_KEY };
+}
+
+// 書き戻し先の音色の現在の index。音色やプロジェクトがなければ -1
+export function linkedWoiceIndex(link: WoiceLink): number {
+  const svc = services.get(link.projectId);
+  return svc ? findWoiceIndex(svc, link.woiceKey) : -1;
 }
 
 // doc ↔ ProjectState で保存/復元するフィールド一覧
@@ -363,14 +376,15 @@ export function applyWoiceLink(link: WoiceLink, bytes: Uint8Array, type: WoiceTy
   if (!p || !svc) return t("error.applyNoProject");
   // pttune (再生専用) は書き換え対象にできない
   if (p.kind === "tune") return t("error.applyReadOnly");
-  if (link.woiceIndex < 0 || link.woiceIndex >= svc.woiceNum) return t("error.applyNoWoice");
+  const woiceIndex = findWoiceIndex(svc, link.woiceKey);
+  if (woiceIndex < 0) return t("error.applyNoWoice");
   // woiceRead は読み込み失敗時に既存音色を削除するため、先にバイト列を検証する
   const probe = new Woice();
   if (probe.read(new MemoryIo(bytes), type) !== PxtnErr.OK) return t("error.format");
   // undo は適用先プロジェクトのスタックへ積む (現在のタブのスタックではない)
   const snap = snapshotService(svc, p.revisions.current);
   if (snap) pushUndoToStack(p.undoStack, p.redoStack, snap);
-  const res = svc.woiceRead(link.woiceIndex, new MemoryIo(bytes), type);
+  const res = svc.woiceRead(woiceIndex, new MemoryIo(bytes), type);
   if (res !== PxtnErr.OK) return pxtnErrorMessage(res);
   touchRevision(p.revisions);
   p.dirty = true;

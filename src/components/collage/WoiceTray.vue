@@ -14,12 +14,12 @@ import {
   WoiceType,
   EVENTDEFAULT_KEY,
   EVENTDEFAULT_VELOCITY,
+  replaceWoiceRaw,
 } from "../../state/project";
 import { previewWoiceHold } from "../../engine/preview";
 import { openWoiceAsVoice } from "../../state/voice";
 import { openPtnAsNoise } from "../../state/noise";
-import { currentProjectId, type WoiceLink } from "../../state/projects";
-import { moveWoiceRaw } from "../../state/woice-order";
+import { currentProjectId, woiceLinkAt, type WoiceLink } from "../../state/projects";
 import { woiceTypeColor } from "../../lib/theme";
 import { woiceSummary as formatWoiceSummary, WOICE_FILE_ACCEPT, WOICE_FILE_EXT_RE } from "../../lib/woice";
 import { useCtxMenuClose } from "../../composables/useCtxMenu";
@@ -83,7 +83,7 @@ function startDragReorder(idx: number): void {
     const row = Math.floor((list.scrollTop + ev.clientY - list.getBoundingClientRect().top) / h);
     if (row < 0 || row >= woices.value.length || row === lastTarget) return;
     dragUndo.onFirstMove();
-    moveWoiceRaw(lastTarget, row);
+    replaceWoiceRaw(lastTarget, row);
     lastTarget = row;
     sync();
     doc.rev++;
@@ -118,7 +118,7 @@ function onMenuAction(action: "remove" | "replace" | "properties" | "openEditor"
   // 音色エディタ (ptvoice/ptnoise) で開く。編集可能タブでは書き戻し先 (元の
   // Collage プロジェクトの音色) をタブに持たせ、読み取り専用タブでは link なしで開く
   else if (action === "openEditor") {
-    openWoiceInEditor(w, doc.readOnly ? undefined : { projectId: currentProjectId.value, woiceIndex: w });
+    openWoiceInEditor(w, doc.readOnly ? undefined : woiceLinkAt(currentProjectId.value, w));
   }
 }
 

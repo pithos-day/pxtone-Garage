@@ -10,6 +10,8 @@ import {
   applyDraftProjectState,
   currentProject,
   currentProjectId,
+  linkedWoiceIndex,
+  woiceLinkAt,
   openProjectInTab,
   persistCurrentProjectState,
   projectDraftSnapshot,
@@ -111,7 +113,7 @@ function collectDrafts(activeMode: AppMode): DraftData | null {
       name: v.fileName,
       bytes: bytesToBase64(bytes),
       linkProjectId: v.link?.projectId,
-      linkWoiceIndex: v.link?.woiceIndex,
+      linkWoiceIndex: v.link && linkedWoiceIndex(v.link),
     });
   }
 
@@ -125,7 +127,7 @@ function collectDrafts(activeMode: AppMode): DraftData | null {
       name: n.fileName,
       bytes: bytesToBase64(bytes),
       linkProjectId: n.link?.projectId,
-      linkWoiceIndex: n.link?.woiceIndex,
+      linkWoiceIndex: n.link && linkedWoiceIndex(n.link),
     });
   }
 
@@ -261,5 +263,5 @@ function makeLink(entry: DraftEntry, projectIdMap: Map<number, number>): WoiceLi
   if (entry.linkProjectId === undefined) return undefined;
   const projectId = projectIdMap.get(entry.linkProjectId);
   if (projectId === undefined) return undefined;
-  return { projectId, woiceIndex: entry.linkWoiceIndex ?? -1 };
+  return woiceLinkAt(projectId, entry.linkWoiceIndex ?? -1);
 }

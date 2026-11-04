@@ -35,4 +35,5 @@ pxtone Garage はピストンコラージュ (ptCollage) 互換の Web DAW。
 - ソロ中は「ソロユニット以外を全ミュート」が不変条件
 - ノートの識別子は ON イベントのクロック (同じユニット・同じクロックに ON は 1 つ)。`doc.selectedNotes` は
   フォーカスユニットのノートを指す
-- 音色の並べ替えは `moveWoiceRaw` (`state/woice-order`) を使う。VOICENO イベントと「音色を編集」の書き戻し先も追従する
+- 音色の並べ替えは `replaceWoiceRaw` を使う。VOICENO イベントも追従する
+- 「音色を編集」の書き戻し先 `WoiceLink` は index ではなく音色のキー (`state/woice-keys`) で指す。index が必要なら `linkedWoiceIndex` で解決する

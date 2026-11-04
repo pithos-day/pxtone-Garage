@@ -29,12 +29,3 @@ export function woiceSummary(w: Woice): string {
       return "";
   }
 }
-
-// oldPlace の要素を newPlace へ動かしたときの index の移動先
-// (間にある要素は 1 つずつ詰まる。音色・ユニットの並べ替えと同じ規則)
-export function movedIndex(index: number, oldPlace: number, newPlace: number): number {
-  if (index === oldPlace) return newPlace;
-  if (oldPlace < newPlace && index > oldPlace && index <= newPlace) return index - 1;
-  if (oldPlace > newPlace && index >= newPlace && index < oldPlace) return index + 1;
-  return index;
-}

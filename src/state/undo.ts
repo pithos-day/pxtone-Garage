@@ -4,6 +4,7 @@
 import { ref } from "vue";
 import { MemoryIo, PxtnErr, type Service } from "pxtone-ts";
 import { service, EXE_VER } from "./service";
+import { restoreWoiceKeys, woiceKeysOf } from "./woice-keys";
 import { doc, sync, uiRepeatToFile, fileRepeatToUi } from "./project";
 import { isRevisionSaved, markRevisionSaved, newRevisionTracker, touchRevision, type RevisionTracker } from "../lib/revision";
 
@@ -16,6 +17,7 @@ export interface UndoEntry {
   bytes: Uint8Array;
   measNum: number;
   repeatMeas: number;
+  woiceKeys: number[]; // 読み戻しで作り直される音色の識別子
   revision: number; // この状態のリビジョン (undo で保存時の状態へ戻ったかの判定に使う)
 }
 
@@ -51,6 +53,7 @@ export function snapshotService(s: Service, revision: number): UndoEntry | null 
     bytes: io.toUint8Array(),
     measNum: s.master.measNum,
     repeatMeas: fileRepeatToUi(s.master.repeatMeas),
+    woiceKeys: woiceKeysOf(s),
     revision,
   };
 }
@@ -117,6 +120,7 @@ export function redo(): boolean {
 function restoreBytes(entry: UndoEntry): boolean {
   const io = new MemoryIo(entry.bytes);
   if (service.read(io) !== PxtnErr.OK) return false;
+  restoreWoiceKeys(service, entry.woiceKeys);
   // measNum / repeatMeas はファイルに保存されず read 時に縮小・リセットされるため明示的に復元する
   service.master.setMeasNum(entry.measNum);
   service.master.setRepeatMeas(uiRepeatToFile(entry.repeatMeas));
