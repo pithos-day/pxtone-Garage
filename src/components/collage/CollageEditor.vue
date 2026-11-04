@@ -180,22 +180,21 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
         </div>
       </div>
     </div>
-    <!-- Volume 展開ボタン。幅は左パネル + 鍵盤 (NAME_W) で本家の VolumeSwitch 相当 -->
-    <button
-      class="volume-toggle bar-header"
-      :class="{ on: doc.volumeVisible }"
-      :title="t('common.volumeToggle')"
-      @click="doc.volumeVisible = !doc.volumeVisible"
-    >
-      <span class="vt-label">Volume</span>
-      <span class="vt-arrow"><ChevronDown v-if="doc.volumeVisible" :size="14" /><ChevronRight v-else :size="14" /></span>
-    </button>
     <div v-if="doc.volumeVisible" class="collage-vol">
       <VolumePanel :modes="volumeModeLabels" />
       <VolumeField />
     </div>
     <div class="collage-hscroll">
-      <div class="collage-hscroll-spacer" />
+      <!-- Volume 展開ボタン。幅は左パネル + 鍵盤 (NAME_W) で本家の VolumeSwitch 相当 -->
+      <button
+        class="volume-toggle bar-header"
+        :class="{ on: doc.volumeVisible }"
+        :title="t('common.volumeToggle')"
+        @click="doc.volumeVisible = !doc.volumeVisible"
+      >
+        <span class="vt-label">Volume</span>
+        <span class="vt-arrow"><ChevronDown v-if="doc.volumeVisible" :size="14" /><ChevronRight v-else :size="14" /></span>
+      </button>
       <ScrollBar class="hscroll" :vertical="false" />
     </div>
   </div>
@@ -239,6 +238,7 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
 
 .collage-vol {
   display: flex;
+  border-bottom: 1px solid var(--border);
   background: var(--background);
 }
 
@@ -260,9 +260,8 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
   align-items: center;
   justify-content: space-between;
   border: none;
-  border-top: 1px solid var(--border);
   font-size: var(--text-sm);
-  padding: 7px 12px;
+  padding: 1px 12px;
   cursor: pointer;
 }
 
@@ -368,13 +367,9 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
   background: var(--background);
 }
 
-.collage-hscroll-spacer {
-  width: var(--name-w);
-  flex: none;
-}
-
+/* トグルの高さに合わせて伸びる (ScrollBar のトラック高はこの行の高さ) */
 .hscroll {
   flex: 1;
-  height: 16px;
+  min-height: 16px;
 }
 </style>
