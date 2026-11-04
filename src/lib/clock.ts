@@ -13,6 +13,18 @@ export function clampZoom(zoom: number): number {
   return Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom)) * 100) / 100;
 }
 
+// ズームスライダーの位置 (0..ZOOM_SLIDER_MAX) とズーム値の変換。
+// 範囲が広いので対数で対応させ、低倍率側でも細かく動かせるようにする
+export const ZOOM_SLIDER_MAX = 1000;
+
+export function zoomToSlider(zoom: number): number {
+  return (Math.log(clampZoom(zoom) / ZOOM_MIN) / Math.log(ZOOM_MAX / ZOOM_MIN)) * ZOOM_SLIDER_MAX;
+}
+
+export function sliderToZoom(pos: number): number {
+  return clampZoom(ZOOM_MIN * Math.pow(ZOOM_MAX / ZOOM_MIN, pos / ZOOM_SLIDER_MAX));
+}
+
 export const DIVI_TABLE = [1, 2, 3, 4, 6, 8, 12, 16, 24, 48] as const;
 
 // 本家 ptCollage のピアノロール規則を再現

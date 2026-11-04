@@ -5,7 +5,7 @@ import { Play, Pause, Square, Repeat, ArrowBigRightDash, Metronome } from "@luci
 import { isPlaying, togglePlay, stopAndRewind, loop, setLoop, masterVolume, setMasterVolume, positionSample, player, currentClock, followPlayback, metronome, setMetronome } from "../../state/player";
 import { doc, getService, clockContext } from "../../state/project";
 import { panels, PANEL_DEFS as PANELS } from "../../state/panels";
-import { formatClock, formatTime } from "../../lib/clock";
+import { DIVI_TABLE, ZOOM_SLIDER_MAX, formatClock, formatTime, sliderToZoom, zoomToSlider } from "../../lib/clock";
 import { formatShortcut } from "../../state/keybindings";
 import { t } from "../../i18n";
 
@@ -17,6 +17,10 @@ function timeLabel(): string {
   return `${formatTime(curSec)} / ${formatTime(totalSec)}`;
 }
 
+// フォーム要素にフォーカスが残ると Space などのショートカットが効かないので、確定時に外す
+function releaseFocus(e: Event): void {
+  (e.target as HTMLElement).blur();
+}
 </script>
 
 <template>
@@ -42,6 +46,28 @@ function timeLabel(): string {
     <span class="sep" />
     <span class="time">{{ timeLabel() }}</span>
     <span class="clock">{{ formatClock(clockContext(), currentClock) }}</span>
+    <span class="sep" />
+    <label class="vol-label" for="transport-snap">{{ t("menu.edit.gridSnap") }}</label>
+    <select
+      id="transport-snap"
+      class="snap-select"
+      :value="doc.divi"
+      :disabled="doc.readOnly"
+      @change="doc.divi = Number(($event.target as HTMLSelectElement).value); releaseFocus($event)"
+    >
+      <option v-for="d in DIVI_TABLE" :key="d" :value="d">{{ d === 1 ? "1" : `1/${d}` }}</option>
+    </select>
+    <label class="vol-label" for="transport-zoom">{{ t("menu.view.zoom") }}</label>
+    <input
+      id="transport-zoom"
+      type="range"
+      min="0"
+      :max="ZOOM_SLIDER_MAX"
+      :value="zoomToSlider(doc.zoom)"
+      @input="doc.zoom = sliderToZoom(Number(($event.target as HTMLInputElement).value))"
+      @change="releaseFocus"
+    />
+    <span class="pct">{{ Math.round(doc.zoom) }}px</span>
     <span class="transport-spacer" />
     <span class="panel-label">{{ t("transport.panels") }}</span>
     <button
@@ -104,6 +130,11 @@ function timeLabel(): string {
   font-size: var(--text-xs);
   color: var(--muted-foreground);
   width: 36px;
+}
+
+.snap-select {
+  font-size: var(--text-sm);
+  padding: 1px 3px;
 }
 
 .time {

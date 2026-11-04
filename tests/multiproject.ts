@@ -166,7 +166,7 @@ import {
 } from "../src/state/noise";
 import { renderWoice, renderNoise } from "../src/engine/preview";
 import { parseMidi, convertMidiToPtcop } from "../src/engine/midi";
-import { formatTime, measStartClock, ZOOM_MAX, ZOOM_MIN, gridLineWidth, rowToKeyValue, keyValueToRow } from "../src/lib/clock";
+import { formatTime, measStartClock, ZOOM_MAX, ZOOM_MIN, ZOOM_SLIDER_MAX, sliderToZoom, zoomToSlider, gridLineWidth, rowToKeyValue, keyValueToRow } from "../src/lib/clock";
 import { scaleToWoice, scaleToGroup, VOLUME_EDIT_KIND } from "../src/lib/volume";
 import { writeNote, writeNoteLength, eraseNote, writeVolumeEvent, paintKeyDrag, type EventWriteOps } from "../src/lib/editing";
 import { smartPlacement, commitSmartDrag, clampSmartOffset, shiftKeyValue, notesInUnit, notesInRect, clampGroupOffset, clampGroupRowDelta, type SmartDrag } from "../src/lib/smart-note";
@@ -2908,6 +2908,11 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     }
     checkEq(duplicate, "", "shortcut: 同じキーの重複割り当てが無い");
     checkEq(SHORTCUTS.length, 24, "shortcut: コマンド数");
+
+    // ---- ズームスライダーの対数変換 ----
+    checkEq(sliderToZoom(0), ZOOM_MIN, "zoom slider: 左端は最小ズーム");
+    checkEq(sliderToZoom(ZOOM_SLIDER_MAX), ZOOM_MAX, "zoom slider: 右端は最大ズーム");
+    checkEq(Math.round(sliderToZoom(zoomToSlider(48))), 48, "zoom slider: 往復で値が保たれる");
 
     // ---- 表示 (右寄せ併記用) ----
     checkEq(formatShortcut("scopeCopy", false), "Ctrl+C", "shortcut: 表示 Ctrl+C");
