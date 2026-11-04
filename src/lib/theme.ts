@@ -115,24 +115,39 @@ export function syncThemeColors(): void {
 }
 
 // ユニット16色 (note/key 各3色) — アイデンティティ色のためテーマ非依存
-// 先頭7色は ptweb colors.js 由来。既存曲の見た目が変わらないよう、追加は末尾に行う
 export const UNIT_COLORS: { note: string[]; key: string[] }[] = [
-  { note: ["#F08000", "#FFFF00", "#FFFF80"], key: ["#C06000", "#F08000", "#FFC400"] },
-  { note: ["#FF775D", "#FFC39C", "#FFEDD9"], key: ["#D82E2E", "#FF775D", "#FFC39C"] },
-  { note: ["#FC32CB", "#FFA9FF", "#FFE0FF"], key: ["#DF0083", "#FF4CD4", "#FFA9FF"] },
-  { note: ["#6979FF", "#B4C9FF", "#D9E8FF"], key: ["#483EFF", "#6979FF", "#B4C9FF"] },
-  { note: ["#00BDFF", "#CFE8FF", "#90FFFF"], key: ["#0093C6", "#00BDFF", "#CFE8FF"] },
-  { note: ["#00C060", "#31FF98", "#C5FFE2"], key: ["#008041", "#00C060", "#00E874"] },
-  { note: ["#5BB308", "#96FF33", "#DAFFB8"], key: ["#479100", "#5BB308", "#96FF33"] },
-  { note: ["#E0284A", "#FF8FA3", "#FFD6DE"], key: ["#A81030", "#E0284A", "#FF8FA3"] },
-  { note: ["#9B4DFF", "#D3B0FF", "#EDE0FF"], key: ["#7220E0", "#9B4DFF", "#D3B0FF"] },
-  { note: ["#00B8A9", "#66FFEE", "#CCFFF9"], key: ["#008A7E", "#00B8A9", "#33E6D6"] },
-  { note: ["#D4B000", "#FFF04D", "#FFFBC2"], key: ["#A38700", "#D4B000", "#FFE500"] },
-  { note: ["#A86432", "#E0AE80", "#F5E0CC"], key: ["#7E4820", "#A86432", "#E0AE80"] },
-  { note: ["#7E8CA0", "#C4CEDC", "#E8EDF3"], key: ["#5A6678", "#7E8CA0", "#C4CEDC"] },
-  { note: ["#B33FC9", "#E6A5F2", "#F6E0FA"], key: ["#8A1FA0", "#B33FC9", "#E6A5F2"] },
-  { note: ["#8F9A1E", "#D6E05C", "#F1F5BF"], key: ["#6C7512", "#8F9A1E", "#D6E05C"] },
-  { note: ["#2F7DE0", "#9CC8FF", "#DCEBFF"], key: ["#1A5AB0", "#2F7DE0", "#9CC8FF"] },
+  { "note": ["#F08000", "#FFFF00", "#FFFF80"], // orange 0
+    "key" : ["#C06000", "#F08000", "#FFC400"] },
+  { "note": ["#FF775D", "#FFC39C", "#FFEDD9"], // red 1
+    "key" : ["#D82E2E", "#FF775D", "#FFC39C"] },
+  { "note": ["#FC32CB", "#FFA9FF", "#FFE0FF"], // magenta 2
+    "key" : ["#DF0083", "#FF4CD4", "#FFA9FF"] },
+  { "note": ["#6979FF", "#B4C9FF", "#D9E8FF"], // indigo 3
+    "key" : ["#483EFF", "#6979FF", "#B4C9FF"] },
+  { "note": ["#00BDFF", "#CFE8FF", "#90FFFF"], // cyan 4
+    "key" : ["#0093C6", "#00BDFF", "#CFE8FF"] },
+  { "note": ["#00C060", "#31FF98", "#C5FFE2"], // blue-green 5
+    "key" : ["#008041", "#00C060", "#00E874"] },
+  { "note": ["#5BB308", "#96FF33", "#DAFFB8"], // yellow-green 6
+    "key" : ["#479100", "#5BB308", "#96FF33"] },
+  { "note": ["#DCA2FF", "#E8DAFB", "#F4F2FA"], // lavender 7
+    "key" : ["#C658FF", "#DCA2FF", "#E8DAFB"] },
+  { "note": ["#C25EFF", "#DFCBFF", "#F0EBFF"], // purple 8
+    "key" : ["#A700D3", "#C25EFF", "#DFCBFF"] },
+  { "note": ["#1EE500", "#A4FB9A", "#E6FAE3"], // light-green 9
+    "key" : ["#15B500", "#1EE500", "#A4FB9A"] },
+  { "note": ["#00DBC5", "#7DFBE7", "#DFFAF5"], // turquoise 10
+    "key" : ["#00AD9B", "#00DBC5", "#7DFBE7"] },
+  { "note": ["#FF9CB5", "#FBD6DE", "#FAF1F2"], // light-rose 11
+    "key" : ["#FF3C85", "#FF9CB5", "#FBD6DE"] },
+  { "note": ["#FF4C8A", "#FFC3D0", "#FFE8EC"], // rose 12
+    "key" : ["#D10064", "#FF4C8A", "#FFC3D0"] },
+  { "note": ["#9ABEFF", "#D2E3FB", "#EEF4FA"], // light-blue 13
+    "key" : ["#5791FF", "#9ABEFF", "#D2E3FB"] },
+  { "note": ["#FFA568", "#FBDCB7", "#FAF2E6"], // apricot 14
+    "key" : ["#E17200", "#FFA568", "#FBDCB7"] },
+  { "note": ["#91CE00", "#A9F000", "#D6FFA2"], // lime 15
+    "key" : ["#70A100", "#91CE00", "#A9F000"] },
 ];
 
 function fromHex(hex: string): [number, number, number] {
