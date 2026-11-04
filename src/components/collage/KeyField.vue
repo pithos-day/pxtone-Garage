@@ -717,7 +717,7 @@ const { onPointerDown, onPointerMove, onPointerUp, drag: dragState } = useCanvas
   isMove(d, pt, clock) {
     if (d.marquee) return true;
     if (d.group) return clock !== d.clock2 || rowAt(pt.y) !== d.group.lastRow;
-    if (d.smart && d.smart.mode === "grab") return clock !== d.clock2 || rowAt(pt.y) !== d.row;
+    if (d.smart && d.smart.mode === "grab") return clock !== d.clock2 || rowAt(pt.y) - d.row !== d.smart.lastDelta;
     return clock !== d.clock2;
   },
   // 矩形選択は編集を伴わないため undo を積まない
