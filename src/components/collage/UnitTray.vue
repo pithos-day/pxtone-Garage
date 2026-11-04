@@ -24,12 +24,14 @@ import {
   sync,
   EVENTDEFAULT_KEY,
   EVENTDEFAULT_VOLUME,
+  EVENTDEFAULT_VELOCITY,
 } from "../../state/project";
 import { previewUnitHold } from "../../engine/preview";
 import { useCtxMenuClose } from "../../composables/useCtxMenu";
 import { useDragUndo } from "../../composables/useUndo";
 import { useHoldPreview } from "../../composables/useHoldPreview";
 import { capturePointer, releasePointerCapture } from "../../lib/field";
+import { getUnitColor } from "../../lib/theme";
 import { t } from "../../i18n";
 import AddUnitDialog from "./AddUnitDialog.vue";
 import ChangeUnitDialog from "./ChangeUnitDialog.vue";
@@ -128,6 +130,11 @@ function startDragReorder(tray: HTMLElement, idx: number, down: PointerEvent): v
   window.addEventListener("pointercancel", onUp);
 }
 
+// ピアノロールのノートと同じユニット色 (非発音時の色なので vel / vol は結果に影響しない)
+function unitColor(idx: number): string {
+  return getUnitColor(idx).note(false, EVENTDEFAULT_VELOCITY, EVENTDEFAULT_VOLUME);
+}
+
 const hold = useHoldPreview();
 function onPointerUp(e: PointerEvent): void {
   hold.onRelease();
@@ -195,7 +202,7 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
         :key="u.index"
         class="unit-row"
         :class="{ focus: u.index === doc.focusUnit, selected: doc.selectedUnits.includes(u.index), muted: u.muted, 'row-drag-source': u.index === draggingRow }"
-        :style="{ borderLeft: '4px solid ' + (u.pinned ? 'var(--primary)' : 'transparent') }"
+        :style="{ borderLeft: '4px solid ' + unitColor(u.index) }"
         @pointerdown="onPointerDown($event, u.index)"
         @dblclick="startEditName(u.index)"
       >
