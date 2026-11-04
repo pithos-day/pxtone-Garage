@@ -28,6 +28,8 @@ export interface DocCodec<D extends TabDocBase> {
   // 本家エディタが保存時にだけ行う正規化がある場合に実装する
   snapshotForSave?(d: D): Uint8Array | null;
   restore(d: D, bytes: Uint8Array): boolean;
+  // ピッカーで保存先を選んで保存できたときに呼ぶ (最近使ったファイルへの登録)
+  onSavedToHandle?(handle: FileSystemFileHandle): void;
 }
 
 export function createDocTabs<D extends TabDocBase>(codec: DocCodec<D>) {
@@ -151,6 +153,7 @@ export function createDocTabs<D extends TabDocBase>(codec: DocCodec<D>) {
       // (タブ表示は拡張子なしのため、拡張子を除いて記録する)
       d.fileName = stripFileExt(saved);
       d.dirty = false;
+      if (dest.handle) codec.onSavedToHandle?.(dest.handle);
       bump();
       return true;
     },

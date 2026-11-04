@@ -206,6 +206,7 @@ export async function readBlobAndApply<T>(
 export interface OpenedFile {
   name: string; // 表示用の名前 (stripExts で拡張子を除去済み)
   file: File;
+  handle?: FileSystemFileHandle; // 開き直しに使うハンドル (ピッカー / ドロップで取得できたときのみ)
 }
 
 // 一括読み込みで失敗したファイル
@@ -269,8 +270,28 @@ export function openFileDialog(accept: string, stripExts: RegExp = /\.(ptcop|ptt
   });
 }
 
-// ファイル選択ダイアログ (複数選択)。キャンセル時は空配列
-export function openFilesDialog(accept: string, stripExts: RegExp): Promise<OpenedFile[]> {
+// ファイル選択ダイアログ (複数選択)。キャンセル時は空配列。
+// 対応ブラウザではピッカーを使い、最近使ったファイルに必要なハンドルも返す。
+// ピッカーはユーザー操作が必要なので、クリック処理から直接呼ぶこと
+export async function openFilesDialog(accept: string, stripExts: RegExp): Promise<OpenedFile[]> {
+  if (typeof window.showOpenFilePicker === "function") {
+    try {
+      const handles = await window.showOpenFilePicker({
+        multiple: true,
+        types: [{ description: accept, accept: { "application/octet-stream": accept.split(",") } }],
+      });
+      return await Promise.all(
+        handles.map(async (handle) => {
+          const file = await handle.getFile();
+          return { name: file.name.replace(stripExts, ""), file, handle };
+        }),
+      );
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return [];
+      // ユーザー操作が切れていた場合などは従来の選択ダイアログへフォールバックする
+      if (!(e instanceof DOMException && e.name === "SecurityError")) throw e;
+    }
+  }
   return new Promise((resolve) => {
     const input = document.createElement("input");
     input.type = "file";
@@ -282,6 +303,26 @@ export function openFilesDialog(accept: string, stripExts: RegExp): Promise<Open
     input.oncancel = () => resolve([]);
     input.click();
   });
+}
+
+// ドロップされたファイルを拡張子で絞り込み、取得できればハンドルも付ける。
+// DataTransfer はドロップの処理中しか読めないため、drop ハンドラから await せずに呼ぶこと
+export async function droppedFiles(dt: DataTransfer, exts: RegExp): Promise<OpenedFile[]> {
+  const pending: { file: File; handle: Promise<FileSystemHandle | null> }[] = [];
+  for (const item of Array.from(dt.items)) {
+    if (item.kind !== "file") continue;
+    const file = item.getAsFile();
+    if (!file || !exts.test(file.name)) continue;
+    pending.push({ file, handle: item.getAsFileSystemHandle?.().catch(() => null) ?? Promise.resolve(null) });
+  }
+  return Promise.all(
+    pending.map(async ({ file, handle }) => {
+      const h = await handle;
+      const opened: OpenedFile = { name: file.name.replace(exts, ""), file };
+      if (h?.kind === "file") opened.handle = h as FileSystemFileHandle;
+      return opened;
+    }),
+  );
 }
 
 // File の一覧を拡張子で絞り込み、表示用の名前を付ける (ドロップでも使う)

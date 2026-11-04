@@ -82,7 +82,10 @@ import { SAMPLE_SONGS } from "../src/state/samples";
 import { undo, redo, canUndo, canRedo, undoStack } from "../src/state/undo";
 import { moveWoiceRaw } from "../src/state/woice-order";
 import { movedIndex } from "../src/lib/woice";
-import { namedFiles, readBlobsAndApply, toArrayBuffer } from "../src/engine/io";
+import { droppedFiles, namedFiles, readBlobsAndApply, toArrayBuffer } from "../src/engine/io";
+import { pushRecent, dropRecent } from "../src/lib/recent-list";
+import { addRecent, clearRecent, recentFiles, removeRecent } from "../src/state/recent-files";
+import { openRecentFile } from "../src/state/open-files";
 import { player, isPlaying, masterVolume, loop, initMasterVolume, setMasterVolume } from "../src/state/player";
 import { parseThemeCss, mergeTokens, buildThemeCss, buildStandaloneThemeCss } from "../src/lib/themeParse";
 import {
@@ -3537,6 +3540,56 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     // 拡張子の絞り込みと表示名
     const named = namedFiles([{ name: "a.PTCOP" } as File, { name: "b.txt" } as File], /\.(ptcop|pttune)$/i);
     checkEq(named.map((f) => f.name).join(), "a", "open-files: 拡張子で絞り込み拡張子を除く");
+  }
+
+  // ---- 最近使ったファイル ----
+  {
+    type H = { name: string; isSameEntry(o: H): Promise<boolean> };
+    const mk = (name: string): H => ({ name, isSameEntry: async (o) => o.name === name });
+    const names = (l: readonly { name: string }[]): string => l.map((h) => h.name).join();
+    const [a, b, c] = [mk("a"), mk("b"), mk("c")];
+    checkEq(names(await pushRecent([a, b], c)), "c,a,b", "recent: 新しいものを先頭に置く");
+    checkEq(names(await pushRecent([a, b, c], b)), "b,a,c", "recent: 既存は先頭へ移動し重複させない");
+    checkEq(names(await pushRecent([a, b], c, 2)), "c,a", "recent: 上限を超えた分を捨てる");
+    checkEq(names(await dropRecent([a, b, c], b)), "a,c", "recent: 指定のファイルを外す");
+
+    // 種別ごとに独立する。連続で追加しても取りこぼさない (IndexedDB なしの環境でも動く)
+    const fh = (h: H) => h as unknown as FileSystemFileHandle;
+    await clearRecent("project");
+    await clearRecent("noise");
+    await clearRecent("voice"); // 保存テストが登録した分を消す
+    await Promise.all([addRecent("project", fh(a)), addRecent("project", fh(b)), addRecent("voice", fh(c))]);
+    checkEq(names(recentFiles.value.project), "b,a", "recent: 連続で追加できる");
+    checkEq(names(recentFiles.value.voice), "c", "recent: 種別ごとに別の一覧");
+
+    // 消えたファイルは一覧から外す
+    const missing = {
+      ...mk("a"),
+      queryPermission: async () => "granted",
+      getFile: async () => {
+        throw new DOMException("gone", "NotFoundError");
+      },
+    } as unknown as FileSystemFileHandle;
+    await openRecentFile("project", missing);
+    await removeRecent("voice", fh(mk("none"))); // 更新キューの完了を待つ
+    checkEq(names(recentFiles.value.project), "b", "recent: 消えたファイルを一覧から外す");
+    await clearRecent("project");
+    await clearRecent("voice");
+    checkEq(recentFiles.value.project.length, 0, "recent: クリアできる");
+
+    // メニューは開くの直後に置き、省略時は従来どおり
+    const ops = { new() {}, open() {}, save() {}, saveAs() {}, close() {}, closeAll() {}, undo() {}, redo() {}, canUndo: () => false, canRedo: () => false };
+    const menu = buildFileMenu(ops, [], undefined, { label: "RECENT" });
+    checkEq(menu[2]!.label, "RECENT", "recent: 開くの直後に置く");
+    check(!buildFileMenu(ops, []).some((m) => m.label === "RECENT"), "recent: 省略時は出さない");
+
+    // ドロップ: 拡張子で絞り込み、ファイルのハンドルだけを付ける
+    const handle = { kind: "file" };
+    const item = (name: string, h: unknown) => ({ kind: "file", getAsFile: () => ({ name }), getAsFileSystemHandle: async () => h });
+    const dt = { items: [item("x.ptcop", handle), item("y.txt", handle), item("z.pttune", { kind: "directory" }), { kind: "string" }] } as unknown as DataTransfer;
+    const dropped = await droppedFiles(dt, /\.(ptcop|pttune)$/i);
+    checkEq(dropped.map((f) => f.name).join(), "x,z", "recent: ドロップを拡張子で絞り込む");
+    check(dropped[0]!.handle === (handle as unknown) && dropped[1]!.handle === undefined, "recent: ファイルのハンドルだけを付ける");
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);

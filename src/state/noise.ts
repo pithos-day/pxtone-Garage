@@ -6,6 +6,7 @@ import { Noise, WaveType, MemoryIo, PxtnErr, type NoiseUnit } from "pxtone-ts";
 import { pxtnErrorMessage } from "./project";
 import type { WoiceLink } from "./projects";
 import { createDocTabs, type TabDocBase } from "./doc-tabs";
+import { addRecent } from "./recent-files";
 import { pushHistoryEntry } from "../lib/noise";
 
 export const NOISE_UNIT_NUM = 4; // 本家 MAX_NOISEEDITUNITNUM
@@ -114,6 +115,7 @@ function restoreNoiseState(n: Noise, snapshot: Uint8Array): void {
 }
 
 const tabs = createDocTabs<NoiseDoc>({
+  onSavedToHandle: (handle) => void addRecent("noise", handle),
   snapshot: (d) => snapshotNoiseState(d.noise),
   snapshotForSave: snapshotNoise,
   restore: (d, snapshot) => {

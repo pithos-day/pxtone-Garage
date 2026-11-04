@@ -19,6 +19,7 @@ import {
   type BlobLike,
 } from "../engine/io";
 import { withProgress } from "./progress";
+import { addRecent } from "./recent-files";
 import { appPrompt } from "./dialog";
 import { t } from "../i18n";
 
@@ -416,6 +417,7 @@ async function saveProjectFile(name: string, options: { usePicker: boolean }): P
   p.fileName = displayName;
   doc.dirty = false;
   p.dirty = false;
+  if (dest.handle) void addRecent("project", dest.handle);
   return true;
 }
 

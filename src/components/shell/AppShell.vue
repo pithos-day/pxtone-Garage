@@ -22,8 +22,9 @@ import NoiseTab from "../noise/NoiseEditor.vue";
 import VoiceCopyDialog from "../voice/VoiceCopyDialog.vue";
 import { closeAllProjects, closeProject, currentProjectId, ensureInitialProject, projects, saveProject, switchProject } from "../../state/projects";
 import { openSampleProject } from "../../state/samples";
-import { namedFiles } from "../../engine/io";
+import { droppedFiles } from "../../engine/io";
 import { OPEN_KINDS, openFilesInTabs } from "../../state/open-files";
+import { initRecentFiles } from "../../state/recent-files";
 import { appAlert } from "../../state/dialog";
 import { initLanguage, t } from "../../i18n";
 import { copyVoiceSide, ensureInitialVoice, closeVoice, closeAllVoices, saveVoice, voiceRevision, voices, switchVoice } from "../../state/voice";
@@ -74,6 +75,7 @@ ensureInitialProject();
 ensureInitialVoice();
 ensureInitialNoise();
 initLanguage();
+void initRecentFiles();
 
 // 読み込み後に URL から sample クエリを消す。
 // 残したままだとリロードのたびにサンプルタブが増えるため
@@ -133,8 +135,10 @@ function onDragOver(e: DragEvent): void {
 function onDrop(e: DragEvent): void {
   const kind = ({ collage: "project", voice: "voice", noise: "noise" } as const)[activeTab.value];
   // 非対応の拡張子は無視する (音色トレイへのドロップもここへバブリングしてくるため)
-  const files = namedFiles(Array.from(e.dataTransfer?.files ?? []), OPEN_KINDS[kind].exts);
-  if (files.length > 0) void openFilesInTabs(kind, files);
+  if (!e.dataTransfer) return;
+  void droppedFiles(e.dataTransfer, OPEN_KINDS[kind].exts).then((files) => {
+    if (files.length > 0) void openFilesInTabs(kind, files);
+  });
 }
 
 // ---- 未保存のタブを閉じる ----

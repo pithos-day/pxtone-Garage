@@ -16,6 +16,8 @@ const ja = {
   // メニュー: File
   "menu.file.new": "新規作成",
   "menu.file.open": "プロジェクトを開く",
+  "menu.file.recent": "最近使ったファイル",
+  "menu.file.recentClear": "履歴をクリア",
   "menu.file.importMidi": "MIDIを読み込む",
   "menu.file.importMidiNormal": "そのまま読み込む",
   "menu.file.importMidiSplit": "和音を分解して読み込む",
@@ -309,6 +311,7 @@ const ja = {
   "error.engineInit": "エンジン初期化に失敗しました",
   "error.loadFailed": "読み込みに失敗しました",
   "error.filesFailed": "次のファイルを読み込めませんでした",
+  "error.recentMissing": "「{name}」が見つからないため、履歴から削除しました",
   "error.tonesReady": "音色変換失敗",
   "error.quality": "品質設定失敗",
   "error.prepare": "再生準備失敗",

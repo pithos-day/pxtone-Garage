@@ -9,8 +9,26 @@ interface SaveFilePickerOptions {
   }>;
 }
 
+interface OpenFilePickerOptions {
+  multiple?: boolean;
+  types?: SaveFilePickerOptions["types"];
+}
+
+interface FileSystemPermissionDescriptor {
+  mode?: "read" | "readwrite";
+}
+
+interface FileSystemHandle {
+  queryPermission(descriptor?: FileSystemPermissionDescriptor): Promise<PermissionState>;
+  requestPermission(descriptor?: FileSystemPermissionDescriptor): Promise<PermissionState>;
+}
+
 interface FileSystemFileHandle {
   createWritable(): Promise<FileSystemWritableFileStream>;
+}
+
+interface DataTransferItem {
+  getAsFileSystemHandle?(): Promise<FileSystemHandle | null>;
 }
 
 interface FileSystemWritableFileStream {
@@ -20,4 +38,5 @@ interface FileSystemWritableFileStream {
 
 interface Window {
   showSaveFilePicker(options?: SaveFilePickerOptions): Promise<FileSystemFileHandle>;
+  showOpenFilePicker(options?: OpenFilePickerOptions): Promise<FileSystemFileHandle[]>;
 }

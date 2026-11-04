@@ -17,6 +17,7 @@ import type { VoiceUnit } from "pxtone-ts";
 import { pxtnErrorMessage } from "./project";
 import type { WoiceLink } from "./projects";
 import { createDocTabs, type TabDocBase } from "./doc-tabs";
+import { addRecent } from "./recent-files";
 
 const WAVE_RESO = 256; // 本家 ptvCOODINATERESOLUTION
 const MAX_ENVE_POINT = 31; // 本家 ptvMAX_ENVELOPEPOINT
@@ -28,6 +29,7 @@ export interface VoiceDoc extends TabDocBase {
 }
 
 const tabs = createDocTabs<VoiceDoc>({
+  onSavedToHandle: (handle) => void addRecent("voice", handle),
   snapshot: snapshotVoice,
   snapshotForSave: snapshotVoiceForSave,
   restore: (v, bytes) => v.woice.read(new MemoryIo(bytes), WoiceType.PTV) === PxtnErr.OK,

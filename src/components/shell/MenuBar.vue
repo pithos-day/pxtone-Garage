@@ -3,7 +3,7 @@
 // 右: モード別ドロップダウンメニュー (collage = File/Edit/View、voice/noise = File/Edit)
 <script setup lang="ts">
 import { computed } from "vue";
-import { FileUp, FileDown, Music, ListMusic, FileMusic, AudioLines, SlidersHorizontal, SquareStack, CircleGauge, Copy, Columns4, PackagePlus, Link2, Settings, Palette, Keyboard } from "@lucide/vue";
+import { FileUp, FileDown, Music, ListMusic, FileMusic, AudioLines, SlidersHorizontal, SquareStack, CircleGauge, Copy, Columns4, PackagePlus, Link2, Settings, Palette, Keyboard, History, Eraser } from "@lucide/vue";
 import { DIVI_TABLE } from "../../lib/clock";
 import { doc, setAllUnitsVisible, exportBytes, addWoice, WoiceType } from "../../state/project";
 import {
@@ -19,7 +19,8 @@ import {
 import { newVoice, saveVoice, closeVoice, undoVoice, redoVoice, currentVoice, currentVoiceId, snapshotVoice, markVoiceClean, voices } from "../../state/voice";
 import { newNoise, saveNoise, closeNoise, undoNoise, redoNoise, currentNoise, currentNoiseId, snapshotNoise, markNoiseClean, noises } from "../../state/noise";
 import { exportPttune, exportVoiceWav, exportNoiseWav, openFileDialog, openFilesDialog, readBlobAndApply } from "../../engine/io";
-import { OPEN_KINDS, openFilesInTabs, type OpenKind } from "../../state/open-files";
+import { OPEN_KINDS, openFilesInTabs, openRecentFile, type OpenKind } from "../../state/open-files";
+import { clearRecent, recentFiles, supportsRecentFiles } from "../../state/recent-files";
 import { convertMidiToPtcop } from "../../engine/midi";
 import { undo, redo, canUndo, canRedo } from "../../state/undo";
 import { appAlert, appConfirm } from "../../state/dialog";
@@ -336,6 +337,23 @@ function onShortcut(e: KeyboardEvent): void {
 
 useGlobalKeys(() => true, { keydown: onShortcut });
 
+// 「最近使ったファイル」のサブメニュー (非対応ブラウザでは出さない)
+function recentMenu(): MenuItem | undefined {
+  if (!supportsRecentFiles()) return undefined;
+  const kind: OpenKind = mode.value === "collage" ? "project" : mode.value;
+  const list = recentFiles.value[kind];
+  return {
+    label: t("menu.file.recent"),
+    icon: History,
+    disabled: list.length === 0,
+    sub: [
+      ...list.map((handle) => ({ label: handle.name, action: () => void openRecentFile(kind, handle) })),
+      { sep: true },
+      { label: t("menu.file.recentClear"), icon: Eraser, action: () => void clearRecent(kind) },
+    ],
+  };
+}
+
 const fileMenu = computed<MenuItem[]>(() => {
   const ops = modeOps[mode.value];
   // リンク付き音色は「プロジェクトを保存」の位置に「変更を適用」を出す (Ctrl+S も同じ)。
@@ -397,7 +415,7 @@ const fileMenu = computed<MenuItem[]>(() => {
           settingsFolder,
           { sep: true },
         ];
-  return buildFileMenu(ops, extra, saveItem);
+  return buildFileMenu(ops, extra, saveItem, recentMenu());
 });
 
 const editMenu = computed<MenuItem[]>(() => {
