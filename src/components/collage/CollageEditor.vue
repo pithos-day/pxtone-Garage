@@ -36,6 +36,7 @@ const props = defineProps<{ active: boolean }>();
 const emit = defineEmits<{
   (e: "open-editor", mode: "voice" | "noise"): void;
   (e: "transpose"): void;
+  (e: "quantize"): void;
 }>();
 
 ensureInit();
@@ -153,7 +154,7 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
             <div class="collage-ruler-col">
               <MeasNoField />
               <PlayField />
-              <ScopeField @transpose="emit('transpose')" />
+              <ScopeField @transpose="emit('transpose')" @quantize="emit('quantize')" />
             </div>
             <div class="collage-ruler-vspacer" />
           </div>

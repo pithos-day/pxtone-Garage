@@ -41,6 +41,7 @@ const ja = {
   "menu.edit.copyAtoB": "A を B にコピー",
   "menu.edit.copyBtoA": "B を A にコピー",
   "menu.edit.copyMeas": "小節コピー",
+  "menu.edit.quantize": "クオンタイズ",
   "menu.edit.gridSnap": "グリッドスナップ",
   "menu.edit.velocity": "ベロシティ",
   "menu.edit.pantime": "パン (時間差)",
@@ -60,6 +61,16 @@ const ja = {
   "copymeas.kinds": "イベント",
   "eventvolume.value": "加算値",
   "eventvolume.semi": "半音 (-96..96)",
+
+  // クオンタイズダイアログ
+  "quantize.title": "クオンタイズ",
+  "quantize.target": "対象",
+  "quantize.targetNotes": "選択中のノート",
+  "quantize.targetScope": "選択範囲のノート",
+  "quantize.targetAll": "ユニットの全ノート",
+  "quantize.grid": "グリッド",
+  "quantize.strength": "強さ",
+  "quantize.end": "終端も揃える",
 
   // メニュー: View
   "menu.view.showAllUnits": "全ユニット表示",
@@ -254,6 +265,7 @@ const ja = {
   "scope.clear": "クリア",
   "scope.delete": "消去",
   "scope.transpose": "移調",
+  "scope.quantize": "クオンタイズ",
 
   // 音声エディタ (ptVoice)
   "voice.title": "ptvoice 音色エディタ",

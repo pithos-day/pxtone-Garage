@@ -32,6 +32,7 @@ import {
 } from "pxtone-ts";
 import { encodeShiftJis, truncateShiftJis } from "../lib/sjis";
 import type { EventWriteOps } from "../lib/editing";
+import { quantizeNotes } from "../lib/quantize";
 import { clearNotes, collectNoteEvents, notesInUnit, placeNotes, type SmartNote } from "../lib/smart-note";
 import { COPIER_KINDS } from "../lib/eventKinds";
 import { service, ensureService } from "./service";
@@ -1065,6 +1066,44 @@ function pasteNotes(clock: number): void {
     }));
     placeNotes(projectWriteOps, () => service.evels.records, u, placements);
     doc.selectedNotes = placements.map((p) => p.head);
+  });
+}
+
+// クオンタイズ。divi は 1 拍の分割数、strength は 0..1。全体で 1 undo。
+// 対象は選択中のノート > 選択範囲に先頭があるノート > 対象ユニットの全ノート。
+// 対象外のノートは消さない (前のノートは切り詰め、次のノートには届かないよう長さを詰める)
+export function quantize(divi: number, strength: number, quantizeEnd: boolean): void {
+  if (doc.readOnly || !doc.ready) return;
+  const grid = Math.max(1, Math.round(service.master.beatClock / divi));
+  const useSelection = hasNoteSelection();
+  const hasScope = doc.scope2 > doc.scope1;
+  const targets = useSelection ? (doc.focusUnit >= 0 ? [doc.focusUnit] : []) : focusedOrSelected();
+  const records = service.evels.records;
+  const jobs = targets.flatMap((u) => {
+    const all = notesInUnit(records, u, EVENTDEFAULT_KEY);
+    const notes = useSelection ? selectedNoteList() : hasScope ? all.filter((n) => n.head >= doc.scope1 && n.head < doc.scope2) : all;
+    const targetHeads = new Set(notes.map((n) => n.head));
+    const others = all.filter((n) => !targetHeads.has(n.head));
+    const results = quantizeNotes(notes, { grid, strength, quantizeEnd });
+    const changes = results.flatMap((q, i) => {
+      const note = notes[i]!;
+      const next = others.find((n) => n.head > q.newHead);
+      const newLen = next ? Math.min(q.newLen, next.head - q.newHead) : q.newLen;
+      if (!q.dropped && q.newHead === note.head && newLen === note.end - note.head) return [];
+      return [{ note, q, newLen, evs: collectNoteEvents(records, u, note) }];
+    });
+    return changes.length > 0 ? [{ u, changes, results }] : [];
+  });
+  if (jobs.length === 0) return;
+  mutate(() => {
+    for (const { u, changes } of jobs) {
+      clearNotes(projectWriteOps, u, changes.map((c) => c.note));
+      const placements = changes
+        .filter((c) => !c.q.dropped)
+        .map((c) => ({ origin: c.note.head, evs: c.evs, head: c.q.newHead, len: c.newLen, rowDelta: 0 }));
+      placeNotes(projectWriteOps, () => service.evels.records, u, placements, 0);
+    }
+    if (useSelection) doc.selectedNotes = jobs[0]!.results.filter((q) => !q.dropped).map((q) => q.newHead);
   });
 }
 

@@ -85,6 +85,7 @@ import {
   noteDelete,
   clipboardHasNotes,
   projectWriteOps,
+  quantize,
   setFocusUnit,
   EVENTDEFAULT_KEY,
 } from "../src/state/project";
@@ -96,6 +97,7 @@ import { movedIndex } from "../src/lib/woice";
 import { droppedFiles, namedFiles, readBlobsAndApply, toArrayBuffer } from "../src/engine/io";
 import { pushRecent, dropRecent } from "../src/lib/recent-list";
 import { metronomeHits } from "../src/lib/metronome";
+import { quantizeNotes } from "../src/lib/quantize";
 import { buildMetronomeTones, createMetronomeNoise } from "../src/engine/metronome";
 import { addRecent, clearRecent, recentFiles, removeRecent } from "../src/state/recent-files";
 import { openRecentFile } from "../src/state/open-files";
@@ -3736,6 +3738,99 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     addNotesToSelection([3360]);
     newProjectInTab();
     checkEq(doc.selectedNotes.length, 0, "note-sel: タブをまたいで持ち越さない");
+  }
+
+  // ---- クオンタイズ ----
+  {
+    const q = (notes: [number, number][], strength: number, quantizeEnd: boolean) =>
+      quantizeNotes(notes.map(([head, end]) => ({ head, end })), { grid: 120, strength, quantizeEnd })
+        .map((n) => (n.dropped ? "x" : `${n.newHead}+${n.newLen}`))
+        .join();
+    checkEq(q([[50, 110], [130, 200]], 1, false), "0+60,120+70", "quantize: 先頭をグリッドへ寄せ長さを保つ");
+    checkEq(q([[100, 200]], 0.5, false), "110+100", "quantize: 強さの分だけ寄せる");
+    checkEq(q([[100, 200]], 0, false), "100+100", "quantize: 強さ 0 では動かない");
+    checkEq(q([[50, 110]], 1, true), "0+120", "quantize: 終端も揃える");
+    checkEq(q([[10, 30]], 1, true), "0+120", "quantize: 潰れるノートは最短 1 グリッド");
+    checkEq(q([[110, 115], [125, 200]], 1, false), "120+5,x", "quantize: 先頭が重なったら後のノートを消す");
+    checkEq(q([[10, 200], [130, 200]], 1, false), "0+120,120+70", "quantize: 次のノートにかかる長さを切り詰める");
+
+    newProjectInTab();
+    addUnit("q");
+    setFocusUnit(0);
+    const svc = getService()!;
+    const dump = () =>
+      notesInUnit(svc.evels.records, 0, EVENTDEFAULT_KEY)
+        .map((n) => `${n.head}-${n.end}@${keyValueToRow(n.key)}`)
+        .join();
+    const put = (c1: number, c2: number, r: number) => writeNote(projectWriteOps, c1, c2, 0, rowToKeyValue(r), 100);
+    put(130, 230, 40); // 1 拍 4 分割 (grid=120) なら 120 へ
+    put(490, 600, 41); // 480 へ
+    put(970, 1000, 42); // 960 へ
+    const start = dump();
+
+    // 選択中のノートだけ動かす
+    addNotesToSelection([490]);
+    const depth = undoStack.length;
+    quantize(4, 1, false);
+    checkEq(dump(), "130-230@40,480-590@41,970-1000@42", "quantize: 選択中のノートだけ動く");
+    checkEq(doc.selectedNotes.join(), "480", "quantize: 選択は移動先へ");
+    checkEq(undoStack.length, depth + 1, "quantize: 全体で 1 undo");
+    undo();
+    checkEq(dump(), start, "quantize: undo で戻る");
+    clearNoteSelection();
+
+    // 選択範囲に先頭があるノートだけ動かす
+    doc.scope1 = 400;
+    doc.scope2 = 900;
+    quantize(4, 1, false);
+    checkEq(dump(), "130-230@40,480-590@41,970-1000@42", "quantize: 選択範囲のノートだけ動く");
+    undo();
+
+    // 範囲なしは全ノート
+    doc.scope1 = 0;
+    doc.scope2 = 0;
+    quantize(4, 1, false);
+    checkEq(dump(), "120-220@40,480-590@41,960-990@42", "quantize: 範囲なしは全ノート");
+
+    // 揃え済みなら undo を積まない
+    const settled = undoStack.length;
+    quantize(4, 1, false);
+    checkEq(undoStack.length, settled, "quantize: 変化がなければ undo を積まない");
+    undo();
+
+    // 対象外のノートは消さない: 前のノートは切り詰め、次のノートには届かない
+    newProjectInTab();
+    addUnit("q2");
+    setFocusUnit(0);
+    const svc2 = getService()!;
+    const dump2 = () =>
+      notesInUnit(svc2.evels.records, 0, EVENTDEFAULT_KEY)
+        .map((n) => `${n.head}-${n.end}@${keyValueToRow(n.key)}`)
+        .join();
+    writeNote(projectWriteOps, 0, 130, 0, rowToKeyValue(40), 100); // 対象外
+    writeNote(projectWriteOps, 130, 350, 0, rowToKeyValue(41), 100); // 対象: 120 へ動く
+    writeNote(projectWriteOps, 350, 500, 0, rowToKeyValue(42), 100); // 対象外
+    addNotesToSelection([130]);
+    quantize(4, 1, false);
+    checkEq(dump2(), "0-120@40,120-340@41,350-500@42", "quantize: 前のノートを切り詰めて残す");
+    clearNoteSelection();
+    undo();
+    // 右へ動いても次のノートへ届かない
+    const before2 = dump2();
+    check(before2.includes("350-500@42"), "quantize: 準備");
+    writeNote(projectWriteOps, 700, 900, 0, rowToKeyValue(44), 100); // 対象: 720 へ動く
+    writeNote(projectWriteOps, 900, 1000, 0, rowToKeyValue(45), 100); // 対象外
+    addNotesToSelection([700]);
+    quantize(4, 1, false);
+    check(dump2().includes("720-900@44,900-1000@45"), `quantize: 次のノートへ届かない ${dump2()}`);
+    clearNoteSelection();
+
+    // 読み取り専用では動かさない
+    const roBefore = dump2();
+    doc.readOnly = true;
+    quantize(4, 1, false);
+    doc.readOnly = false;
+    checkEq(dump2(), roBefore, "quantize: readOnly では編集しない");
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);

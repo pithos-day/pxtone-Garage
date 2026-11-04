@@ -3,7 +3,7 @@
 // 右: モード別ドロップダウンメニュー (collage = File/Edit/View、voice/noise = File/Edit)
 <script setup lang="ts">
 import { computed } from "vue";
-import { FileUp, FileDown, Music, ListMusic, FileMusic, AudioLines, SlidersHorizontal, SquareStack, CircleGauge, Copy, Columns4, PackagePlus, Link2, Settings, Palette, Keyboard, History, Eraser } from "@lucide/vue";
+import { FileUp, FileDown, Music, ListMusic, FileMusic, AudioLines, SlidersHorizontal, SquareStack, CircleGauge, Copy, Columns4, PackagePlus, Link2, Settings, Palette, Keyboard, History, Eraser, AlignHorizontalJustifyStart } from "@lucide/vue";
 import { DIVI_TABLE } from "../../lib/clock";
 import { doc, setAllUnitsVisible, exportBytes, addWoice, WoiceType } from "../../state/project";
 import {
@@ -53,6 +53,7 @@ const emit = defineEmits<{
   (e: "requestClose", mode: AppMode, id: number): void;
   (e: "requestCloseAll", mode: AppMode): void;
   (e: "copyMeas"): void;
+  (e: "quantize"): void;
   (e: "eventVolume", kind: EventVolumeMode): void;
   (e: "exportWav"): void;
   (e: "voiceCopyAB"): void;
@@ -441,6 +442,7 @@ const editMenu = computed<MenuItem[]>(() => {
               })),
             },
             { label: t("menu.edit.copyMeas"), icon: SquareStack, action: () => emit("copyMeas"), disabled: tuneReadOnly.value },
+            { label: t("menu.edit.quantize"), icon: AlignHorizontalJustifyStart, action: () => emit("quantize"), disabled: tuneReadOnly.value },
             { sep: true},
             { label: t("menu.edit.velocity"), icon: CircleGauge, action: () => emit("eventVolume", "velocity"), disabled: tuneReadOnly.value },
             { label: t("menu.edit.pantime"), icon: CircleGauge, action: () => emit("eventVolume", "pantime"), disabled: tuneReadOnly.value },

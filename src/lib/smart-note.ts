@@ -228,12 +228,20 @@ export function clearNotes(ops: EventWriteOps, unit: number, notes: readonly Sma
   }
 }
 
-// ノートを置く。置き先と重なるノートは丸ごと置き換える (単一ノートの掴みと同じ規則)。
-// 片付けを全部済ませてから書くので、片付けが今回置くノートを巻き込まない
-export function placeNotes(ops: EventWriteOps, getRecords: () => EveRecord[], unit: number, placements: readonly NotePlacement[]): void {
+// ノートを置く。既定では置き先と重なるノートを丸ごと置き換える (単一ノートの掴みと同じ規則)。
+// 片付けを全部済ませてから書くので、片付けが今回置くノートを巻き込まない。
+// prevDropLen は「またぐ直前ノートを丸ごと消す」長さの閾値で、0 なら切り詰めるだけで消さない
+export function placeNotes(
+  ops: EventWriteOps,
+  getRecords: () => EveRecord[],
+  unit: number,
+  placements: readonly NotePlacement[],
+  prevDropLen = Number.MAX_SAFE_INTEGER,
+): void {
   const sorted = [...placements].sort((a, b) => a.head - b.head);
   for (const p of sorted) {
-    dropShortPrevNote(ops, getRecords(), p.head, unit, Number.MAX_SAFE_INTEGER);
+    dropShortPrevNote(ops, getRecords(), p.head, unit, prevDropLen);
+    ops.deleteEvents(p.head, p.head + 1, unit, EventKind.ON);
     for (const kind of [EventKind.KEY, EventKind.VELOCITY]) {
       ops.deleteEvents(p.head, Math.max(p.head + 1, p.head + p.len), unit, kind);
     }

@@ -5,7 +5,7 @@
 // (逆方向のドラッグは setScope が小さい方を scope1 にする)
 <script setup lang="ts">
 import { ref } from "vue";
-import { ClipboardPaste, Copy, Eraser, ListPlus, Scissors, ArrowLeftToLine, ChevronsUpDown } from "@lucide/vue";
+import { ClipboardPaste, Copy, Eraser, ListPlus, Scissors, ArrowLeftToLine, ChevronsUpDown, AlignHorizontalJustifyStart } from "@lucide/vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, drawPlayhead, drawScopeBand } from "../../lib/draw";
@@ -28,7 +28,7 @@ import { useCtxMenuClose } from "../../composables/useCtxMenu";
 import { t } from "../../i18n";
 import CtxMenuItem from "../shell/CtxMenuItem.vue";
 
-const emit = defineEmits<{ (e: "transpose"): void }>();
+const emit = defineEmits<{ (e: "transpose"): void; (e: "quantize"): void }>();
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 // 左ドラッグの範囲選択状態 (clock1 = 押下位置、clock2 = 現在位置。どちらもスナップ済み)
@@ -117,7 +117,7 @@ function onPointerUp(e: PointerEvent): void {
   }
 }
 
-type MenuAction = "copy" | "cut" | "clear" | "delete" | "transpose" | "paste" | "insert";
+type MenuAction = "copy" | "cut" | "clear" | "delete" | "transpose" | "quantize" | "paste" | "insert";
 
 function onMenuAction(action: MenuAction): void {
   const m = menu.value;
@@ -140,6 +140,9 @@ function onMenuAction(action: MenuAction): void {
     case "transpose":
       // 移調は既存のイベント音量ダイアログを KEY 種別で開く (本家 DLG_EVENTVOLUME 相当)
       emit("transpose");
+      break;
+    case "quantize":
+      emit("quantize");
       break;
     // ポイントメニュー: 押下位置を貼り付け基準にする
     case "paste":
@@ -174,6 +177,7 @@ function onMenuAction(action: MenuAction): void {
         <CtxMenuItem :icon="Eraser" command="scopeClear" @click="onMenuAction('clear')">{{ t("scope.clear") }}</CtxMenuItem>
         <CtxMenuItem :icon="ArrowLeftToLine" command="scopeDelete" @click="onMenuAction('delete')">{{ t("scope.delete") }}</CtxMenuItem>
         <CtxMenuItem :icon="ChevronsUpDown" @click="onMenuAction('transpose')">{{ t("scope.transpose") }}</CtxMenuItem>
+        <CtxMenuItem :icon="AlignHorizontalJustifyStart" @click="onMenuAction('quantize')">{{ t("scope.quantize") }}</CtxMenuItem>
       </template>
     </div>
   </div>

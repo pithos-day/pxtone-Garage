@@ -8,6 +8,7 @@ import TransportBar from "./TransportBar.vue";
 import ProjectDialog from "./ProjectDialog.vue";
 import SettingsDialog from "./SettingsDialog.vue";
 import CopyMeasDialog from "./CopyMeasDialog.vue";
+import QuantizeDialog from "./QuantizeDialog.vue";
 import EventVolumeDialog from "./EventVolumeDialog.vue";
 import WavExportDialog from "./WavExportDialog.vue";
 import UnsavedDialog from "./UnsavedDialog.vue";
@@ -46,6 +47,7 @@ const projectDialogOpen = ref(false);
 const settingsDialogOpen = ref(false);
 const keySettingsDialogOpen = ref(false);
 const copyMeasOpen = ref(false);
+const quantizeOpen = ref(false);
 const eventVolumeKind = ref<null | EventVolumeMode>(null);
 const wavExportOpen = ref(false);
 // A/B コピー確認ダイアログ (AB = A→B, BA = B→A)
@@ -322,6 +324,7 @@ onBeforeUnmount(() => {
       @request-close="requestClose"
       @request-close-all="requestCloseAll"
       @copy-meas="copyMeasOpen = true"
+      @quantize="quantizeOpen = true"
       @event-volume="(kind) => (eventVolumeKind = kind)"
       @export-wav="wavExportOpen = true"
       @voice-copy-a-b="voiceCopyDir = 'AB'"
@@ -335,6 +338,7 @@ onBeforeUnmount(() => {
         :active="activeTab === 'collage'"
         @open-editor="activeTab = $event"
         @transpose="eventVolumeKind = 'transpose'"
+        @quantize="quantizeOpen = true"
       />
       <VoiceTab v-show="activeTab === 'voice'" :active="activeTab === 'voice'" />
       <NoiseTab v-show="activeTab === 'noise'" :active="activeTab === 'noise'" />
@@ -352,6 +356,7 @@ onBeforeUnmount(() => {
       @cancel="onUnsavedCancel"
     />
     <CopyMeasDialog v-if="copyMeasOpen" @close="copyMeasOpen = false" />
+    <QuantizeDialog v-if="quantizeOpen" @close="quantizeOpen = false" />
     <EventVolumeDialog v-if="eventVolumeKind" :kind="eventVolumeKind" @close="eventVolumeKind = null" />
     <WavExportDialog v-if="wavExportOpen" @close="wavExportOpen = false" />
     <VoiceCopyDialog
