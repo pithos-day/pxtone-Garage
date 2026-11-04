@@ -191,7 +191,7 @@ function woiceSummary(idx: number): string {
 
 <template>
   <div class="tray">
-    <div class="tray-title">
+    <div class="tray-title bar-header">
       {{ t("woice.title") }} ({{ woices.length }})
       <button class="btn btn-sm tray-add" :disabled="doc.readOnly" :title="t('woice.add')" @click="onAddWoice"><Plus :size="16" /></button>
     </div>
@@ -205,8 +205,10 @@ function woiceSummary(idx: number): string {
         @pointerdown="onPointerDown($event, w.index)"
       >
         <span class="woice-name" :title="w.name">{{ w.index }}. {{ w.name }}</span>
-        <span class="woice-type">{{ w.typeName }}</span>
-        <span class="woice-summary">{{ woiceSummary(w.index) }}</span>
+        <span class="woice-meta">
+          <span class="woice-type">{{ w.typeName }}</span>
+          <span class="woice-summary">{{ woiceSummary(w.index) }}</span>
+        </span>
       </div>
       <div v-if="woices.length === 0" class="tray-empty">
         {{ t("woice.empty") }}
@@ -240,9 +242,6 @@ function woiceSummary(idx: number): string {
   justify-content: space-between;
   padding: 4px 7px;
   font-size: var(--text-sm);
-  color: var(--muted-foreground);
-  border-bottom: 1px solid var(--border);
-  background: var(--background);
 }
 
 .tray-add {
@@ -269,11 +268,8 @@ function woiceSummary(idx: number): string {
   background: var(--card);
 }
 
-.woice-row:hover:not(.focus) .woice-name {
-  color: var(--card-foreground);
-}
-
-.woice-row:hover:not(.focus) .woice-summary {
+.woice-row:hover .woice-name,
+.woice-row:hover .woice-summary {
   color: var(--card-foreground);
 }
 
@@ -284,12 +280,20 @@ function woiceSummary(idx: number): string {
   text-overflow: ellipsis;
 }
 
+.woice-meta {
+  display: flex;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
 .woice-type {
+  flex: none;
   font-size: var(--text-2xs);
   color: var(--primary);
 }
 
 .woice-summary {
+  min-width: 0;
   font-size: var(--text-2xs);
   color: var(--muted-foreground);
   white-space: nowrap;
