@@ -4,7 +4,7 @@ import { reactive, ref } from "vue";
 import { EVENTDEFAULT_VELOCITY, EVENTDEFAULT_VOLUME, WoiceType } from "pxtone-ts";
 
 // Canvas 用の色。apply 時に CSS 変数から取り込まれる (テーマ非依存の
-// ユニット7色は除く)。reactive なので書き換えが描画処理に伝わる。
+// ユニット16色は除く)。reactive なので書き換えが描画処理に伝わる。
 export const COLORS = reactive({
   bg: "",
   panel: "",
@@ -114,7 +114,8 @@ export function syncThemeColors(): void {
   themeRev.value++;
 }
 
-// ユニット7色 (ptweb colors.js の note/key 3色) — アイデンティティ色のためテーマ非依存
+// ユニット16色 (note/key 各3色) — アイデンティティ色のためテーマ非依存
+// 先頭7色は ptweb colors.js 由来。既存曲の見た目が変わらないよう、追加は末尾に行う
 export const UNIT_COLORS: { note: string[]; key: string[] }[] = [
   { note: ["#F08000", "#FFFF00", "#FFFF80"], key: ["#C06000", "#F08000", "#FFC400"] },
   { note: ["#FF775D", "#FFC39C", "#FFEDD9"], key: ["#D82E2E", "#FF775D", "#FFC39C"] },
@@ -123,6 +124,15 @@ export const UNIT_COLORS: { note: string[]; key: string[] }[] = [
   { note: ["#00BDFF", "#CFE8FF", "#90FFFF"], key: ["#0093C6", "#00BDFF", "#CFE8FF"] },
   { note: ["#00C060", "#31FF98", "#C5FFE2"], key: ["#008041", "#00C060", "#00E874"] },
   { note: ["#5BB308", "#96FF33", "#DAFFB8"], key: ["#479100", "#5BB308", "#96FF33"] },
+  { note: ["#E0284A", "#FF8FA3", "#FFD6DE"], key: ["#A81030", "#E0284A", "#FF8FA3"] },
+  { note: ["#9B4DFF", "#D3B0FF", "#EDE0FF"], key: ["#7220E0", "#9B4DFF", "#D3B0FF"] },
+  { note: ["#00B8A9", "#66FFEE", "#CCFFF9"], key: ["#008A7E", "#00B8A9", "#33E6D6"] },
+  { note: ["#D4B000", "#FFF04D", "#FFFBC2"], key: ["#A38700", "#D4B000", "#FFE500"] },
+  { note: ["#A86432", "#E0AE80", "#F5E0CC"], key: ["#7E4820", "#A86432", "#E0AE80"] },
+  { note: ["#7E8CA0", "#C4CEDC", "#E8EDF3"], key: ["#5A6678", "#7E8CA0", "#C4CEDC"] },
+  { note: ["#B33FC9", "#E6A5F2", "#F6E0FA"], key: ["#8A1FA0", "#B33FC9", "#E6A5F2"] },
+  { note: ["#8F9A1E", "#D6E05C", "#F1F5BF"], key: ["#6C7512", "#8F9A1E", "#D6E05C"] },
+  { note: ["#2F7DE0", "#9CC8FF", "#DCEBFF"], key: ["#1A5AB0", "#2F7DE0", "#9CC8FF"] },
 ];
 
 function fromHex(hex: string): [number, number, number] {
@@ -164,7 +174,8 @@ function noteColor(c: [number, number, number][], playing: boolean, vel: number,
 }
 
 export function getUnitColor(unitNo: number): NoteColorGen {
-  const cs = UNIT_COLORS[((unitNo % 7) + 7) % 7]!;
+  const n = UNIT_COLORS.length;
+  const cs = UNIT_COLORS[((unitNo % n) + n) % n]!;
   const solid = (which: "note" | "key") => {
     const c = cs[which].map(fromHex);
     return (playing: boolean, vel: number, vol: number): string => noteColor(c, playing, vel, vol);

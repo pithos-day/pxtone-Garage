@@ -190,6 +190,7 @@ import {
   type ShortcutEvent,
 } from "../src/lib/shortcuts";
 import { clockAtX, zoomAnchorScrollX, zoomByWheel } from "../src/lib/field";
+import { UNIT_COLORS, getUnitColor } from "../src/lib/theme";
 import { MENU_LABELS, menuNamesFor, buildFileMenu } from "../src/lib/menuItems";
 import { t } from "../src/i18n";
 import { secToEnveX, pctToEnveY, pushHistoryEntry, NOISE_WAVE_TYPES, noiseEnveCumulative, noiseEnveMove, noiseEnveInsert, noiseEnveDelete } from "../src/lib/noise";
@@ -1490,6 +1491,13 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       checkEq(gridLineWidth(12), 0.25, "lib: ズーム 4 倍減でグリッド線は 1/4 になる (薄くなる)");
       checkEq(gridLineWidth(ZOOM_MIN), 0.25, "lib: ズーム下限でグリッド線は視認性の下限に張り付く");
       checkEq(gridLineWidth(ZOOM_MAX), 1, "lib: ズーム上限でグリッド線は上限 1px");
+
+      // ユニット色は 16 色で巡回し、すべて異なる
+      const unitNoteColor = (unitNo: number): string => getUnitColor(unitNo).note(false, 104, 104);
+      checkEq(UNIT_COLORS.length, 16, "lib: ユニット色は 16 色");
+      checkEq(new Set(UNIT_COLORS.map((_, i) => unitNoteColor(i))).size, 16, "lib: ユニット色はすべて異なる");
+      checkEq(unitNoteColor(16), unitNoteColor(0), "lib: 17 番目のユニットは先頭の色に戻る");
+      checkEq(unitNoteColor(-1), unitNoteColor(15), "lib: 負のユニット番号も範囲内の色になる");
 
       // 配置のクランプ (純関数)。note は 960..1440 (1 拍 = 480 クロック、グリッド 120)
       const note = { head: 960, end: 1440, key: 0x6000 };
