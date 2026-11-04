@@ -685,6 +685,24 @@ export function removeWoice(idx: number): void {
   });
 }
 
+// ドラッグ中など、undo を自前で管理する場合の音色の並べ替え。
+// woiceReplace は音色の配列を動かすだけなので、VOICENO イベントの値も追従させる。
+// VOICENO が無いユニットは先頭まで音色 0 で鳴る (エンジンの既定値) ため、音色 0 が
+// 動く場合は clock 0 に明示してから動かし、並べ替えで音が変わらないようにする
+export function replaceWoiceRaw(oldPlace: number, newPlace: number): void {
+  if (doc.readOnly || oldPlace === newPlace) return;
+  if (oldPlace < 0 || newPlace < 0 || oldPlace >= service.woiceNum || newPlace >= service.woiceNum) return;
+  if (Math.min(oldPlace, newPlace) === 0) {
+    const records = service.evels.records;
+    for (let u = 0; u < service.unitNum; u++) {
+      if (records.some((e) => e.unitNo === u && e.kind === EventKind.VOICENO && e.clock === 0)) continue;
+      service.evels.recordAddI(0, u, EventKind.VOICENO, 0);
+    }
+  }
+  service.woiceReplace(oldPlace, newPlace);
+  service.evels.recordValueReplace(EventKind.VOICENO, oldPlace, newPlace);
+}
+
 // 既存の音色 index を別の音色ファイルで置き換える。ユニットは音色を index 参照するため、
 // 同じ index に読み込めば、使用中のユニットも自動的に新しい音色を指す
 export async function replaceWoiceFile(idx: number, bytes: Uint8Array, type: WoiceType, name?: string): Promise<string | null> {

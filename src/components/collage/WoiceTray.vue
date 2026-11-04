@@ -10,6 +10,7 @@ import {
   addWoice,
   replaceWoiceFile,
   detectWoiceType,
+  sync,
   woiceNameRaw,
   WoiceType,
   EVENTDEFAULT_KEY,
@@ -19,10 +20,12 @@ import { previewWoiceHold } from "../../engine/preview";
 import { openWoiceAsVoice } from "../../state/voice";
 import { openPtnAsNoise } from "../../state/noise";
 import { currentProjectId, type WoiceLink } from "../../state/projects";
+import { moveWoiceRaw } from "../../state/woice-order";
 import { woiceTypeColor } from "../../lib/theme";
 import { woiceSummary as formatWoiceSummary, WOICE_FILE_ACCEPT, WOICE_FILE_EXT_RE } from "../../lib/woice";
 import { useCtxMenuClose } from "../../composables/useCtxMenu";
 import { useHoldPreview } from "../../composables/useHoldPreview";
+import { useDragUndo } from "../../composables/useUndo";
 import { capturePointer, releasePointerCapture } from "../../lib/field";
 import { openFileDialog, exportWoiceFile, readBlobAndApply } from "../../engine/io";
 import { t } from "../../i18n";
@@ -64,7 +67,36 @@ function onPointerDown(e: PointerEvent, idx: number): void {
     capturePointer(trayListRef.value, e);
     hold.onPress();
     previewWoiceHold(idx, EVENTDEFAULT_KEY, EVENTDEFAULT_VELOCITY);
+    if (!doc.readOnly) startDragReorder(idx);
   }
+}
+
+// ドラッグ中のマウス位置へ音色を逐次並べ替える (undo はドラッグ全体で 1 エントリ)。
+// ファイルのドロップ (HTML5 DnD) と競合しないようポインタで処理する
+function startDragReorder(idx: number): void {
+  const list = trayListRef.value;
+  if (!list) return;
+  let lastTarget = idx;
+  const dragUndo = useDragUndo();
+  const onMove = (ev: PointerEvent): void => {
+    const h = list.querySelector<HTMLElement>(".woice-row")?.offsetHeight ?? 24;
+    const row = Math.floor((list.scrollTop + ev.clientY - list.getBoundingClientRect().top) / h);
+    if (row < 0 || row >= woices.value.length || row === lastTarget) return;
+    dragUndo.onFirstMove();
+    moveWoiceRaw(lastTarget, row);
+    lastTarget = row;
+    sync();
+    doc.rev++;
+  };
+  const onUp = (): void => {
+    list.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onUp);
+    window.removeEventListener("pointercancel", onUp);
+    dragUndo.finish();
+  };
+  list.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onUp);
+  window.addEventListener("pointercancel", onUp);
 }
 
 const hold = useHoldPreview();

@@ -71,10 +71,15 @@ import {
   scopePaste,
   scopeInsert,
   scopeClipReady,
+  getService,
+  beginEdit,
+  commitEdit,
 } from "../src/state/project";
 import * as serviceMod from "../src/state/service";
 import { SAMPLE_SONGS } from "../src/state/samples";
-import { undo, redo, canUndo, canRedo } from "../src/state/undo";
+import { undo, redo, canUndo, canRedo, undoStack } from "../src/state/undo";
+import { moveWoiceRaw } from "../src/state/woice-order";
+import { movedIndex } from "../src/lib/woice";
 import { player, isPlaying, masterVolume, loop, initMasterVolume, setMasterVolume } from "../src/state/player";
 import { parseThemeCss, mergeTokens, buildThemeCss, buildStandaloneThemeCss } from "../src/lib/themeParse";
 import {
@@ -3432,6 +3437,42 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     const reopened = new Noise();
     checkEq(readNoiseBytes(reopened, snapshotNoise(d)!), PxtnErr.OK, "noise-state: 保存バイト列を読み直せる");
     closeNoise(d.id);
+  }
+
+  // ---- 音色の並べ替え ----
+  {
+    newProjectInTab();
+    for (const name of ["A", "B", "C"]) {
+      checkEq(await addWoice(buildPcmWav(), WoiceType.PCM, name), null, `woice-order: 音色 ${name} を追加`);
+    }
+    const svc = getService()!;
+    // 音色 0 / 2 を明示したユニットと、VOICENO が無い (音色 0 で鳴る) ユニット
+    addUnitWithWoice("u0", 0);
+    addUnitWithWoice("u2", 2);
+    addUnit("none");
+    const voiceOf = (u: number): string => {
+      const e = svc.evels.records.find((r) => r.unitNo === u && r.kind === EventKind.VOICENO && r.clock === 0);
+      return woiceName(svc.woiceGet(e ? e.value : 0)!);
+    };
+    const link = { projectId: currentProjectId.value, woiceIndex: 0 };
+    const linked = openWoiceAsVoice(createDefaultWoice(), "linked", link);
+    check(linked, "woice-order: リンク付きタブを開ける");
+    const undoDepth = undoStack.length;
+
+    beginEdit();
+    moveWoiceRaw(0, 2);
+    commitEdit();
+    checkEq([0, 1, 2].map((i) => woiceName(svc.woiceGet(i)!)).join(), "B,C,A", "woice-order: 音色が並べ替わる");
+    checkEq([0, 1, 2].map(voiceOf).join(), "A,C,A", "woice-order: 各ユニットの音色が変わらない");
+    checkEq(currentVoice()!.link!.woiceIndex, 2, "woice-order: リンクの音色番号が追従する");
+    checkEq(undoStack.length, undoDepth + 1, "woice-order: undo は 1 エントリ");
+
+    check(undo(), "woice-order: undo できる");
+    checkEq([0, 1, 2].map((i) => woiceName(svc.woiceGet(i)!)).join(), "A,B,C", "woice-order: undo で順序が戻る");
+    closeVoice(currentVoiceId.value);
+
+    checkEq([0, 1, 2, 3].map((i) => movedIndex(i, 3, 1)).join(), "0,2,3,1", "woice-order: movedIndex (後ろから前)");
+    checkEq([0, 1, 2, 3].map((i) => movedIndex(i, 0, 2)).join(), "2,0,1,3", "woice-order: movedIndex (前から後ろ)");
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);
