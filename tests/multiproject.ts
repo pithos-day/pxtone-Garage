@@ -84,6 +84,8 @@ import { moveWoiceRaw } from "../src/state/woice-order";
 import { movedIndex } from "../src/lib/woice";
 import { droppedFiles, namedFiles, readBlobsAndApply, toArrayBuffer } from "../src/engine/io";
 import { pushRecent, dropRecent } from "../src/lib/recent-list";
+import { metronomeHits } from "../src/lib/metronome";
+import { buildMetronomeTones, createMetronomeNoise } from "../src/engine/metronome";
 import { addRecent, clearRecent, recentFiles, removeRecent } from "../src/state/recent-files";
 import { openRecentFile } from "../src/state/open-files";
 import { player, isPlaying, masterVolume, loop, initMasterVolume, setMasterVolume } from "../src/state/player";
@@ -3590,6 +3592,30 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     const dropped = await droppedFiles(dt, /\.(ptcop|pttune)$/i);
     checkEq(dropped.map((f) => f.name).join(), "x,z", "recent: ドロップを拡張子で絞り込む");
     check(dropped[0]!.handle === (handle as unknown) && dropped[1]!.handle === undefined, "recent: ファイルのハンドルだけを付ける");
+  }
+
+  // ---- メトロノーム ----
+  {
+    const hits = (a: number, b: number) => metronomeHits(a, b, 100.5, 4).map((h) => `${h.sample}${h.downbeat ? "!" : ""}`).join();
+    checkEq(hits(0, 500), "0!,101,201,302,402!", "metronome: 拍と小節頭を返す");
+    checkEq(hits(101, 201), "101", "metronome: 区間は半開");
+    checkEq(hits(102, 201), "", "metronome: 拍がない区間は空");
+    checkEq(metronomeHits(0, 10, 0, 4).length, 0, "metronome: 不正なテンポでは鳴らさない");
+
+    // 音は正しい ptnoise として読み書きでき、波形になる
+    for (const tone of ["high", "low"] as const) {
+      const io = new MemoryIo();
+      check(createMetronomeNoise(tone).write(io), `metronome: ${tone} を ptnoise へ書き出せる`);
+      checkEq(new Noise().read(new MemoryIo(io.toUint8Array())), PxtnErr.OK, `metronome: ${tone} を ptnoise として読める`);
+    }
+    const tones = buildMetronomeTones(48000);
+    check(tones !== null, "metronome: 波形を生成できる");
+    if (tones) {
+      const peak = (a: Float32Array, from: number, to: number) => a.subarray(from, to).reduce((m, v) => Math.max(m, Math.abs(v)), 0);
+      checkEq(tones.high.length, Math.round(tones.high.length / 2) * 2, "metronome: ステレオのフレーム単位");
+      check(peak(tones.high, 0, 2000) > peak(tones.low, 0, 2000), "metronome: 小節頭のほうが強い");
+      check(peak(tones.high, tones.high.length - 200, tones.high.length) < 0.05, "metronome: 末尾は減衰している");
+    }
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);

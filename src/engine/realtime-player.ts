@@ -29,6 +29,11 @@ export class RealtimePlayer {
     return this.sps;
   }
 
+  // worklet の初期化が済み、メッセージを送れる状態か
+  get isReady(): boolean {
+    return this.node !== null;
+  }
+
   get isPlaying(): boolean {
     return this.playing;
   }
@@ -120,6 +125,15 @@ export class RealtimePlayer {
   // ミュート中のユニット番号配列を送信する (プレーン配列必須: postMessage の制約)
   setMutedUnits(units: number[]): void {
     this.node?.port.postMessage({ type: "setMutedUnits", units: [...units] });
+  }
+
+  setMetronome(enabled: boolean): void {
+    this.node?.port.postMessage({ type: "setMetronome", enabled });
+  }
+
+  // クリック音を worklet へ渡す (所有権を移すので呼び出し後は使えない)
+  setMetronomeTones(high: Float32Array, low: Float32Array): void {
+    this.node?.port.postMessage({ type: "setMetronomeTones", high, low }, [high.buffer as ArrayBuffer, low.buffer as ArrayBuffer]);
   }
 
   // 現在の再生位置 (サンプル)。再生中は position 通知からの経過時間で補間する

@@ -7,6 +7,7 @@
 import { Service, MemoryIo, PxtnErr, PXTN_VOMIT_PREP_FLAG_LOOP, PXTN_VOMIT_PREP_FLAG_UNIT_MUTE } from "pxtone-ts";
 import type { VomitPreparation } from "pxtone-ts";
 import type { MainToWorklet, WorkletToMain } from "./worklet-messages";
+import { metronomeHits } from "../lib/metronome";
 
 // AudioWorklet グローバルスコープの最小型定義
 declare class AudioWorkletProcessor {
@@ -19,6 +20,16 @@ declare function registerProcessor(name: string, ctor: new () => AudioWorkletPro
 // process() に来るブロック長 (レンダークォンタム) はこれより大きくてもよい (分割して描画する)
 const BLOCK_SIZE = 128;
 
+// クリック音の音量 (マスターボリュームに掛ける)
+const METRONOME_GAIN = 0.6;
+
+// 発音中のクリック音
+interface ActiveClick {
+  tone: Float32Array; // ステレオインターリーブ
+  frame: number; // 次に鳴らすフレーム
+  delay: number; // 鳴り始めまでのサンプル数
+}
+
 class PxtoneWorkletProcessor extends AudioWorkletProcessor {
   private service: Service | null = null;
   private scratch: Int16Array = new Int16Array(BLOCK_SIZE * 2);
@@ -30,6 +41,10 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
   private lastPosNotifySample = -1;
   private playStartMeas = -1;
   private playEndMeas = -1;
+  private metronome = false;
+  private toneHigh: Float32Array | null = null;
+  private toneLow: Float32Array | null = null;
+  private clicks: ActiveClick[] = [];
 
   constructor() {
     super();
@@ -54,6 +69,7 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
         break;
       case "stop":
         this.playing = false;
+        this.clicks = [];
         break;
       case "seek":
         this.reseek(msg.sample);
@@ -69,6 +85,14 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
       case "setMutedUnits":
         this.mutedUnits = msg.units;
         this.applyMute();
+        break;
+      case "setMetronome":
+        this.metronome = msg.enabled;
+        if (!msg.enabled) this.clicks = [];
+        break;
+      case "setMetronomeTones":
+        this.toneHigh = msg.high;
+        this.toneLow = msg.low;
         break;
     }
   }
@@ -121,6 +145,7 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
 
   // 再生位置を再設定 (シーク / 曲末からの再開)。ループ・ミュート・音量を維持する
   private reseek(sample: number): void {
+    this.clicks = [];
     if (!this.service) return;
     const svc = this.service;
     const max = svc.mooGetSamplingEnd();
@@ -157,11 +182,18 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
     let offset = 0;
     while (offset < block) {
       const n = Math.min(BLOCK_SIZE, block - offset);
+      // 終端に達すると mooGetSamplingEnd は 0 を返すため、描画前に控えておく
+      const posBefore = svc.mooGetSamplingOffset();
+      const endBefore = svc.mooGetSamplingEnd();
       svc.Moo(this.scratch.subarray(0, n * chNum), n);
       for (let i = 0; i < n; i++) {
         for (let ch = 0; ch < chNum; ch++) {
           out[ch]![offset + i] = this.scratch[i * chNum + ch]! / 32768;
         }
+      }
+      if (this.metronome) {
+        this.scheduleClicks(svc, posBefore, endBefore, n);
+        this.mixClicks(out, offset, n);
       }
       offset += n;
       // 曲末に達したら残りは無音にする (Moo は endVomit 後は書き込まないため)
@@ -182,6 +214,45 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
       }
     }
     return true;
+  }
+
+  // 今描画した n サンプルに含まれる拍のクリックを予約する。
+  // ループで折り返した場合は、終端までの前半と、折り返し先からの後半を別々に調べる
+  // (折り返し直後の拍を取りこぼさないため)
+  private scheduleClicks(svc: Service, pos: number, end: number, n: number): void {
+    const samplesPerBeat = (60 * this.sps) / svc.master.beatTempo;
+    const beatNum = svc.master.beatNum;
+    const schedule = (start: number, stop: number, delayBase: number): void => {
+      for (const hit of metronomeHits(start, stop, samplesPerBeat, beatNum)) {
+        const tone = hit.downbeat ? this.toneHigh : this.toneLow;
+        if (tone) this.clicks.push({ tone, frame: 0, delay: delayBase + hit.sample - start });
+      }
+    };
+    const after = svc.mooIsEndVomit() ? -1 : svc.mooGetSamplingOffset();
+    if (after === pos + n) {
+      schedule(pos, after, 0);
+      return;
+    }
+    const head = Math.min(n, end - pos);
+    schedule(pos, pos + head, 0);
+    if (after >= 0) schedule(after - (n - head), after, head);
+  }
+
+  // 発音中のクリックを出力の [offset, offset + n) に加算する
+  private mixClicks(out: Float32Array[], offset: number, n: number): void {
+    const gain = this.volume * METRONOME_GAIN;
+    const chNum = out.length;
+    this.clicks = this.clicks.filter((click) => {
+      const frames = click.tone.length >> 1;
+      const skip = Math.min(click.delay, n);
+      for (let i = skip; i < n && click.frame < frames; i++, click.frame++) {
+        for (let ch = 0; ch < chNum; ch++) {
+          out[ch]![offset + i]! += click.tone[click.frame * 2 + Math.min(ch, 1)]! * gain;
+        }
+      }
+      click.delay -= skip;
+      return click.frame < frames;
+    });
   }
 
   // ループで位置が巻き戻った場合も即座に通知する (プレイヘッド追従のため)。

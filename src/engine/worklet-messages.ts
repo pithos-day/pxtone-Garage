@@ -6,7 +6,10 @@ export type MainToWorklet =
   | { type: "seek"; sample: number }
   | { type: "setLoop"; loop: boolean }
   | { type: "setMasterVolume"; volume: number }
-  | { type: "setMutedUnits"; units: number[] };
+  | { type: "setMutedUnits"; units: number[] }
+  | { type: "setMetronome"; enabled: boolean }
+  // クリック音 (ステレオインターリーブ。high = 小節頭、low = それ以外の拍)
+  | { type: "setMetronomeTones"; high: Float32Array; low: Float32Array };
 
 export type WorkletToMain =
   | { type: "loaded"; ok: boolean; totalSample: number }

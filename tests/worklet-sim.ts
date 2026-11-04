@@ -87,5 +87,68 @@ void (async () => {
   assert(!hasNaN, "worklet: NaN が混入しない");
   assert(energySecondHalf > 0, "worklet: ブロック後半も描画される");
 
+  // ---- メトロノーム ----
+  // 無音のプロジェクト (ノートはベロシティ 0) に、位置が分かる短いクリックを混ぜて検証する。
+  // 120 BPM / 44100Hz なので 1 拍 = 22050 サンプル、4/4 で 1 小節 = 88200 サンプル
+  {
+    newProjectInTab();
+    assert((await addWoice(buildPcmWav(), WoiceType.PCM, "Silent")) === null, "metronome: 音色を追加できる");
+    assert(addUnitWithWoice("S", service.woiceNum - 1), "metronome: ユニットを追加できる");
+    service.evels.recordAddI(0, 0, EventKind.VELOCITY, 0);
+    service.evels.recordAddI(0, 0, EventKind.ON, 480 * 8);
+    const silent = exportBytes()!;
+    const beat = 22050;
+    const beats = service.master.beatNum;
+    const startM = (loop: boolean, enabled: boolean): MockProcessor => {
+      const p = new Ctor!();
+      p.port.onmessage!({ data: { type: "load", bytes: silent.slice().buffer, sps: 44100, playStartMeas: -1, playEndMeas: -1 } });
+      p.port.onmessage!({ data: { type: "setLoop", loop } });
+      p.port.onmessage!({ data: { type: "seek", sample: 0 } });
+      // 高音 = +1、低音 = -1 の 1 フレームだけのクリック
+      p.port.onmessage!({ data: { type: "setMetronomeTones", high: new Float32Array([1, 1]), low: new Float32Array([-1, -1]) } });
+      p.port.onmessage!({ data: { type: "setMetronome", enabled } });
+      p.port.onmessage!({ data: { type: "play" } });
+      return p;
+    };
+    // 非ゼロのサンプル位置と符号を集める
+    const collect = (p: MockProcessor, block: number, total: number): string[] => {
+      const found: string[] = [];
+      for (let at = 0; at < total; at += block) {
+        const out = run(p, block);
+        for (let i = 0; i < block; i++) {
+          const v = out[0]![i]!;
+          if (Math.abs(v) > 0.1) found.push(`${at + i}${v > 0 ? "H" : "L"}`);
+        }
+      }
+      return found;
+    };
+    const measure = beat * beats;
+    const end = measure * 2;
+    const expected = Array.from({ length: beats * 2 }, (_, k) => `${k * beat}${k % beats === 0 ? "H" : "L"}`);
+
+    const b128 = collect(startM(false, true), 128, end - 128 * 2);
+    assert(b128.join() === expected.join(), `metronome: 拍の位置と小節頭が正しい ${b128.join()}`);
+    const b256 = collect(startM(false, true), 256, end - 256 * 2);
+    assert(b256.join() === expected.join(), `metronome: ブロック長 256 でも同じ位置 ${b256.join()}`);
+    assert(collect(startM(false, false), 128, measure).length === 0, "metronome: OFF では鳴らない");
+
+    // ループの折り返し直後の拍も鳴る (2 小節で曲頭へ戻る)
+    const looped = collect(startM(true, true), 128, end + beat + 256);
+    const wrapped = expected.concat([`${end}H`, `${end + beat}L`]);
+    assert(looped.join() === wrapped.join(), `metronome: 折り返し後も拍が続く ${looped.join()}`);
+
+    // 途中で折り返す位置がブロックをまたいでも取りこぼさない
+    const looped100 = collect(startM(true, true), 100, end + beat + 200);
+    assert(looped100.join() === wrapped.join(), `metronome: ブロック途中の折り返しでも鳴る ${looped100.join()}`);
+
+    // OFF のときの出力は従来と同じ
+    const plain = new Ctor!();
+    plain.port.onmessage!({ data: { type: "load", bytes: bytes!.slice().buffer, sps: 44100, playStartMeas: -1, playEndMeas: -1 } });
+    plain.port.onmessage!({ data: { type: "setMetronome", enabled: false } });
+    plain.port.onmessage!({ data: { type: "play" } });
+    const plainOut = run(plain, 256);
+    assert(plainOut[0]!.every((v, i) => v === b1[0]![i]), "metronome: OFF の出力は従来と一致する");
+  }
+
   console.log(`ALL PASS (${pass} assertions)`);
 })();

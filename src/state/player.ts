@@ -7,6 +7,7 @@ import { getService, exportBytes, doc, clockContext } from "./project";
 import { xToClock } from "../lib/clock";
 import { LEFT_W } from "../lib/layout";
 import { readStorage, writeStorage } from "../lib/storage";
+import { buildMetronomeTones } from "../engine/metronome";
 
 export const player = new RealtimePlayer({
   onPosition: (sample) => {
@@ -26,6 +27,32 @@ export const masterVolume = ref(1.0);
 const STORAGE_VOLUME = "pxtone-garage-master-volume";
 // 再生位置が画面外に出たら画面を追従する (TransportBar のトグルで切替、既定オン)
 export const followPlayback = ref(true);
+
+// メトロノームの ON/OFF はブラウザに保存する (WAV 書き出しには入らない)
+const STORAGE_METRONOME = "pxtone-garage-metronome";
+export const metronome = ref(readStorage(STORAGE_METRONOME) === "1");
+// worklet へ渡し済みのクリック音の出力レート (0 = 未送信)
+let metronomeTonesSps = 0;
+
+// メトロノームの状態を worklet へ送る。クリック音は初めて ON にしたときに生成する。
+// worklet の初期化前は送れないため、再生開始時 (applyPlaybackState) に改めて呼ぶ
+function sendMetronome(): void {
+  if (!player.isReady) return;
+  if (metronome.value && metronomeTonesSps !== player.sampleRate) {
+    const tones = buildMetronomeTones(player.sampleRate);
+    if (tones) {
+      player.setMetronomeTones(tones.high, tones.low);
+      metronomeTonesSps = player.sampleRate;
+    }
+  }
+  player.setMetronome(metronome.value);
+}
+
+export function setMetronome(enabled: boolean): void {
+  metronome.value = enabled;
+  writeStorage(STORAGE_METRONOME, enabled ? "1" : "0");
+  sendMetronome();
+}
 
 // ミュート/ソロ切替を再生中も worklet へ即時反映する。
 // getter が毎回プレーン配列を生成するため postMessage にも安全。
@@ -125,6 +152,7 @@ function applyPlaybackState(): void {
   player.setLoop(loop.value);
   player.setMasterVolume(masterVolume.value);
   player.setMutedUnits([...doc.muted]);
+  sendMetronome();
   player.play();
 }
 
