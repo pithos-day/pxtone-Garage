@@ -337,7 +337,7 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
 
 /* ミュート行は行全体を薄くする (チェックボックスは操作できるよう薄くしすぎない) */
 .unit-row.muted {
-  opacity: 0.6;
+  opacity: 0.8;
 }
 
 .unit-row.muted .unit-name {
