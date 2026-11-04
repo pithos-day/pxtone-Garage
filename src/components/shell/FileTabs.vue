@@ -4,6 +4,7 @@
 import { X, Plus, Eye, Link2 } from "@lucide/vue";
 import type { AppMode } from "../../lib/modes";
 import { computed } from "vue";
+import { doc } from "../../state/project";
 import {
   projects,
   currentProjectId,
@@ -58,7 +59,8 @@ const tabs = computed(() => {
   return projects.value.map((p) => ({
     id: p.id,
     title: p.fileName || t("common.untitled"),
-    dirty: p.dirty,
+    // 現在のタブは doc が正本 (p.dirty はタブ切替/退避のときにしか更新されない)
+    dirty: p.id === currentProjectId.value ? doc.dirty : p.dirty,
     linked: false,
     // pttune 再生専用タブは eye アイコンを表示する
     readonly: p.kind === "tune",

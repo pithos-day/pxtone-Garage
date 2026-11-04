@@ -5,6 +5,7 @@ import { ref } from "vue";
 import { MemoryIo, PxtnErr, type Service } from "pxtone-ts";
 import { service, EXE_VER } from "./service";
 import { doc, sync, uiRepeatToFile, fileRepeatToUi } from "./project";
+import { isRevisionSaved, markRevisionSaved, newRevisionTracker, touchRevision, type RevisionTracker } from "../lib/revision";
 
 const MAX_UNDO = 100;
 
@@ -15,17 +16,20 @@ export interface UndoEntry {
   bytes: Uint8Array;
   measNum: number;
   repeatMeas: number;
+  revision: number; // この状態のリビジョン (undo で保存時の状態へ戻ったかの判定に使う)
 }
 
 export let undoStack: UndoEntry[] = [];
 export let redoStack: UndoEntry[] = [];
+let revisions: RevisionTracker = newRevisionTracker();
 
 export const canUndo = ref(false);
 export const canRedo = ref(false);
 
-export function setUndoStacks(newUndo: UndoEntry[], newRedo: UndoEntry[]): void {
+export function setUndoStacks(newUndo: UndoEntry[], newRedo: UndoEntry[], newRevisions: RevisionTracker): void {
   undoStack = newUndo;
   redoStack = newRedo;
+  revisions = newRevisions;
   refreshUndoFlags();
 }
 
@@ -37,7 +41,7 @@ export function refreshUndoFlags(): void {
 }
 
 // 任意の Service のスナップショット (現在のタブ以外への書き戻しでも使う)
-export function snapshotService(s: Service): UndoEntry | null {
+export function snapshotService(s: Service, revision: number): UndoEntry | null {
   if (!s.isInit) return null;
   const io = new MemoryIo();
   if (s.write(io, false, EXE_VER) !== PxtnErr.OK) return null;
@@ -47,11 +51,22 @@ export function snapshotService(s: Service): UndoEntry | null {
     bytes: io.toUint8Array(),
     measNum: s.master.measNum,
     repeatMeas: fileRepeatToUi(s.master.repeatMeas),
+    revision,
   };
 }
 
 export function snapshotProject(): UndoEntry | null {
-  return snapshotService(service);
+  return snapshotService(service, revisions.current);
+}
+
+// 現在のプロジェクトが編集された
+export function touchCurrentRevision(): void {
+  touchRevision(revisions);
+}
+
+// 現在のプロジェクトの今の状態を保存済みとして扱う
+export function markCurrentRevisionSaved(): void {
+  markRevisionSaved(revisions);
 }
 
 // 任意の undo スタックへエントリを積む (上限と redo クリアは pushUndo と共通)
@@ -85,7 +100,10 @@ function restoreFrom(stack: UndoEntry[], pushTo: UndoEntry[]): boolean {
     pushTo.push(cur);
     refreshUndoFlags();
   }
-  return restoreBytes(b);
+  if (!restoreBytes(b)) return false;
+  revisions.current = b.revision;
+  doc.dirty = !isRevisionSaved(revisions);
+  return true;
 }
 
 export function undo(): boolean {

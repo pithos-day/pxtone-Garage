@@ -5,10 +5,17 @@
 import { ref, type Ref } from "vue";
 import { chooseSaveDestination, sanitizeFileName, stripFileExt, supportsSavePicker, writeSaveDestination } from "../engine/io";
 import { withProgress } from "./progress";
+import { isRevisionSaved, markRevisionSaved, newRevisionTracker, touchRevision, type RevisionTracker } from "../lib/revision";
 import { appPrompt } from "./dialog";
 import { t } from "../i18n";
 
 const MAX_UNDO = 100;
+
+// undo スタックの 1 エントリ (revision で保存時の状態へ戻ったかを判定する)
+export interface TabUndoEntry {
+  bytes: Uint8Array;
+  revision: number;
+}
 
 export interface TabDocBase {
   id: number;
@@ -17,8 +24,9 @@ export interface TabDocBase {
   // 起動時に自動生成された初期タブか。ファイルを開くときに置き換えてよい印
   // (無題のまま開いた音色と区別するため、fileName ではなくこの印で判定する)
   initial: boolean;
-  undoStack: Uint8Array[];
-  redoStack: Uint8Array[];
+  undoStack: TabUndoEntry[];
+  redoStack: TabUndoEntry[];
+  revisions: RevisionTracker;
 }
 
 // 実体のバイト列化・復元 (voice: ptvWrite/ptvRead、noise: 全レイヤーの JSON)
@@ -53,8 +61,8 @@ export function createDocTabs<D extends TabDocBase>(codec: DocCodec<D>) {
     },
 
     // タブを追加して切り替える (id はここで振る)
-    add(d: Omit<D, "id"> & Partial<Pick<D, "id">>): D {
-      const doc = { ...d, id: nextId++ } as D;
+    add(d: Omit<D, "id" | "revisions"> & Partial<Pick<D, "id" | "revisions">>): D {
+      const doc = { ...d, id: nextId++, revisions: newRevisionTracker() } as D;
       docs.value.push(doc);
       currentId.value = doc.id;
       bump();
@@ -83,7 +91,7 @@ export function createDocTabs<D extends TabDocBase>(codec: DocCodec<D>) {
     pushUndo(d: D): void {
       const b = codec.snapshot(d);
       if (!b) return;
-      d.undoStack.push(b);
+      d.undoStack.push({ bytes: b, revision: d.revisions.current });
       if (d.undoStack.length > MAX_UNDO) d.undoStack.shift();
       d.redoStack.length = 0;
     },
@@ -92,24 +100,27 @@ export function createDocTabs<D extends TabDocBase>(codec: DocCodec<D>) {
     edit(d: D, fn: () => void): void {
       this.pushUndo(d);
       fn();
+      touchRevision(d.revisions);
       d.dirty = true;
       bump();
     },
 
     // 変更を適用済みにする (dirty の解除)。undo スタックはそのまま残す
     markClean(d: D): void {
+      markRevisionSaved(d.revisions);
       d.dirty = false;
       bump();
     },
 
     // stack から pop したスナップショットへ戻し、現在状態を pushTo へ積む (undo/redo 共通)
-    restoreFrom(d: D, stack: Uint8Array[], pushTo: Uint8Array[]): boolean {
+    restoreFrom(d: D, stack: TabUndoEntry[], pushTo: TabUndoEntry[]): boolean {
       const b = stack.pop();
       if (!b) return false;
       const cur = codec.snapshot(d);
-      if (cur) pushTo.push(cur);
-      if (!codec.restore(d, b)) return false;
-      d.dirty = true;
+      if (cur) pushTo.push({ bytes: cur, revision: d.revisions.current });
+      if (!codec.restore(d, b.bytes)) return false;
+      d.revisions.current = b.revision;
+      d.dirty = !isRevisionSaved(d.revisions);
       bump();
       return true;
     },
@@ -152,6 +163,7 @@ export function createDocTabs<D extends TabDocBase>(codec: DocCodec<D>) {
       // キャンセル時 (null) はファイル名を更新しない。ピッカーで変更された名前は反映する
       // (タブ表示は拡張子なしのため、拡張子を除いて記録する)
       d.fileName = stripFileExt(saved);
+      markRevisionSaved(d.revisions);
       d.dirty = false;
       if (dest.handle) codec.onSavedToHandle?.(dest.handle);
       bump();

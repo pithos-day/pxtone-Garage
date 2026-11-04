@@ -33,6 +33,7 @@ import {
   switchNoise,
   noises,
 } from "./noise";
+import { forgetSavedRevision } from "../lib/revision";
 
 const STORAGE_KEY = "pxtone-garage-unsaved-drafts-v1";
 const SAVE_DELAY_MS = 600;
@@ -224,6 +225,7 @@ export function restoreDrafts(): AppMode | null {
     if (openVoice(bytes, entry.name, link)) continue;
     const v = currentVoice();
     if (v) {
+      forgetSavedRevision(v.revisions);
       v.dirty = true;
       voiceIdMap.set(entry.docId, v.id);
     }
@@ -236,6 +238,7 @@ export function restoreDrafts(): AppMode | null {
     if (openNoise(bytes, entry.name, link)) continue;
     const n = currentNoise();
     if (n) {
+      forgetSavedRevision(n.revisions);
       n.dirty = true;
       noiseIdMap.set(entry.docId, n.id);
     }

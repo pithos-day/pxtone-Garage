@@ -7,6 +7,7 @@ import { setService } from "./service";
 import { setUndoStacks, undoStack, redoStack, snapshotService, pushUndoToStack, refreshUndoFlags, type UndoEntry } from "./undo";
 import { doc, sync, title, comment, ensureInit, pxtnErrorMessage, exportBytes, uiRepeatToFile } from "./project";
 import { resetLoaded } from "./player";
+import { forgetSavedRevision, markRevisionSaved, newRevisionTracker, touchRevision, type RevisionTracker } from "../lib/revision";
 import {
   chooseSaveDestination,
   readBlobAndApply,
@@ -55,6 +56,7 @@ export interface Project {
   state: ProjectState;
   undoStack: UndoEntry[];
   redoStack: UndoEntry[];
+  revisions: RevisionTracker;
   title: string;
   comment: string;
   initial: boolean; // 起動時に自動生成された初期プロジェクトか
@@ -176,8 +178,10 @@ function saveCurrent(): void {
 // プロジェクトの状態を doc/service/undo に復元する
 function restore(p: Project): void {
   setService(services.get(p.id)!);
-  setUndoStacks(p.undoStack, p.redoStack);
+  setUndoStacks(p.undoStack, p.redoStack, p.revisions);
   applyState(p.state);
+  // 別タブから「変更を適用」された場合は p.state より p.dirty が新しい
+  doc.dirty = p.dirty;
   doc.selectedNotes = []; // ノートの選択はタブごとに持ち越さない
   title.value = p.title;
   comment.value = p.comment;
@@ -197,7 +201,7 @@ export function persistCurrentProjectState(): void {
 // ptcop の write/read は measNum・repeatMeas を保持しないため、バイト列と一緒に持つ
 export function projectDraftSnapshot(p: Project): UndoEntry | null {
   const svc = services.get(p.id);
-  return svc ? snapshotService(svc) : null;
+  return svc ? snapshotService(svc, p.revisions.current) : null;
 }
 
 // ドラフトの measNum / Repeat をエンジンへ戻す (openProjectInTab の直後に呼ぶ)
@@ -219,6 +223,7 @@ export function applyDraftProjectState(id: number, state: ProjectState): void {
   if (!p) return;
   p.state = state;
   p.dirty = state.dirty;
+  if (state.dirty) forgetSavedRevision(p.revisions);
   if (id === currentProjectId.value) {
     applyState(state);
     sync();
@@ -249,6 +254,7 @@ export function newProjectInTab(kind: "ptcop" | "tune" = "ptcop"): Project {
     state: defaultState(),
     undoStack: [],
     redoStack: [],
+    revisions: newRevisionTracker(),
     title: "",
     comment: "",
     initial: false,
@@ -362,10 +368,11 @@ export function applyWoiceLink(link: WoiceLink, bytes: Uint8Array, type: WoiceTy
   const probe = new Woice();
   if (probe.read(new MemoryIo(bytes), type) !== PxtnErr.OK) return t("error.format");
   // undo は適用先プロジェクトのスタックへ積む (現在のタブのスタックではない)
-  const snap = snapshotService(svc);
+  const snap = snapshotService(svc, p.revisions.current);
   if (snap) pushUndoToStack(p.undoStack, p.redoStack, snap);
   const res = svc.woiceRead(link.woiceIndex, new MemoryIo(bytes), type);
   if (res !== PxtnErr.OK) return pxtnErrorMessage(res);
+  touchRevision(p.revisions);
   p.dirty = true;
   // 適用先が現在のタブなら、UI ミラー (W トレイ等) と undo 表示も更新する
   if (p.id === currentProjectId.value) {
@@ -416,6 +423,7 @@ async function saveProjectFile(name: string, options: { usePicker: boolean }): P
   const displayName = stripFileExt(saved);
   doc.fileName = displayName;
   p.fileName = displayName;
+  markRevisionSaved(p.revisions);
   doc.dirty = false;
   p.dirty = false;
   if (dest.handle) void addRecent("project", dest.handle);

@@ -75,6 +75,7 @@ import {
   beginEdit,
   commitEdit,
   addWoices,
+  markSaved,
   prepareWoiceFile,
   selectedNoteList,
   clearNoteSelection,
@@ -92,6 +93,7 @@ import {
 import * as serviceMod from "../src/state/service";
 import { SAMPLE_SONGS } from "../src/state/samples";
 import { undo, redo, canUndo, canRedo, undoStack } from "../src/state/undo";
+import { applyDraftProjectState } from "../src/state/projects";
 import { moveWoiceRaw } from "../src/state/woice-order";
 import { movedIndex } from "../src/lib/woice";
 import { droppedFiles, namedFiles, readBlobsAndApply, toArrayBuffer } from "../src/engine/io";
@@ -3833,6 +3835,82 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     quantize(4, 1, false);
     doc.readOnly = false;
     checkEq(dump2(), roBefore, "quantize: readOnly では編集しない");
+  }
+
+  // ---- undo で保存時の状態へ戻ると dirty が解除される ----
+  {
+    const p = newProjectInTab();
+    checkEq(doc.dirty, false, "revision: 新規タブはクリーン");
+    addUnit("A");
+    checkEq(doc.dirty, true, "revision: 編集で dirty");
+    undo();
+    checkEq(doc.dirty, false, "revision: undo で初期状態へ戻るとクリーン");
+    redo();
+    checkEq(doc.dirty, true, "revision: redo で dirty");
+    markSaved();
+    checkEq(doc.dirty, false, "revision: 保存でクリーン");
+    addUnit("B");
+    undo();
+    checkEq(doc.dirty, false, "revision: 保存時点へ戻るとクリーン");
+    undo();
+    checkEq(doc.dirty, true, "revision: 保存時点より前へ戻ると dirty");
+    redo();
+    checkEq(doc.dirty, false, "revision: redo で保存時点へ戻るとクリーン");
+    // 保存時点より前へ戻って別の編集をすると、保存時点には戻れない
+    undo();
+    addUnit("C");
+    checkEq(doc.dirty, true, "revision: 分岐した編集で dirty");
+    undo();
+    checkEq(doc.dirty, true, "revision: 分岐元は保存時点ではないので dirty のまま");
+
+    // undo の上限で古いエントリが捨てられても、保存時点へ戻らなければ dirty のまま
+    markSaved();
+    for (let i = 0; i < 101; i++) setRepeatMeas(i + 1);
+    while (undo());
+    checkEq(doc.dirty, true, "revision: 上限で保存時点のエントリを失うと dirty のまま");
+
+    // ドラフトから復元したタブは対応する保存状態がないので、undo してもクリーンにしない
+    const q = newProjectInTab();
+    applyDraftProjectState(q.id, { ...q.state, dirty: true });
+    checkEq(doc.dirty, true, "revision: 復元したドラフトは dirty");
+    addUnit("D");
+    undo();
+    checkEq(doc.dirty, true, "revision: 復元したドラフトは undo しても dirty のまま");
+
+    // 別タブから適用された編集は、タブ切替後も dirty で、undo でクリーンに戻る
+    const a = newProjectInTab();
+    const bytes = snapshotNoise(newNoise())!;
+    checkEq(await addWoice(bytes, WoiceType.PTN, "RevA"), null, "revision: 適用先の音色を用意");
+    markSaved();
+    const b = newProjectInTab();
+    checkEq(applyWoiceLink({ projectId: a.id, woiceIndex: 0 }, bytes, WoiceType.PTN), null, "revision: 別タブへ適用できる");
+    switchProject(a.id);
+    checkEq(doc.dirty, true, "revision: 適用先へ切り替えても dirty");
+    undo();
+    checkEq(doc.dirty, false, "revision: 適用の undo でクリーン");
+    closeProject(b.id);
+    closeProject(a.id);
+    closeProject(q.id);
+    closeProject(p.id);
+
+    // Voice / Noise タブ
+    newVoice();
+    editVoice(() => {});
+    undoVoice();
+    checkEq(currentVoice()!.dirty, false, "revision: voice も undo でクリーン");
+    redoVoice();
+    checkEq(currentVoice()!.dirty, true, "revision: voice も redo で dirty");
+    markVoiceClean();
+    undoVoice();
+    checkEq(currentVoice()!.dirty, true, "revision: voice は適用時点より前へ戻ると dirty");
+    redoVoice();
+    checkEq(currentVoice()!.dirty, false, "revision: voice は適用時点へ戻るとクリーン");
+    newNoise();
+    editNoise(() => {});
+    undoNoise();
+    checkEq(currentNoise()!.dirty, false, "revision: noise も undo でクリーン");
+    redoNoise();
+    checkEq(currentNoise()!.dirty, true, "revision: noise も redo で dirty");
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);

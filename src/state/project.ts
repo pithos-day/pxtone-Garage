@@ -36,7 +36,7 @@ import { quantizeNotes } from "../lib/quantize";
 import { clearNotes, collectNoteEvents, notesInUnit, placeNotes, type SmartNote } from "../lib/smart-note";
 import { COPIER_KINDS } from "../lib/eventKinds";
 import { service, ensureService } from "./service";
-import { pushUndo, clearUndo, snapshotProject } from "./undo";
+import { pushUndo, clearUndo, snapshotProject, touchCurrentRevision, markCurrentRevisionSaved } from "./undo";
 import { t } from "../i18n";
 
 export type ToolMode = "W" | "U";
@@ -313,6 +313,7 @@ export function woiceTypeName(type: WoiceType): string {
 // ---- 編集ラッパー ----
 
 function markDirty(): void {
+  touchCurrentRevision();
   doc.dirty = true;
   doc.rev++;
 }
@@ -361,6 +362,7 @@ function resetEditingState(): void {
   doc.scrollX = 0;
   doc.scrollYUnit = 0;
   doc.scrollYKey = 0;
+  markCurrentRevisionSaved();
   doc.dirty = false;
 }
 
@@ -397,6 +399,7 @@ export function exportBytes(): Uint8Array | null {
 
 // 保存した状態をクリーンに
 export function markSaved(): void {
+  markCurrentRevisionSaved();
   doc.dirty = false;
 }
 
