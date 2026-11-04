@@ -194,17 +194,28 @@ export function formatShortcutWithBindings(
 }
 
 export function bindingLabel(b: KeyBinding, isMac = detectMac()): string {
-  const key = b.label ?? defaultKeyLabel(b.key);
-  if (isMac) {
-    // macOS 流の表記 (⇧⌘S のように記号を連結する)
-    return `${b.shift ? "⇧" : ""}${b.ctrl ? "⌘" : ""}${b.alt ? "⌥" : ""}${key}`;
-  }
+  // macOS 流の表記は ⇧⌘S のように記号を連結する
+  return bindingParts(b, isMac).join(isMac ? "" : "+");
+}
+
+// 修飾キーの表示名 (キーキャップ 1 個ぶんずつ)
+export function modifierParts(m: Pick<KeyBinding, "ctrl" | "shift" | "alt">, isMac = detectMac()): string[] {
   const parts: string[] = [];
-  if (b.ctrl) parts.push("Ctrl");
-  if (b.shift) parts.push("Shift");
-  if (b.alt) parts.push("Alt");
-  parts.push(key);
-  return parts.join("+");
+  if (isMac) {
+    if (m.shift) parts.push("⇧");
+    if (m.ctrl) parts.push("⌘");
+    if (m.alt) parts.push("⌥");
+  } else {
+    if (m.ctrl) parts.push("Ctrl");
+    if (m.shift) parts.push("Shift");
+    if (m.alt) parts.push("Alt");
+  }
+  return parts;
+}
+
+// 割り当てをキーキャップ単位に分解する (["Ctrl", "Shift", "S"])
+export function bindingParts(b: KeyBinding, isMac = detectMac()): string[] {
+  return [...modifierParts(b, isMac), b.label ?? defaultKeyLabel(b.key)];
 }
 
 // 特殊キーの表示名 (文字キーは大文字 1 文字)

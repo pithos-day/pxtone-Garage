@@ -13,8 +13,9 @@ withDefaults(
     label: string; // aria-label
     width?: string; // ダイアログ幅 (CSS 値)
     bodyGap?: string; // 本体の縦間隔 (CSS 値)
+    bodyPadding?: string; // 本体の余白 (CSS 値)
   }>(),
-  { width: "420px", bodyGap: "8px" },
+  { width: "420px", bodyGap: "8px", bodyPadding: "12px" },
 );
 
 const emit = defineEmits<{ (e: "close"): void }>();
@@ -47,6 +48,7 @@ function onOverlayClick(e: MouseEvent): void {
 
 .dlg {
   width: v-bind(width);
+  max-width: calc(100vw - 32px);
   background: var(--background);
   border: 1px solid var(--border);
   box-shadow: 4px 4px 16px rgb(0 0 0 / 0.35);
@@ -65,7 +67,7 @@ function onOverlayClick(e: MouseEvent): void {
   display: flex;
   flex-direction: column;
   gap: v-bind(bodyGap);
-  padding: 12px;
+  padding: v-bind(bodyPadding);
 }
 
 .dlg-buttons {

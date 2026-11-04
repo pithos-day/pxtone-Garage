@@ -1,17 +1,21 @@
 <script setup lang="ts">
 // File > 環境設定 > キー設定 のモーダルダイアログ。
 // 外見の配置は Blockbench のキー設定ダイアログを参考にしている (コードは流用していない)。
-// 左に動作、右にキーのピルを並べ、ピルをクリックして次のキー入力で割り当てる。
+// 左にカテゴリ、右に「動作 ─ キー」の行を並べ、キーをクリックすると
+// 入力待ちのオーバーレイを出して次のキー入力で割り当てる。
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import { RotateCcw, X } from "@lucide/vue";
+import { Keyboard, Plus, RotateCcw, Search, X } from "@lucide/vue";
 import ModalDialog from "./ModalDialog.vue";
 import {
   SHORTCUTS,
   bindingEquals,
   bindingFromEvent,
   bindingLabel,
+  bindingParts,
+  modifierParts,
   shortcutEntry,
   type KeyBinding,
+  type ShortcutArea,
   type ShortcutCommand,
   type ShortcutEntry,
 } from "../../lib/shortcuts";
@@ -29,39 +33,54 @@ import { t } from "../../i18n";
 
 const emit = defineEmits<{ (e: "close"): void }>();
 
-const query = ref("");
-const message = ref("");
-// 割り当て待ちの対象 (index="new" は追加ボタンから)
-const recording = ref<{ command: ShortcutCommand; index: number | "new" } | null>(null);
-
-const AREA_LABELS: Record<ShortcutEntry["area"], string> = {
+const AREA_LABELS: Record<ShortcutArea, string> = {
   app: t("keys.areaApp"),
   collage: t("keys.areaCollage"),
 };
 
-const groups = computed(() => {
-  const q = query.value.trim().toLowerCase();
-  const out: { area: ShortcutEntry["area"]; label: string; items: ShortcutEntry[] }[] = [];
-  for (const entry of SHORTCUTS) {
-    const label = AREA_LABELS[entry.area];
-    if (q && !`${entry.action} ${entry.command} ${label}`.toLowerCase().includes(q)) continue;
-    let group = out.find((g) => g.area === entry.area);
-    if (!group) {
-      group = { area: entry.area, label, items: [] };
-      out.push(group);
-    }
-    group.items.push(entry);
-  }
-  return out;
+const pages = (Object.keys(AREA_LABELS) as ShortcutArea[]).map((area) => ({
+  area,
+  label: AREA_LABELS[area],
+  count: SHORTCUTS.filter((s) => s.area === area).length,
+}));
+
+const searchRef = ref<HTMLInputElement | null>(null);
+const page = ref<ShortcutArea>("app");
+const query = ref("");
+
+const isSearching = computed(() => query.value.trim().length > 0);
+const title = computed(() => (isSearching.value ? t("keys.searchResults") : AREA_LABELS[page.value]));
+
+// 検索時は全カテゴリから、動作名・コマンド ID・カテゴリ名・現在のキーを空白区切りの AND で探す
+const entries = computed<readonly ShortcutEntry[]>(() => {
+  if (!isSearching.value) return SHORTCUTS.filter((s) => s.area === page.value);
+  const words = query.value.trim().toLowerCase().split(/\s+/);
+  return SHORTCUTS.filter((s) => {
+    const keys = (bindings[s.command] ?? []).map((b) => bindingLabel(b)).join(" ");
+    const text = `${s.action} ${s.command} ${AREA_LABELS[s.area]} ${keys}`.toLowerCase();
+    return words.every((w) => text.includes(w));
+  });
 });
 
-function isRecording(command: ShortcutCommand, index: number | "new"): boolean {
-  return recording.value?.command === command && recording.value.index === index;
+function openPage(area: ShortcutArea): void {
+  page.value = area;
+  query.value = "";
 }
+
+// ---- キー入力待ち ----
+// 割り当て待ちの対象 (index="new" は追加ボタンから)
+const recording = ref<{ command: ShortcutCommand; index: number | "new" } | null>(null);
+const recordKeys = ref<string[]>([]); // 入力欄に出すキーキャップ
+const recordError = ref("");
 
 function startRecording(command: ShortcutCommand, index: number | "new"): void {
   recording.value = { command, index };
-  message.value = "";
+  recordKeys.value = [];
+  recordError.value = "";
+}
+
+function stopRecording(): void {
+  recording.value = null;
 }
 
 // 同じコマンド内で既に使われている割り当てか (編集対象の自分自身は除く)
@@ -69,86 +88,171 @@ function isDuplicate(command: ShortcutCommand, target: number | "new", binding: 
   return (bindings[command] ?? []).some((b, i) => (target === "new" || i !== target) && bindingEquals(b, binding));
 }
 
-function onRecordKey(e: KeyboardEvent): void {
+function heldModifiers(e: KeyboardEvent): string[] {
+  return modifierParts({ ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey, alt: e.altKey });
+}
+
+function onRecordKeyDown(e: KeyboardEvent): void {
   const rec = recording.value;
   if (!rec) return;
   e.preventDefault();
   e.stopPropagation();
   if (e.repeat) return;
   if (e.key === "Escape") {
-    recording.value = null;
+    stopRecording();
     return;
   }
+  recordError.value = "";
   const binding = bindingFromEvent(e);
-  if (!binding) return; // 修飾キー単独などは無視
+  if (!binding) {
+    // 修飾キー単独では確定せず、押している修飾キーだけ見せる
+    recordKeys.value = heldModifiers(e);
+    return;
+  }
+  recordKeys.value = bindingParts(binding);
   if (isDuplicate(rec.command, rec.index, binding)) {
-    message.value = t("keys.duplicate");
+    recordError.value = t("keys.duplicate");
     return;
   }
   const conflict = conflictFor(rec.command, binding);
   if (conflict) {
-    message.value = `${t("keys.conflict")}: ${shortcutEntry(conflict).action}`;
+    recordError.value = `${t("keys.conflict")}: ${shortcutEntry(conflict).action}`;
     return;
   }
   if (rec.index === "new") addBinding(rec.command, binding);
   else setBinding(rec.command, rec.index, binding);
-  recording.value = null;
-  message.value = "";
+  stopRecording();
 }
 
-function onResetAll(): void {
-  resetAllBindings();
-  recording.value = null;
-  message.value = "";
+// 修飾キーを離したら表示から消す (エラー表示中は拒否したキーを残す)
+function onRecordKeyUp(e: KeyboardEvent): void {
+  if (!recording.value) return;
+  e.preventDefault();
+  e.stopPropagation();
+  if (!recordError.value) recordKeys.value = heldModifiers(e);
 }
 
 // 記録中はどの要素にフォーカスがあってもキーを拾う (capture)
-onMounted(() => window.addEventListener("keydown", onRecordKey, true));
-onBeforeUnmount(() => window.removeEventListener("keydown", onRecordKey, true));
+onMounted(() => {
+  window.addEventListener("keydown", onRecordKeyDown, true);
+  window.addEventListener("keyup", onRecordKeyUp, true);
+  searchRef.value?.focus();
+});
+onBeforeUnmount(() => {
+  window.removeEventListener("keydown", onRecordKeyDown, true);
+  window.removeEventListener("keyup", onRecordKeyUp, true);
+});
 </script>
 
 <template>
-  <ModalDialog label="key-settings" width="680px" body-gap="10px" @close="emit('close')">
+  <ModalDialog label="key-settings" width="820px" body-gap="0" body-padding="0" @close="emit('close')">
     <template #title>{{ t("keys.title") }}</template>
-    <div class="keys-toolbar">
-      <input v-model="query" type="search" class="keys-search" :placeholder="t('keys.search')" />
-      <button class="btn btn-sm" @click="onResetAll">{{ t("keys.resetAll") }}</button>
-    </div>
-    <p v-if="message" class="keys-message">{{ message }}</p>
-    <div class="keys-list">
-      <div v-for="group in groups" :key="group.area" class="keys-group">
-        <div class="keys-group-title">{{ group.label }}</div>
-        <div v-for="entry in group.items" :key="entry.command" class="keys-row">
-          <div class="keys-action">{{ entry.action }}</div>
-          <div class="keys-bindings">
-            <template v-for="(b, i) in bindings[entry.command]" :key="i">
-              <button
-                class="key-pill"
-                :class="{ recording: isRecording(entry.command, i) }"
-                @click="startRecording(entry.command, i)"
-              >
-                {{ isRecording(entry.command, i) ? t("keys.press") : bindingLabel(b) }}
-              </button>
-              <span class="key-remove" :title="t('keys.remove')" @click="removeBinding(entry.command, i)">
-                <X :size="11" />
-              </span>
-            </template>
-            <span v-if="(bindings[entry.command]?.length ?? 0) === 0" class="keys-unassigned">{{ t("keys.unassigned") }}</span>
-            <button class="key-add" :title="t('keys.add')" @click="startRecording(entry.command, 'new')">+</button>
-          </div>
+    <div class="keys-layout">
+      <nav class="keys-sidebar">
+        <div class="keys-pages">
           <button
-            v-if="!isDefaultBinding(entry.command)"
-            class="keys-reset"
-            :title="t('keys.reset')"
-            @click="resetBinding(entry.command)"
+            v-for="p in pages"
+            :key="p.area"
+            type="button"
+            class="keys-page"
+            :class="{ active: !isSearching && page === p.area }"
+            @click="openPage(p.area)"
           >
-            <RotateCcw :size="13" />
+            <span>{{ p.label }}</span>
+            <span class="keys-page-count">{{ p.count }}</span>
           </button>
         </div>
+        <button type="button" class="btn btn-sm keys-reset-all" @click="resetAllBindings">
+          <RotateCcw :size="13" />
+          {{ t("keys.resetAll") }}
+        </button>
+      </nav>
+      <div class="keys-main">
+        <header class="keys-header">
+          <h2 class="keys-title">{{ title }}</h2>
+          <label class="keys-search">
+            <Search :size="14" class="keys-search-icon" aria-hidden="true" />
+            <input ref="searchRef" v-model="query" type="search" :placeholder="t('keys.search')" :aria-label="t('keys.search')" />
+          </label>
+        </header>
+        <ul :key="isSearching ? 'search' : page" class="keys-list">
+          <li v-for="entry in entries" :key="entry.command" class="keys-row">
+            <div class="keys-name">
+              <span class="keys-action">{{ entry.action }}</span>
+              <span v-if="isSearching" class="keys-area">{{ AREA_LABELS[entry.area] }}</span>
+              <span class="keys-guide" aria-hidden="true" />
+            </div>
+            <div class="keys-slot">
+              <button
+                v-if="(bindings[entry.command]?.length ?? 0) === 0"
+                type="button"
+                class="keys-unassigned"
+                @click="startRecording(entry.command, 'new')"
+              >
+                {{ t("keys.unassigned") }}
+              </button>
+              <div v-for="(b, i) in bindings[entry.command]" :key="i" class="keys-chip">
+                <button
+                  type="button"
+                  class="keys-chip-keys"
+                  :aria-label="`${entry.action}: ${bindingLabel(b)}`"
+                  @click="startRecording(entry.command, i)"
+                >
+                  <kbd v-for="part in bindingParts(b)" :key="part">{{ part }}</kbd>
+                </button>
+                <button
+                  type="button"
+                  class="keys-chip-remove"
+                  :title="t('keys.remove')"
+                  :aria-label="t('keys.remove')"
+                  @click="removeBinding(entry.command, i)"
+                >
+                  <X :size="12" />
+                </button>
+              </div>
+            </div>
+            <button
+              type="button"
+              class="keys-tool"
+              :title="t('keys.add')"
+              :aria-label="t('keys.add')"
+              @click="startRecording(entry.command, 'new')"
+            >
+              <Plus :size="15" />
+            </button>
+            <button
+              type="button"
+              class="keys-tool"
+              :title="t('keys.reset')"
+              :aria-label="t('keys.reset')"
+              :disabled="isDefaultBinding(entry.command)"
+              @click="resetBinding(entry.command)"
+            >
+              <RotateCcw :size="14" />
+            </button>
+          </li>
+          <li v-if="entries.length === 0" class="keys-empty">{{ t("keys.empty") }}</li>
+        </ul>
+        <p class="keys-hint">{{ t("keys.hint") }}</p>
       </div>
-      <p v-if="groups.length === 0" class="keys-empty">{{ t("keys.empty") }}</p>
     </div>
-    <p class="keys-hint">{{ t("keys.hint") }}</p>
+    <div v-if="recording" class="keys-record" @click.self="stopRecording">
+      <div class="keys-record-box" role="alertdialog" :aria-label="t('keys.recordTitle')">
+        <h3 class="keys-record-title">
+          <Keyboard :size="18" aria-hidden="true" />
+          {{ t("keys.recordTitle") }}
+        </h3>
+        <p class="keys-record-action">{{ shortcutEntry(recording.command).action }}</p>
+        <div class="keys-record-input" :class="{ error: recordError }" aria-live="polite">
+          <template v-if="recordKeys.length > 0">
+            <kbd v-for="part in recordKeys" :key="part">{{ part }}</kbd>
+          </template>
+          <span v-else class="keys-record-placeholder">{{ t("keys.recordPlaceholder") }}</span>
+        </div>
+        <p class="keys-record-message" :class="{ error: recordError }">{{ recordError || t("keys.recordHint") }}</p>
+        <button type="button" class="btn" @click="stopRecording">{{ t("common.cancel") }}</button>
+      </div>
+    </div>
     <template #buttons>
       <button class="btn" @click="emit('close')">{{ t("common.close") }}</button>
     </template>
@@ -156,144 +260,408 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onRecordKey, true));
 </template>
 
 <style scoped>
-.keys-toolbar {
+.keys-layout {
+  display: flex;
+  height: min(540px, calc(100vh - 130px));
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ---- カテゴリ ---- */
+.keys-sidebar {
+  flex: none;
+  width: 170px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  background: var(--muted);
+}
+
+.keys-pages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+
+.keys-page {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--space-md);
+  padding: 6px 10px;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--foreground);
+  font-size: var(--text-md);
+  text-align: left;
+  cursor: pointer;
+}
+
+.keys-page:hover {
+  background: var(--control-surface);
+}
+
+.keys-page.active {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.keys-page-count {
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+
+.keys-reset-all {
+  background: transparent;
+  border-color: var(--control-track);
+}
+
+/* ---- 一覧 ---- */
+.keys-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.keys-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-xl);
+  padding: 12px 14px 8px;
+}
+
+.keys-title {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: bold;
+  color: var(--foreground);
 }
 
 .keys-search {
-  flex: 1;
+  flex: 0 1 240px;
+  position: relative;
+  display: flex;
+  align-items: center;
 }
 
-.keys-message {
-  margin: 0;
-  color: var(--destructive);
+.keys-search-icon {
+  position: absolute;
+  left: 8px;
+  color: var(--muted-foreground);
+  pointer-events: none;
+}
+
+.keys-search input {
+  width: 100%;
+  height: 28px;
+  padding: 0 8px 0 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--muted);
+  color: var(--foreground);
   font-size: var(--text-sm);
+}
+
+.keys-search input:focus {
+  outline: none;
+  border-color: var(--primary);
 }
 
 .keys-list {
-  max-height: 420px;
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0 8px 0 14px;
   overflow-y: auto;
-  border: 1px solid var(--border);
-  background: var(--card);
-}
-
-.keys-group-title {
-  padding: 4px 10px;
-  color: var(--muted-foreground);
-  background: var(--background);
-  border-bottom: 1px solid var(--border);
-  font-size: var(--text-sm);
-  font-weight: bold;
-  position: sticky;
-  top: 0;
+  scrollbar-color: var(--control-thumb) transparent;
+  list-style: none;
 }
 
 .keys-row {
   display: flex;
   align-items: center;
-  gap: var(--space-md);
-  padding: 5px 10px;
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  gap: var(--space-2xs);
+  padding: 2px 0;
 }
 
-.keys-row:last-child {
-  border-bottom: none;
+.keys-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding-right: var(--space-sm);
 }
 
 .keys-action {
-  flex: 1;
-  color: var(--card-foreground);
+  color: var(--foreground);
   font-size: var(--text-md);
 }
 
-.keys-bindings {
+.keys-area {
+  flex: none;
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+}
+
+/* 動作名とキーを目で結ぶガイド線 */
+.keys-guide {
+  flex: 1;
+  min-width: 12px;
+  border-bottom: 2px solid var(--muted);
+}
+
+.keys-slot {
+  flex: none;
+  width: 48%;
+  min-height: 32px;
   display: flex;
   align-items: center;
-  gap: 4px;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  gap: var(--space-xs);
+  padding: var(--space-xs);
+  border-radius: var(--radius);
+  background: var(--muted);
 }
 
-.key-pill {
-  min-width: 44px;
-  padding: 2px 8px;
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  background: var(--background);
-  color: var(--foreground);
-  font-size: var(--text-sm);
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.key-pill:hover {
-  border-color: var(--primary);
-}
-
-.key-pill.recording {
-  border-color: var(--primary);
-  color: var(--primary);
-}
-
-.key-remove {
-  display: inline-flex;
+.keys-chip {
+  display: flex;
   align-items: center;
-  color: var(--muted-foreground);
-  cursor: pointer;
+  border-radius: calc(var(--radius) - 2px);
 }
 
-.key-remove:hover {
-  color: var(--destructive);
+.keys-chip:hover,
+.keys-chip:focus-within {
+  background: var(--control-surface);
 }
 
-.key-add {
-  width: 22px;
-  height: 22px;
-  border: 1px dashed var(--border);
-  border-radius: 3px;
+.keys-chip-keys {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  padding: 1px 2px;
+  border: none;
+  border-radius: inherit;
   background: transparent;
-  color: var(--muted-foreground);
   cursor: pointer;
-  line-height: 1;
 }
 
-.key-add:hover {
-  border-color: var(--primary);
-  color: var(--primary);
+.keys-chip-keys:hover kbd {
+  color: var(--primary-foreground);
+  background: var(--primary);
 }
 
-.keys-unassigned {
-  color: var(--muted-foreground);
-  font-size: var(--text-sm);
-}
-
-.keys-reset {
+.keys-chip-remove {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 3px;
+  width: 16px;
+  height: 20px;
+  padding: 0;
   border: none;
   background: transparent;
   color: var(--muted-foreground);
   cursor: pointer;
+  /* レイアウトを動かさないよう場所は確保したまま隠す */
+  opacity: 0;
 }
 
-.keys-reset:hover {
-  color: var(--primary);
+.keys-chip:hover .keys-chip-remove,
+.keys-chip-remove:focus-visible {
+  opacity: 1;
+}
+
+.keys-chip-remove:hover {
+  color: var(--destructive);
+}
+
+kbd {
+  display: inline-block;
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--control-track);
+  color: var(--foreground);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  line-height: 18px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.keys-unassigned {
+  flex: 1;
+  height: 22px;
+  padding: 0 4px;
+  border: none;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.keys-unassigned:hover {
+  color: var(--foreground);
+}
+
+.keys-tool {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.keys-tool:hover:not(:disabled) {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.keys-tool:disabled {
+  opacity: 0.3;
+  cursor: default;
 }
 
 .keys-empty {
-  margin: 0;
-  padding: 12px;
+  padding: 12px 0;
   color: var(--muted-foreground);
   font-size: var(--text-sm);
 }
 
 .keys-hint {
+  flex: none;
   margin: 0;
+  padding: 8px 14px;
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+}
+
+/* ---- キー入力待ち ---- */
+.keys-record {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  padding: 96px 16px 16px;
+  background: rgb(0 0 0 / 80%);
+}
+
+.keys-record-box {
+  width: 420px;
+  max-width: 100%;
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-lg);
+  text-align: center;
+  color: #fff;
+}
+
+.keys-record-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.keys-record-action {
+  margin: 0;
+  font-size: var(--text-md);
+}
+
+.keys-record-input {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+  border: 1px solid var(--primary);
+  border-radius: var(--radius);
+  background: var(--muted);
+}
+
+.keys-record-input.error {
+  border-color: var(--destructive);
+}
+
+.keys-record-placeholder {
   color: var(--muted-foreground);
   font-size: var(--text-sm);
+}
+
+.keys-record-message {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+/* 暗いオーバーレイ上の文字はテーマの destructive だと沈むので、白のまま太字にする (赤は入力欄の枠で示す) */
+.keys-record-message.error {
+  font-weight: bold;
+}
+
+@media (max-width: 640px) {
+  .keys-layout {
+    flex-direction: column;
+  }
+
+  .keys-sidebar {
+    width: auto;
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .keys-pages {
+    flex-direction: row;
+    min-width: 0;
+  }
+
+  .keys-reset-all {
+    white-space: nowrap;
+  }
+
+  .keys-row {
+    flex-wrap: wrap;
+  }
+
+  .keys-name {
+    flex-basis: 100%;
+  }
+
+  .keys-slot {
+    flex: 1;
+    width: auto;
+  }
+
+  /* タッチ操作では hover できないので削除ボタンは常に出す */
+  .keys-chip-remove {
+    opacity: 1;
+  }
+}
+
+@media (hover: none) {
+  .keys-chip-remove {
+    opacity: 1;
+  }
 }
 </style>

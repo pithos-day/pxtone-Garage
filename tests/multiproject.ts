@@ -173,6 +173,8 @@ import {
   shortcutCommand,
   formatShortcut,
   bindingLabel,
+  bindingParts,
+  modifierParts,
   bindingFromEvent,
   bindingConflict,
   isModifierKey,
@@ -2820,6 +2822,9 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(shortcutCommand(stroke("z", { ctrl: true }), ctx, custom), "undo", "shortcut: 上書きしていないコマンドは既定のまま");
     checkEq(bindingLabel({ key: "s", ctrl: true, alt: true }, false), "Ctrl+Alt+S", "shortcut: Alt 付きの表示");
     checkEq(bindingLabel({ key: "s", ctrl: true, alt: true }, true), "⌘⌥S", "shortcut: Alt 付きの macOS 表示");
+    checkEq(bindingParts({ key: "s", ctrl: true, shift: true }, false).join("|"), "Ctrl|Shift|S", "shortcut: キーキャップ単位の分解");
+    checkEq(bindingParts({ key: "arrowleft", label: "←" }, false).join("|"), "←", "shortcut: label 付きの分解");
+    checkEq(modifierParts({ ctrl: true, alt: true }, true).join("|"), "⌘|⌥", "shortcut: 修飾キーのみの macOS 分解");
 
     // ---- 入力からの割り当て生成と競合検出 ----
     const keyEvt = (
