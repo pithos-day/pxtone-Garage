@@ -395,3 +395,21 @@ textarea:disabled {
   margin: 3px 6px;
   background: var(--border);
 }
+
+/* ---- 行の並べ替えドラッグ (lib/drag-ghost) ---- */
+body.row-dragging,
+body.row-dragging * {
+  cursor: grabbing !important;
+  user-select: none;
+}
+
+.row-drag-ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  background: var(--background);
+  opacity: 0.7;
+  box-shadow: 2px 2px 10px rgb(0 0 0 / 0.35);
+  pointer-events: none;
+}

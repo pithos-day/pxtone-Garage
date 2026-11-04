@@ -2,6 +2,7 @@
 // 再生/表示/ピン留めのチェックボックスとソロのラジオボタンを持つ。
 // 列ヘッダー付きで、ユニット名の下には割り当て音色名を表示する。
 <script setup lang="ts">
+import { createRowDragGhost } from "../../lib/drag-ghost";
 import { ref } from "vue";
 import { Eye, Pin, Headphones, MousePointer2, Pencil, Pointer, RefreshCw, Trash2 } from "@lucide/vue";
 import {
@@ -85,18 +86,20 @@ function onPointerDown(e: PointerEvent, idx: number): void {
 
   // ドラッグ並べ替え (ctrl/shift 選択中・読み取り専用タブでは無効)
   if (!e.ctrlKey && !e.shiftKey && !doc.readOnly && tray) {
-    startDragReorder(tray, idx);
+    startDragReorder(tray, idx, e);
   }
 }
 
 // 行の実測高さを基準に、ドラッグ中のマウス位置へユニットを逐次並べ替える
 // (undo は並べ替え開始時の1エントリにまとめる)
-function startDragReorder(tray: HTMLElement, idx: number): void {
+function startDragReorder(tray: HTMLElement, idx: number, down: PointerEvent): void {
   const first = tray.querySelector<HTMLElement>(".unit-row");
   const h = first?.offsetHeight ?? 24;
   let lastTarget = idx;
   const dragUndo = useDragUndo();
+  const ghost = createRowDragGhost(down.currentTarget as HTMLElement, down);
   const onMove = (ev: PointerEvent): void => {
+    ghost.move(ev);
     const dy = ev.clientY - tray.getBoundingClientRect().top;
     const row = Math.floor((tray.scrollTop + dy) / h);
     if (row >= 0 && row < units.value.length && row !== lastTarget) {
@@ -108,12 +111,15 @@ function startDragReorder(tray: HTMLElement, idx: number): void {
     }
   };
   const onUp = (): void => {
-    tray.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointermove", onMove);
     window.removeEventListener("pointerup", onUp);
+    window.removeEventListener("pointercancel", onUp);
+    ghost.remove();
     dragUndo.finish();
   };
-  tray.addEventListener("pointermove", onMove);
+  window.addEventListener("pointermove", onMove);
   window.addEventListener("pointerup", onUp);
+  window.addEventListener("pointercancel", onUp);
 }
 
 const hold = useHoldPreview();

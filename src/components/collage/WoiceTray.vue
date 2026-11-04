@@ -1,5 +1,6 @@
 // 音色リスト (W モード)。型別色分け、選択、削除、並べ替え
 <script setup lang="ts">
+import { createRowDragGhost } from "../../lib/drag-ghost";
 import { computed, ref } from "vue";
 import { Download, ExternalLink, SquarePen, RefreshCw, Trash2 } from "@lucide/vue";
 import {
@@ -67,18 +68,20 @@ function onPointerDown(e: PointerEvent, idx: number): void {
     capturePointer(trayListRef.value, e);
     hold.onPress();
     previewWoiceHold(idx, EVENTDEFAULT_KEY, EVENTDEFAULT_VELOCITY);
-    if (!doc.readOnly) startDragReorder(idx);
+    if (!doc.readOnly) startDragReorder(idx, e);
   }
 }
 
 // ドラッグ中のマウス位置へ音色を逐次並べ替える (undo はドラッグ全体で 1 エントリ)。
 // ファイルのドロップ (HTML5 DnD) と競合しないようポインタで処理する
-function startDragReorder(idx: number): void {
+function startDragReorder(idx: number, down: PointerEvent): void {
   const list = trayListRef.value;
   if (!list) return;
   let lastTarget = idx;
   const dragUndo = useDragUndo();
+  const ghost = createRowDragGhost(down.currentTarget as HTMLElement, down);
   const onMove = (ev: PointerEvent): void => {
+    ghost.move(ev);
     const h = list.querySelector<HTMLElement>(".woice-row")?.offsetHeight ?? 24;
     const row = Math.floor((list.scrollTop + ev.clientY - list.getBoundingClientRect().top) / h);
     if (row < 0 || row >= woices.value.length || row === lastTarget) return;
@@ -89,12 +92,13 @@ function startDragReorder(idx: number): void {
     doc.rev++;
   };
   const onUp = (): void => {
-    list.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointermove", onMove);
     window.removeEventListener("pointerup", onUp);
     window.removeEventListener("pointercancel", onUp);
+    ghost.remove();
     dragUndo.finish();
   };
-  list.addEventListener("pointermove", onMove);
+  window.addEventListener("pointermove", onMove);
   window.addEventListener("pointerup", onUp);
   window.addEventListener("pointercancel", onUp);
 }
