@@ -4,7 +4,7 @@
 <script setup lang="ts">
 import { createRowDragGhost } from "../../lib/drag-ghost";
 import { ref } from "vue";
-import { Eye, Pin, Headphones, Pencil, Plus, RefreshCw, Trash2 } from "@lucide/vue";
+import { Eye, Pin, Headphones, Plus, SquarePen, Trash2 } from "@lucide/vue";
 import {
   doc,
   units,
@@ -171,12 +171,11 @@ function commitEditName(idx: number): void {
   editing.value = null;
 }
 
-function onMenuAction(action: "edit" | "remove" | "change"): void {
+function onMenuAction(action: "edit" | "remove"): void {
   const u = menu.value?.unit;
   menu.value = null;
   if (u === undefined) return;
-  if (action === "edit") startEditName(u);
-  else if (action === "remove") removeUnit(u);
+  if (action === "remove") removeUnit(u);
   else changeUnitIdx.value = u;
 }
 </script>
@@ -233,8 +232,7 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
       <div v-if="units.length === 0" class="tray-empty">{{ t("unit.empty") }}</div>
     </div>
     <div v-if="menu" class="ctxmenu popup" :style="{ left: menu.x + 'px', top: menu.y + 'px' }">
-      <CtxMenuItem v-if="woices.length > 0" :icon="RefreshCw" @click="onMenuAction('change')">{{ t("unit.changeWoice") }}</CtxMenuItem>
-      <CtxMenuItem :icon="Pencil" @click="onMenuAction('edit')">{{ t("unit.editName") }}</CtxMenuItem>
+      <CtxMenuItem v-if="woices.length > 0" :icon="SquarePen" @click="onMenuAction('edit')">{{ t("unit.edit") }}</CtxMenuItem>
       <CtxMenuItem :icon="Trash2" danger @click="onMenuAction('remove')">{{ t("common.delete") }}</CtxMenuItem>
     </div>
     <AddUnitDialog v-if="showAddUnit" @close="showAddUnit = false" />
