@@ -2,7 +2,8 @@
 const START_DISTANCE_PX = 4; // クリックの手ぶれでは表示しない
 
 export interface RowDragGhost {
-  move(e: PointerEvent): void;
+  // 表示を始めていれば true を返す
+  move(e: PointerEvent): boolean;
   remove(): void;
 }
 
@@ -22,12 +23,13 @@ export function createRowDragGhost(row: HTMLElement, down: PointerEvent): RowDra
   return {
     move(e) {
       if (!started) {
-        if (Math.hypot(e.clientX - down.clientX, e.clientY - down.clientY) < START_DISTANCE_PX) return;
+        if (Math.hypot(e.clientX - down.clientX, e.clientY - down.clientY) < START_DISTANCE_PX) return false;
         started = true;
         document.body.classList.add("row-dragging");
         document.body.append(ghost);
       }
       ghost.style.transform = `translate(${e.clientX - offsetX}px, ${e.clientY - offsetY}px)`;
+      return true;
     },
     remove() {
       document.body.classList.remove("row-dragging");

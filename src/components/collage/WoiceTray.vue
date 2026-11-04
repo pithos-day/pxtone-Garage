@@ -74,6 +74,8 @@ function onPointerDown(e: PointerEvent, idx: number): void {
 
 // ドラッグ中のマウス位置へ音色を逐次並べ替える (undo はドラッグ全体で 1 エントリ)。
 // ファイルのドロップ (HTML5 DnD) と競合しないようポインタで処理する
+const draggingRow = ref(-1); // 掴んでいる行の現在位置 (表示中のみ)
+
 function startDragReorder(idx: number, down: PointerEvent): void {
   const list = trayListRef.value;
   if (!list) return;
@@ -81,17 +83,20 @@ function startDragReorder(idx: number, down: PointerEvent): void {
   const dragUndo = useDragUndo();
   const ghost = createRowDragGhost(down.currentTarget as HTMLElement, down);
   const onMove = (ev: PointerEvent): void => {
-    ghost.move(ev);
+    const started = ghost.move(ev);
     const h = list.querySelector<HTMLElement>(".woice-row")?.offsetHeight ?? 24;
     const row = Math.floor((list.scrollTop + ev.clientY - list.getBoundingClientRect().top) / h);
-    if (row < 0 || row >= woices.value.length || row === lastTarget) return;
-    dragUndo.onFirstMove();
-    replaceWoiceRaw(lastTarget, row);
-    lastTarget = row;
-    sync();
-    doc.rev++;
+    if (row >= 0 && row < woices.value.length && row !== lastTarget) {
+      dragUndo.onFirstMove();
+      replaceWoiceRaw(lastTarget, row);
+      lastTarget = row;
+      sync();
+      doc.rev++;
+    }
+    if (started) draggingRow.value = lastTarget;
   };
   const onUp = (): void => {
+    draggingRow.value = -1;
     window.removeEventListener("pointermove", onMove);
     window.removeEventListener("pointerup", onUp);
     window.removeEventListener("pointercancel", onUp);
@@ -186,6 +191,7 @@ function woiceSummary(idx: number): string {
         v-for="w in woices"
         :key="w.index"
         class="woice-row"
+        :class="{ 'row-drag-source': w.index === draggingRow }"
         :style="{ borderLeft: '4px solid ' + woiceTypeColor(w.type) }"
         @pointerdown="onPointerDown($event, w.index)"
       >

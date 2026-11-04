@@ -403,6 +403,11 @@ body.row-dragging * {
   user-select: none;
 }
 
+/* 掴んでいる行はリストから消えて見える (場所は移動先として空けておく) */
+.row-drag-source {
+  visibility: hidden;
+}
+
 .row-drag-ghost {
   position: fixed;
   top: 0;

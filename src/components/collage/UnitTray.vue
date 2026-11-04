@@ -92,6 +92,8 @@ function onPointerDown(e: PointerEvent, idx: number): void {
 
 // 行の実測高さを基準に、ドラッグ中のマウス位置へユニットを逐次並べ替える
 // (undo は並べ替え開始時の1エントリにまとめる)
+const draggingRow = ref(-1); // 掴んでいる行の現在位置 (表示中のみ)
+
 function startDragReorder(tray: HTMLElement, idx: number, down: PointerEvent): void {
   const first = tray.querySelector<HTMLElement>(".unit-row");
   const h = first?.offsetHeight ?? 24;
@@ -99,7 +101,7 @@ function startDragReorder(tray: HTMLElement, idx: number, down: PointerEvent): v
   const dragUndo = useDragUndo();
   const ghost = createRowDragGhost(down.currentTarget as HTMLElement, down);
   const onMove = (ev: PointerEvent): void => {
-    ghost.move(ev);
+    const started = ghost.move(ev);
     const dy = ev.clientY - tray.getBoundingClientRect().top;
     const row = Math.floor((tray.scrollTop + dy) / h);
     if (row >= 0 && row < units.value.length && row !== lastTarget) {
@@ -109,8 +111,10 @@ function startDragReorder(tray: HTMLElement, idx: number, down: PointerEvent): v
       sync();
       doc.rev++;
     }
+    if (started) draggingRow.value = lastTarget;
   };
   const onUp = (): void => {
+    draggingRow.value = -1;
     window.removeEventListener("pointermove", onMove);
     window.removeEventListener("pointerup", onUp);
     window.removeEventListener("pointercancel", onUp);
@@ -192,7 +196,7 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
         v-for="u in units"
         :key="u.index"
         class="unit-row"
-        :class="{ focus: u.index === doc.focusUnit, selected: doc.selectedUnits.includes(u.index), muted: u.muted }"
+        :class="{ focus: u.index === doc.focusUnit, selected: doc.selectedUnits.includes(u.index), muted: u.muted, 'row-drag-source': u.index === draggingRow }"
         :style="{ borderLeft: '4px solid ' + (u.pinned ? 'var(--primary)' : 'transparent') }"
         @pointerdown="onPointerDown($event, u.index)"
         @dblclick="startEditName(u.index)"
