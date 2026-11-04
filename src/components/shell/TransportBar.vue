@@ -1,5 +1,5 @@
 // 再生コントロールバー。Player パネルから移設した再生・停止・リピート・音量・位置表示と、
-// Effector/Copier パネルのトグル (右揃え)。
+// グリッドスナップ・ズーム・Effector/Copier パネルのトグル (右揃え)。
 <script setup lang="ts">
 import { Play, Pause, Square, Repeat, ArrowBigRightDash, Metronome } from "@lucide/vue";
 import { isPlaying, togglePlay, stopAndRewind, loop, setLoop, masterVolume, setMasterVolume, positionSample, player, currentClock, followPlayback, metronome, setMetronome } from "../../state/player";
@@ -46,7 +46,7 @@ function releaseFocus(e: Event): void {
     <span class="sep" />
     <span class="time">{{ timeLabel() }}</span>
     <span class="clock">{{ formatClock(clockContext(), currentClock) }}</span>
-    <span class="sep" />
+    <span class="transport-spacer" />
     <label class="vol-label" for="transport-snap">{{ t("menu.edit.gridSnap") }}</label>
     <select
       id="transport-snap"
@@ -68,7 +68,7 @@ function releaseFocus(e: Event): void {
       @change="releaseFocus"
     />
     <span class="pct">{{ Math.round(doc.zoom) }}px</span>
-    <span class="transport-spacer" />
+    <span class="sep" />
     <span class="panel-label">{{ t("transport.panels") }}</span>
     <button
       v-for="p in PANELS"
