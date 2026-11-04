@@ -3614,6 +3614,8 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(hits(101, 201), "101", "metronome: 区間は半開");
     checkEq(hits(102, 201), "", "metronome: 拍がない区間は空");
     checkEq(metronomeHits(0, 10, 0, 4).length, 0, "metronome: 不正なテンポでは鳴らさない");
+    checkEq(metronomeHits(0, 10, NaN, 4).length, 0, "metronome: NaN のテンポでも止まらない");
+    checkEq(metronomeHits(0, 10, Infinity, 4).length, 0, "metronome: テンポ 0 (無限長の拍) でも止まらない");
 
     // 音は正しい ptnoise として読み書きでき、波形になる
     for (const tone of ["high", "low"] as const) {

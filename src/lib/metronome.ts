@@ -9,7 +9,8 @@ export interface MetronomeHit {
 // 区間 [start, end) に含まれる拍を返す
 export function metronomeHits(start: number, end: number, samplesPerBeat: number, beatNum: number): MetronomeHit[] {
   const hits: MetronomeHit[] = [];
-  if (end <= start || samplesPerBeat <= 0) return hits;
+  // 壊れたファイルのテンポ (0 / NaN) でオーディオスレッドを止めない
+  if (end <= start || !Number.isFinite(samplesPerBeat) || samplesPerBeat <= 0) return hits;
   const measure = Math.max(1, beatNum);
   for (let beat = Math.max(0, Math.floor(start / samplesPerBeat)); ; beat++) {
     const sample = Math.round(beat * samplesPerBeat);
