@@ -4,7 +4,7 @@
 <script setup lang="ts">
 import { createRowDragGhost } from "../../lib/drag-ghost";
 import { ref } from "vue";
-import { Eye, Pin, Headphones, MousePointer2, Pencil, Pointer, RefreshCw, Trash2 } from "@lucide/vue";
+import { Eye, Pin, Headphones, Pencil, RefreshCw, Trash2 } from "@lucide/vue";
 import {
   doc,
   units,
@@ -176,11 +176,6 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
   <div class="tray" :style="{ '--checks-w': CHECKS_W + 'px' }">
     <div class="tray-title bar-header">
       {{ t("unit.title") }} ({{ units.length }})
-      <span class="tray-tools">
-        <button class="btn btn-sm mode" :class="{ on: doc.tool === 'smart' }" :title="t('unit.smart')" @click="doc.tool = 'smart'"><MousePointer2 :size="16" /></button>
-        <button class="btn btn-sm mode" :class="{ on: doc.tool === 'pen' }" :title="t('unit.pen')" @click="doc.tool = 'pen'"><Pencil :size="16" /></button>
-        <button class="btn btn-sm mode" :class="{ on: doc.tool === 'hand' }" :title="t('unit.hand')" @click="doc.tool = 'hand'"><Pointer :size="16" /></button>
-      </span>
     </div>
     <div class="unit-header bar-header">
       <span class="unit-header-checks">
@@ -251,11 +246,6 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
   justify-content: space-between;
   padding: 4px 7px;
   font-size: var(--text-sm);
-}
-
-.tray-tools {
-  display: flex;
-  gap: var(--space-2xs);
 }
 
 /* 列ヘッダー (再生/表示/ピン/ソロ/名前) */

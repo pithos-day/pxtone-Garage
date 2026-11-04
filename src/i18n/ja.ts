@@ -155,6 +155,9 @@ const ja = {
   // ツールパネル
   "tool.woiceManage": "音色管理",
   "tool.unitManage": "ユニット",
+  "tool.smart": "スマート",
+  "tool.pen": "ペン",
+  "tool.hand": "ハンド",
 
   // ユニット一覧
   "unit.title": "ユニット",
@@ -163,9 +166,6 @@ const ja = {
   "unit.play": "再生",
   "unit.pin": "ピン留め (上部に固定)",
   "unit.solo": "ソロ (他ユニットをミュート)",
-  "unit.smart": "スマート",
-  "unit.pen": "ペン",
-  "unit.hand": "ハンド",
   "unit.editName": "名前を編集",
   "unit.changeWoice": "音色を変更",
   "unit.changeTitle": "ユニットを編集",
