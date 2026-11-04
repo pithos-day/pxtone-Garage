@@ -495,6 +495,7 @@ const openItems = computed<MenuItem[]>(() => {
         />
       </div>
     </div>
+    <div class="app-logo" role="img" aria-label="pxtone Garage"></div>
   </div>
 </template>
 
@@ -558,5 +559,19 @@ const openItems = computed<MenuItem[]>(() => {
   min-width: 190px;
   background: var(--card);
   padding: 3px 0;
+}
+
+/* ロゴ — SVG をマスクにしてテーマの primary 色で塗る。
+   ドット絵が崩れないよう viewBox (77x8) の整数倍 (3 倍) で表示し、
+   中央揃えだと小数 px になるので上端は margin で揃える */
+.app-logo {
+  flex: none;
+  align-self: flex-start;
+  width: 231px;
+  height: 24px;
+  margin: 7px 6px 0 auto;
+  background: var(--primary);
+  -webkit-mask: url("/logo.svg") center / 100% 100% no-repeat;
+  mask: url("/logo.svg") center / 100% 100% no-repeat;
 }
 </style>
