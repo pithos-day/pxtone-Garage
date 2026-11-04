@@ -5,7 +5,7 @@ import { decodeProjectBytes } from "../engine/oggv";
 import { EXE_VER } from "./service";
 import { getService, exportBytes, doc, clockContext } from "./project";
 import { xToClock } from "../lib/clock";
-import { LEFT_W } from "../lib/layout";
+import { leftW } from "./left-panel";
 import { readStorage, writeStorage } from "../lib/storage";
 import { buildMetronomeTones } from "../engine/metronome";
 
@@ -184,7 +184,7 @@ function followPage(): void {
   if (!s) return;
   const view = clockContext();
   // フィールド幅 = ウィンドウ幅 - 左パネル幅 (フィールドは左パネルの右から始まる)
-  const pageWidthPx = Math.max(100, window.innerWidth - LEFT_W);
+  const pageWidthPx = Math.max(100, window.innerWidth - leftW.value);
   const endClock = xToClock(view, doc.scrollX + pageWidthPx);
   if (currentClock.value > endClock) {
     doc.scrollX = Math.max(0, doc.scrollX + pageWidthPx);

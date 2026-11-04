@@ -102,6 +102,7 @@ import { undo, redo, canUndo, canRedo, undoStack } from "../src/state/undo";
 import { applyDraftProjectState, linkedWoiceIndex, woiceLinkAt } from "../src/state/projects";
 import { droppedFiles, namedFiles, readBlobsAndApply, toArrayBuffer } from "../src/engine/io";
 import { pushRecent, dropRecent } from "../src/lib/recent-list";
+import { LEFT_W_DEFAULT, LEFT_W_MAX, LEFT_W_MIN, clampLeftW } from "../src/lib/layout";
 import { metronomeHits } from "../src/lib/metronome";
 import { quantizeNotes } from "../src/lib/quantize";
 import { buildMetronomeTones, createMetronomeNoise } from "../src/engine/metronome";
@@ -2908,6 +2909,11 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     }
     checkEq(duplicate, "", "shortcut: 同じキーの重複割り当てが無い");
     checkEq(SHORTCUTS.length, 24, "shortcut: コマンド数");
+
+    // ---- 左パネル幅 ----
+    checkEq(clampLeftW(100), LEFT_W_MIN, "left panel: 下限でクランプ");
+    checkEq(clampLeftW(9999), LEFT_W_MAX, "left panel: 上限でクランプ");
+    checkEq(clampLeftW(Number("abc")), LEFT_W_DEFAULT, "left panel: 壊れた保存値は既定幅");
 
     // ---- ズームスライダーの対数変換 ----
     checkEq(sliderToZoom(0), ZOOM_MIN, "zoom slider: 左端は最小ズーム");

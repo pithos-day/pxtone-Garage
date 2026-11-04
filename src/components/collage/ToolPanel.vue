@@ -31,6 +31,8 @@ import { t } from "../../i18n";
 }
 
 .tool-mode {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: stretch;
   gap: var(--space-2xs);
@@ -43,8 +45,11 @@ import { t } from "../../i18n";
   background: var(--border);
 }
 
+/* 左パネルの幅に合わせて伸縮する */
 .tool-mode .btn {
   flex: 1;
+  min-width: 0;
+  padding-inline: 0;
 }
 
 </style>

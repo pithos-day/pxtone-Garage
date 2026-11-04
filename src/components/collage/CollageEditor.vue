@@ -6,7 +6,9 @@ import { computed } from "vue";
 import { ChevronDown, ChevronRight } from "@lucide/vue";
 import { doc, units, ensureInit, pinnedUnits, VOLUME_MODES, setScope, scopeCopy, scopeCut, scopeClear, scopeDelete, scopePaste, scopeClipReady, clockContext, getService, hasNoteSelection, clearNoteSelection, noteCopy, noteCut, noteDelete, clipboardHasNotes } from "../../state/project";
 import { KEY_HEIGHT, KEYNUM, measStartClock } from "../../lib/clock";
-import { RULER_H, STRIP_W, LEFT_W, NAME_W, PINNED_MAX_ROWS } from "../../lib/layout";
+import { LEFT_W_DEFAULT, RULER_H, STRIP_W, PINNED_MAX_ROWS } from "../../lib/layout";
+import { leftW, nameW, saveLeftW, setLeftW } from "../../state/left-panel";
+import { capturePointer, releasePointerCapture } from "../../lib/field";
 import { useGlobalKeys } from "../../composables/useGlobalKeys";
 import { arrowScrollRow, arrowScrollX, shortcutAreaOf, type ShortcutCommand } from "../../lib/shortcuts";
 import { shortcutCommand } from "../../state/keybindings";
@@ -137,13 +139,38 @@ function onKeydown(e: KeyboardEvent): void {
 
 useGlobalKeys(() => props.active, { keydown: onKeydown });
 
+// ---- 左パネルの幅変更 ----
+let resizeStart: { x: number; w: number } | null = null;
+
+function onResizeDown(e: PointerEvent): void {
+  if (e.button !== 0) return;
+  capturePointer(e.currentTarget as HTMLElement, e);
+  resizeStart = { x: e.clientX, w: leftW.value };
+}
+
+function onResizeMove(e: PointerEvent): void {
+  if (resizeStart) setLeftW(resizeStart.w + e.clientX - resizeStart.x);
+}
+
+function onResizeUp(e: PointerEvent): void {
+  releasePointerCapture(e.currentTarget as HTMLElement, e);
+  if (!resizeStart) return;
+  resizeStart = null;
+  saveLeftW();
+}
+
+function onResizeReset(): void {
+  setLeftW(LEFT_W_DEFAULT);
+  saveLeftW();
+}
+
 // ボリュームモードボタンの表示名 (VOLUME_MODES と index 対応)
 const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
 </script>
 
 <template>
   <!-- レイアウト幅は lib/layout から CSS 変数として注入 (px の手動同期を排除) -->
-  <div class="collage" :style="{ '--left-w': LEFT_W + 'px', '--strip-w': STRIP_W + 'px', '--name-w': NAME_W + 'px', '--key-h': KEY_HEIGHT + 'px' }">
+  <div class="collage" :style="{ '--left-w': leftW + 'px', '--strip-w': STRIP_W + 'px', '--name-w': nameW + 'px', '--key-h': KEY_HEIGHT + 'px' }">
     <div class="collage-body">
       <!-- ピン留めユニットのレーン (上部固定) -->
       <div v-if="pinned.length > 0" class="collage-pinned" :style="{ height: (RULER_H + Math.min(pinned.length, PINNED_MAX_ROWS) * KEY_HEIGHT) + 'px' }">
@@ -155,6 +182,17 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
           <ToolPanel />
           <UnitTray v-if="doc.mode === 'U'" />
           <WoiceTray v-if="doc.mode === 'W'" @open-editor="emit('open-editor', $event)" />
+          <div
+            class="tray-resizer"
+            role="separator"
+            aria-orientation="vertical"
+            :title="t('tool.resizePanel')"
+            @pointerdown="onResizeDown"
+            @pointermove="onResizeMove"
+            @pointerup="onResizeUp"
+            @pointercancel="onResizeUp"
+            @dblclick="onResizeReset"
+          />
         </div>
         <!-- フィールド列: ルーラー (トラック直上) + トラック -->
         <div class="collage-field-col">
@@ -246,6 +284,7 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
 }
 
 .collage-tray {
+  position: relative;
   width: var(--left-w);
   flex: none;
   border-right: 1px solid var(--border);
@@ -253,6 +292,22 @@ const volumeModeLabels = VOLUME_MODES.map((m) => m.label);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+/* 左パネルの右端のドラッグハンドル。
+   フィールドの開始位置 (NAME_W) がずれないよう、幅を取らずパネルの内側に重ねる */
+.tray-resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 5px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.tray-resizer:hover {
+  background: color-mix(in srgb, var(--primary) 50%, transparent);
 }
 
 /* Volume 展開ボタン。幅は左パネル + 鍵盤 (NAME_W) で本家の VolumeSwitch 相当 */

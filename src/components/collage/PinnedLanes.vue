@@ -14,7 +14,8 @@ import { clockAtX, zoomAnchorScrollX, zoomOrPan } from "../../lib/field";
 import { clockToX } from "../../lib/clock";
 import { iterVisibleRecords, visibleClockWindow } from "../../lib/records";
 import { KEY_HEIGHT } from "../../lib/clock";
-import { RULER_H, NAME_W, PINNED_MAX_ROWS } from "../../lib/layout";
+import { RULER_H, PINNED_MAX_ROWS } from "../../lib/layout";
+import { nameW } from "../../state/left-panel";
 import { EventKind } from "pxtone-ts";
 import { writeNoteLength, eraseNote } from "../../lib/editing";
 import {
@@ -32,8 +33,8 @@ import {
 import { currentClock, seekToClock, isPlaying as isPlayingNow } from "../../state/player";
 import { previewUnitHold } from "../../engine/preview";
 
-// 左のユニット名領域 = 左パネル (300px) + 鍵盤ストリップ (64px)。
-// レーンの開始位置をピアノロールフィールドと揃える (lib/layout.ts の NAME_W)
+// 左のユニット名領域 = 左パネル + 鍵盤ストリップ。
+// レーンの開始位置をピアノロールフィールドと揃える (state/left-panel の nameW)
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 
@@ -70,6 +71,7 @@ useCanvas(
     () => units.value.length,
     () => doc.unitPinned.join(","),
     () => rawRowOffset.value,
+    () => nameW.value,
   ],
 );
 
@@ -81,11 +83,11 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   const pinned = pinnedUnits();
   const fieldTop = RULER_H;
   const fieldH = h - fieldTop;
-  const fieldW = w - NAME_W;
+  const fieldW = w - nameW.value;
 
   // ルーラー帯 + グリッド + イベント (ユニット名領域の右側)
   ctx.save();
-  ctx.translate(NAME_W, 0);
+  ctx.translate(nameW.value, 0);
 
   drawGrid(ctx, { w: fieldW, h, scrollX, view, top: 0, bottom: RULER_H, showNumber: true, numberTop: 0 });
   drawGrid(ctx, { w: fieldW, h, scrollX, view, top: fieldTop, bottom: h });
@@ -171,7 +173,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     const u = pinned[i]!;
     const isFocus = u === doc.focusUnit;
     const bg = isFocus ? COLORS.focusRow : i % 2 === 0 ? "transparent" : COLORS.zebra;
-    fillRect(ctx, 0, y, NAME_W, KEY_HEIGHT, bg);
+    fillRect(ctx, 0, y, nameW.value, KEY_HEIGHT, bg);
     fillText(ctx, `${u}: ${units.value[u]?.name ?? ""}`, 2, y + 11, isFocus ? COLORS.focusText : COLORS.text, 12);
   }
 
@@ -190,7 +192,7 @@ type LanesDrag = { button: number; clock1: number; clock2: number; unit: number 
 
 // フィールド内の x → clock (ユニット名領域を除く)
 function clockAt(x: number): number {
-  return clockAtX(clockContext(), doc.divi, doc.scrollX, x, NAME_W);
+  return clockAtX(clockContext(), doc.divi, doc.scrollX, x, nameW.value);
 }
 
 function unitAt(y: number): number {
@@ -240,14 +242,14 @@ const { onPointerDown, onPointerMove, onPointerUp } = useCanvasDrag<LanesDrag>({
   beginDrag(e, pt) {
     if (pt.y < RULER_H) {
       // ルーラー帯クリック = シーク (ユニット名領域は対象外)
-      if (e.button === 0 && pt.x >= NAME_W) seekToClock(clockAt(pt.x));
+      if (e.button === 0 && pt.x >= nameW.value) seekToClock(clockAt(pt.x));
       return null;
     }
     const u = unitAt(pt.y);
     const s = getService();
     if (!s || u < 0) return null;
     // ユニット名領域はフォーカスの切り替えのみ (clockAt が左端へ丸めるので編集へ進めない)
-    if (pt.x < NAME_W) {
+    if (pt.x < nameW.value) {
       if (e.button === 0) setFocusUnit(u);
       return null;
     }
@@ -284,7 +286,7 @@ function onWheel(e: WheelEvent): void {
   const { zoom, pan } = zoomOrPan(e, doc.zoom);
   if (zoom !== null) {
     const rect = canvasRef.value?.getBoundingClientRect();
-    if (rect) doc.scrollX = zoomAnchorScrollX(doc.zoom, zoom, doc.scrollX, e.clientX - rect.left, NAME_W);
+    if (rect) doc.scrollX = zoomAnchorScrollX(doc.zoom, zoom, doc.scrollX, e.clientX - rect.left, nameW.value);
     doc.zoom = zoom;
   } else if (pan !== null) doc.scrollX = Math.max(0, doc.scrollX + pan);
   else if (e.deltaY !== 0) rawRowOffset.value = Math.max(0, Math.min(maxRowOffset(), rowOffset() + Math.sign(e.deltaY)));

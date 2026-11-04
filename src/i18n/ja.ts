@@ -158,6 +158,7 @@ const ja = {
   "tool.smart": "スマート",
   "tool.pen": "ペン",
   "tool.hand": "ハンド",
+  "tool.resizePanel": "ドラッグで幅を変更 (ダブルクリックで既定の幅に戻す)",
 
   // ユニット一覧
   "unit.title": "ユニット",
