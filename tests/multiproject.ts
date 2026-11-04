@@ -19,7 +19,7 @@
 //   46. キーボードショートカット (lib/shortcuts: 判定 / 表示 / スクロール)
 //   47. 進捗ダイアログ (state/progress) と IO の進捗・キャンセル
 //   48. 名前を付けて保存で Collage とのリンクを解除 / 49. 同梱サンプル楽曲 / 50. 全て閉じる / 51. Voice/Noise の全て閉じる
-//   52. Noise の undo / History は編集状態をそのまま戻す
+//   52. Noise の undo / History は編集状態をそのまま戻す / 53. THIRD_PARTY_NOTICES の生成
 import {
   projects,
   currentProjectId,
@@ -92,6 +92,10 @@ import {
   setFocusUnit,
   EVENTDEFAULT_KEY,
 } from "../src/state/project";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join as joinPath } from "node:path";
+import { collectEntries, packageDirOfModule, renderNotices } from "../scripts/third-party-notices";
 import * as serviceMod from "../src/state/service";
 import { SAMPLE_SONGS } from "../src/state/samples";
 import { undo, redo, canUndo, canRedo, undoStack } from "../src/state/undo";
@@ -3949,6 +3953,51 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(currentNoise()!.dirty, false, "revision: noise も undo でクリーン");
     redoNoise();
     checkEq(currentNoise()!.dirty, true, "revision: noise も redo で dirty");
+  }
+
+  // ---- 53. THIRD_PARTY_NOTICES の生成 ----
+  {
+    const root = mkdtempSync(joinPath(tmpdir(), "notices-"));
+    const addPackage = (name: string, manifest: object, license?: string): string => {
+      const dir = joinPath(root, "node_modules", name);
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(joinPath(dir, "package.json"), JSON.stringify({ name, version: "1.0.0", ...manifest }));
+      if (license) writeFileSync(joinPath(dir, "LICENSE"), license);
+      return dir;
+    };
+    const a = addPackage("pkg-a", { license: "MIT", repository: { url: "git+https://example.com/a.git" } }, "SAME\r\n");
+    addPackage("pkg-b", { license: "MIT" }, "SAME\n");
+    addPackage("pkg-c", { license: "ISC" }, "    OTHER\n");
+    addPackage("no-text", { license: "MIT" });
+    addPackage("no-license", {}, "TEXT");
+    // name を持たない入れ子の package.json は所属パッケージとみなさない
+    mkdirSync(joinPath(a, "dist"));
+    writeFileSync(joinPath(a, "dist/package.json"), JSON.stringify({ type: "module" }));
+    const moduleOf = (name: string): string => joinPath(root, "node_modules", name, "index.js");
+
+    checkEq(packageDirOfModule(`${joinPath(a, "dist/x.js")}?v=1`), a, "notices: クエリと入れ子の package.json を飛ばしてパッケージを求める");
+    checkEq(packageDirOfModule(joinPath(root, "src/main.ts")), null, "notices: node_modules 外は対象外");
+    checkEq(packageDirOfModule("\0vite/preload-helper.js"), null, "notices: 仮想モジュールは対象外");
+
+    const entries = collectEntries(["pkg-c", "pkg-a", "pkg-b", "pkg-a"].map(moduleOf), root);
+    checkEq(entries.length, 3, "notices: 同じパッケージの複数モジュールは 1 件にまとまる");
+    const text = renderNotices(entries);
+    checkEq(text.split("SAME").length - 1, 1, "notices: 同じ本文は 1 つの節にまとめる (改行コードの差は無視)");
+    check(text.includes("pkg-a 1.0.0 (MIT)\n  https://example.com/a\npkg-b 1.0.0 (MIT)"), "notices: 同じ本文のパッケージを見出しに並べ、URL を整形する");
+    check(text.includes("\n    OTHER\n"), "notices: 本文の字下げを保つ");
+    checkEq(renderNotices([...entries].reverse()), text, "notices: 入力順に依存しない");
+
+    const throwsFor = (name: string): boolean => {
+      try {
+        collectEntries([moduleOf(name)], root);
+        return false;
+      } catch {
+        return true;
+      }
+    };
+    check(throwsFor("no-text"), "notices: ライセンス本文が無ければ失敗する");
+    check(throwsFor("no-license"), "notices: license 宣言が無ければ失敗する");
+    rmSync(root, { recursive: true, force: true });
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);

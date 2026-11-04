@@ -94,3 +94,5 @@ pnpm test   # tests/multiproject.ts を esbuild でバンドルして実行
 
 ピストンコラージュは zlib ライセンス (C) 2005-2025 Daisuke Amaya (開発室Pixel)。
 本アプリはその互換実装であり、pxtone-ts の移植元は [pxtone-source-code 220910a](https://pxtone.org/developer/)。
+
+依存ライブラリのライセンス本文とクレジットは、`pnpm build` 時に `dist/THIRD_PARTY_NOTICES.txt` として自動生成されます (`scripts/third-party-notices.ts`)。

@@ -1,0 +1,8 @@
+Copyright (C) 2005-2025 Daisuke Amaya (Studio Pixel)
+
+pxtone-source-code 220910a の ReadMe[JP].txt「ライセンス的なこと」より:
+
+    ・再生に必要な ソースコード(pxtoneフォルダ内)は無償で使えます。改変もOKです。
+    ・特に許可をとる必要はありません。
+    ・利用の明記についてはお任せします。
+    ・利用が原因で何か問題があった場合の責任は負いかねます。
