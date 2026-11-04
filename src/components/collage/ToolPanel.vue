@@ -25,9 +25,9 @@ async function onAddWoice(): Promise<void> {
       <button class="btn btn-sm mode" :class="{ on: doc.mode === 'U' }" :title="`${t('tool.unitManage')} (${formatShortcut('modeU')})`" @click="doc.mode = 'U'"><Piano :size="18" /></button>
       <span class="tool-sep" />
       <!-- ピアノロールのツールは W/U どちらのモードでも切り替えられる -->
-      <button class="btn btn-sm mode" :class="{ on: doc.tool === 'smart' }" :title="t('tool.smart')" @click="doc.tool = 'smart'"><MousePointer2 :size="18" /></button>
-      <button class="btn btn-sm mode" :class="{ on: doc.tool === 'pen' }" :title="t('tool.pen')" @click="doc.tool = 'pen'"><Pencil :size="18" /></button>
-      <button class="btn btn-sm mode" :class="{ on: doc.tool === 'hand' }" :title="t('tool.hand')" @click="doc.tool = 'hand'"><Pointer :size="18" /></button>
+      <button class="btn btn-sm mode" :class="{ on: doc.tool === 'smart' }" :title="`${t('tool.smart')} (${formatShortcut('toolSmart')})`" @click="doc.tool = 'smart'"><MousePointer2 :size="18" /></button>
+      <button class="btn btn-sm mode" :class="{ on: doc.tool === 'pen' }" :title="`${t('tool.pen')} (${formatShortcut('toolPen')})`" @click="doc.tool = 'pen'"><Pencil :size="18" /></button>
+      <button class="btn btn-sm mode" :class="{ on: doc.tool === 'hand' }" :title="`${t('tool.hand')} (${formatShortcut('toolHand')})`" @click="doc.tool = 'hand'"><Pointer :size="18" /></button>
     </div>
     <div class="tool-buttons">
       <template v-if="doc.mode === 'W'">

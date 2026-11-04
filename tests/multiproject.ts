@@ -2811,6 +2811,9 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(cmdOf(stroke("End")), "seekEnd", "shortcut: End は末尾へシーク");
     checkEq(cmdOf(stroke("F1")), "modeW", "shortcut: F1 は音色管理 (W)");
     checkEq(cmdOf(stroke("F2")), "modeU", "shortcut: F2 はユニット (U)");
+    checkEq(cmdOf(stroke("1")), "toolSmart", "shortcut: 1 はスマートツール");
+    checkEq(cmdOf(stroke("2")), "toolPen", "shortcut: 2 はペンツール");
+    checkEq(cmdOf(stroke("3")), "toolHand", "shortcut: 3 はハンドツール");
 
     // ---- 修飾キーは完全一致 (macOS の ⌘ は Ctrl とみなす) ----
     checkEq(cmdOf(stroke("s", { meta: true })), "save", "shortcut: ⌘S も保存 (macOS)");
@@ -2904,7 +2907,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       }
     }
     checkEq(duplicate, "", "shortcut: 同じキーの重複割り当てが無い");
-    checkEq(SHORTCUTS.length, 21, "shortcut: コマンド数");
+    checkEq(SHORTCUTS.length, 24, "shortcut: コマンド数");
 
     // ---- 表示 (右寄せ併記用) ----
     checkEq(formatShortcut("scopeCopy", false), "Ctrl+C", "shortcut: 表示 Ctrl+C");

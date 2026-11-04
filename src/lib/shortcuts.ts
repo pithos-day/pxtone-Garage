@@ -61,6 +61,9 @@ const DEFINITIONS = {
   seekEnd: { area: "collage", action: "末尾へシーク", keys: [{ key: "end" }] },
   modeW: { area: "collage", action: "音色管理 (W)", keys: [{ key: "f1" }] },
   modeU: { area: "collage", action: "ユニット (U)", keys: [{ key: "f2" }] },
+  toolSmart: { area: "collage", action: "スマートツール", keys: [{ key: "1" }] },
+  toolPen: { area: "collage", action: "ペンツール", keys: [{ key: "2" }] },
+  toolHand: { area: "collage", action: "ハンドツール", keys: [{ key: "3" }] },
 } as const satisfies Record<string, ShortcutDef>;
 
 export type ShortcutCommand = keyof typeof DEFINITIONS;

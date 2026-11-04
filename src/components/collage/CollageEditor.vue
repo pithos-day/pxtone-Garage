@@ -114,6 +114,15 @@ function runShortcut(cmd: ShortcutCommand): void {
     case "modeU":
       doc.mode = "U";
       return;
+    case "toolSmart":
+      doc.tool = "smart";
+      return;
+    case "toolPen":
+      doc.tool = "pen";
+      return;
+    case "toolHand":
+      doc.tool = "hand";
+      return;
     default:
       return; // app 担当 (undo/redo/save) は MenuBar が実行する
   }
