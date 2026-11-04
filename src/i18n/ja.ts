@@ -308,6 +308,7 @@ const ja = {
   // エラーメッセージ
   "error.engineInit": "エンジン初期化に失敗しました",
   "error.loadFailed": "読み込みに失敗しました",
+  "error.filesFailed": "次のファイルを読み込めませんでした",
   "error.tonesReady": "音色変換失敗",
   "error.quality": "品質設定失敗",
   "error.prepare": "再生準備失敗",

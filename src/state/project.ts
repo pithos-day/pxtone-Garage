@@ -28,6 +28,7 @@ import {
   ioPutFloatLE,
   ioPutInt32LE,
   type EveRecord,
+  Woice,
 } from "pxtone-ts";
 import { encodeShiftJis, truncateShiftJis } from "../lib/sjis";
 import type { EventWriteOps } from "../lib/editing";
@@ -677,6 +678,42 @@ async function readWoiceFileInto(idx: number, bytes: Uint8Array, type: WoiceType
 export async function addWoice(bytes: Uint8Array, type: WoiceType, name?: string): Promise<string | null> {
   if (!doc.ready) return t("error.notReady");
   return readWoiceFileInto(service.woiceNum, bytes, type, name);
+}
+
+// 読み込みと変換を済ませた、まだプロジェクトへ追加していない音色
+export interface PreparedWoice {
+  name: string;
+  type: WoiceType;
+  chunk: Uint8Array;
+}
+
+// 音色ファイルを変換・検証する。読み込めなければエラーメッセージを返す
+export async function prepareWoiceFile(bytes: Uint8Array, name: string): Promise<PreparedWoice | string> {
+  const type = detectWoiceType(bytes);
+  const chunk = type === WoiceType.OGGV ? await oggBytesToMateChunk(bytes) : bytes;
+  if (!chunk) return t("error.ogg");
+  const res = new Woice().read(new MemoryIo(chunk), type);
+  return res === PxtnErr.OK ? { name, type, chunk } : pxtnErrorMessage(res);
+}
+
+// 変換済みの音色をまとめて末尾に追加する (全体で 1 undo)。追加できなかった分を返す
+export function addWoices(items: readonly PreparedWoice[]): { name: string; error: string }[] {
+  if (items.length === 0 || !doc.ready || doc.readOnly) return [];
+  return (
+    mutate(() => {
+      const failures: { name: string; error: string }[] = [];
+      for (const item of items) {
+        const idx = service.woiceNum;
+        const res = service.woiceRead(idx, new MemoryIo(item.chunk), item.type);
+        if (res !== PxtnErr.OK) {
+          failures.push({ name: item.name, error: pxtnErrorMessage(res) });
+          continue;
+        }
+        service.woiceGet(idx)?.setNameBuf(truncateShiftJis(encodeShiftJis(item.name), 16), 16);
+      }
+      return failures;
+    }) ?? []
+  );
 }
 
 export function removeWoice(idx: number): void {

@@ -208,6 +208,47 @@ export interface OpenedFile {
   file: File;
 }
 
+// 一括読み込みで失敗したファイル
+export interface FileFailure {
+  name: string;
+  error: string;
+}
+
+// 複数ファイルを順に読み込んで適用する (進捗ダイアログは全体で 1 つ)。
+// 1 ファイルの失敗では止めず、失敗一覧を返す。キャンセルは次の区切りで止まり、
+// それまでに適用した分はそのまま残る (cancelled で呼び出し側に知らせる)
+export async function readBlobsAndApply<F extends { name: string; file: BlobLike }>(
+  title: string,
+  files: readonly F[],
+  apply: (bytes: Uint8Array, file: F) => string | null | Promise<string | null>,
+): Promise<{ failures: FileFailure[]; cancelled: boolean }> {
+  const failures: FileFailure[] = [];
+  const done = await withProgress(title, async (task) => {
+    const n = files.length;
+    for (let i = 0; i < n; i++) {
+      const f = files[i]!;
+      const label = n > 1 ? `(${i + 1}/${n}) ${f.name}` : t("progress.reading");
+      task.range(i / n, (i + 0.6) / n, label);
+      task.throwIfCancelled();
+      try {
+        const bytes = await readBlobBytes(f.file, task);
+        task.throwIfCancelled();
+        if (n === 1) task.step(t("progress.parsing"));
+        const error = await apply(bytes, f);
+        if (error) failures.push({ name: f.name, error });
+      } catch (e) {
+        if (e instanceof ProgressCancelled) throw e;
+        failures.push({ name: f.name, error: t("error.loadFailed") });
+      }
+      task.set(1);
+      // ファイルの区切りで描画とキャンセル操作の機会を作る
+      await nextFrame();
+    }
+    return true;
+  });
+  return { failures, cancelled: done === null };
+}
+
 // accept は拡張子のカンマ区切り (例 ".ptvoice,.ptnoise")。
 // stripExts に一致する拡張子はタブ表示用ファイル名から除去する。
 // 読み込み (進捗つき) は呼び出し側で readBlobBytes / readBlobAndApply を使う
@@ -226,6 +267,26 @@ export function openFileDialog(accept: string, stripExts: RegExp = /\.(ptcop|ptt
     };
     input.click();
   });
+}
+
+// ファイル選択ダイアログ (複数選択)。キャンセル時は空配列
+export function openFilesDialog(accept: string, stripExts: RegExp): Promise<OpenedFile[]> {
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = accept;
+    input.multiple = true;
+    input.onchange = () => {
+      resolve(namedFiles(Array.from(input.files ?? []), stripExts));
+    };
+    input.oncancel = () => resolve([]);
+    input.click();
+  });
+}
+
+// File の一覧を拡張子で絞り込み、表示用の名前を付ける (ドロップでも使う)
+export function namedFiles(files: readonly File[], exts: RegExp): OpenedFile[] {
+  return files.filter((f) => exts.test(f.name)).map((f) => ({ name: f.name.replace(exts, ""), file: f }));
 }
 
 export function sanitizeFileName(name: string, ext: string): string {

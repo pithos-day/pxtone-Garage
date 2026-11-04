@@ -9,7 +9,6 @@ import { doc, setAllUnitsVisible, exportBytes, addWoice, WoiceType } from "../..
 import {
   newProjectInTab,
   openProjectInTab,
-  openProjectFromBlob,
   saveProject,
   saveProjectAs,
   isTuneProject,
@@ -17,9 +16,10 @@ import {
   applyWoiceLink,
   projects,
 } from "../../state/projects";
-import { newVoice, openVoice, saveVoice, closeVoice, undoVoice, redoVoice, currentVoice, currentVoiceId, snapshotVoice, markVoiceClean, voices } from "../../state/voice";
-import { newNoise, openNoise, saveNoise, closeNoise, undoNoise, redoNoise, currentNoise, currentNoiseId, snapshotNoise, markNoiseClean, noises } from "../../state/noise";
-import { exportPttune, exportVoiceWav, exportNoiseWav, openFileDialog, readBlobAndApply } from "../../engine/io";
+import { newVoice, saveVoice, closeVoice, undoVoice, redoVoice, currentVoice, currentVoiceId, snapshotVoice, markVoiceClean, voices } from "../../state/voice";
+import { newNoise, saveNoise, closeNoise, undoNoise, redoNoise, currentNoise, currentNoiseId, snapshotNoise, markNoiseClean, noises } from "../../state/noise";
+import { exportPttune, exportVoiceWav, exportNoiseWav, openFileDialog, openFilesDialog, readBlobAndApply } from "../../engine/io";
+import { OPEN_KINDS, openFilesInTabs, type OpenKind } from "../../state/open-files";
 import { convertMidiToPtcop } from "../../engine/midi";
 import { undo, redo, canUndo, canRedo } from "../../state/undo";
 import { appAlert, appConfirm } from "../../state/dialog";
@@ -86,12 +86,11 @@ function runSave(p: Promise<unknown>): void {
   void p.catch(() => void appAlert(t("error.save")));
 }
 
-function onOpen(): void {
-  void openFileDialog(".ptcop,.pttune").then(async (opened) => {
-    if (!opened) return;
-    const err = await openProjectFromBlob(opened.file, opened.name);
-    if (err) void appAlert(err);
-  });
+// 「開く」: 選んだファイルをそれぞれ新しいタブで開く
+async function onOpenFiles(kind: OpenKind): Promise<void> {
+  const { accept, exts } = OPEN_KINDS[kind];
+  const files = await openFilesDialog(accept, exts);
+  if (files.length > 0) await openFilesInTabs(kind, files);
 }
 
 function onExportPttune(): void {
@@ -142,14 +141,6 @@ function onCloseAll(): void {
 
 // ---- 音声 (ptVoice) のアクション ----
 
-function onOpenVoice(): void {
-  void openFileDialog(".ptvoice", /\.ptvoice$/i).then(async (opened) => {
-    if (!opened) return;
-    const err = await readBlobAndApply(t("progress.openTitle"), opened.file, (bytes) => openVoice(bytes, opened.name));
-    if (err) void appAlert(err);
-  });
-}
-
 async function onCloseVoice(): Promise<void> {
   const id = currentVoiceId.value;
   if (currentVoice()?.dirty && !(await appConfirm(t("confirm.close")))) return;
@@ -157,14 +148,6 @@ async function onCloseVoice(): Promise<void> {
 }
 
 // ---- ノイズ (ptNoise) のアクション ----
-
-function onOpenNoise(): void {
-  void openFileDialog(".ptnoise", /\.ptnoise$/i).then(async (opened) => {
-    if (!opened) return;
-    const err = await readBlobAndApply(t("progress.openTitle"), opened.file, (bytes) => openNoise(bytes, opened.name));
-    if (err) void appAlert(err);
-  });
-}
 
 async function onCloseNoise(): Promise<void> {
   const id = currentNoiseId.value;
@@ -269,7 +252,7 @@ const allVisible = computed(() => doc.unitVisible.length > 0 && doc.unitVisible.
 const modeOps: Record<AppMode, ModeMenuOps> = {
   collage: {
     new: onNew,
-    open: onOpen,
+    open: () => void onOpenFiles("project"),
     save: () => runSave(saveProject()),
     saveAs: () => runSave(saveProjectAs()),
     close: onClose,
@@ -286,7 +269,7 @@ const modeOps: Record<AppMode, ModeMenuOps> = {
   },
   voice: {
     new: () => newVoice(),
-    open: onOpenVoice,
+    open: () => void onOpenFiles("voice"),
     save: onSaveVoice,
     saveAs: () => runSave(saveVoice(true)),
     close: onCloseVoice,
@@ -302,7 +285,7 @@ const modeOps: Record<AppMode, ModeMenuOps> = {
   },
   noise: {
     new: () => newNoise(),
-    open: onOpenNoise,
+    open: () => void onOpenFiles("noise"),
     save: onSaveNoise,
     saveAs: () => runSave(saveNoise(true)),
     close: onCloseNoise,

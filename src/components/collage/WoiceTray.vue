@@ -7,7 +7,6 @@ import {
   woices,
   getService,
   removeWoice,
-  addWoice,
   replaceWoiceFile,
   detectWoiceType,
   sync,
@@ -27,7 +26,8 @@ import { useCtxMenuClose } from "../../composables/useCtxMenu";
 import { useHoldPreview } from "../../composables/useHoldPreview";
 import { useDragUndo } from "../../composables/useUndo";
 import { capturePointer, releasePointerCapture } from "../../lib/field";
-import { openFileDialog, exportWoiceFile, readBlobAndApply } from "../../engine/io";
+import { namedFiles, openFileDialog, exportWoiceFile, readBlobAndApply } from "../../engine/io";
+import { addWoiceFiles } from "../../state/open-files";
 import { t } from "../../i18n";
 import WoicePropertyDialog from "./WoicePropertyDialog.vue";
 import CtxMenuItem from "../shell/CtxMenuItem.vue";
@@ -157,16 +157,12 @@ async function replaceByDialog(idx: number): Promise<void> {
   if (err) console.error(err);
 }
 
-// 音色ファイルのドラッグ&ドロップ追加。拡張子は除いて音色名にする
-async function onDrop(e: DragEvent): Promise<void> {
+// 音色ファイルのドラッグ&ドロップ追加 (複数可)。拡張子は除いて音色名にする
+function onDrop(e: DragEvent): void {
   // 読み取り専用タブでは追加不可
   if (doc.readOnly) return;
-  const file = e.dataTransfer?.files?.[0];
-  if (!file) return;
-  const name = file.name.replace(WOICE_FILE_EXT_RE, "");
-  // 読み込み (実進捗) → 適用 (解析・追加)。キャンセル時は null
-  const err = await readBlobAndApply(t("progress.woiceTitle"), file, (bytes) => addWoice(bytes, detectWoiceType(bytes), name));
-  if (err) console.error(err);
+  const files = namedFiles(Array.from(e.dataTransfer?.files ?? []), WOICE_FILE_EXT_RE);
+  if (files.length > 0) void addWoiceFiles(files);
 }
 
 // 音色の型別サマリ (フォーマット本体は lib/woice.ts)

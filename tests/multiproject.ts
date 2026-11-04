@@ -74,12 +74,15 @@ import {
   getService,
   beginEdit,
   commitEdit,
+  addWoices,
+  prepareWoiceFile,
 } from "../src/state/project";
 import * as serviceMod from "../src/state/service";
 import { SAMPLE_SONGS } from "../src/state/samples";
 import { undo, redo, canUndo, canRedo, undoStack } from "../src/state/undo";
 import { moveWoiceRaw } from "../src/state/woice-order";
 import { movedIndex } from "../src/lib/woice";
+import { namedFiles, readBlobsAndApply, toArrayBuffer } from "../src/engine/io";
 import { player, isPlaying, masterVolume, loop, initMasterVolume, setMasterVolume } from "../src/state/player";
 import { parseThemeCss, mergeTokens, buildThemeCss, buildStandaloneThemeCss } from "../src/lib/themeParse";
 import {
@@ -3473,6 +3476,67 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
     checkEq([0, 1, 2, 3].map((i) => movedIndex(i, 3, 1)).join(), "0,2,3,1", "woice-order: movedIndex (後ろから前)");
     checkEq([0, 1, 2, 3].map((i) => movedIndex(i, 0, 2)).join(), "2,0,1,3", "woice-order: movedIndex (前から後ろ)");
+  }
+
+  // ---- 複数ファイルの一括読み込み ----
+  {
+    const blob = (bytes: Uint8Array) => ({ size: bytes.length, arrayBuffer: async () => toArrayBuffer(bytes) });
+    const good = buildPcmWav();
+    const bad = new Uint8Array([1, 2, 3, 4]);
+    const files = [
+      { name: "ok1", file: blob(good) },
+      { name: "bad", file: blob(bad) },
+      { name: "ok2", file: blob(good) },
+    ];
+
+    // 失敗しても残りを続行し、失敗一覧を返す
+    const seen: string[] = [];
+    const r1 = await readBlobsAndApply("t", files, (_b, f) => {
+      seen.push(f.name);
+      return f.name === "bad" ? "NG" : null;
+    });
+    checkEq(seen.join(), "ok1,bad,ok2", "open-files: 失敗後も残りを処理する");
+    checkEq(r1.failures.map((f) => `${f.name}:${f.error}`).join(), "bad:NG", "open-files: 失敗一覧を返す");
+    checkEq(r1.cancelled, false, "open-files: キャンセルなし");
+
+    // 例外も失敗として扱う
+    const r2 = await readBlobsAndApply("t", [files[0]!], () => {
+      throw new Error("x");
+    });
+    checkEq(r2.failures.length, 1, "open-files: 例外を失敗として数える");
+
+    // キャンセルは次のファイルの前で止まる
+    const applied: string[] = [];
+    const r3 = await readBlobsAndApply("t", files, (_b, f) => {
+      applied.push(f.name);
+      cancelProgress();
+      return null;
+    });
+    checkEq(applied.join(), "ok1", "open-files: キャンセル後は適用しない");
+    checkEq(r3.cancelled, true, "open-files: キャンセルを返す");
+
+    // 音色はまとめて 1 undo。読めないファイルは追加しない
+    newProjectInTab();
+    const svc = getService()!;
+    const depth = undoStack.length;
+    const p1 = await prepareWoiceFile(good, "W1");
+    const p2 = await prepareWoiceFile(good, "W2");
+    const p3 = await prepareWoiceFile(bad, "W3");
+    check(typeof p3 === "string", "open-files: 読めない音色はエラーになる");
+    if (typeof p1 !== "string" && typeof p2 !== "string") {
+      checkEq(addWoices([p1, p2]).length, 0, "open-files: 音色を追加できる");
+      checkEq(svc.woiceNum, 2, "open-files: 2 音色追加される");
+      checkEq(woiceName(svc.woiceGet(1)!), "W2", "open-files: 音色名が付く");
+      checkEq(undoStack.length, depth + 1, "open-files: 全体で 1 undo");
+      check(undo(), "open-files: undo できる");
+      checkEq(svc.woiceNum, 0, "open-files: undo でまとめて戻る");
+    }
+    checkEq(addWoices([]).length, 0, "open-files: 空なら何もしない");
+    checkEq(undoStack.length, depth, "open-files: 空なら undo を積まない");
+
+    // 拡張子の絞り込みと表示名
+    const named = namedFiles([{ name: "a.PTCOP" } as File, { name: "b.txt" } as File], /\.(ptcop|pttune)$/i);
+    checkEq(named.map((f) => f.name).join(), "a", "open-files: 拡張子で絞り込み拡張子を除く");
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);

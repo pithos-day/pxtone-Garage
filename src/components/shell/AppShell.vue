@@ -20,13 +20,14 @@ import CollageTab from "../collage/CollageEditor.vue";
 import VoiceTab from "../voice/VoiceEditor.vue";
 import NoiseTab from "../noise/NoiseEditor.vue";
 import VoiceCopyDialog from "../voice/VoiceCopyDialog.vue";
-import { closeAllProjects, closeProject, currentProjectId, ensureInitialProject, openProjectFromBlob, projects, saveProject, switchProject } from "../../state/projects";
+import { closeAllProjects, closeProject, currentProjectId, ensureInitialProject, projects, saveProject, switchProject } from "../../state/projects";
 import { openSampleProject } from "../../state/samples";
-import { readBlobAndApply } from "../../engine/io";
+import { namedFiles } from "../../engine/io";
+import { OPEN_KINDS, openFilesInTabs } from "../../state/open-files";
 import { appAlert } from "../../state/dialog";
 import { initLanguage, t } from "../../i18n";
-import { copyVoiceSide, openVoice, ensureInitialVoice, closeVoice, closeAllVoices, saveVoice, voiceRevision, voices, switchVoice } from "../../state/voice";
-import { openNoise, ensureInitialNoise, closeNoise, closeAllNoises, saveNoise, noiseRevision, noises, switchNoise } from "../../state/noise";
+import { copyVoiceSide, ensureInitialVoice, closeVoice, closeAllVoices, saveVoice, voiceRevision, voices, switchVoice } from "../../state/voice";
+import { ensureInitialNoise, closeNoise, closeAllNoises, saveNoise, noiseRevision, noises, switchNoise } from "../../state/noise";
 import { doc } from "../../state/project";
 import {
   cancelDraftSave,
@@ -129,21 +130,11 @@ function onDragOver(e: DragEvent): void {
   e.preventDefault();
 }
 
-async function onDrop(e: DragEvent): Promise<void> {
-  const file = e.dataTransfer?.files?.[0];
-  if (!file) return;
-  const ext = file.name.split(".").pop()?.toLowerCase();
-  const name = file.name.replace(/\.(ptcop|pttune|ptvoice|ptnoise)$/i, "");
-  // 現在のモードに対応する拡張子のみ開く (読み込みは進捗つき・キャンセル可)
-  let err: string | null = null;
-  if (activeTab.value === "collage" && (ext === "ptcop" || ext === "pttune")) {
-    err = await openProjectFromBlob(file, name);
-  } else if (activeTab.value === "voice" && ext === "ptvoice") {
-    err = await readBlobAndApply(t("progress.openTitle"), file, (bytes) => openVoice(bytes, name));
-  } else if (activeTab.value === "noise" && ext === "ptnoise") {
-    err = await readBlobAndApply(t("progress.openTitle"), file, (bytes) => openNoise(bytes, name));
-  }
-  if (err) void appAlert(err);
+function onDrop(e: DragEvent): void {
+  const kind = ({ collage: "project", voice: "voice", noise: "noise" } as const)[activeTab.value];
+  // 非対応の拡張子は無視する (音色トレイへのドロップもここへバブリングしてくるため)
+  const files = namedFiles(Array.from(e.dataTransfer?.files ?? []), OPEN_KINDS[kind].exts);
+  if (files.length > 0) void openFilesInTabs(kind, files);
 }
 
 // ---- 未保存のタブを閉じる ----

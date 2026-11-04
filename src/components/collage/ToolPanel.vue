@@ -2,27 +2,19 @@
 // モード切替 (W/U) + ツールボタン
 import { ref } from "vue";
 import { Plus, Music2, Piano } from "@lucide/vue";
-import { doc, addWoice, detectWoiceType } from "../../state/project";
+import { doc } from "../../state/project";
+import { addWoiceFiles } from "../../state/open-files";
 import { WOICE_FILE_ACCEPT, WOICE_FILE_EXT_RE } from "../../lib/woice";
 import AddUnitDialog from "./AddUnitDialog.vue";
-import { openFileDialog, readBlobAndApply } from "../../engine/io";
+import { openFilesDialog } from "../../engine/io";
 import { formatShortcut } from "../../state/keybindings";
 import { t } from "../../i18n";
 
-const errorMsg = ref("");
 const showAddUnit = ref(false);
 
 async function onAddWoice(): Promise<void> {
-  const opened = await openFileDialog(WOICE_FILE_ACCEPT, WOICE_FILE_EXT_RE);
-  if (!opened) return;
-  // 読み込み (実進捗) → 適用 (解析・追加)。キャンセル時は null
-  const err = await readBlobAndApply(t("progress.woiceTitle"), opened.file, (bytes) =>
-    addWoice(bytes, detectWoiceType(bytes), opened.name),
-  );
-  if (err) {
-    errorMsg.value = err;
-    setTimeout(() => (errorMsg.value = ""), 4000);
-  }
+  const files = await openFilesDialog(WOICE_FILE_ACCEPT, WOICE_FILE_EXT_RE);
+  if (files.length > 0) await addWoiceFiles(files);
 }
 </script>
 
@@ -35,7 +27,6 @@ async function onAddWoice(): Promise<void> {
     <div class="tool-buttons">
       <template v-if="doc.mode === 'W'">
         <button class="btn btn-sm" :disabled="doc.readOnly" @click="onAddWoice"><Plus :size="18" /></button>
-        <span v-if="errorMsg" class="tool-err">{{ errorMsg }}</span>
       </template>
       <template v-else>
         <button class="btn btn-sm" :disabled="doc.readOnly" @click="showAddUnit = true"><Plus :size="18" /></button>
@@ -72,8 +63,4 @@ async function onAddWoice(): Promise<void> {
   gap: var(--space-sm);
 }
 
-.tool-err {
-  color: var(--destructive);
-  font-size: var(--text-xs);
-}
 </style>
