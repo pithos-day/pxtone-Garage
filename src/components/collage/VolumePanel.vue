@@ -1,4 +1,4 @@
-// ボリュームモード切替パネル (縦に8モード)
+// ボリュームモード切替パネル (2 列に 8 モード)
 <script setup lang="ts">
 import { doc } from "../../state/project";
 
@@ -24,9 +24,9 @@ defineProps<{ modes: string[] }>();
 .volpanel {
   width: var(--name-w);
   flex: none;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end; /* モードボタンを右揃え (右端 = VolumeField の左端 = NAME_W) */
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-content: start;
   gap: var(--space-2xs);
   padding: 4px;
   border-right: 1px solid var(--border);
