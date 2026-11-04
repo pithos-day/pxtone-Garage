@@ -33,3 +33,6 @@ pxtone Garage はピストンコラージュ (ptCollage) 互換の Web DAW。
 - 選択範囲 scope は半開区間 [scope1, scope2)
 - KEY イベント値 (0x8700 ベース) とピッチ番号 (108 ベース) は別座標系
 - ソロ中は「ソロユニット以外を全ミュート」が不変条件
+- ノートの識別子は ON イベントのクロック (同じユニット・同じクロックに ON は 1 つ)。`doc.selectedNotes` は
+  フォーカスユニットのノートを指す
+- 音色の並べ替えは `moveWoiceRaw` (`state/woice-order`) を使う。VOICENO イベントと「音色を編集」の書き戻し先も追従する
