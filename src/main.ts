@@ -39,8 +39,6 @@ import caffeineTheme from "./themes/caffeine.css?raw";
 import zenTheme from "./themes/zen.css?raw";
 import vintageTheme from "./themes/vintage.css?raw";
 import roseTheme from "./themes/rose.css?raw";
-import gameboyTheme from "./themes/gameboy.css?raw";
-import synthwaveTheme from "./themes/synthwave.css?raw";
 import studioTheme from "./themes/studio.css?raw";
 import oceanTheme from "./themes/ocean.css?raw";
 import contrastTheme from "./themes/contrast.css?raw";
@@ -52,8 +50,6 @@ initTheme({
   zen: zenTheme,
   vintage: vintageTheme,
   rose: roseTheme,
-  gameboy: gameboyTheme,
-  synthwave: synthwaveTheme,
   studio: studioTheme,
   ocean: oceanTheme,
   contrast: contrastTheme,

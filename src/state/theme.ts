@@ -36,8 +36,6 @@ export const BUILTIN_THEMES: { id: string; name: string }[] = [
   { id: "zen", name: "Zen" },
   { id: "vintage", name: "Vintage" },
   { id: "rose", name: "Rose" },
-  { id: "gameboy", name: "Game Boy" },
-  { id: "synthwave", name: "Synthwave" },
   { id: "studio", name: "Studio" },
   { id: "ocean", name: "Ocean" },
   { id: "contrast", name: "High Contrast" },

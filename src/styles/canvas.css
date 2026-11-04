@@ -75,22 +75,6 @@
 }
 
 /* テーマ固有のフィールド背景 (波形の世界観を保つテーマのみ上書きする) */
-:root[data-theme="gameboy"] {
-  --canvas-field-bg: oklch(0.93 0.06 120);
-}
-
-.dark[data-theme="gameboy"] {
-  --canvas-field-bg: oklch(0.16 0.04 135);
-}
-
-:root[data-theme="synthwave"] {
-  --canvas-field-bg: oklch(0.98 0.01 300);
-}
-
-.dark[data-theme="synthwave"] {
-  --canvas-field-bg: oklch(0.12 0.07 285);
-}
-
 :root[data-theme="studio"] {
   --canvas-field-bg: oklch(0.97 0.002 80);
 }
