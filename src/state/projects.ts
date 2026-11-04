@@ -178,6 +178,7 @@ function restore(p: Project): void {
   setService(services.get(p.id)!);
   setUndoStacks(p.undoStack, p.redoStack);
   applyState(p.state);
+  doc.selectedNotes = []; // ノートの選択はタブごとに持ち越さない
   title.value = p.title;
   comment.value = p.comment;
   doc.readOnly = p.kind === "tune";

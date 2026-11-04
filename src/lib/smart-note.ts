@@ -4,6 +4,8 @@
 // state 層へ依存しない (node テストから直接呼べる)
 import { EventKind, type EveRecord } from "pxtone-ts";
 import { dropShortPrevNote, type EventWriteOps } from "./editing";
+import { iterNoteDraws } from "./records";
+import { KEYNUM, keyValueToRow } from "./clock";
 
 // KEY イベント値の上限 (本家の KEY 値域)。音程移動のクランプに使う
 export const KEY_VALUE_MAX = 49151;
@@ -155,5 +157,94 @@ export function commitSmartDrag(
   }
   for (const ev of d.evs) {
     ops.addEvent(ev.clock + offset, unit, ev.kind, ev.kind === EventKind.KEY ? shiftKeyValue(ev.value, d.rowDelta) : ev.value);
+  }
+}
+
+// ---- 複数ノートの操作 (選択中のノートの移動 / 貼り付け / クオンタイズで共有) ----
+
+// ユニットの全ノート (ON イベント単位。同じユニット・同じクロックに ON は 1 つ)
+export function notesInUnit(records: EveRecord[], unit: number, defaultKey: number): SmartNote[] {
+  const notes: SmartNote[] = [];
+  for (const d of iterNoteDraws(records, unit, { startClock: 0, endClock: Number.MAX_SAFE_INTEGER }, defaultKey)) {
+    if (d.kind === "on") notes.push({ head: d.clock, end: d.clock + d.len, key: d.key });
+  }
+  return notes;
+}
+
+// ノートを構成するイベント (先頭の KEY/VELOCITY/ON + 範囲内の KEY/VELOCITY)。
+// 範囲内の ON は別ノートなので含めない。先頭に KEY が無い (前の KEY の余韻で鳴っている)
+// 場合は、移動先でも音程を保てるよう KEY を補う
+export function collectNoteEvents(records: EveRecord[], unit: number, note: SmartNote): SmartNoteEvent[] {
+  const evs: SmartNoteEvent[] = [];
+  for (const e of records) {
+    if (e.clock >= note.end) break;
+    if (e.clock < note.head) continue;
+    if (e.unitNo !== unit) continue;
+    if (e.kind !== EventKind.KEY && e.kind !== EventKind.VELOCITY && e.kind !== EventKind.ON) continue;
+    if (e.kind === EventKind.ON && e.clock !== note.head) continue;
+    evs.push({ clock: e.clock, kind: e.kind, value: e.value });
+  }
+  if (!evs.some((e) => e.kind === EventKind.KEY && e.clock === note.head)) {
+    evs.push({ clock: note.head, kind: EventKind.KEY, value: note.key });
+  }
+  return evs;
+}
+
+// 矩形 (クロックは半開区間、行は両端を含む) に重なるノート
+export function notesInRect(notes: readonly SmartNote[], c1: number, c2: number, row1: number, row2: number): SmartNote[] {
+  return notes.filter((n) => {
+    const row = keyValueToRow(n.key);
+    return n.head < c2 && n.end > c1 && row >= row1 && row <= row2;
+  });
+}
+
+// グループ移動量を「どのノートの先頭も負のクロックにならない」範囲にクランプする
+export function clampGroupOffset(offset: number, heads: readonly number[]): number {
+  return Math.max(offset, -Math.min(...heads));
+}
+
+// グループの音程移動量を「すべての KEY が鍵盤の範囲に収まる」範囲にクランプする。
+// 個別にクランプすると和音や旋律の形が崩れるため、全体を同じ量で止める
+export function clampGroupRowDelta(rowDelta: number, keyValues: readonly number[]): number {
+  const rows = keyValues.map(keyValueToRow);
+  return Math.max(-Math.min(...rows), Math.min(KEYNUM - 1 - Math.max(...rows), rowDelta));
+}
+
+// 配置するノート。evs の clock は絶対値で、origin (元の先頭) からの相対位置を保って head へ置く
+export interface NotePlacement {
+  origin: number;
+  evs: readonly SmartNoteEvent[];
+  head: number;
+  len: number;
+  rowDelta: number;
+}
+
+// ノートをイベント列から消す
+export function clearNotes(ops: EventWriteOps, unit: number, notes: readonly SmartNote[]): void {
+  for (const note of notes) {
+    for (const kind of [EventKind.KEY, EventKind.VELOCITY, EventKind.ON]) {
+      ops.deleteEvents(note.head, Math.max(note.head + 1, note.end), unit, kind);
+    }
+  }
+}
+
+// ノートを置く。置き先と重なるノートは丸ごと置き換える (単一ノートの掴みと同じ規則)。
+// 片付けを全部済ませてから書くので、片付けが今回置くノートを巻き込まない
+export function placeNotes(ops: EventWriteOps, getRecords: () => EveRecord[], unit: number, placements: readonly NotePlacement[]): void {
+  const sorted = [...placements].sort((a, b) => a.head - b.head);
+  for (const p of sorted) {
+    dropShortPrevNote(ops, getRecords(), p.head, unit, Number.MAX_SAFE_INTEGER);
+    for (const kind of [EventKind.KEY, EventKind.VELOCITY]) {
+      ops.deleteEvents(p.head, Math.max(p.head + 1, p.head + p.len), unit, kind);
+    }
+  }
+  for (const p of sorted) {
+    const offset = p.head - p.origin;
+    for (const ev of p.evs) {
+      const clock = ev.clock + offset;
+      if (clock >= p.head + p.len) continue; // 短くなったノートの外へ出るイベントは捨てる
+      if (ev.kind === EventKind.ON) ops.addEvent(clock, unit, ev.kind, p.len);
+      else ops.addEvent(clock, unit, ev.kind, ev.kind === EventKind.KEY ? shiftKeyValue(ev.value, p.rowDelta) : ev.value);
+    }
   }
 }

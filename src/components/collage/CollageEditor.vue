@@ -4,7 +4,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { ChevronDown, ChevronRight } from "@lucide/vue";
-import { doc, units, ensureInit, pinnedUnits, VOLUME_MODES, setScope, scopeCopy, scopeCut, scopeClear, scopeDelete, scopePaste, scopeClipReady, clockContext, getService } from "../../state/project";
+import { doc, units, ensureInit, pinnedUnits, VOLUME_MODES, setScope, scopeCopy, scopeCut, scopeClear, scopeDelete, scopePaste, scopeClipReady, clockContext, getService, hasNoteSelection, clearNoteSelection, noteCopy, noteCut, noteDelete, clipboardHasNotes } from "../../state/project";
 import { KEY_HEIGHT, KEYNUM, measStartClock } from "../../lib/clock";
 import { RULER_H, STRIP_W, LEFT_W, NAME_W } from "../../lib/layout";
 import { useGlobalKeys } from "../../composables/useGlobalKeys";
@@ -12,7 +12,7 @@ import { arrowScrollRow, arrowScrollX, shortcutAreaOf, type ShortcutCommand } fr
 import { shortcutCommand } from "../../state/keybindings";
 import { panels } from "../../state/panels";
 import { isModalOpen } from "../../state/ui";
-import { togglePlay, seekToClock } from "../../state/player";
+import { togglePlay, seekToClock, currentClock } from "../../state/player";
 import ToolPanel from "./ToolPanel.vue";
 import UnitTray from "./UnitTray.vue";
 import WoiceTray from "./WoiceTray.vue";
@@ -61,21 +61,30 @@ function runShortcut(cmd: ShortcutCommand): void {
     case "selectAllUnits":
       doc.selectedUnits = units.value.map((u) => u.index);
       return;
+    // ノートを選択中はコピー / 切り取り / 消去の対象を選択中のノートにする
     case "scopeCopy":
-      scopeCopy(doc.scope1, doc.scope2);
+      if (hasNoteSelection()) noteCopy();
+      else scopeCopy(doc.scope1, doc.scope2);
       return;
     case "scopeCut":
-      scopeCut(doc.scope1, doc.scope2);
+      if (hasNoteSelection()) noteCut();
+      else scopeCut(doc.scope1, doc.scope2);
       return;
     case "scopePaste":
-      // 貼り付け先は選択範囲の開始 (本家 ScopeEvent_Paste(clock1, 1, ...) と同じ)
-      scopePaste(doc.scope1);
+      // 貼り付け先は選択範囲の開始 (本家 ScopeEvent_Paste(clock1, 1, ...) と同じ)。
+      // コピーしたノートは、選択範囲がなければ再生位置へ貼る
+      scopePaste(clipboardHasNotes() && doc.scope2 <= doc.scope1 ? currentClock.value : doc.scope1);
       return;
     case "scopeDelete":
-      scopeDelete(doc.scope1, doc.scope2);
+      if (hasNoteSelection()) noteDelete();
+      else scopeDelete(doc.scope1, doc.scope2);
       return;
     case "scopeClear":
-      scopeClear(doc.scope1, doc.scope2);
+      if (hasNoteSelection()) noteDelete();
+      else scopeClear(doc.scope1, doc.scope2);
+      return;
+    case "clearNoteSelection":
+      clearNoteSelection();
       return;
     case "scrollLeft":
       doc.scrollX = arrowScrollX(doc.scrollX, doc.zoom, -1);

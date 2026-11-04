@@ -49,6 +49,8 @@ const DEFINITIONS = {
   scopeDelete: { area: "collage", action: "範囲を消去 (前詰め)", keys: [{ key: "delete" }, { key: "backspace" }], edit: true },
   scopeClear: { area: "collage", action: "範囲をクリア", keys: [{ key: "delete", shift: true }, { key: "backspace", shift: true }], edit: true },
 
+  clearNoteSelection: { area: "collage", action: "ノートの選択を解除", keys: [{ key: "escape" }] },
+
   scrollLeft: { area: "collage", action: "左へスクロール (1 拍)", keys: [{ key: "arrowleft", label: "←" }], repeat: true },
   scrollRight: { area: "collage", action: "右へスクロール (1 拍)", keys: [{ key: "arrowright", label: "→" }], repeat: true },
   rowUp: { area: "collage", action: "上へスクロール (1 行)", keys: [{ key: "arrowup", label: "↑" }], repeat: true },

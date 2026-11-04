@@ -1,6 +1,7 @@
 // ピアノロール (K モード)
 // 左ドラッグ: 音符 (KEY+ON+VELOCITY) 生成、右ドラッグ: 削除、鍵盤クリック: 試聴
 // スマートツール: 空き地で書き込み / ノートを掴んで移動 / 左端で開始・右端で終了を調整
+// 複数選択 (スマートのみ): Shift+ドラッグで矩形選択 / Ctrl+クリックで切り替え / 選択中のノートを掴んで一括移動
 // (ドラッグ中はプレビュー (ゴースト) 表示のみで、イベントは離したときに 1 回書き換える)
 // pen の左ドラッグ (音符生成) も同様に確定までプレビュー表示する
 // 行 → コード: row = 108 - code、イベント値: value = 0x8700 - row*0x100 (本家準拠)
@@ -16,6 +17,7 @@ import { clockAtX, zoomAnchorScrollX, zoomOrPan } from "../../lib/field";
 import { visibleClockWindow, iterNoteDraws } from "../../lib/records";
 import {
   clockToX,
+  xToClock,
   KEY_HEIGHT,
   KEYNUM,
   isWhiteKey,
@@ -30,6 +32,12 @@ import {
   commitSmartDrag,
   clampSmartOffset,
   shiftKeyValue,
+  collectNoteEvents,
+  notesInUnit,
+  notesInRect,
+  clampGroupOffset,
+  clampGroupRowDelta,
+  type SmartNoteEvent,
   type SmartDrag,
   type SmartMode,
   type SmartNote,
@@ -45,6 +53,11 @@ import {
   EVENTDEFAULT_VELOCITY,
   EVENTDEFAULT_VOLUME,
   EVENTDEFAULT_KEY,
+  selectedNoteList,
+  clearNoteSelection,
+  toggleNoteSelected,
+  addNotesToSelection,
+  moveSelectedNotesRaw,
 } from "../../state/project";
 import { currentClock, seekToClock, isPlaying as isPlayingNow } from "../../state/player";
 import { previewUnitHold } from "../../engine/preview";
@@ -73,7 +86,10 @@ function centerScroll(): void {
 }
 
 onMounted(centerScroll);
-watch(() => doc.focusUnit, centerScroll);
+watch(() => doc.focusUnit, () => {
+  centerScroll();
+  clearNoteSelection(); // ノートの選択はフォーカスユニットのもの
+});
 
 useCanvas(
   canvasRef,
@@ -89,6 +105,7 @@ useCanvas(
     () => doc.tool,
     () => doc.scope1,
     () => doc.scope2,
+    () => doc.selectedNotes,
     () => previewRev.value,
   ],
 );
@@ -136,13 +153,19 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   // pen / スマート書き込みの確定前ノート (ゴースト)。
   // スマートの掴み / 端調整は対象ノートのゴースト (smartDrag) で見せるため、
   // 書き込みゴーストを重ねない (新規ノートが同時に書かれているように見える)
-  const writeGhost = dv && !smartDrag && !doc.readOnly && dv.button === 0 && dv.clock2 !== dv.clock1 && doc.tool !== "hand" ? dv : null;
+  const writeGhost = dv && !dv.group && !dv.marquee && !smartDrag && !doc.readOnly && dv.button === 0 && dv.clock2 !== dv.clock1 && doc.tool !== "hand" ? dv : null;
+  // グループ移動中は選択中のノートの実描画を隠し、移動先をゴーストで示す
+  const group = dv?.group ?? null;
+  const groupMoved = group !== null && (group.offset !== 0 || group.rowDelta !== 0);
   for (const u of rollUnits) {
-    const hide = u === focus ? (smartDrag?.smart?.note ?? undefined) : undefined;
+    const single = u === focus ? smartDrag?.smart?.note : undefined;
+    const hide = single ? [single] : u === focus && groupMoved ? group.notes.map((m) => m.note) : undefined;
     drawNotes(ctx, s, u, field, u === focus, hide);
   }
   if (smartDrag?.smart?.note) drawSmartGhost(ctx, smartDrag, field, focus);
   if (writeGhost) drawNoteGhost(ctx, writeGhost, field, focus);
+  drawNoteSelection(ctx, field, focus, group);
+  if (dv?.marquee) drawMarquee(ctx, dv.marquee);
 
   // スコープ帯
   if (doc.scope2 > doc.scope1) {
@@ -203,7 +226,7 @@ function drawNotes(
   unitNo: number,
   field: FieldCtx,
   isFocus: boolean,
-  hideSpan?: { head: number; end: number }, // スマートドラッグ中に隠すノートの範囲
+  hideSpans?: readonly { head: number; end: number }[], // ドラッグ中に隠すノートの範囲
 ): void {
   const { w, top: fieldTop, h: fieldH, view, scrollX, scrollY } = field;
   const records = s.evels.records;
@@ -221,7 +244,7 @@ function drawNotes(
 
   // ON/KEY イベント列 → 描画レコード変換は lib/records の iterNoteDraws
   for (const d of iterNoteDraws(records, unitNo, { startClock, endClock }, EVENTDEFAULT_KEY)) {
-    if (hideSpan && d.clock >= hideSpan.head && d.clock < hideSpan.end) continue;
+    if (hideSpans?.some((span) => d.clock >= span.head && d.clock < span.end)) continue;
     if (d.kind === "key") {
       // KEY: 縦線 + 点
       const row = keyValueToRow(d.key);
@@ -250,6 +273,44 @@ function drawNotes(
   ctx.globalAlpha = 1;
 }
 
+// 選択中のノートの枠 (グループ移動中は移動先に描く)
+function drawNoteSelection(ctx: CanvasRenderingContext2D, field: FieldCtx, unitNo: number, group: GroupDrag | null): void {
+  const notes = selectedNoteList();
+  if (notes.length === 0) return;
+  const { w, top, h, view, scrollX, scrollY } = field;
+  const offset = group?.offset ?? 0;
+  const rowDelta = group?.rowDelta ?? 0;
+  const moved = offset !== 0 || rowDelta !== 0;
+  const color = getUnitColor(unitNo);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, top, w, h);
+  ctx.clip();
+  ctx.strokeStyle = COLORS.focusOrange;
+  ctx.lineWidth = 1;
+  for (const n of notes) {
+    const x1 = clockToX(view, n.head + offset) - scrollX;
+    const x2 = Math.max(x1 + 1, clockToX(view, n.end + offset) - scrollX);
+    const y = top + (keyValueToRow(n.key) + rowDelta) * KEY_HEIGHT - scrollY + KEY_HEIGHT / 2;
+    if (moved) {
+      ctx.globalAlpha = 0.75;
+      fillRect(ctx, x1, y - 3, x2 - x1, 7, color.note(false, EVENTDEFAULT_VELOCITY, EVENTDEFAULT_VOLUME));
+      ctx.globalAlpha = 1;
+    }
+    ctx.strokeRect(x1 - 0.5, y - 3.5, x2 - x1 + 1, 8);
+  }
+  ctx.restore();
+}
+
+// 矩形選択の枠 (座標はキャンバス px。呼び出し時はフィールド座標系に translate 済み)
+function drawMarquee(ctx: CanvasRenderingContext2D, m: Marquee): void {
+  ctx.save();
+  ctx.strokeStyle = COLORS.focusOrange;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(Math.min(m.x1, m.x2) - STRIP_W + 0.5, Math.min(m.y1, m.y2) + 0.5, Math.abs(m.x2 - m.x1), Math.abs(m.y2 - m.y1));
+  ctx.restore();
+}
+
 // ---- ポインタ ----
 // ドラッグの骨格 (pointerdown/move/up + キャプチャ + undo) は useCanvasDrag が担当し、
 // 鍵盤試聴・イベント書き換え・クリックシークのみを注入する
@@ -258,6 +319,22 @@ function drawNotes(
 // ここでは lastDelta (押下中サステインの再試聴判定) だけを UI 用に足す
 interface SmartState extends SmartDrag {
   lastDelta: number; // 直前の rowDelta (試聴の再トリガ判定用)
+}
+
+// 矩形選択の枠 (キャンバス px)
+interface Marquee {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
+// 選択中のノートのグループ移動
+interface GroupDrag {
+  notes: { note: SmartNote; evs: SmartNoteEvent[] }[];
+  offset: number; // 時間の移動量 (クロック)
+  rowDelta: number; // 音程の移動量 (行)
+  lastRow: number; // 直前のポインタの行 (移動判定用)
 }
 
 type KeyDrag = {
@@ -270,6 +347,8 @@ type KeyDrag = {
   // 手ツールが左端に挿した KEY のクロック。ドラッグで左端が動くたびに
   // 前の挿入 KEY を外して挿し直す (lib/editing の paintKeyDrag が更新する)
   insertedKeyClock?: number;
+  marquee?: Marquee; // 矩形選択 (編集なし)
+  group?: GroupDrag;
 };
 
 // 今のグリッド幅 (divi で拍を分割したクロック数)
@@ -367,7 +446,7 @@ function noteNear(u: number, clock: number, row: number, x: number): SmartNote |
 function beginSmartDrag(u: number, clock: number, row: number, x: number): KeyDrag {
   const note = noteNear(u, clock, row, x);
   const s = getService()!;
-  const evs: SmartState["evs"] = [];
+  let evs: SmartState["evs"] = [];
   let mode: SmartMode = "write";
   if (note) {
     mode = smartModeAt(note, x);
@@ -380,24 +459,73 @@ function beginSmartDrag(u: number, clock: number, row: number, x: number): KeyDr
         }
       }
     } else {
-      // 掴み / 開始調整: ノートを構成するイベント (先頭の KEY/VELOCITY/ON +
-      // 範囲内の KEY/VELOCITY) を一体で扱う。範囲内の ON は別ノートなので対象外
-      for (const e of s.evels.records) {
-        if (e.clock >= note.end) break;
-        if (e.clock < note.head) continue;
-        if (e.unitNo !== u) continue;
-        if (e.kind !== EventKind.KEY && e.kind !== EventKind.VELOCITY && e.kind !== EventKind.ON) continue;
-        if (e.kind === EventKind.ON && e.clock !== note.head) continue;
-        evs.push({ clock: e.clock, kind: e.kind, value: e.value });
-      }
-      // 押した行の音程を担う KEY が無い (前の KEY の余韻) 場合、移動先に KEY を
-      // 補って音程を保存する (余韻元の KEY は動かせないためここで補う)
-      if (!evs.some((e) => e.kind === EventKind.KEY && e.clock === note.head)) {
-        evs.push({ clock: note.head, kind: EventKind.KEY, value: note.key });
-      }
+      // 掴み / 開始調整: ノートを構成するイベントを一体で扱う
+      evs = collectNoteEvents(s.evels.records, u, note);
     }
   }
   return { button: 0, clock1: clock, clock2: clock, row, smart: { mode, note, evs, offset: 0, rowDelta: 0, lastDelta: 0 } };
+}
+
+// スマートツールの選択操作。ドラッグを始める場合はその状態を、
+// クリックだけで完結した場合は null を、通常のスマート操作へ進む場合は undefined を返す
+function beginSelectionGesture(e: PointerEvent, pt: { x: number; y: number }, u: number, clock: number, row: number): KeyDrag | null | undefined {
+  // Shift+ドラッグ: 矩形選択 (既存の選択に追加)
+  if (e.shiftKey) {
+    return { button: 0, clock1: clock, clock2: clock, row, marquee: { x1: pt.x, y1: pt.y, x2: pt.x, y2: pt.y } };
+  }
+  const note = noteNear(u, clock, row, pt.x);
+  // Ctrl+クリック: ノート単位で選択を切り替える
+  if (e.ctrlKey || e.metaKey) {
+    if (note) toggleNoteSelected(note.head);
+    return null;
+  }
+  const selected = selectedNoteList();
+  if (selected.length === 0) return undefined;
+  // 選択中のノートの本体を掴むと全体を移動する
+  if (note && selected.some((n) => n.head === note.head) && smartModeAt(note, pt.x) === "grab") {
+    const records = getService()!.evels.records;
+    previewAt(pt.y);
+    return {
+      button: 0,
+      clock1: clock,
+      clock2: clock,
+      row,
+      group: { notes: selected.map((n) => ({ note: n, evs: collectNoteEvents(records, u, n) })), offset: 0, rowDelta: 0, lastRow: row },
+    };
+  }
+  // それ以外の押下は選択を解除する。空き地のときは解除だけでノートを書き込まない
+  clearNoteSelection();
+  return note ? undefined : null;
+}
+
+// 矩形選択の確定: 枠に重なるノートを選択へ追加する
+function commitMarquee(m: Marquee): void {
+  const s = getService();
+  if (!s || doc.focusUnit < 0) return;
+  const view = clockContext();
+  const clockOf = (x: number): number => xToClock(view, x - STRIP_W + doc.scrollX);
+  const hit = notesInRect(
+    notesInUnit(s.evels.records, doc.focusUnit, EVENTDEFAULT_KEY),
+    clockOf(Math.min(m.x1, m.x2)),
+    clockOf(Math.max(m.x1, m.x2)),
+    rowAt(Math.min(m.y1, m.y2)),
+    rowAt(Math.max(m.y1, m.y2)),
+  );
+  addNotesToSelection(hit.map((n) => n.head));
+}
+
+// グループ移動の適用 (プレビュー更新のみ。確定は pointerup の 1 回だけ)
+function updateGroupPreview(d: KeyDrag, g: GroupDrag, pt: { x: number; y: number }): void {
+  const keys = g.notes.flatMap((m) => m.evs.filter((e) => e.kind === EventKind.KEY).map((e) => e.value));
+  g.lastRow = rowAt(pt.y);
+  const rowDelta = clampGroupRowDelta(g.lastRow - d.row, keys);
+  if (rowDelta !== g.rowDelta && doc.focusUnit >= 0) {
+    const r = Math.max(0, Math.min(KEYNUM - 1, d.row + rowDelta));
+    previewUnitHold(doc.focusUnit, rowToKeyValue(r), EVENTDEFAULT_VELOCITY);
+  }
+  g.rowDelta = rowDelta;
+  g.offset = clampGroupOffset(d.clock2 - d.clock1, g.notes.map((m) => m.note.head));
+  previewRev.value++;
 }
 
 // スマートのドラッグ適用 (プレビュー更新のみ)。
@@ -498,6 +626,18 @@ function commitNoteDrag(u: number, d: KeyDrag): void {
 function applyDrag(d: KeyDrag, pt?: { x: number; y: number }): void {
   // 読み取り専用タブでは書き込まない (シーク用の onClick のみ有効)
   if (doc.readOnly) return;
+  if (d.marquee) {
+    if (pt) {
+      d.marquee.x2 = pt.x;
+      d.marquee.y2 = pt.y;
+    }
+    previewRev.value++;
+    return;
+  }
+  if (d.group) {
+    if (pt) updateGroupPreview(d, d.group, pt);
+    return;
+  }
   const s = getService();
   if (!s) return;
   const u = doc.focusUnit;
@@ -557,6 +697,8 @@ const { onPointerDown, onPointerMove, onPointerUp, drag: dragState } = useCanvas
       // スマート: 押下位置の状態でモードを決める。空き地 / ノート上どちらも
       // 押下行の音を試聴する (掴み中の音程変化の再試聴は applySmartDrag 内)
       if (doc.tool === "smart") {
+        const gesture = beginSelectionGesture(e, pt, focus, clock, row);
+        if (gesture !== undefined) return gesture;
         const d = beginSmartDrag(focus, clock, row, pt.x);
         previewAt(pt.y);
         return d;
@@ -573,11 +715,15 @@ const { onPointerDown, onPointerMove, onPointerUp, drag: dragState } = useCanvas
   applyDrag,
   // スマートの掴みは縦方向 (音程) だけのドラッグでも適用する (端の調整は横方向のみ)
   isMove(d, pt, clock) {
+    if (d.marquee) return true;
+    if (d.group) return clock !== d.clock2 || rowAt(pt.y) !== d.group.lastRow;
     if (d.smart && d.smart.mode === "grab") return clock !== d.clock2 || rowAt(pt.y) !== d.row;
     return clock !== d.clock2;
   },
+  // 矩形選択は編集を伴わないため undo を積まない
+  skipUndo: (d) => d.marquee !== undefined,
   onClick(d) {
-    if (d.button !== 0) return;
+    if (d.button !== 0 || d.marquee || d.group) return;
     // スマート: ノート上のクリック (掴み / 端調整) は無操作。空き地は
     // 1 グリッド分のノートを書き込む (長押しで鳴らした分の最短形)
     if (d.smart && d.smart.mode !== "write") return;
@@ -603,6 +749,16 @@ const { onPointerDown, onPointerMove, onPointerUp, drag: dragState } = useCanvas
     hold.onRelease(); // 押下中サステインを停止
     // ドラッグの実書き換えはここで確定する (ドラッグ中はイベントを触っていない)
     const dd = dragState.value;
+    if (dd?.marquee) {
+      commitMarquee(dd.marquee);
+      previewRev.value++;
+      return;
+    }
+    if (dd?.group) {
+      moveSelectedNotesRaw(dd.group.offset, dd.group.rowDelta);
+      doc.rev++;
+      return;
+    }
     if (dd && !doc.readOnly) {
       const u = doc.focusUnit;
       const s = getService();

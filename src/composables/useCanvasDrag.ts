@@ -32,6 +32,8 @@ export interface CanvasDragOptions<T extends CanvasDragState> {
   onEnd?(e: PointerEvent): void;
   // true なら pointerdown 時にも undo を積む (押下時に書き込む VolumeField 用)
   undoOnDown?: boolean;
+  // true を返すドラッグでは undo を積まない (編集を伴わない矩形選択など)
+  skipUndo?(d: T): boolean;
 }
 
 export function useCanvasDrag<T extends CanvasDragState>(options: CanvasDragOptions<T>): {
@@ -62,7 +64,7 @@ export function useCanvasDrag<T extends CanvasDragState>(options: CanvasDragOpti
     const moved = options.isMove ? options.isMove(d, pt, clock) : clock !== d.clock2;
     if (!moved) return;
     // 最初の移動時に undo を積む (クリックのみなら積まない)
-    if (!options.undoOnDown) dragUndo.onFirstMove();
+    if (!options.undoOnDown && !options.skipUndo?.(d)) dragUndo.onFirstMove();
     d.clock2 = clock;
     options.applyDrag(d, pt, e);
   }

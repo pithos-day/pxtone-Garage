@@ -32,6 +32,7 @@ import {
 } from "pxtone-ts";
 import { encodeShiftJis, truncateShiftJis } from "../lib/sjis";
 import type { EventWriteOps } from "../lib/editing";
+import { clearNotes, collectNoteEvents, notesInUnit, placeNotes, type SmartNote } from "../lib/smart-note";
 import { COPIER_KINDS } from "../lib/eventKinds";
 import { service, ensureService } from "./service";
 import { pushUndo, clearUndo, snapshotProject } from "./undo";
@@ -75,6 +76,9 @@ export interface OverdriveInfo {
 }
 
 export const doc = reactive({
+  // 選択中のノート (フォーカスユニットの ON のクロック)。タブをまたいで持ち越さないので
+  // ProjectState には含めない
+  selectedNotes: [] as number[],
   ready: false,
   readOnly: false, // pttune 形式 (再生専用) のとき true
   fileName: "",
@@ -243,6 +247,11 @@ function exitSolo(): void {
 function cleanupSelection(): void {
   const s = service;
   if (doc.focusUnit >= s.unitNum) doc.focusUnit = -1;
+  // undo や範囲操作で消えたノートを選択から外す
+  if (doc.selectedNotes.length > 0) {
+    const heads = new Set(selectedNoteList().map((n) => n.head));
+    doc.selectedNotes = doc.selectedNotes.filter((h) => heads.has(h));
+  }
   doc.selectedUnits = doc.selectedUnits.filter((u) => u >= 0 && u < s.unitNum);
   doc.muted = doc.muted.filter((u) => u >= 0 && u < s.unitNum);
   doc.soloBackup = doc.soloBackup.filter((u) => u >= 0 && u < s.unitNum);
@@ -338,6 +347,7 @@ export function mutateBoolean(fn: () => boolean): boolean {
 
 // 新規/読込時に編集用の UI 状態をリセットする (ファイルの内容には影響しない)
 function resetEditingState(): void {
+  doc.selectedNotes = [];
   doc.focusUnit = -1;
   doc.selectedUnits = [];
   doc.muted = [];
@@ -964,6 +974,100 @@ export function copyMeas(c1: number, c2: number, to: number, times: number, kind
   });
 }
 
+// ---- 選択中のノートの操作 ----
+
+// 選択中のノート (フォーカスユニットに実在するもののみ、時間順)
+export function selectedNoteList(): SmartNote[] {
+  if (doc.focusUnit < 0 || doc.selectedNotes.length === 0) return [];
+  const heads = new Set(doc.selectedNotes);
+  return notesInUnit(service.evels.records, doc.focusUnit, EVENTDEFAULT_KEY).filter((n) => heads.has(n.head));
+}
+
+export function hasNoteSelection(): boolean {
+  return doc.selectedNotes.length > 0;
+}
+
+export function clearNoteSelection(): void {
+  if (doc.selectedNotes.length > 0) doc.selectedNotes = [];
+}
+
+export function toggleNoteSelected(head: number): void {
+  doc.selectedNotes = doc.selectedNotes.includes(head) ? doc.selectedNotes.filter((h) => h !== head) : [...doc.selectedNotes, head];
+}
+
+export function addNotesToSelection(heads: readonly number[]): void {
+  doc.selectedNotes = [...new Set([...doc.selectedNotes, ...heads])];
+}
+
+// 選択中のノートを移動する (時間 offset / 音程 rowDelta)。undo は呼び出し側で管理する
+export function moveSelectedNotesRaw(offset: number, rowDelta: number): void {
+  if (doc.readOnly || (offset === 0 && rowDelta === 0)) return;
+  const u = doc.focusUnit;
+  const notes = selectedNoteList();
+  const placements = notes.map((n) => ({
+    origin: n.head,
+    evs: collectNoteEvents(service.evels.records, u, n),
+    head: n.head + offset,
+    len: n.end - n.head,
+    rowDelta,
+  }));
+  clearNotes(projectWriteOps, u, notes);
+  placeNotes(projectWriteOps, () => service.evels.records, u, placements);
+  doc.selectedNotes = placements.map((p) => p.head);
+}
+
+// 選択中のノートをクリップボードへコピーする
+export function noteCopy(): void {
+  const notes = selectedNoteList();
+  if (notes.length === 0) return;
+  const base = notes[0]!.head;
+  scopeClip = notes.flatMap((n) =>
+    collectNoteEvents(service.evels.records, doc.focusUnit, n).map((e) => ({ clock: e.clock - base, unitNo: doc.focusUnit, kind: e.kind, value: e.value })),
+  );
+  scopeClipWidth = Math.max(...notes.map((n) => n.end)) - base;
+  scopeClipFocusOnly = true;
+  scopeClipIsNotes = true;
+}
+
+// 選択中のノートを消す (後続は詰めない)
+export function noteDelete(): void {
+  const notes = selectedNoteList();
+  if (notes.length === 0) return;
+  mutate(() => {
+    clearNotes(projectWriteOps, doc.focusUnit, notes);
+    doc.selectedNotes = [];
+  });
+}
+
+export function noteCut(): void {
+  noteCopy();
+  noteDelete();
+}
+
+// クリップボードの内容がノート単位のコピーか (貼り付け位置の決め方が変わる)
+export function clipboardHasNotes(): boolean {
+  return scopeClipIsNotes && scopeClipReady();
+}
+
+// ノート単位の貼り付け。範囲を一括で消さず、貼るノートと重なる部分だけ置き換える。
+// 貼ったノートを選択状態にする
+function pasteNotes(clock: number): void {
+  const u = doc.focusUnit;
+  if (u < 0) return;
+  const ons = scopeClip.filter((ev) => ev.kind === EventKind.ON);
+  mutate(() => {
+    const placements = ons.map((on) => ({
+      origin: on.clock,
+      evs: scopeClip.filter((ev) => ev.clock >= on.clock && ev.clock < on.clock + on.value && (ev.kind !== EventKind.ON || ev.clock === on.clock)),
+      head: clock + on.clock,
+      len: on.value,
+      rowDelta: 0,
+    }));
+    placeNotes(projectWriteOps, () => service.evels.records, u, placements);
+    doc.selectedNotes = placements.map((p) => p.head);
+  });
+}
+
 // ---- スコープ操作 (本家の ScopeEvent に相当する) ----
 // 選択範囲 (スコープ) に対するコピー / 切り取り / クリア / 消去 / 貼り付け / 挿入。
 // 対象ユニットはフォーカス+選択 (単独ならフォーカスのみ、本家 UnitFocus 相当)。
@@ -982,6 +1086,8 @@ let scopeClipWidth = 0; // コピー元範囲の幅 (クロック)
 // 単一ユニット (W モード or 対象単独) でコピーしたか。
 // true なら貼り付け時にクリップボードのユニット番号を貼り付け先へ振り直す (本家 Record_UnitNo_Set 相当)
 let scopeClipFocusOnly = false;
+// 選択中のノートからコピーしたか (貼り付けは範囲を消さずノート単位で置き換える)
+let scopeClipIsNotes = false;
 
 // doc.copier (コピーパネル) のチェック状態 → フィルタ対象のイベント種別
 function copierKinds(): number[] {
@@ -1027,6 +1133,7 @@ export function scopeCopy(c1: number, c2: number, kinds: number[] | null = copie
   scopeClip = clip;
   scopeClipWidth = b - a;
   scopeClipFocusOnly = targets.length <= 1;
+  scopeClipIsNotes = false;
 }
 
 // クリップボードに貼り付けられる内容があるか
@@ -1082,6 +1189,10 @@ function scopeTargets(): number[] {
 // 種別の絞り込みは現在のコピーパネルのチェックに従う
 export function scopePaste(clock: number): void {
   if (!scopeClipReady() || !doc.ready) return;
+  if (scopeClipIsNotes) {
+    pasteNotes(clock);
+    return;
+  }
   const targets = scopeTargets();
   if (targets.length === 0) return;
   const kset = new Set(copierKinds());

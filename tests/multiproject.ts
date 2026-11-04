@@ -76,6 +76,17 @@ import {
   commitEdit,
   addWoices,
   prepareWoiceFile,
+  selectedNoteList,
+  clearNoteSelection,
+  addNotesToSelection,
+  moveSelectedNotesRaw,
+  noteCopy,
+  noteCut,
+  noteDelete,
+  clipboardHasNotes,
+  projectWriteOps,
+  setFocusUnit,
+  EVENTDEFAULT_KEY,
 } from "../src/state/project";
 import * as serviceMod from "../src/state/service";
 import { SAMPLE_SONGS } from "../src/state/samples";
@@ -147,10 +158,10 @@ import {
 } from "../src/state/noise";
 import { renderWoice, renderNoise } from "../src/engine/preview";
 import { parseMidi, convertMidiToPtcop } from "../src/engine/midi";
-import { formatTime, measStartClock, ZOOM_MAX, ZOOM_MIN, gridLineWidth } from "../src/lib/clock";
+import { formatTime, measStartClock, ZOOM_MAX, ZOOM_MIN, gridLineWidth, rowToKeyValue, keyValueToRow } from "../src/lib/clock";
 import { scaleToWoice, scaleToGroup, VOLUME_EDIT_KIND } from "../src/lib/volume";
 import { writeNote, writeNoteLength, eraseNote, writeVolumeEvent, paintKeyDrag, type EventWriteOps } from "../src/lib/editing";
-import { smartPlacement, commitSmartDrag, clampSmartOffset, shiftKeyValue, type SmartDrag } from "../src/lib/smart-note";
+import { smartPlacement, commitSmartDrag, clampSmartOffset, shiftKeyValue, notesInUnit, notesInRect, clampGroupOffset, clampGroupRowDelta, type SmartDrag } from "../src/lib/smart-note";
 import {
   SHORTCUTS,
   DEFAULT_BINDINGS,
@@ -2880,7 +2891,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       }
     }
     checkEq(duplicate, "", "shortcut: 同じキーの重複割り当てが無い");
-    checkEq(SHORTCUTS.length, 20, "shortcut: コマンド数");
+    checkEq(SHORTCUTS.length, 21, "shortcut: コマンド数");
 
     // ---- 表示 (右寄せ併記用) ----
     checkEq(formatShortcut("scopeCopy", false), "Ctrl+C", "shortcut: 表示 Ctrl+C");
@@ -3616,6 +3627,115 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       check(peak(tones.high, 0, 2000) > peak(tones.low, 0, 2000), "metronome: 小節頭のほうが強い");
       check(peak(tones.high, tones.high.length - 200, tones.high.length) < 0.05, "metronome: 末尾は減衰している");
     }
+  }
+
+  // ---- ノートの複数選択 ----
+  {
+    newProjectInTab();
+    addUnit("sel");
+    setFocusUnit(0);
+    const svc = getService()!;
+    const row = (r: number) => rowToKeyValue(r);
+    const put = (c1: number, c2: number, r: number) => writeNote(projectWriteOps, c1, c2, 0, row(r), 100);
+    const dump = () =>
+      notesInUnit(svc.evels.records, 0, EVENTDEFAULT_KEY)
+        .map((n) => `${n.head}-${n.end}@${keyValueToRow(n.key)}`)
+        .join();
+    put(0, 240, 40);
+    put(480, 720, 42);
+    put(960, 1200, 44);
+
+    // 矩形の判定
+    const all = notesInUnit(svc.evels.records, 0, EVENTDEFAULT_KEY);
+    checkEq(notesInRect(all, 100, 500, 40, 42).map((n) => n.head).join(), "0,480", "note-sel: 矩形に重なるノート");
+    checkEq(notesInRect(all, 240, 480, 0, 87).length, 0, "note-sel: 区間は半開");
+    checkEq(notesInRect(all, 0, 2000, 41, 41).length, 0, "note-sel: 行が外れると選ばない");
+
+    // クランプ: 全体を同じ量で止めて形を保つ
+    checkEq(clampGroupOffset(-1000, [480, 960]), -480, "note-sel: 先頭が負にならない");
+    checkEq(clampGroupRowDelta(-100, [row(40), row(44)]), -40, "note-sel: 上端で全体が止まる");
+    checkEq(clampGroupRowDelta(100, [row(40), row(44)]), 43, "note-sel: 下端で全体が止まる");
+
+    // グループ移動: 間のノートを避けて、周囲を巻き込まない
+    addNotesToSelection([0, 960]);
+    checkEq(selectedNoteList().map((n) => n.head).join(), "0,960", "note-sel: 選択を取得できる");
+    const depth = undoStack.length;
+    beginEdit();
+    moveSelectedNotesRaw(120, 2);
+    commitEdit();
+    checkEq(dump(), "120-360@42,480-720@42,1080-1320@46", "note-sel: 時間と音程を一括で移動する");
+    checkEq(doc.selectedNotes.join(), "120,1080", "note-sel: 移動先を選択したまま");
+    checkEq(undoStack.length, depth + 1, "note-sel: 移動は 1 undo");
+    check(undo(), "note-sel: undo できる");
+    checkEq(dump(), "0-240@40,480-720@42,960-1200@44", "note-sel: undo で戻る");
+    checkEq(doc.selectedNotes.length, 0, "note-sel: 実在しないノートは選択から外れる");
+
+    // 重なる先の非選択ノートは丸ごと置き換え、KEY の孤児を残さない
+    addNotesToSelection([0]);
+    moveSelectedNotesRaw(600, 0);
+    commitEdit();
+    checkEq(dump(), "600-840@40,960-1200@44", "note-sel: 重なるノートを置き換える");
+    const keyClocks = svc.evels.records.filter((e) => e.unitNo === 0 && e.kind === EventKind.KEY).map((e) => e.clock).join();
+    checkEq(keyClocks, "600,960", "note-sel: KEY の孤児が残らない");
+    clearNoteSelection();
+
+    // 互いに重なる移動でも (先に全部消すので) 欠けない
+    addNotesToSelection([600, 960]);
+    moveSelectedNotesRaw(360, 0);
+    commitEdit();
+    checkEq(dump(), "960-1200@40,1320-1560@44", "note-sel: 選択同士が重なる移動でも欠けない");
+
+    // コピー / 貼り付け: 範囲を消さず、間のノートを残す
+    clearNoteSelection();
+    put(1080, 1200, 50); // 貼り付け先の隙間に別のノートを置く (960-1200 は切り詰められる)
+    const before = dump();
+    checkEq(before, "960-1080@40,1080-1200@50,1320-1560@44", "note-sel: 準備");
+    addNotesToSelection([960, 1320]);
+    noteCopy();
+    check(clipboardHasNotes(), "note-sel: ノートのクリップボード");
+    clearNoteSelection();
+    scopePaste(3000);
+    checkEq(dump(), `${before},3000-3120@40,3360-3600@44`, "note-sel: 相対位置を保って貼り付ける");
+    checkEq(doc.selectedNotes.join(), "3000,3360", "note-sel: 貼ったノートを選択する");
+    clearNoteSelection();
+    put(3150, 3240, 60); // 貼るノートの間にあるノート
+    scopePaste(3000);
+    check(dump().includes("3150-3240@60"), "note-sel: 間のノートは消さない");
+
+    // 切り取りと消去
+    clearNoteSelection();
+    addNotesToSelection([3150]);
+    noteCut();
+    check(!dump().includes("3150"), "note-sel: 切り取りでノートが消える");
+    checkEq(doc.selectedNotes.length, 0, "note-sel: 切り取り後は選択なし");
+    addNotesToSelection([3000]);
+    noteDelete();
+    check(!dump().includes("3000-"), "note-sel: 選択中のノートだけ消える");
+    check(dump().includes("3360-3600@44"), "note-sel: 後続は詰めない");
+
+    // Scope のコピーに戻すと範囲の貼り付けになる
+    scopeCopy(960, 1080);
+    check(!clipboardHasNotes(), "note-sel: 範囲コピーで通常のクリップボードへ戻る");
+
+    // ショートカット: Esc の判定と、保存済み設定に無いコマンドの既定値
+    const esc = { key: "Escape", ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, repeat: false };
+    checkEq(shortcutCommand(esc, { readOnly: false, clipReady: false, modalOpen: false }), "clearNoteSelection", "note-sel: Esc で選択解除");
+    checkEq(shortcutAreaOf("clearNoteSelection"), "collage", "note-sel: Esc は collage 担当");
+
+    // 読み取り専用では動かさない
+    addNotesToSelection([3360]);
+    const dumpRo = dump();
+    doc.readOnly = true;
+    moveSelectedNotesRaw(10, 0);
+    noteDelete();
+    doc.readOnly = false;
+    checkEq(dump(), dumpRo, "note-sel: readOnly では編集しない");
+    clearNoteSelection();
+
+    // フォーカス外のユニットの選択は無視する / タブ切替で持ち越さない
+    addNotesToSelection([3360]);
+    newProjectInTab();
+    checkEq(doc.selectedNotes.length, 0, "note-sel: タブをまたいで持ち越さない");
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);
