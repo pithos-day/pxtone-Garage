@@ -90,8 +90,8 @@ const ja = {
   "keys.unassigned": "未設定",
   "keys.conflict": "他の項目と競合しています",
   "keys.duplicate": "同じ項目に既に割り当てられています",
-  "keys.areaApp": "アプリ",
-  "keys.areaCollage": "コラージュ",
+  "keys.areaApp": "全般",
+  "keys.areaCollage": "Collage",
   "keys.empty": "該当する項目がありません",
   "keys.hint": "キーをクリックすると割り当てを変更できます",
 
