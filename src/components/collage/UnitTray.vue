@@ -201,7 +201,7 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
         v-for="u in units"
         :key="u.index"
         class="unit-row"
-        :class="{ focus: u.index === doc.focusUnit, selected: doc.selectedUnits.includes(u.index), muted: u.muted, 'row-drag-source': u.index === draggingRow }"
+        :class="{ focus: u.index === doc.focusUnit, selected: doc.selectedUnits.includes(u.index), muted: u.muted, soloed: u.soloed, 'row-drag-source': u.index === draggingRow }"
         :style="{ borderLeft: '4px solid ' + unitColor(u.index) }"
         @pointerdown="onPointerDown($event, u.index)"
         @dblclick="startEditName(u.index)"
@@ -335,9 +335,19 @@ function onMenuAction(action: "edit" | "remove" | "change"): void {
   outline-offset: -1px;
 }
 
+/* ミュート行は行全体を薄くする (チェックボックスは操作できるよう薄くしすぎない) */
+.unit-row.muted {
+  opacity: 0.6;
+}
+
 .unit-row.muted .unit-name {
   color: var(--muted-foreground);
   text-decoration: line-through;
+}
+
+.unit-row.soloed .unit-name {
+  color: var(--primary);
+  font-weight: 600;
 }
 
 .unit-checks input {
