@@ -27,7 +27,7 @@ import {
   nearestPoint,
   waveY,
 } from "../../lib/voice-geometry";
-import { Oscillator, VoiceType } from "pxtone-ts";
+import { Oscillator, VoiceType, type VoiceUnit } from "pxtone-ts";
 import {
   currentVoice,
   editVoice,
@@ -53,7 +53,7 @@ const voice = computed(() => currentVoice());
 // rev は再描画トリガー、touch はプレビューキャッシュ破棄を親へ通知する
 const { rev, touch } = useEditRev(() => voice.value, () => emit("edit"));
 
-function currentVoiceUnit() {
+function currentVoiceUnit(): VoiceUnit | null {
   const v = voice.value;
   if (!v) return null;
   const s = Math.min(props.side, v.woice.voiceNum - 1);
@@ -78,7 +78,7 @@ const dragUndo = useUndoOnce(() => editVoice(() => {}));
 //   補正値  = (tuning-1)*10000 ∈ ±128 (右クリックで 0 = 1.0)
 //   Release = リリース区間長 1..1000 (右クリックで 1)
 // getter は rev を参照して undo/redo 後の再描画でも最新値を返す
-function setVoiceUnit(fn: (c: NonNullable<ReturnType<typeof currentVoiceUnit>>) => void): void {
+function setVoiceUnit(fn: (c: VoiceUnit) => void): void {
   editVoice(() => {
     const c = currentVoiceUnit();
     if (c) fn(c);
@@ -113,7 +113,7 @@ const correctModel = makeSliderModel(
 
 // リリース区間長 (本家 ptuiReleaseTime 準拠)。
 // スライダー表示 0..100 ↔ データ 1..1000 (×10)。スライダー 0 はデータ 1 にクランプ (tail は維持)
-function enveHeadCount(c: NonNullable<ReturnType<typeof currentVoiceUnit>>): number {
+function enveHeadCount(c: VoiceUnit): number {
   return c.envelope.headNum + c.envelope.bodyNum;
 }
 const releaseModel = makeSliderModel(
@@ -125,7 +125,7 @@ const releaseModel = makeSliderModel(
   },
   (v) =>
     setVoiceUnit((c) => {
-      const hc = c.envelope.headNum + c.envelope.bodyNum;
+      const hc = enveHeadCount(c);
       // 本家 ptuiReleaseTime 準拠: スライダー 0..100 ↔ データ 1..1000 (0 は 1 にクランプ、tail は維持)
       c.envelope.tailNum = Math.max(1, c.envelope.tailNum);
       const p = c.envelope.points[hc] ?? (c.envelope.points[hc] = { x: 0, y: 0 });
@@ -145,7 +145,7 @@ function resetCorrect(): void {
 }
 function resetRelease(): void {
   setVoiceUnit((c) => {
-    const hc = c.envelope.headNum + c.envelope.bodyNum;
+    const hc = enveHeadCount(c);
     if (c.envelope.tailNum > 0 && c.envelope.points[hc]) c.envelope.points[hc]!.x = 1;
   });
 }
@@ -313,7 +313,7 @@ function setSine(i: number, v: number): void {
 const enveRef = ref<HTMLCanvasElement | null>(null);
 
 // ヘッド表示点 (累積座標) を返す
-function enveDisplay(c: NonNullable<ReturnType<typeof currentVoiceUnit>>): {
+function enveDisplay(c: VoiceUnit): {
   head: ReturnType<typeof enveDisplayPoints>;
   headCount: number;
 } {
@@ -323,7 +323,7 @@ function enveDisplay(c: NonNullable<ReturnType<typeof currentVoiceUnit>>): {
 }
 
 // グラフ右端の累積 x (描画・ドラッグで共通)
-function enveMaxHeadX(c: NonNullable<ReturnType<typeof currentVoiceUnit>>): number {
+function enveMaxHeadX(c: VoiceUnit): number {
   const { head } = enveDisplay(c);
   return enveMaxX(head.length ? head[head.length - 1]!.x : 0);
 }
@@ -359,7 +359,7 @@ useCanvas(enveRef, drawEnve, [() => rev.value, () => voice.value]);
 const enveDrag = ref<{ index: number } | null>(null);
 
 function envePointAt(
-  c: NonNullable<ReturnType<typeof currentVoiceUnit>>,
+  c: VoiceUnit,
   w: number,
   h: number,
   px: number,
