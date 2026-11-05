@@ -3,7 +3,7 @@
 // 右: モード別ドロップダウンメニュー (collage = File/Edit/View/Help、voice/noise = File/Edit/Help)
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { FileUp, FileDown, Music, ListMusic, FileMusic, AudioLines, SlidersHorizontal, SquareStack, CircleGauge, Copy, Columns4, PackagePlus, Link2, Settings, Palette, Keyboard, History, Eraser, AlignHorizontalJustifyStart } from "@lucide/vue";
+import { ArrowUpDown, FileUp, FileDown, Music, ListMusic, FileMusic, AudioLines, SlidersHorizontal, SquareStack, CircleGauge, Copy, Columns4, PackagePlus, Link2, Settings, Palette, Keyboard, History, Eraser, AlignHorizontalJustifyStart } from "@lucide/vue";
 import { DIVI_TABLE } from "../../lib/clock";
 import { doc, setAllUnitsVisible, exportBytes, addWoice, WoiceType } from "../../state/project";
 import {
@@ -453,6 +453,7 @@ const editMenu = computed<MenuItem[]>(() => {
             { label: t("menu.edit.pantime"), icon: CircleGauge, action: () => emit("eventVolume", "pantime"), disabled: tuneReadOnly.value },
             { label: t("menu.edit.panvolume"), icon: CircleGauge, action: () => emit("eventVolume", "panvolume"), disabled: tuneReadOnly.value },
             { label: t("menu.edit.volume"), icon: CircleGauge, action: () => emit("eventVolume", "volume"), disabled: tuneReadOnly.value },
+            { label: t("menu.edit.transpose"), icon: ArrowUpDown, action: () => emit("eventVolume", "transpose"), disabled: tuneReadOnly.value },
           ]
         : [];
   return buildEditMenu(ops, extra);
