@@ -10,7 +10,7 @@ import { drawGrid, fillRect, fillText, drawPlayhead, fillPlayIcon, drawDragRange
 import { clockAtX, zoomAnchorScrollX, zoomOrPan } from "../../lib/field";
 import { clockToX, xToClock } from "../../lib/clock";
 import { RULER_H } from "../../lib/layout";
-import { VOLUME_EDIT_KIND } from "../../lib/volume";
+import { VOLUME_EDIT_KIND, VolumeMode } from "../../lib/volume";
 import { writeVolumeEvent } from "../../lib/editing";
 import { EventKind, int32ToFloat } from "pxtone-ts";
 import {
@@ -56,91 +56,27 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 
   const valueY = (v: number): number => fTop + fH - (v / 128) * fH;
 
+  const field: VolumeFieldCtx = { ctx, records, focus, w, view, top: fTop, h: fH, startClock, endClock, valueY };
   switch (mode) {
-    case 0: // Velocity: 点
-    case 1: // Pan_Volume: 階段
-    case 2: // Pan_Time: 階段 (本家 if_VolumeField は Volume と同じ描画)
-    case 3: // Volume: 階段
-      {
-        const points: { clock: number; value: number }[] = [];
-        const kind = VOLUME_MODES[mode]!.kind;
-        for (const e of records) {
-          if (e.kind === EventKind.NULL || e.unitNo !== focus || e.clock > endClock) continue;
-          if (e.kind === kind) {
-            points.push({ clock: e.clock, value: e.value });
-          }
-        }
-        if (mode === 0) {
-          // Velocity: Play アイコン (本家の rcNote 相当)
-          for (const p of points) {
-            const x = clockToX(view, p.clock) - doc.scrollX;
-            if (x < 0 || x > w) continue;
-            fillPlayIcon(ctx, x, valueY(p.value), COLORS.accent);
-          }
-        } else {
-          // 階段状ライン
-          let prevY = valueY(VOLUME_MODES[mode]!.def);
-          ctx.strokeStyle = COLORS.accent;
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(0, prevY);
-          for (const p of points) {
-            if (p.clock < startClock) {
-              prevY = valueY(p.value);
-              continue;
-            }
-            const x = clockToX(view, p.clock) - doc.scrollX;
-            ctx.lineTo(x, prevY);
-            ctx.lineTo(x, valueY(p.value));
-            prevY = valueY(p.value);
-          }
-          ctx.lineTo(w, prevY);
-          ctx.stroke();
-        }
-      }
+    case VolumeMode.Velocity:
+      drawVelocityIcons(field);
       break;
-    case 4: // Portament: 横棒
-      {
-        for (const e of records) {
-          if (e.kind === EventKind.NULL || e.unitNo !== focus) continue;
-          if (e.kind === EventKind.PORTAMENT && e.clock <= endClock) {
-            const x = clockToX(view, e.clock) - doc.scrollX;
-            const xw = Math.max(2, clockToX(view, e.value));
-            if (x + xw < 0 || x > w) continue;
-            fillRect(ctx, x, valueY(64) - 2, xw, 4, COLORS.accentDark);
-          }
-        }
-      }
+    case VolumeMode.PanVolume:
+    case VolumeMode.PanTime: // 本家 if_VolumeField は Volume と同じ描画
+    case VolumeMode.Volume:
+      drawStepLine(field, mode);
       break;
-    case 5: // VoiceNo
-    case 6: // GroupNo
-      {
-        const kind = VOLUME_MODES[mode]!.kind;
-        for (const e of records) {
-          if (e.kind === EventKind.NULL || e.unitNo !== focus || e.kind !== kind) continue;
-          if (e.clock > endClock || e.clock + 10 < startClock) continue;
-          const x = clockToX(view, e.clock) - doc.scrollX;
-          if (x > w || x < -40) continue;
-          fillRect(ctx, x, fTop + 4, 26, fH - 8, COLORS.panelLight);
-          fillRect(ctx, x, fTop + 4, 26, 1, COLORS.borderLight);
-          const label = mode === 5 ? woices.value[e.value]?.name ?? `#${e.value}` : `G${e.value}`;
-          fillText(ctx, label, x + 3, fTop + 14, COLORS.textBright, 10);
-        }
-      }
+    case VolumeMode.Portament:
+      drawPortamentBars(field);
       break;
-    case 7: // Tuning: 数値ボックス
-      {
-        for (const e of records) {
-          if (e.kind === EventKind.NULL || e.unitNo !== focus || e.kind !== EventKind.TUNING) continue;
-          if (e.clock > endClock || e.clock + 10 < startClock) continue;
-          const x = clockToX(view, e.clock) - doc.scrollX;
-          if (x > w || x < -50) continue;
-          const fv = int32ToFloat(e.value);
-          fillRect(ctx, x, fTop + 4, 44, fH - 8, COLORS.panelLight);
-          fillRect(ctx, x, fTop + 4, 44, 1, COLORS.borderLight);
-          fillText(ctx, fv.toFixed(4), x + 3, fTop + 14, COLORS.textBright, 10);
-        }
-      }
+    case VolumeMode.VoiceNo:
+      drawValueBoxes(field, VOLUME_MODES[mode]!.kind, 26, -40, (v) => woices.value[v]?.name ?? `#${v}`);
+      break;
+    case VolumeMode.GroupNo:
+      drawValueBoxes(field, VOLUME_MODES[mode]!.kind, 26, -40, (v) => `G${v}`);
+      break;
+    case VolumeMode.Tuning:
+      drawValueBoxes(field, EventKind.TUNING, 44, -50, (v) => int32ToFloat(v).toFixed(4));
       break;
   }
 
@@ -161,6 +97,82 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
       h,
       COLORS.accent,
     );
+  }
+}
+
+// モード別の描画に共通の情報 (top / h はルーラー帯を除いたフィールドの範囲)
+interface VolumeFieldCtx {
+  ctx: CanvasRenderingContext2D;
+  records: NonNullable<ReturnType<typeof getService>>["evels"]["records"];
+  focus: number;
+  w: number;
+  view: ReturnType<typeof clockContext>;
+  top: number;
+  h: number;
+  startClock: number;
+  endClock: number;
+  valueY: (v: number) => number;
+}
+
+// Velocity: Play アイコン (本家の rcNote 相当)
+function drawVelocityIcons({ ctx, records, focus, w, view, endClock, valueY }: VolumeFieldCtx): void {
+  const kind = VOLUME_MODES[VolumeMode.Velocity]!.kind;
+  for (const e of records) {
+    if (e.unitNo !== focus || e.clock > endClock || e.kind !== kind) continue;
+    const x = clockToX(view, e.clock) - doc.scrollX;
+    if (x < 0 || x > w) continue;
+    fillPlayIcon(ctx, x, valueY(e.value), COLORS.accent);
+  }
+}
+
+// Pan_Volume / Pan_Time / Volume: 階段状のライン
+function drawStepLine({ ctx, records, focus, w, view, startClock, endClock, valueY }: VolumeFieldCtx, mode: number): void {
+  const { kind, def } = VOLUME_MODES[mode]!;
+  let prevY = valueY(def);
+  ctx.strokeStyle = COLORS.accent;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, prevY);
+  for (const e of records) {
+    if (e.unitNo !== focus || e.clock > endClock || e.kind !== kind) continue;
+    if (e.clock >= startClock) {
+      const x = clockToX(view, e.clock) - doc.scrollX;
+      ctx.lineTo(x, prevY);
+      ctx.lineTo(x, valueY(e.value));
+    }
+    prevY = valueY(e.value);
+  }
+  ctx.lineTo(w, prevY);
+  ctx.stroke();
+}
+
+// Portament: 長さを表す横棒
+function drawPortamentBars({ ctx, records, focus, w, view, endClock, valueY }: VolumeFieldCtx): void {
+  for (const e of records) {
+    if (e.unitNo !== focus || e.kind !== EventKind.PORTAMENT || e.clock > endClock) continue;
+    const x = clockToX(view, e.clock) - doc.scrollX;
+    const xw = Math.max(2, clockToX(view, e.value));
+    if (x + xw < 0 || x > w) continue;
+    fillRect(ctx, x, valueY(64) - 2, xw, 4, COLORS.accentDark);
+  }
+}
+
+// VoiceNo / GroupNo / Tuning: 値をラベルにした箱
+function drawValueBoxes(
+  { ctx, records, focus, w, view, top, h, startClock, endClock }: VolumeFieldCtx,
+  kind: number,
+  boxW: number,
+  minX: number, // これより左に出た箱は描かない (箱の幅とラベルのはみ出しを見込む)
+  label: (value: number) => string,
+): void {
+  for (const e of records) {
+    if (e.unitNo !== focus || e.kind !== kind) continue;
+    if (e.clock > endClock || e.clock + 10 < startClock) continue;
+    const x = clockToX(view, e.clock) - doc.scrollX;
+    if (x > w || x < minX) continue;
+    fillRect(ctx, x, top + 4, boxW, h - 8, COLORS.panelLight);
+    fillRect(ctx, x, top + 4, boxW, 1, COLORS.borderLight);
+    fillText(ctx, label(e.value), x + 3, top + 14, COLORS.textBright, 10);
   }
 }
 
@@ -222,7 +234,7 @@ const { onPointerDown, onPointerMove, onPointerUp, drag } = useCanvasDrag<Canvas
     if (!s || doc.focusUnit < 0 || !s.unitGet(doc.focusUnit)) return null;
     const clock = clockAt(pt.x);
     if (e.button === 0) {
-      if (doc.volumeMode === 7) {
+      if (doc.volumeMode === VolumeMode.Tuning) {
         // Tuning: インライン入力
         const cur = s.evels.getValue(clock, doc.focusUnit, EventKind.TUNING);
         tuningInput.value = {

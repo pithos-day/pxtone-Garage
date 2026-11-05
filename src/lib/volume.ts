@@ -8,14 +8,26 @@
 //  (7 = Tuning はインライン入力のため対象外)
 export type VolumeEditKind = "setValue" | "replace" | "length" | "scaleWoice" | "scaleGroup";
 
+// doc.volumeMode の値 (state/project の VOLUME_MODES の添字と対応する)
+export const VolumeMode = {
+  Velocity: 0,
+  PanVolume: 1,
+  PanTime: 2,
+  Volume: 3,
+  Portament: 4,
+  VoiceNo: 5,
+  GroupNo: 6,
+  Tuning: 7,
+} as const;
+
 export const VOLUME_EDIT_KIND: Record<number, VolumeEditKind> = {
-  0: "setValue",
-  1: "replace",
-  2: "replace",
-  3: "replace",
-  4: "length",
-  5: "scaleWoice",
-  6: "scaleGroup",
+  [VolumeMode.Velocity]: "setValue",
+  [VolumeMode.PanVolume]: "replace",
+  [VolumeMode.PanTime]: "replace",
+  [VolumeMode.Volume]: "replace",
+  [VolumeMode.Portament]: "length",
+  [VolumeMode.VoiceNo]: "scaleWoice",
+  [VolumeMode.GroupNo]: "scaleGroup",
 };
 
 // 0..128 の値 → 音色番号 (0..woiceNum-1)
