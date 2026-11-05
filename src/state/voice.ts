@@ -166,6 +166,9 @@ export function enveInsertPoint(points: { x: number; y: number }[], maxHead: num
       return true;
     }
     if (p.x > cur) {
+      // ヘッドが満杯なら追加しない (シフトすると末尾の点が押し出されて消える)
+      const last = points[maxHead - 1]!;
+      if (last.x || last.y) return false;
       // 挿入: 後続の区間長を短縮してシフト (本家の insert)
       for (let j = maxHead - 1; j > idx; j--) points[j] = points[j - 1]!;
       points[idx + 1]!.x -= cur;

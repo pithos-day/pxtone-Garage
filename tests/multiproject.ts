@@ -28,7 +28,7 @@
 //   66. 壊れたファイルで音色を置き換えても元の音色が残る / 67. Coordinate の y は保存で反転しない
 //   68. スライダー上でも Ctrl 付きのショートカットが効く / 69. undo でユニットの UI 状態が同じユニットに付いたまま
 //   70. Coordinate の点の上限 / 71. 音の出ない音色の保存はエラーを表示する
-//   72. ヘッド 0 点のエンベロープを開いて保存できる
+//   72. ヘッド 0 点のエンベロープを開いて保存できる / 73. エンベロープが満杯なら途中に追加しない
 import { shouldRegisterServiceWorker } from "../src/lib/pwa";
 import { isKeyForFormControl } from "../src/composables/useGlobalKeys";
 import {
@@ -4719,6 +4719,16 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(saved.read(new MemoryIo(snapshotVoiceForSave(d)!), WoiceType.PTV), PxtnErr.OK, "enve-head0: 保存したファイルを読み直せる");
     checkEq(saved.getVoice(0)!.envelope.points[1]!.x, 7, "enve-head0: 保存してもリリースが残る");
     closeVoice(d.id);
+  }
+
+  // ---- 73. エンベロープが満杯なら途中に追加しない ----
+  {
+    const points = Array.from({ length: 32 }, (_, i) => ({ x: i === 0 ? 0 : 10, y: i === 31 ? 0 : 50 + i }));
+    const before = JSON.stringify(points);
+    checkEq(enveInsertPoint(points, 31, 5, 1), false, "enve-full: 途中への追加は受け付けない");
+    checkEq(JSON.stringify(points), before, "enve-full: 点は消えず、リリースも変わらない");
+    checkEq(enveInsertPoint(points, 31, 10, 1), true, "enve-full: 満杯でも同じ位置の y は更新できる");
+    checkEq(points[1]!.y, 1, "enve-full: y が更新される");
   }
 
   // ---- clamp ----
