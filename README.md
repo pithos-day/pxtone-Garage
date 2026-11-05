@@ -1,4 +1,4 @@
-# pxtone Garage
+# ピストンガラージュ
 
 [ピストンコラージュ](https://pxtone.org/) 互換の Web DAW アプリケーション。
 
