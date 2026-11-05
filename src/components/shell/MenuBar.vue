@@ -54,6 +54,7 @@ const emit = defineEmits<{
   (e: "project"): void;
   (e: "settings"): void;
   (e: "keySettings"): void;
+  (e: "about"): void;
   (e: "requestClose", mode: AppMode, id: number): void;
   (e: "requestCloseAll", mode: AppMode): void;
   (e: "copyMeas"): void;
@@ -488,6 +489,7 @@ const helpMenu = computed<MenuItem[]>(() =>
   buildHelpMenu({
     onSearch: () => (featureSearchOpen.value = true),
     onReportIssue: () => void window.open(ISSUES_URL, "_blank", "noopener"),
+    onAbout: () => emit("about"),
   }),
 );
 

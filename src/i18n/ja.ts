@@ -79,6 +79,16 @@ const ja = {
   // メニュー: Help
   "menu.help.search": "機能を検索",
   "menu.help.reportIssue": "問題を報告",
+  "menu.help.about": "このアプリについて",
+
+  // このアプリについて
+  "about.title": "このアプリについて",
+  "about.description": "ピストンコラージュ互換の Web DAW アプリケーション",
+  "about.license": "MIT License",
+  "about.originalLicense": "ピストンコラージュ: zlib License",
+  "about.source": "ソースコード",
+  "about.original": "ピストンコラージュ",
+  "about.notices": "依存ライブラリのライセンス",
 
   // 機能を検索
   "search.title": "機能を検索",

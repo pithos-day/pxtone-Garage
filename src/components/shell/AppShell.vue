@@ -13,6 +13,7 @@ import EventVolumeDialog from "./EventVolumeDialog.vue";
 import WavExportDialog from "./WavExportDialog.vue";
 import UnsavedDialog from "./UnsavedDialog.vue";
 import KeySettingsDialog from "./KeySettingsDialog.vue";
+import AboutDialog from "./AboutDialog.vue";
 import ProgressDialog from "./ProgressDialog.vue";
 import AppDialogHost from "./AppDialogHost.vue";
 import type { EventVolumeMode } from "../../lib/eventVolume";
@@ -46,6 +47,7 @@ const activeTab = ref<AppMode>(restoredMode ?? "collage");
 const projectDialogOpen = ref(false);
 const settingsDialogOpen = ref(false);
 const keySettingsDialogOpen = ref(false);
+const aboutDialogOpen = ref(false);
 const copyMeasOpen = ref(false);
 const quantizeOpen = ref(false);
 const eventVolumeKind = ref<null | EventVolumeMode>(null);
@@ -321,6 +323,7 @@ onBeforeUnmount(() => {
       @project="projectDialogOpen = true"
       @settings="settingsDialogOpen = true"
       @key-settings="keySettingsDialogOpen = true"
+      @about="aboutDialogOpen = true"
       @request-close="requestClose"
       @request-close-all="requestCloseAll"
       @copy-meas="copyMeasOpen = true"
@@ -346,6 +349,7 @@ onBeforeUnmount(() => {
     <ProjectDialog v-if="projectDialogOpen" @close="projectDialogOpen = false" />
     <SettingsDialog v-if="settingsDialogOpen" @close="settingsDialogOpen = false" />
     <KeySettingsDialog v-if="keySettingsDialogOpen" @close="keySettingsDialogOpen = false" />
+    <AboutDialog v-if="aboutDialogOpen" @close="aboutDialogOpen = false" />
     <UnsavedDialog
       v-if="closeRequest"
       :name="closeRequest.name"
