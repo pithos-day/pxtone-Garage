@@ -1,6 +1,5 @@
 // 音色リスト (W モード)。型別色分け、選択、削除、並べ替え
 <script setup lang="ts">
-import { createRowDragGhost } from "../../lib/drag-ghost";
 import { computed, ref } from "vue";
 import { Download, ExternalLink, Plus, SquarePen, RefreshCw, Trash2 } from "@lucide/vue";
 import {
@@ -10,7 +9,6 @@ import {
   removeWoice,
   replaceWoiceFile,
   detectWoiceType,
-  sync,
   woiceNameRaw,
   WoiceType,
   EVENTDEFAULT_KEY,
@@ -25,7 +23,7 @@ import { woiceTypeColor } from "../../lib/theme";
 import { woiceSummary as formatWoiceSummary, WOICE_FILE_ACCEPT, WOICE_FILE_EXT_RE } from "../../lib/woice";
 import { useCtxMenuClose } from "../../composables/useCtxMenu";
 import { useHoldPreview } from "../../composables/useHoldPreview";
-import { useDragUndo } from "../../composables/useUndo";
+import { useRowReorder } from "../../composables/useRowReorder";
 import { capturePointer, releasePointerCapture } from "../../lib/field";
 import { namedFiles, openFileDialog, openFilesDialog, exportWoiceFile, readBlobAndApply } from "../../engine/io";
 import { addWoiceFiles } from "../../state/open-files";
@@ -68,45 +66,15 @@ function onPointerDown(e: PointerEvent, idx: number): void {
     capturePointer(trayListRef.value, e);
     hold.onPress();
     previewWoiceHold(idx, EVENTDEFAULT_KEY, EVENTDEFAULT_VELOCITY);
-    if (!doc.readOnly) startDragReorder(idx, e);
+    if (!doc.readOnly && trayListRef.value) startDragReorder(trayListRef.value, idx, e);
   }
 }
 
-// ドラッグ中のマウス位置へ音色を逐次並べ替える (undo はドラッグ全体で 1 エントリ)。
-// ファイルのドロップ (HTML5 DnD) と競合しないようポインタで処理する
-const draggingRow = ref(-1); // 掴んでいる行の現在位置 (表示中のみ)
-
-function startDragReorder(idx: number, down: PointerEvent): void {
-  const list = trayListRef.value;
-  if (!list) return;
-  let lastTarget = idx;
-  const dragUndo = useDragUndo();
-  const ghost = createRowDragGhost(down.currentTarget as HTMLElement, down);
-  const onMove = (ev: PointerEvent): void => {
-    const started = ghost.move(ev);
-    const h = list.querySelector<HTMLElement>(".woice-row")?.offsetHeight ?? 24;
-    const row = Math.floor((list.scrollTop + ev.clientY - list.getBoundingClientRect().top) / h);
-    if (row >= 0 && row < woices.value.length && row !== lastTarget) {
-      dragUndo.onFirstMove();
-      replaceWoiceRaw(lastTarget, row);
-      lastTarget = row;
-      sync();
-      doc.rev++;
-    }
-    if (started) draggingRow.value = lastTarget;
-  };
-  const onUp = (): void => {
-    draggingRow.value = -1;
-    window.removeEventListener("pointermove", onMove);
-    window.removeEventListener("pointerup", onUp);
-    window.removeEventListener("pointercancel", onUp);
-    ghost.remove();
-    dragUndo.finish();
-  };
-  window.addEventListener("pointermove", onMove);
-  window.addEventListener("pointerup", onUp);
-  window.addEventListener("pointercancel", onUp);
-}
+const { draggingRow, startDragReorder } = useRowReorder({
+  rowSelector: ".woice-row",
+  count: () => woices.value.length,
+  move: replaceWoiceRaw,
+});
 
 const hold = useHoldPreview();
 function onPointerUp(e: PointerEvent): void {

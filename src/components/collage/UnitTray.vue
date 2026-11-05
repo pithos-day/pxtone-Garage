@@ -2,7 +2,6 @@
 // 再生/表示/ピン留めのチェックボックスとソロのラジオボタンを持つ。
 // 列ヘッダー付きで、ユニット名の下には割り当て音色名を表示する。
 <script setup lang="ts">
-import { createRowDragGhost } from "../../lib/drag-ghost";
 import { ref } from "vue";
 import { Eye, Pin, Headphones, Plus, SquarePen, Trash2 } from "@lucide/vue";
 import {
@@ -21,14 +20,13 @@ import {
   replaceUnitRaw,
   removeUnit,
   setUnitName,
-  sync,
   EVENTDEFAULT_KEY,
   EVENTDEFAULT_VOLUME,
   EVENTDEFAULT_VELOCITY,
 } from "../../state/project";
 import { previewUnitHold } from "../../engine/preview";
 import { useCtxMenuClose } from "../../composables/useCtxMenu";
-import { useDragUndo } from "../../composables/useUndo";
+import { useRowReorder } from "../../composables/useRowReorder";
 import { useHoldPreview } from "../../composables/useHoldPreview";
 import { capturePointer, releasePointerCapture } from "../../lib/field";
 import { getUnitColor } from "../../lib/theme";
@@ -94,41 +92,11 @@ function onPointerDown(e: PointerEvent, idx: number): void {
   }
 }
 
-// 行の実測高さを基準に、ドラッグ中のマウス位置へユニットを逐次並べ替える
-// (undo は並べ替え開始時の1エントリにまとめる)
-const draggingRow = ref(-1); // 掴んでいる行の現在位置 (表示中のみ)
-
-function startDragReorder(tray: HTMLElement, idx: number, down: PointerEvent): void {
-  const first = tray.querySelector<HTMLElement>(".unit-row");
-  const h = first?.offsetHeight ?? 24;
-  let lastTarget = idx;
-  const dragUndo = useDragUndo();
-  const ghost = createRowDragGhost(down.currentTarget as HTMLElement, down);
-  const onMove = (ev: PointerEvent): void => {
-    const started = ghost.move(ev);
-    const dy = ev.clientY - tray.getBoundingClientRect().top;
-    const row = Math.floor((tray.scrollTop + dy) / h);
-    if (row >= 0 && row < units.value.length && row !== lastTarget) {
-      dragUndo.onFirstMove();
-      replaceUnitRaw(lastTarget, row);
-      lastTarget = row;
-      sync();
-      doc.rev++;
-    }
-    if (started) draggingRow.value = lastTarget;
-  };
-  const onUp = (): void => {
-    draggingRow.value = -1;
-    window.removeEventListener("pointermove", onMove);
-    window.removeEventListener("pointerup", onUp);
-    window.removeEventListener("pointercancel", onUp);
-    ghost.remove();
-    dragUndo.finish();
-  };
-  window.addEventListener("pointermove", onMove);
-  window.addEventListener("pointerup", onUp);
-  window.addEventListener("pointercancel", onUp);
-}
+const { draggingRow, startDragReorder } = useRowReorder({
+  rowSelector: ".unit-row",
+  count: () => units.value.length,
+  move: replaceUnitRaw,
+});
 
 // ピアノロールのノートと同じユニット色 (非発音時の色なので vel / vol は結果に影響しない)
 function unitColor(idx: number): string {

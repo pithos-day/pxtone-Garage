@@ -125,3 +125,28 @@ test('音色タブをメニューから閉じるときも未保存の 3 択を�
   await page.locator('.dlg .btn').nth(1).click()
   await expect(tabs).toHaveCount(1)
 })
+
+test('トレイの行をドラッグで並べ替え、undo 1 回で戻せる', async ({ page }) => {
+  await page.goto('/?sample=moldau')
+  await waitForApp(page)
+  const dragFirstRowDown = async (selector: string): Promise<void> => {
+    const rows = page.locator(selector)
+    await expect(rows.nth(2)).toBeVisible()
+    const before = await rows.allInnerTexts()
+    const from = (await rows.nth(0).boundingBox())!
+    const to = (await rows.nth(2).boundingBox())!
+    // 行の左端はチェックボックス領域なので、名前の上を掴む
+    await page.mouse.move(from.x + 200, from.y + from.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(to.x + 200, to.y + to.height / 2, { steps: 8 })
+    await page.mouse.up()
+    // 行のテキストの先頭には位置の番号が付く
+    const name = (text: string | undefined): string => (text ?? '').replace(/^\d+\.\s*/, '')
+    await expect.poll(async () => name(await rows.nth(2).innerText())).toBe(name(before[0]))
+    await page.keyboard.press('Control+z')
+    await expect.poll(() => rows.allInnerTexts()).toEqual(before)
+  }
+  await dragFirstRowDown('.unit-row')
+  await page.locator('.tool-mode .mode').first().click()
+  await dragFirstRowDown('.woice-row')
+})
