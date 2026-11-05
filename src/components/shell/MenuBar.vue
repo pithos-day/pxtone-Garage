@@ -5,25 +5,10 @@
 import { computed, ref } from "vue";
 import { ArrowUpDown, FileUp, FileDown, Music, ListMusic, FileMusic, AudioLines, SlidersHorizontal, SquareStack, CircleGauge, Copy, Columns4, PackagePlus, Link2, Settings, Palette, Keyboard, History, Eraser, AlignHorizontalJustifyStart } from "@lucide/vue";
 import { DIVI_TABLE } from "../../lib/clock";
-import { doc, setAllUnitsVisible, exportBytes, addWoice, WoiceType } from "../../state/project";
-import {
-  newProjectInTab,
-  openProjectInTab,
-  saveProject,
-  saveProjectAs,
-  isTuneProject,
-  applyWoiceLink,
-  projects,
-  type WoiceLink,
-} from "../../state/projects";
-import { newVoice, saveVoice, undoVoice, redoVoice, currentVoice, snapshotVoice, markVoiceClean, voices } from "../../state/voice";
-import { newNoise, saveNoise, undoNoise, redoNoise, currentNoise, snapshotNoise, markNoiseClean, noises } from "../../state/noise";
-import { exportPttune, exportVoiceWav, exportNoiseWav, openFileDialog, openFilesDialog, readBlobAndApply } from "../../engine/io";
-import { OPEN_KINDS, openFilesInTabs, openRecentFile, type OpenKind } from "../../state/open-files";
+import { doc, setAllUnitsVisible } from "../../state/project";
+import { isTuneProject } from "../../state/projects";
+import { openRecentFile } from "../../state/open-files";
 import { clearRecent, recentFiles, supportsRecentFiles } from "../../state/recent-files";
-import { convertMidiToPtcop } from "../../engine/midi";
-import { undo, redo, canUndo, canRedo } from "../../state/undo";
-import { appAlert, appConfirm } from "../../state/dialog";
 import { t } from "../../i18n";
 import type { EventVolumeMode } from "../../lib/eventVolume";
 import type { AppMode } from "../../lib/modes";
@@ -39,10 +24,10 @@ import {
   type FeatureEntry,
   type MenuItem,
   type MenuName,
-  type ModeMenuOps,
 } from "../../lib/menuItems";
 import { useDropdownMenu } from "../../composables/useDropdownMenu";
 import { useGlobalKeys } from "../../composables/useGlobalKeys";
+import { useMenuActions } from "../../composables/useMenuActions";
 import { SHORTCUTS, shortcutAreaOf } from "../../lib/shortcuts";
 import { shortcutCommand } from "../../state/keybindings";
 import { MODE_DOCS } from "../../state/mode-docs";
@@ -74,8 +59,11 @@ const { openMenu, openSubIndex, toggleMenu, hoverMenu, close } = useDropdownMenu
 // モード別のトップメニュー (表示ラベルと順序は lib/menuItems で定義)
 const menuNames = computed<MenuName[]>(() => menuNamesFor(mode.value));
 
-// pttune 再生専用タブでは保存系・編集系を無効化する
-const tuneReadOnly = computed(() => mode.value === "collage" && isTuneProject());
+const { tuneReadOnly, currentLink, modeOps, activeSoundTab, onApplyLink, onExportPttune, onImportMidi, onExportSoundWav, onAddSoundToCollage } =
+  useMenuActions(mode, {
+    requestClose: (m, id) => emit("requestClose", m, id),
+    requestCloseAll: (m) => emit("requestCloseAll", m),
+  });
 
 function runMenuItem(item: MenuItem): void {
   if (item.disabled) return;
@@ -84,211 +72,7 @@ function runMenuItem(item: MenuItem): void {
   item.action?.();
 }
 
-// ---- コラージュのアクション ----
-
-async function onNew(): Promise<void> {
-  if (doc.dirty && !(await appConfirm(t("confirm.new")))) return;
-  newProjectInTab();
-}
-
-// 保存系アクション: 書き込み失敗時だけエラー表示 (キャンセルは何もしない)
-function runSave(p: Promise<unknown>): void {
-  void p.catch(() => void appAlert(t("error.save")));
-}
-
-// 「開く」: 選んだファイルをそれぞれ新しいタブで開く
-async function onOpenFiles(kind: OpenKind): Promise<void> {
-  const { accept, exts } = OPEN_KINDS[kind];
-  const files = await openFilesDialog(accept, exts);
-  if (files.length > 0) await openFilesInTabs(kind, files);
-}
-
-function onExportPttune(): void {
-  // tune タブからの再書き出しは二重量子化で壊れるため禁止 (メニュー側でも disabled)
-  if (isTuneProject()) return;
-  const bytes = exportBytes();
-  if (bytes) runSave(exportPttune(bytes, doc.fileName || "untitled"));
-}
-
-// MIDI ファイルを選択して ptcop として読み込む (split = 和音を別ユニットに分割)
-function onImportMidi(split: boolean): void {
-  void openFileDialog(".mid,.midi", /\.midi?$/i).then(async (opened) => {
-    if (!opened) return;
-    // 読み込み (実進捗) → MIDI 変換 (不定) → タブで開く
-    const err = await readBlobAndApply(
-      t("progress.midiTitle"),
-      opened.file,
-      (bytes) => {
-        const ptcop = convertMidiToPtcop(bytes, split ? { splitOverlap: true } : {});
-        if (!ptcop) return t("error.midi");
-        return openProjectInTab(ptcop, opened.name);
-      },
-      { apply: t("progress.midiConvert") },
-    );
-    if (err) void appAlert(err);
-  });
-}
-
-function onExportWav(): void {
-  // 音質・ビルド範囲などのオプションを設定するダイアログを開く
-  // (実際の書き出しは AppShell の WavExportDialog が行う)
-  emit("exportWav", false);
-}
-
-function onClose(): void {
-  const id = MODE_DOCS[mode.value].currentId();
-  if (id >= 0) emit("requestClose", mode.value, id);
-}
-
-function onCloseAll(): void {
-  emit("requestCloseAll", mode.value);
-}
-
-// ---- 音色タブ (voice/noise) のアクション ----
-
-// 音色タブの操作をモードによらず同じ形で扱う (タブが無ければ null)
-interface SoundTab {
-  link: WoiceLink | undefined; // 「音色を編集」で開いたタブの書き戻し先
-  fileName: string;
-  woiceType: WoiceType;
-  snapshot(): Uint8Array | null;
-  exportWav(): Promise<string | null>;
-  markClean(): void;
-}
-
-function soundTab(soundMode: "voice" | "noise"): SoundTab | null {
-  if (soundMode === "voice") {
-    const v = currentVoice();
-    return (
-      v && {
-        link: v.link,
-        fileName: v.fileName,
-        woiceType: WoiceType.PTV,
-        snapshot: () => snapshotVoice(v),
-        exportWav: () => exportVoiceWav(v.woice, v.fileName || "untitled"),
-        markClean: markVoiceClean,
-      }
-    );
-  }
-  const d = currentNoise();
-  return (
-    d && {
-      link: d.link,
-      fileName: d.fileName,
-      woiceType: WoiceType.PTN,
-      snapshot: () => snapshotNoise(d),
-      exportWav: () => exportNoiseWav(d.noise, d.fileName || "untitled"),
-      markClean: markNoiseClean,
-    }
-  );
-}
-
-// 今のモードの音色タブ (collage では null)
-function activeSoundTab(): SoundTab | null {
-  return mode.value === "collage" ? null : soundTab(mode.value);
-}
-
-function onExportSoundWav(): void {
-  void activeSoundTab()
-    ?.exportWav()
-    .then((err) => {
-      if (err) void appAlert(err);
-    });
-}
-
-// 編集中の音色を、現在アクティブな Collage タブのファイルへ音色として追加する。
-// pttune (再生専用) ではメニュー側で disabled にしているが、二重防御でここでも弾く
-function onAddSoundToCollage(): void {
-  const tab = activeSoundTab();
-  const bytes = tab?.snapshot();
-  if (!tab || !bytes || isTuneProject()) return;
-  void addWoice(bytes, tab.woiceType, tab.fileName || undefined).then((err) => {
-    if (err) void appAlert(err);
-  });
-}
-
-// 編集した音色を、元の Collage プロジェクトの音色へ書き戻す。
-// 適用できたらタブの dirty を解除する (タブの link アイコンも通常色に戻る)
-function onApplyLink(): void {
-  const tab = activeSoundTab();
-  const bytes = tab?.snapshot();
-  if (!tab?.link || !bytes) return;
-  const err = applyWoiceLink(tab.link, bytes, tab.woiceType);
-  if (err) {
-    void appAlert(err);
-    return;
-  }
-  tab.markClean();
-}
-
-// リンク付き (「音色を編集」で開いた) タブの保存は元の Collage へ適用する。
-// 単独ファイルとして保存する場合は「名前を付けて保存」を使う
-function onSaveSound(soundMode: "voice" | "noise"): void {
-  const tab = soundTab(soundMode);
-  if (tab?.link) onApplyLink();
-  else if (soundMode === "voice") runSave(saveVoice(false));
-  else runSave(saveNoise(false));
-}
-
-// 「音色を編集」で開いたタブの書き戻し先 (通常のオープンでは undefined)
-const currentLink = computed(() => activeSoundTab()?.link);
-
-// ---- モード別メニュー ----
-
 const allVisible = computed(() => doc.unitVisible.length > 0 && doc.unitVisible.every(Boolean));
-
-// モード別に差し替わる操作 (File メニュー・undo/redo)。3 分岐をこのテーブルに集約
-const modeOps: Record<AppMode, ModeMenuOps> = {
-  collage: {
-    new: onNew,
-    open: () => void onOpenFiles("project"),
-    save: () => runSave(saveProject()),
-    saveAs: () => runSave(saveProjectAs()),
-    close: onClose,
-    closeAll: onCloseAll,
-    undo,
-    redo,
-    canUndo: () => canUndo.value,
-    canRedo: () => canRedo.value,
-    canSave: () => !tuneReadOnly.value,
-    // タブが 1 つだと閉じられない (closeProject が no-op) ためグレーアウトする
-    canClose: () => projects.value.length > 1,
-    // 閉じる (最後の 1 つは残す) と同じ条件でグレーアウトする
-    canCloseAll: () => projects.value.length > 1,
-  },
-  voice: {
-    new: () => newVoice(),
-    open: () => void onOpenFiles("voice"),
-    save: () => onSaveSound("voice"),
-    saveAs: () => runSave(saveVoice(true)),
-    close: onClose,
-    closeAll: onCloseAll,
-    undo: undoVoice,
-    redo: redoVoice,
-    canUndo: () => (currentVoice()?.undoStack.length ?? 0) > 0,
-    canRedo: () => (currentVoice()?.redoStack.length ?? 0) > 0,
-    // タブバーの X 表示 (2 つ以上) と揃える
-    canClose: () => voices.value.length > 1,
-    // 閉じる (最後の 1 つは残す) と同じ条件でグレーアウトする
-    canCloseAll: () => voices.value.length > 1,
-  },
-  noise: {
-    new: () => newNoise(),
-    open: () => void onOpenFiles("noise"),
-    save: () => onSaveSound("noise"),
-    saveAs: () => runSave(saveNoise(true)),
-    close: onClose,
-    closeAll: onCloseAll,
-    undo: undoNoise,
-    redo: redoNoise,
-    canUndo: () => (currentNoise()?.undoStack.length ?? 0) > 0,
-    canRedo: () => (currentNoise()?.redoStack.length ?? 0) > 0,
-    // タブバーの X 表示 (2 つ以上) と揃える
-    canClose: () => noises.value.length > 1,
-    // 閉じる (最後の 1 つは残す) と同じ条件でグレーアウトする
-    canCloseAll: () => noises.value.length > 1,
-  },
-};
 
 // ---- キーボードショートカット (3 タブ共通のコマンド) ----
 // 保存 / 名前を付けて保存 / undo / redo はモード別の ops を使うため、モードを
@@ -374,7 +158,7 @@ const fileMenu = computed<MenuItem[]>(() => {
             icon: FileDown,
             sub: [
               { label: t("menu.file.exportPttune"), icon: FileMusic, action: onExportPttune, disabled: tuneReadOnly.value },
-              { label: t("menu.file.exportWav"), icon: AudioLines, action: onExportWav },
+              { label: t("menu.file.exportWav"), icon: AudioLines, action: () => emit("exportWav", false) },
               { label: t("menu.file.exportStems"), icon: AudioLines, action: () => emit("exportWav", true) },
             ],
           },
