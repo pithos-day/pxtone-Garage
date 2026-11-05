@@ -4034,6 +4034,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     const moduleOf = (name: string): string => joinPath(root, "node_modules", name, "index.js");
 
     checkEq(packageDirOfModule(`${joinPath(a, "dist/x.js")}?v=1`), a, "notices: クエリと入れ子の package.json を飛ばしてパッケージを求める");
+    checkEq(packageDirOfModule(joinPath(a, "index.js").replaceAll("\\", "/")), a, "notices: Windows の / 区切りの ID も同じパッケージに解決する");
     checkEq(packageDirOfModule(joinPath(root, "src/main.ts")), null, "notices: node_modules 外は対象外");
     checkEq(packageDirOfModule("\0vite/preload-helper.js"), null, "notices: 仮想モジュールは対象外");
 

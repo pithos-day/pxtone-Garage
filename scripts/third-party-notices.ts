@@ -8,7 +8,7 @@
 // ライセンス本文を取得できないパッケージがあるとビルドを失敗させる。
 // その場合は本文を scripts/third-party-licenses/ に置き、PACKAGE_SUPPLEMENTS に登録する。
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, normalize, resolve, sep } from "node:path";
 import type { Plugin } from "vite";
 
 export const NOTICES_FILE_NAME = "THIRD_PARTY_NOTICES.txt";
@@ -84,10 +84,11 @@ export interface NoticeEntry {
 
 /** モジュール ID から所属パッケージのディレクトリを求める。node_modules 外なら null */
 export function packageDirOfModule(moduleId: string): string | null {
-  const path = moduleId.replace(/^\0/, "").split("?")[0];
-  const boundary = path.lastIndexOf("/node_modules/");
+  // Windows では Vite の ID は / 区切り、resolve した Worklet の入力は \ 区切りなので揃える
+  const path = normalize(moduleId.replace(/^\0/, "").split("?")[0]);
+  const boundary = path.lastIndexOf(`${sep}node_modules${sep}`);
   if (boundary < 0) return null;
-  const stop = path.slice(0, boundary + "/node_modules".length);
+  const stop = path.slice(0, boundary + `${sep}node_modules`.length);
   // dist/esm/package.json のように name を持たない階層は読み飛ばす
   for (let dir = dirname(path); dir.length > stop.length; dir = dirname(dir)) {
     const manifest = join(dir, "package.json");
