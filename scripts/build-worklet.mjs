@@ -17,12 +17,6 @@ const result = await build({
   outfile: "public/worklet/player-worklet.js",
   logLevel: "info",
   metafile: true,
-  // OGGV デコーダ (@wasm-audio-decoders) は評価時に Worker を参照するため、
-  // Worker の無い AudioWorklet には読み込めない。worklet はデコード済み PCM のみ
-  // 扱うので、スタブ (src/engine/oggv-worklet-stub.ts) に置き換える
-  alias: {
-    "@wasm-audio-decoders/ogg-vorbis": "./src/engine/oggv-worklet-stub.ts",
-  },
 });
 
 mkdirSync(dirname(METAFILE), { recursive: true });
