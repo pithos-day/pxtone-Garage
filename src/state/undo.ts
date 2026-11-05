@@ -5,6 +5,8 @@ import { ref } from "vue";
 import { MemoryIo, PxtnErr, type Service } from "pxtone-ts";
 import { service, EXE_VER } from "./service";
 import { restoreWoiceKeys, woiceKeysOf } from "./woice-keys";
+import { NO_UNIT_KEY, restoreUnitKeys, unitKeysOf } from "./unit-keys";
+import { exitSolo } from "./project/core";
 import { doc, sync, uiRepeatToFile, fileRepeatToUi } from "./project";
 import { isRevisionSaved, markRevisionSaved, newRevisionTracker, touchRevision, type RevisionTracker } from "../lib/revision";
 
@@ -18,7 +20,19 @@ export interface UndoEntry {
   measNum: number;
   repeatMeas: number;
   woiceKeys: number[]; // 読み戻しで作り直される音色の識別子
+  unitKeys: number[]; // 読み戻しで作り直されるユニットの識別子
+  unitFlags?: UnitFlags[]; // 取得時の UI 状態 (現在のタブ以外への書き戻しでは持たない)
   revision: number; // この状態のリビジョン (undo で保存時の状態へ戻ったかの判定に使う)
+}
+
+// ユニットごとの UI 状態。ファイルに保存されないので undo では巻き戻さず、今の状態を
+// 同じユニットへ引き継ぐ。削除の undo で戻ってきたユニットだけは取得時の状態へ戻す
+interface UnitFlags {
+  muted: boolean;
+  selected: boolean;
+  soloBackup: boolean;
+  visible: boolean;
+  pinned: boolean;
 }
 
 export let undoStack: UndoEntry[] = [];
@@ -54,12 +68,25 @@ export function snapshotService(s: Service, revision: number): UndoEntry | null 
     measNum: s.master.measNum,
     repeatMeas: fileRepeatToUi(s.master.repeatMeas),
     woiceKeys: woiceKeysOf(s),
+    unitKeys: unitKeysOf(s),
     revision,
   };
 }
 
+function currentUnitFlags(): UnitFlags[] {
+  return Array.from({ length: service.unitNum }, (_, u) => ({
+    muted: doc.muted.includes(u),
+    selected: doc.selectedUnits.includes(u),
+    soloBackup: doc.soloBackup.includes(u),
+    visible: doc.unitVisible[u] ?? true,
+    pinned: doc.unitPinned[u] ?? false,
+  }));
+}
+
 export function snapshotProject(): UndoEntry | null {
-  return snapshotService(service, revisions.current);
+  const entry = snapshotService(service, revisions.current);
+  if (entry) entry.unitFlags = currentUnitFlags();
+  return entry;
 }
 
 // 現在のプロジェクトが編集された
@@ -117,10 +144,48 @@ export function redo(): boolean {
   return restoreFrom(redoStack, undoStack);
 }
 
+// 読み戻し後のユニット番号に合わせて UI 状態を付け替える
+function applyUnitFlags(entry: UndoEntry, before: UnitState): void {
+  const flags = entry.unitKeys.map(
+    (key, u): UnitFlags =>
+      before.flags.get(key) ?? entry.unitFlags?.[u] ?? { muted: false, selected: false, soloBackup: false, visible: true, pinned: false },
+  );
+  const unitsWith = (name: "muted" | "selected" | "soloBackup"): number[] => flags.flatMap((f, u) => (f[name] ? [u] : []));
+  doc.muted = unitsWith("muted");
+  doc.selectedUnits = unitsWith("selected");
+  doc.soloBackup = unitsWith("soloBackup");
+  doc.unitVisible = flags.map((f) => f.visible);
+  doc.unitPinned = flags.map((f) => f.pinned);
+  doc.focusUnit = before.focusKey === NO_UNIT_KEY ? -1 : entry.unitKeys.indexOf(before.focusKey);
+  if (before.soloKey === NO_UNIT_KEY) return;
+  doc.soloUnit = entry.unitKeys.indexOf(before.soloKey);
+  // ソロ対象がなくなったら解除して元のミュート状態へ戻す
+  if (doc.soloUnit < 0) exitSolo();
+}
+
+interface UnitState {
+  flags: Map<number, UnitFlags>;
+  focusKey: number;
+  soloKey: number;
+}
+
+function currentUnitState(): UnitState {
+  const unitKeys = unitKeysOf(service);
+  const flags = currentUnitFlags();
+  return {
+    flags: new Map(unitKeys.map((key, u) => [key, flags[u]!])),
+    focusKey: unitKeys[doc.focusUnit] ?? NO_UNIT_KEY,
+    soloKey: unitKeys[doc.soloUnit] ?? NO_UNIT_KEY,
+  };
+}
+
 function restoreBytes(entry: UndoEntry): boolean {
   const io = new MemoryIo(entry.bytes);
+  const before = currentUnitState();
   if (service.read(io) !== PxtnErr.OK) return false;
   restoreWoiceKeys(service, entry.woiceKeys);
+  restoreUnitKeys(service, entry.unitKeys);
+  applyUnitFlags(entry, before);
   // measNum / repeatMeas はファイルに保存されず read 時に縮小・リセットされるため明示的に復元する
   service.master.setMeasNum(entry.measNum);
   service.master.setRepeatMeas(uiRepeatToFile(entry.repeatMeas));

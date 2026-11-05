@@ -26,7 +26,7 @@
 //   62. 翻訳辞書と言語の決定 / 63. 音色削除で VOICENO が追従する
 //   64. ユニットの並べ替えでミュート / 選択 / フォーカスが追従する / 65. ソロ中の並べ替え
 //   66. 壊れたファイルで音色を置き換えても元の音色が残る / 67. Coordinate の y は保存で反転しない
-//   68. スライダー上でも Ctrl 付きのショートカットが効く
+//   68. スライダー上でも Ctrl 付きのショートカットが効く / 69. undo でユニットの UI 状態が同じユニットに付いたまま
 import { shouldRegisterServiceWorker } from "../src/lib/pwa";
 import { isKeyForFormControl } from "../src/composables/useGlobalKeys";
 import {
@@ -4629,6 +4629,53 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(key("TEXTAREA", undefined, true), true, "form-key: TEXTAREA は入力欄のもの");
     checkEq(key("SELECT", undefined, true), true, "form-key: SELECT は部品のもの");
     checkEq(key("DIV", undefined, false), false, "form-key: その他の要素はショートカット");
+  }
+
+  // ---- 69. undo でユニットの UI 状態が同じユニットに付いたまま ----
+  {
+    newProjectInTab();
+    for (const name of ["a", "b", "c"]) addUnit(name);
+    const mutedNames = (): string => units.value.filter((u) => u.muted).map((u) => u.name).join();
+    toggleUnitMute(2);
+    removeUnit(0);
+    checkEq(mutedNames(), "c", "unit-undo: 削除後も c がミュート");
+    check(undo(), "unit-undo: 削除を undo できる");
+    checkEq(units.value.map((u) => u.name).join(), "a,b,c", "unit-undo: 並びが戻る");
+    checkEq(mutedNames(), "c", "unit-undo: undo 後も c がミュート");
+    check(redo(), "unit-undo: 削除を redo できる");
+    checkEq(mutedNames(), "c", "unit-undo: redo 後も c がミュート");
+    undo();
+
+    // 削除したユニット自身のミュートも undo で戻る
+    toggleUnitMute(0);
+    removeUnit(0);
+    undo();
+    checkEq(mutedNames(), "a,c", "unit-undo: 削除したユニットのミュートが戻る");
+
+    // ミュートは編集ではないので、undo で巻き戻さない
+    setTempo(150);
+    toggleUnitMute(1);
+    undo();
+    checkEq(mutedNames(), "a,b,c", "unit-undo: 編集の undo でミュート操作は戻らない");
+
+    // 並べ替えの undo でも同じユニットに付いたまま
+    toggleUnitMute(0);
+    toggleUnitMute(1);
+    doc.focusUnit = 2;
+    beginEdit();
+    replaceUnitRaw(2, 0);
+    commitEdit();
+    checkEq(doc.focusUnit, 0, "unit-undo: 並べ替えでフォーカスが移る");
+    undo();
+    checkEq(mutedNames(), "c", "unit-undo: 並べ替えの undo でもミュートは c");
+    checkEq(doc.focusUnit, 2, "unit-undo: 並べ替えの undo でフォーカスが戻る");
+
+    // ソロ対象を追加した操作を undo するとソロを解除する
+    addUnit("d");
+    toggleUnitSolo(3);
+    undo();
+    checkEq(doc.soloUnit, -1, "unit-undo: ソロ対象が消えたら解除する");
+    checkEq(mutedNames(), "c", "unit-undo: 解除で元のミュートへ戻る");
   }
 
   // ---- clamp ----

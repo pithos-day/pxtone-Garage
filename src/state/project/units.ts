@@ -32,20 +32,21 @@ export function addUnitWithWoice(name: string | undefined, woiceIdx: number): bo
 }
 
 export function removeUnit(idx: number): void {
-  // 削除されるユニット番号を UI 状態 (選択/ミュート/ソロ/表示/ピン) に反映してから削除
-  const shift = (n: number): number => (n === idx ? -1 : n > idx ? n - 1 : n);
-  doc.selectedUnits = doc.selectedUnits.map(shift).filter((n) => n >= 0);
-  doc.muted = doc.muted.map(shift).filter((n) => n >= 0);
-  doc.soloBackup = doc.soloBackup.map(shift).filter((n) => n >= 0);
-  doc.unitVisible = shiftArr(doc.unitVisible, idx);
-  doc.unitPinned = shiftArr(doc.unitPinned, idx);
-  if (doc.soloUnit === idx) {
-    // ソロ対象の削除: ソロ解除して元のミュート状態を復元
-    exitSolo();
-  } else if (doc.soloUnit > idx) {
-    doc.soloUnit--;
-  }
   mutate(() => {
+    // 削除されるユニット番号を UI 状態 (選択/ミュート/ソロ/表示/ピン) に反映してから削除する。
+    // undo のスナップショットに削除前の状態が残るよう、mutate の中で書き換える
+    const shift = (n: number): number => (n === idx ? -1 : n > idx ? n - 1 : n);
+    doc.selectedUnits = doc.selectedUnits.map(shift).filter((n) => n >= 0);
+    doc.muted = doc.muted.map(shift).filter((n) => n >= 0);
+    doc.soloBackup = doc.soloBackup.map(shift).filter((n) => n >= 0);
+    doc.unitVisible = shiftArr(doc.unitVisible, idx);
+    doc.unitPinned = shiftArr(doc.unitPinned, idx);
+    if (doc.soloUnit === idx) {
+      // ソロ対象の削除: ソロ解除して元のミュート状態を復元
+      exitSolo();
+    } else if (doc.soloUnit > idx) {
+      doc.soloUnit--;
+    }
     service.unitRemove(idx);
     service.evels.recordUnitNoMiss(idx);
   });
