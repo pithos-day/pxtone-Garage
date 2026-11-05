@@ -59,7 +59,8 @@
         "provider": "github",
         "owner": "pithos-day",
         "repo": "pxtone-garage",
-        "releaseType": "draft"
+        "releaseType": "draft",
+        "publishAutoUpdate": false
       }
     ],
     "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
@@ -75,7 +76,11 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "differentialPackage": false
+    },
+    "dmg": {
+      "writeUpdateInfo": false
     },
     "mac": {
       "target": [
