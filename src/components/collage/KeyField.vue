@@ -117,43 +117,43 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   const scrollX = doc.scrollX;
   const fieldW = w - STRIP_W; // フィールド幅 (鍵盤ストリップの右側)
 
-  const fieldTop = 0;
-  const fieldH = h - fieldTop;
+  const fieldH = h;
   const scrollY = doc.scrollYKey * KEY_HEIGHT;
   const startRow = Math.floor(scrollY / KEY_HEIGHT);
   const endRow = Math.min(KEYNUM - 1, startRow + Math.ceil(fieldH / KEY_HEIGHT));
   const focus = doc.focusUnit;
 
   // 鍵盤ストリップ (画面左端) の背景
-  fillRect(ctx, 0, fieldTop, STRIP_W, fieldH, COLORS.panelDark);
+  fillRect(ctx, 0, 0, STRIP_W, fieldH, COLORS.panelDark);
 
   // フィールド (グリッド・ノート・スコープ・プレイヘッド) は鍵盤ストリップの右側に描画
   ctx.save();
   ctx.translate(STRIP_W, 0);
 
   // フィールド背景 + グリッド (拍・小節線)。ルーラー帯は PlayField が担当
-  drawGrid(ctx, { w: fieldW, h, scrollX, view, top: fieldTop, bottom: h, showNumber: false });
+  drawGrid(ctx, { w: fieldW, h, scrollX, view, top: 0, bottom: h, showNumber: false });
 
   // フィールド側の行色 (鍵盤の白鍵/黒鍵に合わせた縞)
   for (let row = startRow; row <= endRow; row++) {
-    const y = fieldTop + row * KEY_HEIGHT - scrollY;
+    const y = row * KEY_HEIGHT - scrollY;
     const white = isWhiteKey(row);
     fillRect(ctx, 0, y, fieldW, KEY_HEIGHT, white ? COLORS.rowWhite : COLORS.rowBlack);
   }
 
   // グリッド線を行色の上に再描画 (行色に覆われないように)
-  drawGrid(ctx, { w: fieldW, h, scrollX, view, top: fieldTop, bottom: h, showNumber: false, fillBackground: false });
+  drawGrid(ctx, { w: fieldW, h, scrollX, view, top: 0, bottom: h, showNumber: false, fillBackground: false });
 
   // イベント (フォーカス + 表示 + ピン留めユニットを色分け表示)
   const rollUnits = pianoRollUnits();
-  const field = { w: fieldW, top: fieldTop, h: fieldH, view, scrollX, scrollY };
+  const field = { w: fieldW, top: 0, h: fieldH, view, scrollX, scrollY };
   // スマートドラッグ中は対象ノートの実描画を隠し、確定後の配置をゴーストで示す
   const dv = dragState.value;
   const smartDrag = dv?.smart && dv.smart.mode !== "write" ? dv : null;
   // pen / スマート書き込みの確定前ノート (ゴースト)。
   // スマートの掴み / 端調整は対象ノートのゴースト (smartDrag) で見せるため、
   // 書き込みゴーストを重ねない (新規ノートが同時に書かれているように見える)
-  const writeGhost = dv && !dv.group && !dv.marquee && !smartDrag && !doc.readOnly && dv.button === 0 && dv.clock2 !== dv.clock1 && doc.tool !== "hand" ? dv : null;
+  const isNoteWriteDrag = dv && !dv.group && !dv.marquee && !smartDrag && dv.button === 0 && doc.tool !== "hand";
+  const writeGhost = isNoteWriteDrag && !doc.readOnly && dv.clock2 !== dv.clock1 ? dv : null;
   // グループ移動中は選択中のノートの実描画を隠し、移動先をゴーストで示す
   const group = dv?.group ?? null;
   const groupMoved = group !== null && (group.offset !== 0 || group.rowDelta !== 0);
@@ -171,7 +171,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   if (doc.scope2 > doc.scope1) {
     const x1 = clockToX(view, doc.scope1) - scrollX;
     const x2 = clockToX(view, doc.scope2) - scrollX;
-    drawScopeBand(ctx, x1, x2, fieldTop, fieldH, COLORS.scopeFaint);
+    drawScopeBand(ctx, x1, x2, 0, fieldH, COLORS.scopeFaint);
   }
 
   // プレイヘッド
@@ -183,15 +183,15 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 
   // 鍵盤行 (ストリップ側) — フィールドのグリッドを覆う
   for (let row = startRow; row <= endRow; row++) {
-    const y = fieldTop + row * KEY_HEIGHT - scrollY;
+    const y = row * KEY_HEIGHT - scrollY;
     const white = isWhiteKey(row);
     fillRect(ctx, 0, y, STRIP_W, KEY_HEIGHT, white ? COLORS.whiteKey : COLORS.blackKey);
   }
 
   // オクターブラベル (行 12*i に "7-i")
   for (let i = 0; i <= 8; i++) {
-    const y = fieldTop + i * (KEY_HEIGHT * 12) - scrollY + 4;
-    if (y >= fieldTop - 12 && y <= fieldTop + fieldH + 4) {
+    const y = i * (KEY_HEIGHT * 12) - scrollY + 4;
+    if (y >= -12 && y <= fieldH + 4) {
       fillText(ctx, String(7 - i), 6, y, COLORS.octaveText, 13);
     }
   }
@@ -202,8 +202,8 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     const vc = unit.woice.getVoice(0);
     if (vc) {
       const basicRow = codeToRow(vc.basicKey >> 8);
-      const y = fieldTop + basicRow * KEY_HEIGHT - scrollY + KEY_HEIGHT / 2;
-      if (y > fieldTop && y < fieldTop + fieldH) {
+      const y = basicRow * KEY_HEIGHT - scrollY + KEY_HEIGHT / 2;
+      if (y > 0 && y < fieldH) {
         fillRect(ctx, STRIP_W - 16, y - 1, 16, 2, COLORS.focusOrange);
       }
     }
@@ -218,6 +218,12 @@ interface FieldCtx {
   view: ReturnType<typeof clockContext>;
   scrollX: number; // 横スクロール (px)
   scrollY: number; // 縦スクロール (px)
+}
+
+// ノートの横棒。行 y は中央の座標、head を指定すると先頭の目印も描く
+function fillNoteBar(ctx: CanvasRenderingContext2D, x1: number, x2: number, y: number, color: string, head = false): void {
+  fillRect(ctx, x1, y - 3, x2 - x1, 7, color);
+  if (head) fillRect(ctx, x1, y - 3, 2, 7, COLORS.noteHead);
 }
 
 function drawNotes(
@@ -263,9 +269,7 @@ function drawNotes(
       fillRect(ctx, x1, y - 1, x2 - x1, 2, color.shadow(false, EVENTDEFAULT_VELOCITY, EVENTDEFAULT_VOLUME));
     } else {
       const playing = currentClock.value >= d.clock && currentClock.value < d.clock + d.len;
-      fillRect(ctx, x1, y - 3, x2 - x1, 7, color.note(playing, EVENTDEFAULT_VELOCITY, EVENTDEFAULT_VOLUME));
-      // ヘッド
-      fillRect(ctx, x1, y - 3, 2, 7, COLORS.noteHead);
+      fillNoteBar(ctx, x1, x2, y, color.note(playing, EVENTDEFAULT_VELOCITY, EVENTDEFAULT_VOLUME), true);
     }
   }
 
@@ -294,7 +298,7 @@ function drawNoteSelection(ctx: CanvasRenderingContext2D, field: FieldCtx, unitN
     const y = top + (keyValueToRow(n.key) + rowDelta) * KEY_HEIGHT - scrollY + KEY_HEIGHT / 2;
     if (moved) {
       ctx.globalAlpha = 0.75;
-      fillRect(ctx, x1, y - 3, x2 - x1, 7, color.note(false, EVENTDEFAULT_VELOCITY, EVENTDEFAULT_VOLUME));
+      fillNoteBar(ctx, x1, x2, y, color.note(false, EVENTDEFAULT_VELOCITY, EVENTDEFAULT_VOLUME));
       ctx.globalAlpha = 1;
     }
     ctx.strokeRect(x1 - 0.5, y - 3.5, x2 - x1 + 1, 8);
@@ -567,8 +571,7 @@ function drawNoteGhost(ctx: CanvasRenderingContext2D, d: KeyDrag, field: FieldCt
   const x1 = clockToX(view, c1) - scrollX;
   const x2 = Math.max(x1 + 1, clockToX(view, c2) - scrollX);
   const y = top + d.row * KEY_HEIGHT - scrollY + KEY_HEIGHT / 2;
-  fillRect(ctx, x1, y - 3, x2 - x1, 7, color.note(false, EVENTDEFAULT_VELOCITY, EVENTDEFAULT_VOLUME));
-  fillRect(ctx, x1, y - 3, 2, 7, COLORS.noteHead);
+  fillNoteBar(ctx, x1, x2, y, color.note(false, EVENTDEFAULT_VELOCITY, EVENTDEFAULT_VOLUME), true);
   ctx.restore();
 }
 
@@ -592,8 +595,7 @@ function drawSmartGhost(ctx: CanvasRenderingContext2D, d: KeyDrag, field: FieldC
   const x1 = clockToX(view, place.head) - scrollX;
   const x2 = Math.max(x1 + 1, clockToX(view, place.head + place.len) - scrollX);
   const y = top + row * KEY_HEIGHT - scrollY + KEY_HEIGHT / 2;
-  fillRect(ctx, x1, y - 3, x2 - x1, 7, color.note(false, EVENTDEFAULT_VELOCITY, EVENTDEFAULT_VOLUME));
-  fillRect(ctx, x1, y - 3, 2, 7, COLORS.noteHead);
+  fillNoteBar(ctx, x1, x2, y, color.note(false, EVENTDEFAULT_VELOCITY, EVENTDEFAULT_VOLUME), true);
   // 掴みで動くノート内部の KEY 目印 (端の調整では位置を変えない)。
   // 移動量は配置と同じ値を使い、確定後の位置とずれないようにする
   const grab = st.mode === "grab";
