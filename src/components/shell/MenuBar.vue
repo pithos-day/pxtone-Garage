@@ -46,6 +46,7 @@ import { useGlobalKeys } from "../../composables/useGlobalKeys";
 import { SHORTCUTS, shortcutAreaOf } from "../../lib/shortcuts";
 import { shortcutCommand } from "../../state/keybindings";
 import { isModalOpen } from "../../state/ui";
+import { resetApp } from "../../state/reset";
 import ModeTabs from "./ModeTabs.vue";
 import FeatureSearchDialog from "./FeatureSearchDialog.vue";
 
@@ -469,7 +470,11 @@ const viewMenu = computed<MenuItem[]>(() =>
   }),
 );
 
-const ISSUES_URL = "https://github.com/pithos-day/pxtone-garage/issues";
+const REPOSITORY_URL = "https://github.com/pithos-day/pxtone-garage";
+
+function openInNewTab(url: string): void {
+  window.open(url, "_blank", "noopener");
+}
 
 const featureSearchOpen = ref(false);
 
@@ -490,7 +495,9 @@ const featureEntries = computed<FeatureEntry[]>(() => {
 const helpMenu = computed<MenuItem[]>(() =>
   buildHelpMenu({
     onSearch: () => (featureSearchOpen.value = true),
-    onReportIssue: () => void window.open(ISSUES_URL, "_blank", "noopener"),
+    onOpenGitHub: () => openInNewTab(REPOSITORY_URL),
+    onReportIssue: () => openInNewTab(`${REPOSITORY_URL}/issues`),
+    onReset: () => void resetApp(),
     onAbout: () => emit("about"),
   }),
 );

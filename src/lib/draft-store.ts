@@ -2,7 +2,7 @@
 // localStorage より大きいデータを扱え、バイト列を base64 にせずそのまま保存できる。
 // 接続を開いたまま保持し、以降の書き込みは呼び出しと同期でトランザクションを始める
 // (beforeunload の中でも書き込みを開始できるようにするため)
-const DB_NAME = "pxtone-garage-drafts";
+export const DRAFT_DB_NAME = "pxtone-garage-drafts";
 const STORE = "drafts";
 const RECORD_KEY = "current";
 
@@ -16,7 +16,7 @@ function openDb(): Promise<IDBDatabase> {
       reject(new Error("IndexedDB を利用できません"));
       return;
     }
-    const req = indexedDB.open(DB_NAME, 1);
+    const req = indexedDB.open(DRAFT_DB_NAME, 1);
     req.onupgradeneeded = () => req.result.createObjectStore(STORE);
     req.onsuccess = () => {
       const conn = req.result;

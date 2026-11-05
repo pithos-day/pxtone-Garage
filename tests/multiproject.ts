@@ -22,7 +22,7 @@
 //   52. Noise の undo / History は編集状態をそのまま戻す / 53. THIRD_PARTY_NOTICES の生成
 //   54. 未保存ドラフトの退避 (IndexedDB / 旧形式からの移行 / 失敗の通知) / 55. ユーザーテーマの保存失敗を通知する
 //   56. 予期しないエラーの通知 / 57. 機能を検索 / 58. モバイルの表示幅
-//   59. 出力レベルメーター / 60. ユニット別 WAV 書き出し
+//   59. 出力レベルメーター / 60. ユニット別 WAV 書き出し / 61. 初期化
 import {
   projects,
   currentProjectId,
@@ -105,7 +105,8 @@ import * as serviceMod from "../src/state/service";
 import { SAMPLE_SONGS } from "../src/state/samples";
 import { undo, redo, canUndo, canRedo, undoStack } from "../src/state/undo";
 import { applyDraftProjectState, linkedWoiceIndex, woiceLinkAt } from "../src/state/projects";
-import { loadDrafts, restoreDrafts, saveDraftsNow } from "../src/state/drafts";
+import { hasUnsavedDocuments, loadDrafts, restoreDrafts, saveDraftsNow, setDraftsSuspended } from "../src/state/drafts";
+import { removeStorageByPrefix } from "../src/lib/storage";
 import { addUserTheme, removeUserTheme } from "../src/state/theme";
 import { reportUnexpectedError } from "../src/state/errors";
 import { touchViewportContent } from "../src/lib/mobile";
@@ -4319,6 +4320,30 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       check(differs, "stems: ユニットごとに別の音になる");
     }
     doc.muted = [];
+  }
+
+  // ---- 61. 初期化 ----
+  {
+    const store = new Map([["pxtone-garage-theme", "zen"], ["pxtone-garage-font", "x"], ["other-app", "keep"]]);
+    (globalThis as { localStorage?: unknown }).localStorage = {
+      get length(): number {
+        return store.size;
+      },
+      key: (i: number): string | null => [...store.keys()][i] ?? null,
+      removeItem: (k: string): void => void store.delete(k),
+    };
+    removeStorageByPrefix("pxtone-garage-");
+    checkEq([...store.keys()].join(), "other-app", "reset: このアプリのキーだけを消す");
+    delete (globalThis as { localStorage?: unknown }).localStorage;
+
+    newProjectInTab();
+    currentProject()!.dirty = true;
+    check(hasUnsavedDocuments(), "reset: 未保存の編集がある");
+    setDraftsSuspended(true);
+    check(!hasUnsavedDocuments(), "reset: 初期化中は離脱の確認を出さない");
+    setDraftsSuspended(false);
+    check(hasUnsavedDocuments(), "reset: 失敗して再開すると元に戻る");
+    closeAllProjects();
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);

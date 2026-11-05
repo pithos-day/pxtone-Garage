@@ -79,7 +79,9 @@ const ja = {
 
   // メニュー: Help
   "menu.help.search": "機能を検索",
+  "menu.help.github": "GitHub",
   "menu.help.reportIssue": "問題を報告",
+  "menu.help.reset": "初期化",
   "menu.help.about": "このアプリについて",
 
   // モバイル
@@ -345,6 +347,7 @@ const ja = {
   "dialog.alertTitle": "お知らせ",
   "dialog.confirmTitle": "確認",
   "dialog.promptTitle": "入力",
+  "confirm.reset": "環境設定、キー設定、ユーザーテーマ、最近使ったファイルの履歴、未保存の編集をすべて消去して再読み込みします。ファイルに保存していない編集は失われ、元に戻せません。初期化しますか？",
   "confirm.new": "未保存の変更は破棄されます。新規作成しますか?",
   "confirm.close": "未保存の変更は破棄されます。閉じますか?",
   "unsaved.title": "未保存の変更",
@@ -374,6 +377,7 @@ const ja = {
   "error.sampleNotFound": "サンプル楽曲が見つかりません",
   "error.save": "保存に失敗しました",
   "error.unexpected": "予期しないエラーが発生しました。編集内容の退避を試みましたが、アプリが正常に動かない可能性があります。ファイルに保存してからページを再読み込みしてください。解決しない場合は Help の「問題を報告」からお知らせください。\n\n{message}",
+  "error.reset": "初期化できませんでした。このアプリを開いている他のタブを閉じてから、もう一度お試しください",
   "error.themeSave": "テーマをブラウザに保存できませんでした。次回起動時には残りません",
   "error.draftSave": "未保存の編集を自動で退避できませんでした。ブラウザが終了すると復元できないため、ファイルに保存してください",
   "error.applyNoProject": "元の Collage プロジェクトが見つかりません",

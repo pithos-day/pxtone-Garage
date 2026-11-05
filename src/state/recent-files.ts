@@ -10,7 +10,7 @@ export type OpenKind = "project" | "voice" | "noise";
 
 type RecentLists = Record<OpenKind, FileSystemFileHandle[]>;
 
-const DB_NAME = "pxtone-garage";
+export const RECENT_FILES_DB_NAME = "pxtone-garage";
 const STORE = "recent-files";
 const OPEN_KIND_NAMES: readonly OpenKind[] = ["project", "voice", "noise"];
 
@@ -23,7 +23,7 @@ export function supportsRecentFiles(): boolean {
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
+    const req = indexedDB.open(RECENT_FILES_DB_NAME, 1);
     req.onupgradeneeded = () => req.result.createObjectStore(STORE);
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);

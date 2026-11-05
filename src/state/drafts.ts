@@ -163,6 +163,14 @@ let failureNotified = false;
 // 起動時に読めなかったレコードは復元の機会が残るよう、未保存が無くても消さない
 let storedRecordUnread = false;
 
+// 初期化の間は退避しない (消したデータを書き戻さず、離脱の確認も出さない)
+let draftsSuspended = false;
+
+export function setDraftsSuspended(suspended: boolean): void {
+  draftsSuspended = suspended;
+  if (suspended) cancelDraftSave();
+}
+
 function reportSaveFailure(err: unknown): void {
   console.warn("未保存ドラフトを保存できませんでした", err);
   if (failureNotified) return;
@@ -173,6 +181,7 @@ function reportSaveFailure(err: unknown): void {
 // 未保存ドキュメントを即時退避する。beforeunload / タブ非表示 / 自動保存から呼ぶ。
 // 退避に失敗しても編集は続けられるが、復旧できないことをユーザーへ知らせる
 export function saveDraftsNow(activeMode: AppMode): Promise<void> {
+  if (draftsSuspended) return Promise.resolve();
   const data = collectDrafts(activeMode);
   if (!data && storedRecordUnread) return Promise.resolve();
   return writeDraftRecord(data)
@@ -211,6 +220,7 @@ export function cancelDraftSave(): void {
 }
 
 export function hasUnsavedDocuments(): boolean {
+  if (draftsSuspended) return false;
   return projects.value.some((p) => p.dirty) || voices.value.some((v) => v.dirty) || noises.value.some((n) => n.dirty);
 }
 
