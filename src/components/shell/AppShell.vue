@@ -24,25 +24,20 @@ import CollageTab from "../collage/CollageEditor.vue";
 import VoiceTab from "../voice/VoiceEditor.vue";
 import NoiseTab from "../noise/NoiseEditor.vue";
 import VoiceCopyDialog from "../voice/VoiceCopyDialog.vue";
-import { ensureInitialProject, projects } from "../../state/projects";
+import { ensureInitialProject } from "../../state/projects";
 import { openSampleProject } from "../../state/samples";
 import { droppedFiles } from "../../engine/io";
 import { OPEN_KINDS, openFilesInTabs } from "../../state/open-files";
 import { initRecentFiles } from "../../state/recent-files";
 import { appAlert } from "../../state/dialog";
 import { lang, t } from "../../i18n";
-import { copyVoiceSide, ensureInitialVoice, voiceRevision } from "../../state/voice";
-import { ensureInitialNoise, noiseRevision } from "../../state/noise";
+import { copyVoiceSide, ensureInitialVoice } from "../../state/voice";
+import { ensureInitialNoise } from "../../state/noise";
 import { doc } from "../../state/project";
 import { MODE_DOCS } from "../../state/mode-docs";
 import { useTabCloseFlow } from "../../composables/useTabCloseFlow";
-import {
-  cancelDraftSave,
-  hasUnsavedDocuments,
-  restoreDrafts,
-  saveDraftsNow,
-  scheduleDraftSave,
-} from "../../state/drafts";
+import { restoreDrafts } from "../../state/drafts";
+import { useDraftAutosave } from "../../composables/useDraftAutosave";
 
 // 未保存ドラフトを先に復元し、無ければ通常の初期タブを作る。
 // 復元したアクティブモードを初期表示に使う
@@ -140,47 +135,10 @@ function onDrop(e: DragEvent): void {
   });
 }
 
-// ---- 未保存ドラフトの自動退避 ----
+useDraftAutosave(activeTab);
 
-// 編集 (doc.rev / dirty / voice・noise の revision) を監視して遅延保存する
-watch(
-  [
-    () => doc.rev,
-    () => doc.dirty,
-    () => projects.value.map((p) => `${p.id}:${p.dirty}`).join("|"),
-    voiceRevision,
-    noiseRevision,
-  ],
-  () => scheduleDraftSave(activeTab.value),
-);
-watch(activeTab, () => scheduleDraftSave(activeTab.value));
 // canvas の文字も切り替わるよう再描画を促す
 watch(lang, () => doc.rev++);
-
-function onBeforeUnload(e: BeforeUnloadEvent): void {
-  if (!hasUnsavedDocuments()) return;
-  // ここで書き込みを始めておくことで、確認ダイアログで「離れる」を選んでも復元できる
-  void saveDraftsNow(activeTab.value);
-  e.preventDefault();
-  e.returnValue = "";
-}
-
-function onVisibilityChange(): void {
-  if (document.visibilityState === "hidden") void saveDraftsNow(activeTab.value);
-}
-
-window.addEventListener("beforeunload", onBeforeUnload);
-document.addEventListener("visibilitychange", onVisibilityChange);
-// 編集を検知できない経路 (直接のデータ変更など) の保険
-const draftInterval = window.setInterval(() => {
-  if (hasUnsavedDocuments()) void saveDraftsNow(activeTab.value);
-}, 30000);
-onBeforeUnmount(() => {
-  window.removeEventListener("beforeunload", onBeforeUnload);
-  document.removeEventListener("visibilitychange", onVisibilityChange);
-  window.clearInterval(draftInterval);
-  cancelDraftSave();
-});
 </script>
 
 <template>
