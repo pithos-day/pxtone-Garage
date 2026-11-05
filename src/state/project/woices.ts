@@ -1,5 +1,6 @@
 // 音色の追加・削除・置き換えとプロパティ
-import { EVENTDEFAULT_BASICKEY, EventKind, MemoryIo, PTV_VOICEFLAG_BEATFIT, PTV_VOICEFLAG_SMOOTH, PTV_VOICEFLAG_WAVELOOP, PxtnErr, Woice, WoiceType, defaultOggvDecoder, ioPutFloatLE, ioPutInt32LE, ioPutUint16LE, ioPutUint32LE } from "pxtone-ts";
+import { EVENTDEFAULT_BASICKEY, EventKind, MemoryIo, PTV_VOICEFLAG_BEATFIT, PTV_VOICEFLAG_SMOOTH, PTV_VOICEFLAG_WAVELOOP, PxtnErr, Woice, WoiceType, ioPutFloatLE, ioPutInt32LE, ioPutUint16LE, ioPutUint32LE } from "pxtone-ts";
+import { defaultOggvDecoder } from "pxtone-ts/oggv";
 import { encodeShiftJis, truncateShiftJis } from "../../lib/sjis";
 import { service } from "../service";
 import { t } from "../../i18n";

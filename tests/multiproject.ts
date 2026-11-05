@@ -246,7 +246,7 @@ import { buildPcmWav } from "./fixtures/pcm-wav";
 import { MemoryIo, VoiceType, WaveType, EventKind, PTV_DATAFLAG_ENVELOPE, type EveRecord } from "pxtone-ts";
 import { shiftJisToString } from "pxtone-ts";
 import { Service, PxtnErr, PXTN_MAX_EVENT_NUM, Woice, Noise, pxtnServiceMooCalcSampleNum } from "pxtone-ts";
-import { defaultOggvDecoder } from "pxtone-ts";
+import { defaultOggvDecoder } from "pxtone-ts/oggv";
 import { decodeProjectBytes } from "../src/engine/oggv";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";

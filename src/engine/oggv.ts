@@ -2,7 +2,8 @@
 // OGGV 音色は未デコードのままでは再生できない (toneReady が OGG_NO_SUPPORTED) ため、
 // 再生・プレビュー・WAV 書き出しの前に、プロジェクトバイト列を PCM 化する必要がある。
 // この変換はメインスレッドで行い、worklet にはデコード済みバイト列を渡す。
-import { Service, PxtnErr, MemoryIo, WoiceType, convertOggvToPcm, defaultOggvDecoder } from "pxtone-ts";
+import { Service, PxtnErr, MemoryIo, WoiceType } from "pxtone-ts";
+import { convertOggvToPcm, defaultOggvDecoder } from "pxtone-ts/oggv";
 import { type ProgressTask } from "../state/progress";
 
 // プロジェクトバイト列を OGGV デコード済み (PCM 化) の一時バイト列へ変換する。

@@ -1,4 +1,4 @@
 allowBuilds:
   electron-winstaller: false
   esbuild: true
-  pxtone-ts@https://codeload.github.com/pithos-day/pxtone-ts/tar.gz/e3474c23555c4fd2ea14dc9654071fbf368820d4: true
+  pxtone-ts@https://codeload.github.com/pithos-day/pxtone-ts/tar.gz/9c00a46c561ae0b045db51afff22cf33458e834e: true
