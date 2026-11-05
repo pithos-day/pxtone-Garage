@@ -6,7 +6,7 @@ import { ref, type Ref } from "vue";
 import { chooseSaveDestination, sanitizeFileName, stripFileExt, supportsSavePicker, writeSaveDestination } from "../engine/io";
 import { withProgress } from "./progress";
 import { isRevisionSaved, markRevisionSaved, newRevisionTracker, touchRevision, type RevisionTracker } from "../lib/revision";
-import { appPrompt } from "./dialog";
+import { appAlert, appPrompt } from "./dialog";
 import { t } from "../i18n";
 
 const MAX_UNDO = 100;
@@ -36,6 +36,8 @@ export interface DocCodec<D extends TabDocBase> {
   // 本家エディタが保存時にだけ行う正規化がある場合に実装する
   snapshotForSave?(d: D): Uint8Array | null;
   restore(d: D, bytes: Uint8Array): boolean;
+  // 保存できない内容なら理由を返す。保存先を選ばせる前に確かめるため、軽い処理にする
+  saveError?(d: D): string | null;
   // ピッカーで保存先を選んで保存できたときに呼ぶ (最近使ったファイルへの登録)
   onSavedToHandle?(handle: FileSystemFileHandle): void;
 }
@@ -143,6 +145,11 @@ export function createDocTabs<D extends TabDocBase>(codec: DocCodec<D>) {
     // 名前を付けて保存 (asNew=true) は対応ブラウザでピッカーを開く。
     // ピッカーは生成より先に呼ぶ (長い処理の後だとユーザー操作が切れて開けない)
     async save(d: D, asNew: boolean, ext: string): Promise<boolean> {
+      const error = codec.saveError?.(d);
+      if (error) {
+        void appAlert(error);
+        return false;
+      }
       let name = d.fileName || "untitled";
       if (asNew && !supportsSavePicker()) {
         const input = await appPrompt(t("prompt.fileName"), name);

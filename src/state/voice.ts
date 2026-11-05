@@ -19,6 +19,7 @@ import type { WoiceLink } from "./projects";
 import { createDocTabs, type TabDocBase } from "./doc-tabs";
 import { addRecent } from "./recent-files";
 import { clamp } from "../lib/clamp";
+import { t } from "../i18n";
 
 const WAVE_RESO = 256; // 本家 ptvCOODINATERESOLUTION
 const MAX_ENVE_POINT = 31; // 本家 ptvMAX_ENVELOPEPOINT
@@ -34,6 +35,7 @@ const tabs = createDocTabs<VoiceDoc>({
   onSavedToHandle: (handle) => void addRecent("voice", handle),
   snapshot: snapshotVoice,
   snapshotForSave: snapshotVoiceForSave,
+  saveError: (v) => (snapshotVoiceForSave(v) ? null : t("error.voiceNothingToSave")),
   restore: (v, bytes) => v.woice.read(new MemoryIo(bytes), WoiceType.PTV) === PxtnErr.OK,
 });
 

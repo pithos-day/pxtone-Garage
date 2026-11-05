@@ -27,7 +27,7 @@
 //   64. ユニットの並べ替えでミュート / 選択 / フォーカスが追従する / 65. ソロ中の並べ替え
 //   66. 壊れたファイルで音色を置き換えても元の音色が残る / 67. Coordinate の y は保存で反転しない
 //   68. スライダー上でも Ctrl 付きのショートカットが効く / 69. undo でユニットの UI 状態が同じユニットに付いたまま
-//   70. Coordinate の点の上限
+//   70. Coordinate の点の上限 / 71. 音の出ない音色の保存はエラーを表示する
 import { shouldRegisterServiceWorker } from "../src/lib/pwa";
 import { isKeyForFormControl } from "../src/composables/useGlobalKeys";
 import {
@@ -4686,6 +4686,19 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(full.length, 31, "wave-max: 点数は 31 のまま");
     checkEq(insertWavePoint(full, 8, 9, 31), true, "wave-max: 満杯でも同じ x の y は更新できる");
     checkEq(full[1]!.y, 9, "wave-max: y が更新される");
+  }
+
+  // ---- 71. 音の出ない音色の保存はエラーを表示する ----
+  {
+    const d = newVoice();
+    d.woice.getVoice(0)!.volume = 0;
+    d.woice.getVoice(1)!.volume = 0;
+    d.dirty = true;
+    checkEq(await saveVoice(false), false, "voice-save: 保存しない");
+    checkEq(currentAppDialog.value?.message, t("error.voiceNothingToSave"), "voice-save: 理由を表示する");
+    acceptAppDialog();
+    checkEq(d.dirty, true, "voice-save: 未保存のまま");
+    closeVoice(d.id);
   }
 
   // ---- clamp ----
