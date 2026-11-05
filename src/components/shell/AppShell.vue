@@ -121,8 +121,8 @@ const onAppPointerDown = (e: PointerEvent): void => {
   const el = document.activeElement;
   if (!el || (el.tagName !== "INPUT" && el.tagName !== "TEXTAREA")) return;
   if (el === e.target || el.contains(e.target as Node)) return;
-  const t = e.target as HTMLElement | null;
-  if (t && t.closest?.(".dlg, .ctxmenu")) return;
+  const target = e.target as HTMLElement | null;
+  if (target && target.closest?.(".dlg, .ctxmenu")) return;
   (el as HTMLElement).blur();
 };
 
