@@ -24,6 +24,7 @@
 //   56. 予期しないエラーの通知 / 57. 機能を検索 / 58. モバイルの表示幅
 //   59. 出力レベルメーター / 60. ユニット別 WAV 書き出し / 61. 初期化
 //   62. 翻訳辞書と言語の決定 / 63. 音色削除で VOICENO が追従する
+//   64. ユニットの並べ替えでミュート / 選択 / フォーカスが追従する
 import { shouldRegisterServiceWorker } from "../src/lib/pwa";
 import {
   projects,
@@ -57,6 +58,7 @@ import {
   changeEventValue,
   addUnitWithWoice,
   woices,
+  replaceUnitRaw,
   stemUnits,
   sync,
   setUnitNameAndWoice,
@@ -4532,6 +4534,34 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     check(undo(), "woice-remove: undo できる");
     checkEq(voiceNos(1).join(), "2", "woice-remove: undo で VOICENO が戻る");
     checkEq(serviceMod.service.woiceNum, 4, "woice-remove: undo で音色数が戻る");
+  }
+
+  // ---- 64. ユニットの並べ替えでミュート / 選択 / フォーカスが追従する ----
+  {
+    newProjectInTab();
+    for (const name of ["a", "b", "c"]) addUnit(name);
+    const flagged = (flag: "muted"): string => units.value.filter((u) => u[flag]).map((u) => u.name).join();
+    toggleUnitMute(2);
+    replaceUnitRaw(2, 0);
+    sync();
+    checkEq(units.value.map((u) => u.name).join(), "c,a,b", "unit-move: 2→0 の並び");
+    checkEq(flagged("muted"), "c", "unit-move: ミュートは c に付いたまま (後ろから前)");
+    replaceUnitRaw(0, 2);
+    sync();
+    checkEq(flagged("muted"), "c", "unit-move: ミュートは c に付いたまま (前から後ろ)");
+    // 間のユニットは番号だけずれる
+    toggleUnitMute(2);
+    toggleUnitMute(1);
+    replaceUnitRaw(0, 2);
+    sync();
+    checkEq(units.value.map((u) => u.name).join(), "b,c,a", "unit-move: 0→2 の並び");
+    checkEq(flagged("muted"), "b", "unit-move: 間のユニットのミュートも追従する");
+
+    doc.selectedUnits = [0, 2];
+    doc.focusUnit = 2;
+    replaceUnitRaw(2, 0);
+    checkEq(doc.selectedUnits.join(), "1,0", "unit-move: 選択が追従する");
+    checkEq(doc.focusUnit, 0, "unit-move: フォーカスが追従する");
   }
 
   // ---- clamp ----

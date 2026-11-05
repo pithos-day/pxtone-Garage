@@ -68,18 +68,17 @@ export function replaceUnitRaw(oldPlace: number, newPlace: number): void {
     out.splice(Math.min(newPlace, out.length), 0, v!);
     return out;
   };
-  doc.selectedUnits = move(doc.selectedUnits);
-  doc.muted = move(doc.muted);
-  doc.soloBackup = move(doc.soloBackup);
+  // 並べ替え後の並び (order[新しい番号] = 元の番号)
+  const order = move([...Array(service.unitNum).keys()]);
+  const placeOf = (unit: number): number => order.indexOf(unit);
+  // 選択やミュートは位置ごとの値ではなくユニット番号の一覧なので、番号を付け替える
+  doc.selectedUnits = doc.selectedUnits.map(placeOf);
+  doc.muted = doc.muted.map(placeOf);
+  doc.soloBackup = doc.soloBackup.map(placeOf);
+  if (doc.focusUnit >= 0) doc.focusUnit = placeOf(doc.focusUnit);
   doc.unitVisible = move(doc.unitVisible);
   doc.unitPinned = move(doc.unitPinned);
-  if (doc.soloUnit >= 0) {
-    // 番号と同じ並べ替えを index 順配列に適用し、soloUnit の新位置を引く
-    // (unitReplace 後に数値として換算できないため配列経由で追従する)
-    const n = Math.max(units.value.length, oldPlace + 1, newPlace + 1);
-    const order = move([...Array(n).keys()]);
-    doc.soloUnit = order[doc.soloUnit] ?? -1;
-  }
+  if (doc.soloUnit >= 0) doc.soloUnit = order[doc.soloUnit] ?? -1;
   service.unitReplace(oldPlace, newPlace);
   service.evels.recordUnitNoReplace(oldPlace, newPlace);
 }
