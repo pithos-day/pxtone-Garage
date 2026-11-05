@@ -31,6 +31,7 @@
 //   72. ヘッド 0 点のエンベロープを開いて保存できる / 73. エンベロープが満杯なら途中に追加しない
 import { shouldRegisterServiceWorker } from "../src/lib/pwa";
 import { isKeyForFormControl } from "../src/composables/useGlobalKeys";
+import { scopeRangeFields } from "../src/composables/useScopeRangeForm";
 import {
   projects,
   currentProjectId,
@@ -194,7 +195,7 @@ import {
 } from "../src/state/noise";
 import { renderWoice, renderNoise } from "../src/engine/preview";
 import { parseMidi, convertMidiToPtcop } from "../src/engine/midi";
-import { formatTime, measStartClock, ZOOM_MAX, ZOOM_MIN, ZOOM_SLIDER_MAX, sliderToZoom, zoomToSlider, gridLineWidth, rowToKeyValue, keyValueToRow } from "../src/lib/clock";
+import { formatTime, measStartClock, ZOOM_MAX, ZOOM_MIN, ZOOM_SLIDER_MAX, sliderToZoom, zoomToSlider, gridLineWidth, rowToKeyValue, keyValueToRow, measBeatClockToClock } from "../src/lib/clock";
 import { scaleToWoice, scaleToGroup, VOLUME_EDIT_KIND } from "../src/lib/volume";
 import { writeNote, writeNoteLength, eraseNote, writeVolumeEvent, paintKeyDrag, type EventWriteOps } from "../src/lib/editing";
 import { smartPlacement, commitSmartDrag, clampSmartOffset, shiftKeyValue, notesInUnit, notesInRect, clampGroupOffset, clampGroupRowDelta, smartModeAt, noteNear, type SmartDrag } from "../src/lib/smart-note";
@@ -712,6 +713,31 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     check(at(960, 0, EventKind.ON), "コピー: 1回分ペースト (clock 960)");
     check(at(1440, 0, EventKind.ON), "コピー: 2回分ペースト (clock 1440)");
     check(!at(960, 1, EventKind.VELOCITY), "コピー: 対象外ユニットはコピーされない");
+
+    // 範囲フォームの初期値: to は範囲の終端 scope2 そのもの。
+    // to を終端として小節コピーすると、回数 2 回目も 1 クロックもずれずに並ぶ
+    {
+      const view = { beatNum: 6, beatClock: 480, zoom: 48 };
+      const f = scopeRangeFields(view, 5760, 11520);
+      checkEq(`${f.fromMeas}:${f.fromBeat}:${f.fromClock}`, "3:1:0", "範囲フォーム: from は範囲の始点 (3 小節 1 拍 0)");
+      checkEq(`${f.toMeas}:${f.toBeat}:${f.toClock}`, "5:1:0", "範囲フォーム: to は範囲の終端 (5 小節 1 拍 0)");
+      checkEq(measBeatClockToClock(view, f.toMeas, f.toBeat, f.toClock), 11520, "範囲フォーム: to をクロックに戻すと scope2");
+      s.evels.clear();
+      s.evels.recordAddI(5760, 0, EventKind.ON, 240);
+      s.evels.recordAddI(11280, 0, EventKind.ON, 240);
+      doc.selectedUnits = [0];
+      const c1 = measBeatClockToClock(view, f.fromMeas, f.fromBeat, f.fromClock);
+      const c2 = measBeatClockToClock(view, f.toMeas, f.toBeat, f.toClock);
+      copyMeas(c1, c2, c2, 2, [EventKind.ON]);
+      const ons = getAllEvents().filter((e) => e.unitNo === 0 && e.kind === EventKind.ON).map((e) => e.clock);
+      checkEq(ons.join(","), "5760,11280,11520,17040,17280,22800", "範囲フォーム: 回数 2 の小節コピーが範囲の幅ちょうどで並ぶ");
+      doc.selectedUnits = [0, 1];
+      s.evels.clear();
+      s.evels.recordAddI(0, 0, EventKind.KEY, 0x6000);
+      s.evels.recordAddI(0, 0, EventKind.VELOCITY, 64);
+      s.evels.recordAddI(0, 0, EventKind.ON, 480);
+      s.evels.recordAddI(240, 1, EventKind.VELOCITY, 80);
+    }
 
     // イベント音量 (加算 + クランプ)
     changeEventValue(0, 960, EventKind.VELOCITY, 100);

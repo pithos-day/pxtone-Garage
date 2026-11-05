@@ -42,8 +42,8 @@ const KIND_CHECKS = [
 const kinds = reactive<Record<string, boolean>>({});
 for (const k of KIND_CHECKS) kinds[k.key] = k.defaultOn;
 
-// 選択範囲から from/to を初期化。コピー先 dest は選択範囲の終端に初期化
-// (本家同様、末尾への追記を想定)
+// 選択範囲から from/to を初期化。コピー先 dest は選択範囲の終端 (範囲の直後) に初期化
+// (末尾への追記を想定)
 useScopeRangeForm(form, (m, b, c) => {
   form.destMeas = m;
   form.destBeat = b;
