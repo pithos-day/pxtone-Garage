@@ -25,6 +25,7 @@ import {
   type MenuItem,
   type MenuName,
 } from "../../lib/menuItems";
+import { useCrispPixelArt } from "../../composables/useCrispPixelArt";
 import { useDropdownMenu } from "../../composables/useDropdownMenu";
 import { useGlobalKeys } from "../../composables/useGlobalKeys";
 import { useMenuActions } from "../../composables/useMenuActions";
@@ -38,6 +39,10 @@ import FeatureSearchDialog from "./FeatureSearchDialog.vue";
 import WindowControls from "./WindowControls.vue";
 
 const mode = defineModel<AppMode>({ required: true });
+
+// viewBox (77x8) のドット絵を、拡大率 100% で 3 倍になる大きさで表示する
+const logoEl = ref<HTMLCanvasElement | null>(null);
+useCrispPixelArt(logoEl, { src: `${import.meta.env.BASE_URL}logo.svg`, dotsX: 77, dotsY: 8, cssPxPerDot: 3 });
 const emit = defineEmits<{
   (e: "project"): void;
   (e: "settings"): void;
@@ -311,7 +316,7 @@ const openItems = computed<MenuItem[]>(() => {
         />
       </div>
     </div>
-    <div class="app-logo" role="img" aria-label="pxtone Garage"></div>
+    <canvas ref="logoEl" class="app-logo" role="img" aria-label="pxtone Garage"></canvas>
     <WindowControls />
     <Teleport to="body">
       <FeatureSearchDialog v-if="featureSearchOpen" :entries="featureEntries" @close="featureSearchOpen = false" />
@@ -388,17 +393,12 @@ const openItems = computed<MenuItem[]>(() => {
   padding: 3px 0;
 }
 
-/* ロゴ — SVG をマスクにしてテーマの primary 色で塗る。
-   ドット絵が崩れないよう viewBox (77x8) の整数倍 (3 倍) で表示し、
-   中央揃えだと小数 px になるので上端は margin で揃える */
+/* ロゴ — ドット絵が崩れないようサイズと位置と描画は useCrispPixelArt で決める */
 .app-logo {
+  position: relative;
   flex: none;
   align-self: flex-start;
-  width: 231px;
-  height: 24px;
   margin: 7px 6px 0 auto;
-  background: var(--primary);
-  -webkit-mask: url("/logo.svg") center / 100% 100% no-repeat;
-  mask: url("/logo.svg") center / 100% 100% no-repeat;
+  image-rendering: pixelated;
 }
 </style>
