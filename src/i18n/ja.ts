@@ -27,6 +27,7 @@ const ja = {
   "menu.file.export": "書き出し",
   "menu.file.exportPttune": "pttuneを書き出し",
   "menu.file.exportWav": "WAVを書き出し",
+  "menu.file.exportStems": "ユニット別WAVを書き出し",
   "menu.file.addToCollage": "Collageに追加",
   "menu.file.project": "プロジェクト設定",
   "menu.file.settings": "環境設定",
@@ -228,6 +229,10 @@ const ja = {
 
   // WAV書き出しダイアログ (本家 dlg_BuildOption 相当)
   "wav.title": "WAV書き出し",
+  "wav.stemsTitle": "ユニット別WAV書き出し",
+  "wav.stemsHint": "ユニットごとの WAV を ZIP にまとめます。ミュート中とノートの無いユニットは含めません",
+  "wav.errNoStems": "書き出せるユニットがありません",
+  "wav.errStemsTooLarge": "サイズが ZIP の上限を超えるため書き出せません。サンプリング周波数を下げるか、ユニットをミュートしてください",
   "wav.soundQuality": "音質",
   "wav.channel": "チャンネル",
   "wav.mono": "モノラル",

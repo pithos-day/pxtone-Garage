@@ -53,6 +53,7 @@ const copyMeasOpen = ref(false);
 const quantizeOpen = ref(false);
 const eventVolumeKind = ref<null | EventVolumeMode>(null);
 const wavExportOpen = ref(false);
+const wavExportStems = ref(false);
 // A/B コピー確認ダイアログ (AB = A→B, BA = B→A)
 const voiceCopyDir = ref<null | "AB" | "BA">(null);
 
@@ -330,7 +331,7 @@ onBeforeUnmount(() => {
       @copy-meas="copyMeasOpen = true"
       @quantize="quantizeOpen = true"
       @event-volume="(kind) => (eventVolumeKind = kind)"
-      @export-wav="wavExportOpen = true"
+      @export-wav="(stems) => { wavExportStems = stems; wavExportOpen = true; }"
       @voice-copy-a-b="voiceCopyDir = 'AB'"
       @voice-copy-b-a="voiceCopyDir = 'BA'"
     />
@@ -363,7 +364,7 @@ onBeforeUnmount(() => {
     <CopyMeasDialog v-if="copyMeasOpen" @close="copyMeasOpen = false" />
     <QuantizeDialog v-if="quantizeOpen" @close="quantizeOpen = false" />
     <EventVolumeDialog v-if="eventVolumeKind" :kind="eventVolumeKind" @close="eventVolumeKind = null" />
-    <WavExportDialog v-if="wavExportOpen" @close="wavExportOpen = false" />
+    <WavExportDialog v-if="wavExportOpen" :stems="wavExportStems" @close="wavExportOpen = false" />
     <VoiceCopyDialog
       v-if="voiceCopyDir"
       :direction="voiceCopyDir"

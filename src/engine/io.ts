@@ -1,4 +1,5 @@
 // ファイルの開く・保存・書き出し
+import { buildZip, type ZipFile } from "../lib/zip";
 import { Service, PxtnErr, MemoryIo, NoiseBuilder, WoiceType, pxtnServiceMooCalcSampleNum } from "pxtone-ts";
 import type { Noise, Woice } from "pxtone-ts";
 import { EXE_VER } from "../state/service";
@@ -482,6 +483,43 @@ export async function renderWav(
     await renderRange(endSample, total);
   }
   return { wav: makeWav(pcm, options.sps, options.chNum, 16) };
+}
+
+export interface StemUnit {
+  index: number;
+  name: string;
+}
+
+// ユニットごとに他をミュートしてレンダリングし、WAV をまとめた ZIP を返す。
+// Delay / OverDrive は該当ユニットの音にかかった状態で書き出される
+export async function renderStems(
+  bytes: Uint8Array,
+  options: WavExportOptions,
+  stemUnits: StemUnit[],
+  allUnitIndexes: number[],
+  task?: ProgressTask,
+  span: readonly [number, number] = [0, 1],
+): Promise<{ zip: Uint8Array } | { error: string }> {
+  const files: ZipFile[] = [];
+  const step = (span[1] - span[0]) / stemUnits.length;
+  for (const [i, unit] of stemUnits.entries()) {
+    const start = span[0] + step * i;
+    const result = await renderWav(
+      bytes,
+      { ...options, muteByUnit: true, mutedUnits: allUnitIndexes.filter((u) => u !== unit.index) },
+      task,
+      { span: [start, start + step] },
+    );
+    if ("error" in result) return result;
+    // 同じ名前のユニットがあっても重複しないよう番号を付ける
+    const number = String(unit.index + 1).padStart(2, "0");
+    files.push({ name: sanitizeFileName(`${number}_${unit.name}`, ".wav"), bytes: result.wav });
+  }
+  try {
+    return { zip: buildZip(files) };
+  } catch {
+    return { error: t("wav.errStemsTooLarge") };
+  }
 }
 
 // ノイズを WAV として書き出し (本家 ptNoise の .wave 保存相当)。

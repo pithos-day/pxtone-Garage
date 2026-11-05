@@ -60,7 +60,7 @@ const emit = defineEmits<{
   (e: "copyMeas"): void;
   (e: "quantize"): void;
   (e: "eventVolume", kind: EventVolumeMode): void;
-  (e: "exportWav"): void;
+  (e: "exportWav", stems: boolean): void;
   (e: "voiceCopyAB"): void;
   (e: "voiceCopyBA"): void;
 }>();
@@ -129,7 +129,7 @@ function onImportMidi(split: boolean): void {
 function onExportWav(): void {
   // 音質・ビルド範囲などのオプションを設定するダイアログを開く
   // (実際の書き出しは AppShell の WavExportDialog が行う)
-  emit("exportWav");
+  emit("exportWav", false);
 }
 
 function onClose(): void {
@@ -393,6 +393,7 @@ const fileMenu = computed<MenuItem[]>(() => {
             sub: [
               { label: t("menu.file.exportPttune"), icon: FileMusic, action: onExportPttune, disabled: tuneReadOnly.value },
               { label: t("menu.file.exportWav"), icon: AudioLines, action: onExportWav },
+              { label: t("menu.file.exportStems"), icon: AudioLines, action: () => emit("exportWav", true) },
             ],
           },
           { sep: true },

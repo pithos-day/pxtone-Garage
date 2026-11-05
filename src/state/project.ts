@@ -914,6 +914,14 @@ export function getAllEvents(): EveRecord[] {
   return service.evels.records.filter(isMeaningfulEvent);
 }
 
+// ユニット別書き出しの対象。ミュート中とノートの無いユニットは含めない
+export function stemUnits(): { index: number; name: string }[] {
+  const withNotes = new Set(service.evels.records.filter((e) => e.kind === EventKind.ON).map((e) => e.unitNo));
+  return units.value
+    .filter((u) => !doc.muted.includes(u.index) && withNotes.has(u.index))
+    .map((u) => ({ index: u.index, name: u.name }));
+}
+
 export function addEvent(clock: number, unitNo: number, kind: number, value: number): void {
   if (doc.readOnly) return;
   service.evels.recordAddI(clock, unitNo, kind, value);

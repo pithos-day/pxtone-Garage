@@ -1,11 +1,13 @@
 // File > WAVを書き出し のオプションダイアログ (本家 dlg_BuildOption 相当)。
 // 音質 (チャンネル/サンプリング周波数)・ビルド範囲・フェードアウト・ボリューム・
-// ユニットミュートを設定して書き出す。直近の設定は localStorage に保存する
+// ユニットミュートを設定して書き出す。直近の設定は localStorage に保存する。
+// stems ではユニットごとの WAV を ZIP にまとめて書き出す (ミュート中のユニットは含めない)
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { doc, exportBytes, getService } from "../../state/project";
+import { doc, exportBytes, getService, stemUnits, units } from "../../state/project";
 import {
   chooseSaveDestination,
+  renderStems,
   renderWav,
   sanitizeFileName,
   writeSaveDestination,
@@ -19,6 +21,7 @@ import { appAlert } from "../../state/dialog";
 import { t } from "../../i18n";
 import ModalDialog from "./ModalDialog.vue";
 
+const props = withDefaults(defineProps<{ stems?: boolean }>(), { stems: false });
 const emit = defineEmits<{ (e: "close"): void }>();
 
 // 本家 ptConfig_cmb_quality_init と同じ選択肢
@@ -102,6 +105,11 @@ async function onSubmit(): Promise<void> {
     void appAlert(t("error.save"));
     return;
   }
+  const targets = stemUnits();
+  if (props.stems && targets.length === 0) {
+    void appAlert(t("wav.errNoStems"));
+    return;
+  }
   const options: WavExportOptions = {
     chNum: chNum.value,
     sps: sps.value,
@@ -127,9 +135,10 @@ async function onSubmit(): Promise<void> {
   try {
     // レンダリング (数秒かかる) より先に保存先を決める。ピッカーはユーザー操作が
     // 必要なため、長い処理の後に呼ぶと SecurityError で開けない
+    const mime = props.stems ? "application/zip" : "audio/wav";
     const dest = await chooseSaveDestination(
-      sanitizeFileName(doc.fileName || "untitled", ".wav"),
-      "audio/wav",
+      sanitizeFileName(doc.fileName || "untitled", props.stems ? "_stems.zip" : ".wav"),
+      mime,
       true,
     );
     if (!dest) {
@@ -141,10 +150,14 @@ async function onSubmit(): Promise<void> {
     emit("close");
     err = await withProgress(t("progress.wavTitle"), async (task) => {
       // レンダリング 0..97% → 書き込み 97..100%
-      const result = await renderWav(bytes, options, task, { span: [0, 0.97] });
+      const span = [0, 0.97] as const;
+      const allUnits = units.value.map((u) => u.index);
+      const result = props.stems
+        ? await renderStems(bytes, options, targets, allUnits, task, span)
+        : await renderWav(bytes, options, task, { span });
       if ("error" in result) return result.error;
       task.range(0.97, 1, t("progress.writing"));
-      await writeSaveDestination(dest, result.wav, { mime: "audio/wav", task });
+      await writeSaveDestination(dest, "zip" in result ? result.zip : result.wav, { mime, task });
       return null;
     });
   } catch {
@@ -158,7 +171,7 @@ async function onSubmit(): Promise<void> {
 
 <template>
   <ModalDialog label="wav-export" width="400px" body-gap="10px" @close="emit('close')">
-    <template #title>{{ t("wav.title") }}</template>
+    <template #title>{{ props.stems ? t("wav.stemsTitle") : t("wav.title") }}</template>
     <div class="group">
       <div class="group-title">{{ t("wav.soundQuality") }}</div>
       <div class="row">
@@ -199,7 +212,8 @@ async function onSubmit(): Promise<void> {
       <input v-model="volume" type="number" min="0.01" max="1" step="0.01" />
       <span class="unit">{{ t("wav.volumeRange") }}</span>
     </div>
-    <div class="row">
+    <div v-if="props.stems" class="row hint">{{ t("wav.stemsHint") }}</div>
+    <div v-else class="row">
       <label class="check"><input v-model="muteByUnit" type="checkbox" />{{ t("wav.muteByUnit") }}</label>
     </div>
     <div class="group">
@@ -244,5 +258,10 @@ async function onSubmit(): Promise<void> {
 
 .time {
   font-size: var(--text-sm);
+}
+
+.hint {
+  font-size: var(--text-sm);
+  color: var(--muted-foreground);
 }
 </style>

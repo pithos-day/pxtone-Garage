@@ -22,7 +22,7 @@
 //   52. Noise の undo / History は編集状態をそのまま戻す / 53. THIRD_PARTY_NOTICES の生成
 //   54. 未保存ドラフトの退避 (IndexedDB / 旧形式からの移行 / 失敗の通知) / 55. ユーザーテーマの保存失敗を通知する
 //   56. 予期しないエラーの通知 / 57. 機能を検索 / 58. モバイルの表示幅
-//   59. 出力レベルメーター
+//   59. 出力レベルメーター / 60. ユニット別 WAV 書き出し
 import {
   projects,
   currentProjectId,
@@ -54,6 +54,8 @@ import {
   copyMeas,
   changeEventValue,
   addUnitWithWoice,
+  stemUnits,
+  sync,
   setUnitNameAndWoice,
   setUnitName,
   unitNameDisplay,
@@ -213,7 +215,8 @@ import { encodeShiftJis, truncateShiftJis } from "../src/lib/sjis";
 import { loopCrossfade } from "../src/lib/loop";
 import { visibleClockWindow, iterVisibleRecords, iterNoteDraws, type NoteDraw } from "../src/lib/records";
 import { woiceSummary } from "../src/lib/woice";
-import { stripFileExt, renderWav, WAV_EXPORT_DEFAULTS } from "../src/engine/io";
+import { stripFileExt, renderStems, renderWav, WAV_EXPORT_DEFAULTS } from "../src/engine/io";
+import { buildZip, crc32 } from "../src/lib/zip";
 import {
   readBlobAndApply,
   readBlobBytes,
@@ -4254,6 +4257,67 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(outputLevel.clipped, true, "level: 停止しても音割れの表示は残す");
     clearClip();
     checkEq(outputLevel.clipped, false, "level: 表示を消せる");
+  }
+
+  // ---- 60. ユニット別 WAV 書き出し ----
+  {
+    checkEq(crc32(new TextEncoder().encode("hello")), 0x3610a686, "stems: CRC32 が標準の値と一致する");
+
+    // ZIP を読み戻して名前と中身を返す (中央ディレクトリから辿る)
+    const readZip = (zip: Uint8Array): { name: string; bytes: Uint8Array }[] => {
+      const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
+      const end = zip.length - 22;
+      checkEq(view.getUint32(end, true), 0x06054b50, "stems: ZIP の終端レコードがある");
+      const files: { name: string; bytes: Uint8Array }[] = [];
+      let at = view.getUint32(end + 16, true);
+      for (let i = 0; i < view.getUint16(end + 10, true); i++) {
+        const size = view.getUint32(at + 24, true);
+        const nameLength = view.getUint16(at + 28, true);
+        const local = view.getUint32(at + 42, true);
+        const name = new TextDecoder().decode(zip.subarray(at + 46, at + 46 + nameLength));
+        const dataAt = local + 30 + view.getUint16(local + 26, true);
+        files.push({ name, bytes: zip.subarray(dataAt, dataAt + size) });
+        at += 46 + nameLength;
+      }
+      return files;
+    };
+    const small = readZip(buildZip([{ name: "日本語.txt", bytes: new Uint8Array([1, 2, 3]) }, { name: "b", bytes: new Uint8Array() }]));
+    checkEq(small.map((f) => f.name).join(), "日本語.txt,b", "stems: ファイル名を UTF-8 で読み戻せる");
+    checkBytes(small[0]!.bytes, new Uint8Array([1, 2, 3]), "stems: 中身を読み戻せる");
+
+    newProjectInTab();
+    check((await addWoice(buildPcmWav(), WoiceType.PCM, "Stem")) === null, "stems: 音色を追加できる");
+    const woice = serviceMod.service.woiceNum - 1;
+    const addNotes = (name: string, clock: number): void => {
+      addUnitWithWoice(name, woice);
+      const u = serviceMod.service.unitNum - 1;
+      serviceMod.service.evels.recordAddI(0, u, EventKind.VOICENO, woice);
+      serviceMod.service.evels.recordAddI(clock, u, EventKind.ON, 480);
+    };
+    addNotes("A", 0);
+    addNotes("B/x", 480);
+    addUnitWithWoice("empty", woice);
+    addNotes("muted", 0);
+    doc.muted = [3];
+    sync();
+    const targets = stemUnits();
+    checkEq(targets.map((u) => u.name).join(), "A,B/x", "stems: ミュート中とノートの無いユニットを除く");
+
+    const stemBytes = exportBytes()!;
+    const options = { ...WAV_EXPORT_DEFAULTS, chNum: 1 as const };
+    const result = await renderStems(stemBytes, options, targets, [0, 1, 2, 3]);
+    check("zip" in result, "stems: ZIP を作れる");
+    if ("zip" in result) {
+      const stems = readZip(result.zip);
+      checkEq(stems.map((f) => f.name).join(), "01_A.wav,02_B_x.wav", "stems: 番号付きで安全なファイル名にする");
+      const solo = await renderWav(stemBytes, { ...options, muteByUnit: true, mutedUnits: [1, 2, 3] });
+      check("wav" in solo, "stems: 比較用に単独でレンダリングできる");
+      if ("wav" in solo) checkBytes(stems[0]!.bytes, solo.wav, "stems: 他をミュートした WAV と一致する");
+      let differs = false;
+      for (let i = 44; i < stems[0]!.bytes.length; i++) if (stems[0]!.bytes[i] !== stems[1]!.bytes[i]) differs = true;
+      check(differs, "stems: ユニットごとに別の音になる");
+    }
+    doc.muted = [];
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);
