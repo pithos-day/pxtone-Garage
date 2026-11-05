@@ -1,9 +1,10 @@
 # pxtone Garage
 
 [ピストンコラージュ](https://pxtone.org/) 互換の Web DAW アプリケーション。
-ページ内のタブで ptCollage(DAW) / ptVoice(PTV音源エディタ) / ptNoise(PTNノイズエディタ) を切り替えて制作する。
 
-再生エンジンは TypeScript 移植版の [pxtone-ts](https://codeberg.org/pithos/pxtone-ts) を使用。
+アプリ内のタブで ptCollage / ptVoice / ptNoise を切り替えて制作できます。
+
+再生エンジン: [pxtone-ts](https://github.com/pithos-day/pxtone-ts)
 
 ## 機能
 
@@ -112,9 +113,15 @@ pnpm exec playwright install chromium   # 初回のみ
 pnpm test:e2e
 ```
 
-## ライセンス
+## 謝辞
 
-ピストンコラージュは zlib ライセンス (C) 2005-2025 Daisuke Amaya (開発室Pixel)。
-本アプリはその互換実装であり、pxtone-ts の移植元は [pxtone-source-code 220910a](https://pxtone.org/developer/)。
+ピストンコラージュの開発者である[開発室Pixel](https://studiopixel.jp)氏に感謝。
 
-依存ライブラリのライセンス本文とクレジットは、`pnpm build` 時に `dist/THIRD_PARTY_NOTICES.txt` として自動生成されます (`scripts/third-party-notices.ts`)。
+また、このプロジェクトのデザインと実装の参考にさせていただいた、以下のプロジェクトに感謝します。
+
+- [ptweb](https://github.com/yuxshao/ptweb)
+- [ptcollab](https://github.com/yuxshao/ptcollab)
+
+## License
+
+[MIT](./LICENSE)
