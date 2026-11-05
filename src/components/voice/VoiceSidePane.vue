@@ -18,6 +18,7 @@ import {
   editVoice,
   applyWavePreset,
   applyWaveTypeData,
+  waveYLimit,
   WAVE_PRESET_LABELS,
   WAVE_PRESET_TITLE_KEYS,
 } from "../../state/voice";
@@ -154,12 +155,13 @@ const sinePoints = computed(() => {
   void rev.value;
   return currentVoiceUnit()?.wave.points ?? [];
 });
+const sineLimit = computed(() => waveYLimit(waveType.value === "overtone" ? VoiceType.Overtone : VoiceType.Coodinate));
 const sineUndo = useUndoOnce(() => editVoice(() => {}));
 function setSine(i: number, v: number): void {
   if (waveType.value === "coord" && i === 0) return; // 座標モードの点0 は固定
   const c = currentVoiceUnit();
   if (!c || !c.wave.points[i]) return;
-  c.wave.points[i]!.y = clamp(Math.round(v), -128, 128);
+  c.wave.points[i]!.y = clamp(Math.round(v), -sineLimit.value, sineLimit.value);
   touch();
 }
 
@@ -217,8 +219,8 @@ function setSine(i: number, v: number): void {
           <span class="vsp-sine-no">{{ i + 1 }}</span>
           <FillSlider
             :model-value="p.y"
-            :min="-128"
-            :max="128"
+            :min="-sineLimit"
+            :max="sineLimit"
             :center="0"
             :disabled="waveType === 'coord' && i === 0"
             @update:model-value="setSine(i, $event)"

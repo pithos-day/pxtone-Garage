@@ -25,7 +25,7 @@
 //   59. 出力レベルメーター / 60. ユニット別 WAV 書き出し / 61. 初期化
 //   62. 翻訳辞書と言語の決定 / 63. 音色削除で VOICENO が追従する
 //   64. ユニットの並べ替えでミュート / 選択 / フォーカスが追従する / 65. ソロ中の並べ替え
-//   66. 壊れたファイルで音色を置き換えても元の音色が残る
+//   66. 壊れたファイルで音色を置き換えても元の音色が残る / 67. Coordinate の y は保存で反転しない
 import { shouldRegisterServiceWorker } from "../src/lib/pwa";
 import {
   projects,
@@ -161,6 +161,7 @@ import {
   markVoiceClean,
   ensureInitialVoice,
   saveVoice,
+  waveYLimit,
 } from "../src/state/voice";
 import {
   noises,
@@ -4596,6 +4597,23 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(serviceMod.service.woiceNum, 2, "woice-add: 失敗では音色が増えない");
     checkEq(await replaceWoiceFile(0, ptv, WoiceType.PTV, "C"), null, "woice-replace: 正しいファイルは置き換えられる");
     checkEq(woices.value[0]!.name, "C", "woice-replace: 名前も変わる");
+  }
+
+  // ---- 67. Coordinate の y は保存で反転しない ----
+  {
+    const w = createDefaultWoice();
+    const vc = w.getVoice(0)!;
+    checkEq(waveYLimit(VoiceType.Coodinate), 127, "wave-y: Coordinate の上限は 127");
+    checkEq(waveYLimit(VoiceType.Overtone), 128, "wave-y: Oscillator の上限は 128");
+    vc.wave.points[1]!.y = waveYLimit(vc.type);
+    const io = new MemoryIo();
+    w.ptvWrite(io);
+    const reread = new Woice();
+    reread.read(new MemoryIo(io.toUint8Array()), WoiceType.PTV);
+    checkEq(reread.getVoice(0)!.wave.points[1]!.y, 127, "wave-y: 上限の値は符号が変わらず保存される");
+    vc.wave.points[1]!.y = -128; // ファイルには int8 の -128 があり得る
+    applyWavePreset(vc, 5);
+    checkEq(vc.wave.points[1]!.y, 127, "wave-y: Reverse しても範囲を超えない");
   }
 
   // ---- clamp ----

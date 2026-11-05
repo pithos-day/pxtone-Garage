@@ -151,6 +151,14 @@ test('A 面だけの音色を開いても A / B を別々に編集できる', as
   await expect(volume(0)).toHaveText('64')
 })
 
+test('Coordinate の点スライダーの最大値は保存しても符号が変わらない値になる', async ({ page }) => {
+  await page.locator('.mode-tab').nth(1).click()
+  const row = page.locator('.vsp').first().locator('.vsp-sine-row').nth(1)
+  await row.locator('input').focus()
+  await page.keyboard.press('End')
+  await expect(row.locator('.vsp-sine-val')).toHaveText('127')
+})
+
 test('音色タブをメニューから閉じるときも未保存の 3 択を出す', async ({ page }) => {
   await page.locator('.mode-tab').nth(1).click()
   await clickMenu(page, 'File', 'New')

@@ -47,6 +47,12 @@ export function currentVoice(): VoiceDoc | null {
   return tabs.current() as VoiceDoc | null;
 }
 
+// 波形の点の y の上限。Coordinate はファイル上 int8 なので +128 を保存すると -128 に化ける
+// (本家 _pos_fix も ±127 に制限する)。Overtone は可変長整数で ±128 まで持てる
+export function waveYLimit(type: VoiceType): number {
+  return type === VoiceType.Overtone ? 128 : 127;
+}
+
 // ---- Coordinate 波形の編集ルール (本家 ptuiWave.cpp 準拠) ----
 
 // 点ドラッグ: 前後の点を越えられないよう x をクランプする (本家 _point_set)。
@@ -497,8 +503,8 @@ function presetCoodinate(vc: VoiceUnit, preset: WavePreset): void {
         build(pts);
       }
       break;
-    case 5: // Reverse
-      for (const p of vc.wave.points) p.y *= -1;
+    case 5: // Reverse (ファイルの y=-128 を反転しても範囲を超えないようにする)
+      for (const p of vc.wave.points) p.y = clamp(-p.y, -waveYLimit(vc.type), waveYLimit(vc.type));
       break;
   }
 }
