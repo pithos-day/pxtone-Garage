@@ -1,0 +1,6 @@
+{
+  "name": "pxtone-garage",
+  "compatibility_date": "2026-11-01",
+  // dist を静的アセットとして配信するだけなので、Worker のスクリプトは持たない
+  "assets": { "directory": "./dist" }
+}
