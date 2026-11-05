@@ -55,6 +55,9 @@ async function readWoiceFileInto(idx: number, bytes: Uint8Array, type: WoiceType
   // OGGV のみ mateOGGV チャンク形式へ変換する (他はそのまま)
   const chunk = type === WoiceType.OGGV ? await oggBytesToMateChunk(bytes) : bytes;
   if (!chunk) return t("error.ogg");
+  // woiceRead は読み込みに失敗すると置き換え先の音色を削除するため、先にバイト列を検証する
+  const checked = new Woice().read(new MemoryIo(chunk), type);
+  if (checked !== PxtnErr.OK) return pxtnErrorMessage(checked);
   return (
     mutate(() => {
       const res = service.woiceRead(idx, new MemoryIo(chunk), type);

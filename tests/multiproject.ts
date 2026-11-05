@@ -25,6 +25,7 @@
 //   59. 出力レベルメーター / 60. ユニット別 WAV 書き出し / 61. 初期化
 //   62. 翻訳辞書と言語の決定 / 63. 音色削除で VOICENO が追従する
 //   64. ユニットの並べ替えでミュート / 選択 / フォーカスが追従する / 65. ソロ中の並べ替え
+//   66. 壊れたファイルで音色を置き換えても元の音色が残る
 import { shouldRegisterServiceWorker } from "../src/lib/pwa";
 import {
   projects,
@@ -58,6 +59,7 @@ import {
   changeEventValue,
   addUnitWithWoice,
   woices,
+  replaceWoiceFile,
   replaceUnitRaw,
   stemUnits,
   sync,
@@ -4577,6 +4579,23 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     toggleUnitSolo(doc.soloUnit);
     sync();
     checkEq(units.value.filter((u) => u.muted).map((u) => u.name).join(), "b", "solo-move: 解除すると元のミュートが同じユニットへ戻る");
+  }
+
+  // ---- 66. 壊れたファイルで音色を置き換えても元の音色が残る ----
+  {
+    newProjectInTab();
+    const ptv = snapshotVoice(newVoice())!;
+    await addWoice(ptv, WoiceType.PTV, "A");
+    await addWoice(ptv, WoiceType.PTV, "B");
+    const undoLen = undoStack.length;
+    const broken = new Uint8Array([1, 2, 3, 4]);
+    check((await replaceWoiceFile(0, broken, WoiceType.PCM, "bad")) !== null, "woice-replace: エラーを返す");
+    checkEq(woices.value.map((w) => w.name).join(), "A,B", "woice-replace: 元の音色が残る");
+    checkEq(undoStack.length, undoLen, "woice-replace: 失敗では undo を積まない");
+    check((await addWoice(broken, WoiceType.PCM, "bad")) !== null, "woice-add: 追加でもエラーを返す");
+    checkEq(serviceMod.service.woiceNum, 2, "woice-add: 失敗では音色が増えない");
+    checkEq(await replaceWoiceFile(0, ptv, WoiceType.PTV, "C"), null, "woice-replace: 正しいファイルは置き換えられる");
+    checkEq(woices.value[0]!.name, "C", "woice-replace: 名前も変わる");
   }
 
   // ---- clamp ----

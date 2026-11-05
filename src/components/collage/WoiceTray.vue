@@ -27,6 +27,7 @@ import { useRowReorder } from "../../composables/useRowReorder";
 import { capturePointer, releasePointerCapture } from "../../lib/field";
 import { namedFiles, openFileDialog, openFilesDialog, exportWoiceFile, readBlobAndApply } from "../../engine/io";
 import { addWoiceFiles } from "../../state/open-files";
+import { appAlert } from "../../state/dialog";
 import { t } from "../../i18n";
 import WoicePropertyDialog from "./WoicePropertyDialog.vue";
 import CtxMenuItem from "../shell/CtxMenuItem.vue";
@@ -104,7 +105,7 @@ async function saveWoiceFile(idx: number): Promise<void> {
   const w = getService()?.woiceGet(idx);
   if (!w) return;
   const err = await exportWoiceFile(w, woiceNameRaw(w) || "woice");
-  if (err) console.error(err);
+  if (err) void appAlert(err);
 }
 
 // 音色を ptvoice/ptnoise エディタで開き、そちらのモードタブへ移動する。
@@ -137,7 +138,7 @@ async function replaceByDialog(idx: number): Promise<void> {
   const err = await readBlobAndApply(t("progress.woiceTitle"), opened.file, (bytes) =>
     replaceWoiceFile(idx, bytes, detectWoiceType(bytes), opened.name),
   );
-  if (err) console.error(err);
+  if (err) void appAlert(err);
 }
 
 // 音色ファイルのドラッグ&ドロップ追加 (複数可)。拡張子は除いて音色名にする
