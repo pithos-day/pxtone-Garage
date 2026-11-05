@@ -52,12 +52,25 @@ const EMBEDDED_SOFTWARE: EmbeddedSoftware[] = [
   },
 ];
 
-interface EmbeddedSoftware {
+// 本アプリが互換対象として参考にしたソフトウェア。モジュールグラフによらず常に載せる
+const REFERENCED_SOFTWARE: ReferencedSoftware[] = [
+  {
+    name: "pxtone Collage",
+    license: "Zlib",
+    url: "https://github.com/uxtone/ptCollage",
+    textFile: "ptcollage-LICENSE.txt",
+  },
+];
+
+interface ReferencedSoftware {
   name: string;
   license: string;
   url: string;
-  embeddedIn: string;
   textFile: string;
+}
+
+interface EmbeddedSoftware extends ReferencedSoftware {
+  embeddedIn: string;
 }
 
 export interface NoticeEntry {
@@ -139,6 +152,15 @@ export function renderNotices(entries: NoticeEntry[]): string {
   return `\uFEFF${[header, ...sections].join("\n\n\n")}\n`;
 }
 
+function supplementEntry(software: ReferencedSoftware, supplementDir: string): NoticeEntry {
+  return {
+    title: software.name,
+    license: software.license,
+    url: software.url,
+    texts: [readFileSync(join(supplementDir, software.textFile), "utf8")],
+  };
+}
+
 /** 通知対象のパッケージと、それらに組み込まれたソフトウェアのエントリを集める */
 export function collectEntries(moduleIds: Iterable<string>, root: string): NoticeEntry[] {
   const supplementDir = resolve(root, SUPPLEMENT_DIR);
@@ -149,13 +171,14 @@ export function collectEntries(moduleIds: Iterable<string>, root: string): Notic
   }
   const packages = [...dirs].map((dir) => readPackageEntry(dir, supplementDir));
   const names = new Set(packages.map((p) => p.name));
-  const embedded = EMBEDDED_SOFTWARE.filter((s) => names.has(s.embeddedIn)).map((s) => ({
-    title: s.name,
-    license: s.license,
-    url: s.url,
-    texts: [readFileSync(join(supplementDir, s.textFile), "utf8")],
-  }));
+  const embedded = EMBEDDED_SOFTWARE.filter((s) => names.has(s.embeddedIn)).map((s) => supplementEntry(s, supplementDir));
   return [...packages, ...embedded];
+}
+
+/** 互換対象として参考にしたソフトウェアのエントリを集める */
+export function referencedEntries(root: string): NoticeEntry[] {
+  const supplementDir = resolve(root, SUPPLEMENT_DIR);
+  return REFERENCED_SOFTWARE.map((s) => supplementEntry(s, supplementDir));
 }
 
 function workletModuleIds(root: string): string[] {
@@ -178,7 +201,7 @@ export function thirdPartyNotices(): Plugin {
       this.emitFile({
         type: "asset",
         fileName: NOTICES_FILE_NAME,
-        source: renderNotices(collectEntries(moduleIds, root)),
+        source: renderNotices([...collectEntries(moduleIds, root), ...referencedEntries(root)]),
       });
     },
   };

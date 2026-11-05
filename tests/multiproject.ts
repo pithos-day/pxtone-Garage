@@ -102,7 +102,7 @@ import {
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join as joinPath } from "node:path";
-import { collectEntries, packageDirOfModule, renderNotices } from "../scripts/third-party-notices";
+import { collectEntries, packageDirOfModule, referencedEntries, renderNotices } from "../scripts/third-party-notices";
 import * as serviceMod from "../src/state/service";
 import { SAMPLE_SONGS } from "../src/state/samples";
 import { undo, redo, canUndo, canRedo, undoStack } from "../src/state/undo";
@@ -4056,6 +4056,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     };
     check(throwsFor("no-text"), "notices: ライセンス本文が無ければ失敗する");
     check(throwsFor("no-license"), "notices: license 宣言が無ければ失敗する");
+    check(renderNotices(referencedEntries(process.cwd())).includes("Studio Pixel"), "notices: 参考にしたソフトウェアのライセンス本文を載せる");
     rmSync(root, { recursive: true, force: true });
   }
 
