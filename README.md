@@ -4,6 +4,8 @@
 
 アプリ内のタブで ptCollage / ptVoice / ptNoise を切り替えて制作できます。
 
+[サンプル曲を再生](https://pxtone.pithos.day/?sample=moldau)
+
 再生エンジン: [pxtone-ts](https://github.com/pithos-day/pxtone-ts)
 
 ## 機能
