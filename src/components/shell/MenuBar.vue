@@ -411,6 +411,15 @@ const fileMenu = computed<MenuItem[]>(() => {
   return buildFileMenu(ops, extra, saveItem, recentMenu());
 });
 
+// 「編集」メニューのイベント一括変更 (表示順)
+const EVENT_VOLUME_ITEMS: readonly { kind: EventVolumeMode; icon: MenuItem["icon"] }[] = [
+  { kind: "velocity", icon: CircleGauge },
+  { kind: "pantime", icon: CircleGauge },
+  { kind: "panvolume", icon: CircleGauge },
+  { kind: "volume", icon: CircleGauge },
+  { kind: "transpose", icon: ArrowUpDown },
+];
+
 const editMenu = computed<MenuItem[]>(() => {
   const ops = modeOps[mode.value];
   const extra: MenuItem[] =
@@ -436,11 +445,12 @@ const editMenu = computed<MenuItem[]>(() => {
             { label: t("menu.edit.copyMeas"), icon: SquareStack, action: () => emit("copyMeas"), disabled: tuneReadOnly.value },
             { label: t("menu.edit.quantize"), icon: AlignHorizontalJustifyStart, action: () => emit("quantize"), disabled: tuneReadOnly.value },
             { sep: true},
-            { label: t("menu.edit.velocity"), icon: CircleGauge, action: () => emit("eventVolume", "velocity"), disabled: tuneReadOnly.value },
-            { label: t("menu.edit.pantime"), icon: CircleGauge, action: () => emit("eventVolume", "pantime"), disabled: tuneReadOnly.value },
-            { label: t("menu.edit.panvolume"), icon: CircleGauge, action: () => emit("eventVolume", "panvolume"), disabled: tuneReadOnly.value },
-            { label: t("menu.edit.volume"), icon: CircleGauge, action: () => emit("eventVolume", "volume"), disabled: tuneReadOnly.value },
-            { label: t("menu.edit.transpose"), icon: ArrowUpDown, action: () => emit("eventVolume", "transpose"), disabled: tuneReadOnly.value },
+            ...EVENT_VOLUME_ITEMS.map(({ kind, icon }) => ({
+              label: t(`menu.edit.${kind}`),
+              icon,
+              action: () => emit("eventVolume", kind),
+              disabled: tuneReadOnly.value,
+            })),
           ]
         : [];
   return buildEditMenu(ops, extra);
