@@ -1602,6 +1602,23 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       );
     }
 
+    // lib/records: 頭が表示範囲の左端を越えたノートも、自分の KEY の行に描く
+    // (手前の KEY を読み飛ばすと既定キーの行に描かれ、スクロール中に消えて見える)
+    {
+      const s = new Service();
+      checkEq(s.initCollage(PXTN_MAX_EVENT_NUM), PxtnErr.OK, "records: Service init");
+      s.evels.clear();
+      s.evels.recordAddI(0, 0, EventKind.KEY, 0x5000);
+      s.evels.recordAddI(0, 0, EventKind.ON, 960);
+      s.evels.recordAddI(960, 0, EventKind.KEY, 0x5200);
+      s.evels.recordAddI(960, 0, EventKind.ON, 960);
+      const ons = [...iterNoteDraws(s.evels.records, 0, { startClock: 480, endClock: 1920 }, 0x6000)]
+        .filter((d) => d.kind === "on")
+        .map((d) => `${d.clock}=${d.key}`)
+        .join(",");
+      checkEq(ons, `0=${0x5000},960=${0x5200}`, "lib: iterNoteDraws は左端をまたぐノートを手前の KEY の行に描く");
+    }
+
     // lib/smart-note: スマートツール (掴み移動 / 端の調整) の配置と確定。
     // プレビューと確定が同じ配置計算 (smartPlacement) を共有する
     {

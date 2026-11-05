@@ -45,7 +45,9 @@ export type NoteDraw =
 
 // ON/KEY イベント列を時系列順にノート描画レコードへ変換するジェネレータ。
 // 進行中の KEY (curKey) と直近の発音終端 (prevClock) を管理し、
-// ON が無い区間は直前 KEY の音が続く (off) として出力する
+// ON が無い区間は直前 KEY の音が続く (off) として出力する。
+// 表示範囲より手前の KEY も curKey には反映する (読み飛ばすと、頭が左端を越えたノートが
+// 既定キーの行に描かれ、スクロール中に元の行から消えて見える)
 export function* iterNoteDraws(
   records: EveRecord[],
   unitNo: number,
@@ -54,7 +56,13 @@ export function* iterNoteDraws(
 ): Generator<NoteDraw> {
   let curKey = defaultKey;
   let prevClock = range.startClock;
-  for (const e of iterVisibleRecords(records, range, (e) => e.unitNo === unitNo)) {
+  for (const e of records) {
+    if (e.kind === EventKind.NULL || e.unitNo !== unitNo) continue;
+    if (e.clock > range.endClock) break;
+    if (e.clock + (e.kind === EventKind.ON ? e.value : 0) < range.startClock) {
+      if (e.kind === EventKind.KEY) curKey = e.value;
+      continue;
+    }
     // ON/KEY 共通: 直近の発音終端からイベント位置までの空白区間は余韻 (off)。
     // curKey はどちらの分岐でもイベント処理前に使うため先に出力してよい
     if (e.clock > prevClock) yield { kind: "off", clock: prevClock, key: curKey, len: e.clock - prevClock };

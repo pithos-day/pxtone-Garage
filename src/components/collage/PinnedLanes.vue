@@ -106,15 +106,22 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   }
   const notes: RowNote[] = [];
   const marks: { unit: number; clock: number }[] = [];
-  let currentVel = EVENTDEFAULT_VELOCITY;
+  // 直前の VELOCITY はユニットごとに持つ。表示範囲より手前の VELOCITY も引き継ぐ
+  // (読み飛ばすと、頭が左端を越えたノートが既定のベロシティで描かれる)
+  const velOf = new Map<number, number>();
+  const isPinned = (e: { unitNo: number }) => e.unitNo >= 0 && !!doc.unitPinned[e.unitNo];
+  for (const e of records) {
+    if (e.clock >= startClock) break;
+    if (e.kind === EventKind.VELOCITY && isPinned(e)) velOf.set(e.unitNo, e.value);
+  }
 
-  for (const e of iterVisibleRecords(records, { startClock, endClock }, (e) => e.unitNo >= 0 && doc.unitPinned[e.unitNo])) {
+  for (const e of iterVisibleRecords(records, { startClock, endClock }, isPinned)) {
     switch (e.kind) {
       case EventKind.ON:
-        notes.push({ unit: e.unitNo, clock: e.clock, length: e.value, vel: currentVel, vol: EVENTDEFAULT_VOLUME });
+        notes.push({ unit: e.unitNo, clock: e.clock, length: e.value, vel: velOf.get(e.unitNo) ?? EVENTDEFAULT_VELOCITY, vol: EVENTDEFAULT_VOLUME });
         break;
       case EventKind.VELOCITY:
-        currentVel = e.value;
+        velOf.set(e.unitNo, e.value);
         break;
       case EventKind.KEY:
       case EventKind.PAN_VOLUME:
