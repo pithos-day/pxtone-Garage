@@ -89,6 +89,10 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   // ルーラー帯 + グリッド + イベント (ユニット名領域の右側)
   ctx.save();
   ctx.translate(nameW.value, 0);
+  // 描画をフィールド内に限る (頭が左端より前にある長いノートが、ユニット名の領域へはみ出さないように)
+  ctx.beginPath();
+  ctx.rect(0, 0, fieldW, h);
+  ctx.clip();
 
   drawGrid(ctx, { w: fieldW, h, scrollX, view, top: 0, bottom: RULER_H, showNumber: true, numberTop: 0 });
   drawGrid(ctx, { w: fieldW, h, scrollX, view, top: fieldTop, bottom: h });
