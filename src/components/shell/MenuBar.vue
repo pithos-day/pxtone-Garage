@@ -488,7 +488,7 @@ const featureEntries = computed<FeatureEntry[]>(() => {
   const inMenu = new Set(entries.map((entry) => entry.command));
   const shortcutsOnly = SHORTCUTS.filter(
     (s) => !inMenu.has(s.command) && (s.area === "app" || mode.value === "collage"),
-  ).map((s): FeatureEntry => ({ path: `${t("search.shortcut")} > ${s.action}`, command: s.command }));
+  ).map((s): FeatureEntry => ({ path: `${t("search.shortcut")} > ${t(`shortcut.${s.command}`)}`, command: s.command }));
   return [...entries, ...shortcutsOnly];
 });
 

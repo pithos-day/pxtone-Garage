@@ -313,7 +313,14 @@ export function markVoiceClean(): void {
 // ---- 波形プリセット (本家 ptuiWavePreset.cpp 準拠) ----
 export type WavePreset = 0 | 1 | 2 | 3 | 4 | 5;
 export const WAVE_PRESET_LABELS = ["Sine", "Tri", "Saw", "Rect", "Rnd", "Rev"] as const;
-export const WAVE_PRESET_TITLES = ["正弦波", "三角波", "鋸波", "矩形波", "ランダム", "左右逆転"] as const;
+export const WAVE_PRESET_TITLE_KEYS = [
+  "voice.presetSine",
+  "voice.presetTriangle",
+  "voice.presetSaw",
+  "voice.presetRectangle",
+  "voice.presetRandom",
+  "voice.presetReverse",
+] as const;
 
 const WAVE_POINT_MAX = 31; // 本家 ptvFIXNUM_WAVE_POINT
 

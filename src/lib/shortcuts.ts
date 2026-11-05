@@ -1,5 +1,5 @@
 // キーボードショートカットの一元管理。
-// コマンド ID・キー割り当て・動作の説明・実行場所を DEFINITIONS に集約し、
+// コマンド ID・キー割り当て・実行場所を DEFINITIONS に集約し (動作の説明は i18n の shortcut.<コマンド>)、
 // 判定 (shortcutCommand) と表示 (formatShortcut) はこの表から導出する。
 // キーの追加・変更や将来のカスタム割り当ては DEFINITIONS を書き換えるだけでよい。
 // state 層に依存しない純関数のみ (node テストから直接呼べる)
@@ -27,7 +27,6 @@ export interface ShortcutContext {
 
 export interface ShortcutDef {
   area: ShortcutArea;
-  action: string; // 動作の説明 (ヘルプ・将来のカスタム UI 用)
   keys: readonly KeyBinding[]; // 先頭が主割り当て (表示に使う)。2 つ目以降は別名
   edit?: boolean; // 編集系 (readOnly では実行しない)
   clip?: boolean; // クリップボード必須
@@ -36,34 +35,34 @@ export interface ShortcutDef {
 
 // コマンド定義 (ここが唯一の定義。並び順が一覧と判定の順になる)
 const DEFINITIONS = {
-  undo: { area: "app", action: "元に戻す", keys: [{ key: "z", ctrl: true }] },
-  redo: { area: "app", action: "やり直す", keys: [{ key: "y", ctrl: true }, { key: "z", ctrl: true, shift: true }] },
-  save: { area: "app", action: "保存", keys: [{ key: "s", ctrl: true }] },
-  saveAs: { area: "app", action: "名前を付けて保存", keys: [{ key: "s", ctrl: true, shift: true }] },
+  undo: { area: "app", keys: [{ key: "z", ctrl: true }] },
+  redo: { area: "app", keys: [{ key: "y", ctrl: true }, { key: "z", ctrl: true, shift: true }] },
+  save: { area: "app", keys: [{ key: "s", ctrl: true }] },
+  saveAs: { area: "app", keys: [{ key: "s", ctrl: true, shift: true }] },
 
-  scopeAll: { area: "collage", action: "選択範囲を全選択", keys: [{ key: "a", ctrl: true }] },
-  selectAllUnits: { area: "collage", action: "ユニットを全選択", keys: [{ key: "a", ctrl: true, shift: true }] },
-  scopeCopy: { area: "collage", action: "範囲をコピー", keys: [{ key: "c", ctrl: true }] },
-  scopeCut: { area: "collage", action: "範囲を切り取り", keys: [{ key: "x", ctrl: true }], edit: true },
-  scopePaste: { area: "collage", action: "範囲を貼り付け", keys: [{ key: "v", ctrl: true }], edit: true, clip: true },
-  scopeDelete: { area: "collage", action: "範囲を消去 (前詰め)", keys: [{ key: "delete" }, { key: "backspace" }], edit: true },
-  scopeClear: { area: "collage", action: "範囲をクリア", keys: [{ key: "delete", shift: true }, { key: "backspace", shift: true }], edit: true },
+  scopeAll: { area: "collage", keys: [{ key: "a", ctrl: true }] },
+  selectAllUnits: { area: "collage", keys: [{ key: "a", ctrl: true, shift: true }] },
+  scopeCopy: { area: "collage", keys: [{ key: "c", ctrl: true }] },
+  scopeCut: { area: "collage", keys: [{ key: "x", ctrl: true }], edit: true },
+  scopePaste: { area: "collage", keys: [{ key: "v", ctrl: true }], edit: true, clip: true },
+  scopeDelete: { area: "collage", keys: [{ key: "delete" }, { key: "backspace" }], edit: true },
+  scopeClear: { area: "collage", keys: [{ key: "delete", shift: true }, { key: "backspace", shift: true }], edit: true },
 
-  clearNoteSelection: { area: "collage", action: "ノートの選択を解除", keys: [{ key: "escape" }] },
+  clearNoteSelection: { area: "collage", keys: [{ key: "escape" }] },
 
-  scrollLeft: { area: "collage", action: "左へスクロール (1 拍)", keys: [{ key: "arrowleft", label: "←" }], repeat: true },
-  scrollRight: { area: "collage", action: "右へスクロール (1 拍)", keys: [{ key: "arrowright", label: "→" }], repeat: true },
-  rowUp: { area: "collage", action: "上へスクロール (1 行)", keys: [{ key: "arrowup", label: "↑" }], repeat: true },
-  rowDown: { area: "collage", action: "下へスクロール (1 行)", keys: [{ key: "arrowdown", label: "↓" }], repeat: true },
+  scrollLeft: { area: "collage", keys: [{ key: "arrowleft", label: "←" }], repeat: true },
+  scrollRight: { area: "collage", keys: [{ key: "arrowright", label: "→" }], repeat: true },
+  rowUp: { area: "collage", keys: [{ key: "arrowup", label: "↑" }], repeat: true },
+  rowDown: { area: "collage", keys: [{ key: "arrowdown", label: "↓" }], repeat: true },
 
-  playToggle: { area: "collage", action: "再生 / 停止", keys: [{ key: " ", label: "Space" }] },
-  seekStart: { area: "collage", action: "先頭へシーク", keys: [{ key: "home" }] },
-  seekEnd: { area: "collage", action: "末尾へシーク", keys: [{ key: "end" }] },
-  modeW: { area: "collage", action: "音色管理 (W)", keys: [{ key: "f1" }] },
-  modeU: { area: "collage", action: "ユニット (U)", keys: [{ key: "f2" }] },
-  toolSmart: { area: "collage", action: "スマートツール", keys: [{ key: "1" }] },
-  toolPen: { area: "collage", action: "ペンツール", keys: [{ key: "2" }] },
-  toolHand: { area: "collage", action: "ハンドツール", keys: [{ key: "3" }] },
+  playToggle: { area: "collage", keys: [{ key: " ", label: "Space" }] },
+  seekStart: { area: "collage", keys: [{ key: "home" }] },
+  seekEnd: { area: "collage", keys: [{ key: "end" }] },
+  modeW: { area: "collage", keys: [{ key: "f1" }] },
+  modeU: { area: "collage", keys: [{ key: "f2" }] },
+  toolSmart: { area: "collage", keys: [{ key: "1" }] },
+  toolPen: { area: "collage", keys: [{ key: "2" }] },
+  toolHand: { area: "collage", keys: [{ key: "3" }] },
 } as const satisfies Record<string, ShortcutDef>;
 
 export type ShortcutCommand = keyof typeof DEFINITIONS;

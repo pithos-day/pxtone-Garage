@@ -40,7 +40,7 @@ import {
   applyWavePreset,
   applyWaveTypeData,
   WAVE_PRESET_LABELS,
-  WAVE_PRESET_TITLES,
+  WAVE_PRESET_TITLE_KEYS,
 } from "../../state/voice";
 import type { WavePreset } from "../../state/voice";
 import { appConfirm } from "../../state/dialog";
@@ -454,7 +454,7 @@ function canvasRect(ref: { value: HTMLCanvasElement | null }): { el: HTMLCanvasE
           :key="i"
           type="button"
           class="chip"
-          :title="WAVE_PRESET_TITLES[i]"
+          :title="t(WAVE_PRESET_TITLE_KEYS[i])"
           @click="applyPreset(i as WavePreset)"
         >
           {{ label }}

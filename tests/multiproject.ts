@@ -2919,7 +2919,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     const combos = new Set<string>();
     let duplicate = "";
     for (const def of SHORTCUTS) {
-      checkEq(def.action.length > 0, true, `shortcut: ${def.command} に動作説明がある`);
+      check(t(`shortcut.${def.command}`) !== `shortcut.${def.command}`, `shortcut: ${def.command} に動作説明がある`);
       checkEq(def.keys.length > 0, true, `shortcut: ${def.command} にキー割り当てがある`);
       for (const b of def.keys) {
         const combo = `${b.key}|${!!b.ctrl}|${!!b.shift}`;

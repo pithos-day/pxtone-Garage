@@ -475,7 +475,7 @@ useCanvas(waveRef, drawPcm, [() => rev.value, () => noise.value, () => waveScrol
                   min="0"
                   max="10"
                   step="0.001"
-                  title="秒"
+                  :title="t('wav.sec')"
                   @change="setEnveSec(row.index, i, ($event.target as HTMLInputElement).value)"
                 />
               </div>

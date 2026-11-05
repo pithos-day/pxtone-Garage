@@ -13,7 +13,6 @@ import {
   bindingLabel,
   bindingParts,
   modifierParts,
-  shortcutEntry,
   type KeyBinding,
   type ShortcutArea,
   type ShortcutCommand,
@@ -57,7 +56,7 @@ const entries = computed<readonly ShortcutEntry[]>(() => {
   const words = query.value.trim().toLowerCase().split(/\s+/);
   return SHORTCUTS.filter((s) => {
     const keys = (bindings[s.command] ?? []).map((b) => bindingLabel(b)).join(" ");
-    const text = `${s.action} ${s.command} ${AREA_LABELS[s.area]} ${keys}`.toLowerCase();
+    const text = `${t(`shortcut.${s.command}`)} ${s.command} ${AREA_LABELS[s.area]} ${keys}`.toLowerCase();
     return words.every((w) => text.includes(w));
   });
 });
@@ -116,7 +115,7 @@ function onRecordKeyDown(e: KeyboardEvent): void {
   }
   const conflict = conflictFor(rec.command, binding);
   if (conflict) {
-    recordError.value = `${t("keys.conflict")}: ${shortcutEntry(conflict).action}`;
+    recordError.value = `${t("keys.conflict")}: ${t(`shortcut.${conflict}`)}`;
     return;
   }
   if (rec.index === "new") addBinding(rec.command, binding);
@@ -178,7 +177,7 @@ onBeforeUnmount(() => {
         <ul :key="isSearching ? 'search' : page" class="keys-list">
           <li v-for="entry in entries" :key="entry.command" class="keys-row">
             <div class="keys-name">
-              <span class="keys-action">{{ entry.action }}</span>
+              <span class="keys-action">{{ t(`shortcut.${entry.command}`) }}</span>
               <span v-if="isSearching" class="keys-area">{{ AREA_LABELS[entry.area] }}</span>
               <span class="keys-guide" aria-hidden="true" />
             </div>
@@ -195,7 +194,7 @@ onBeforeUnmount(() => {
                 <button
                   type="button"
                   class="keys-chip-keys"
-                  :aria-label="`${entry.action}: ${bindingLabel(b)}`"
+                  :aria-label="`${t(`shortcut.${entry.command}`)}: ${bindingLabel(b)}`"
                   @click="startRecording(entry.command, i)"
                 >
                   <kbd v-for="part in bindingParts(b)" :key="part">{{ part }}</kbd>
@@ -242,7 +241,7 @@ onBeforeUnmount(() => {
           <Keyboard :size="18" aria-hidden="true" />
           {{ t("keys.recordTitle") }}
         </h3>
-        <p class="keys-record-action">{{ shortcutEntry(recording.command).action }}</p>
+        <p class="keys-record-action">{{ t(`shortcut.${recording.command}`) }}</p>
         <div class="keys-record-input" :class="{ error: recordError }" aria-live="polite">
           <template v-if="recordKeys.length > 0">
             <kbd v-for="part in recordKeys" :key="part">{{ part }}</kbd>
