@@ -110,9 +110,11 @@ export function addWoices(items: readonly PreparedWoice[]): { name: string; erro
   );
 }
 
+// woiceRemove は音色の配列を詰めるだけなので、VOICENO イベントの値も追従させる。
+// 削除した音色を指すイベントは消え、後ろの音色を指すイベントは 1 つ前へずれる
 export function removeWoice(idx: number): void {
   mutate(() => {
-    service.woiceRemove(idx);
+    if (service.woiceRemove(idx)) service.evels.recordValueOmit(EventKind.VOICENO, idx);
   });
 }
 

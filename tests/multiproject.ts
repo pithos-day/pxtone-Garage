@@ -23,7 +23,7 @@
 //   54. 未保存ドラフトの退避 (IndexedDB / 旧形式からの移行 / 失敗の通知) / 55. ユーザーテーマの保存失敗を通知する
 //   56. 予期しないエラーの通知 / 57. 機能を検索 / 58. モバイルの表示幅
 //   59. 出力レベルメーター / 60. ユニット別 WAV 書き出し / 61. 初期化
-//   62. 翻訳辞書と言語の決定
+//   62. 翻訳辞書と言語の決定 / 63. 音色削除で VOICENO が追従する
 import { shouldRegisterServiceWorker } from "../src/lib/pwa";
 import {
   projects,
@@ -56,6 +56,7 @@ import {
   copyMeas,
   changeEventValue,
   addUnitWithWoice,
+  woices,
   stemUnits,
   sync,
   setUnitNameAndWoice,
@@ -4513,6 +4514,24 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(t("common.close"), "Close", "i18n: 英語に切り替わる");
     setLanguage("ja");
     checkEq(lang.value, "ja", "i18n: 日本語へ戻せる");
+  }
+
+  // ---- 63. 音色削除で VOICENO が追従する ----
+  {
+    newProjectInTab();
+    const ptv = snapshotVoice(newVoice())!;
+    for (const name of ["A", "B", "C", "D"]) await addWoice(ptv, WoiceType.PTV, name);
+    addUnitWithWoice("usesA", 0);
+    addUnitWithWoice("usesC", 2);
+    const voiceNos = (u: number): number[] =>
+      serviceMod.service.evels.records.filter((e) => e.unitNo === u && e.kind === EventKind.VOICENO).map((e) => e.value);
+    removeWoice(0);
+    checkEq(voiceNos(0).length, 0, "woice-remove: 削除した音色を指す VOICENO は消える");
+    checkEq(voiceNos(1).join(), "1", "woice-remove: 後ろの音色を指す VOICENO は 1 つ前へずれる");
+    checkEq(woices.value[voiceNos(1)[0]!]!.name, "C", "woice-remove: 同じ音色 (C) を指し続ける");
+    check(undo(), "woice-remove: undo できる");
+    checkEq(voiceNos(1).join(), "2", "woice-remove: undo で VOICENO が戻る");
+    checkEq(serviceMod.service.woiceNum, 4, "woice-remove: undo で音色数が戻る");
   }
 
   // ---- clamp ----
