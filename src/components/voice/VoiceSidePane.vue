@@ -171,6 +171,7 @@ function setSine(i: number, v: number): void {
   if (waveType.value === "coord" && i === 0) return; // 座標モードの点0 は固定
   const c = currentVoiceUnit();
   if (!c || !c.wave.points[i]) return;
+  sineUndo.onBegin();
   c.wave.points[i]!.y = clamp(Math.round(v), -sineLimit.value, sineLimit.value);
   touch();
 }
@@ -224,7 +225,7 @@ function setSine(i: number, v: number): void {
     </div>
     <div class="vsp-sines-wrap">
       <div class="vsp-sines-title">{{ waveType === "coord" ? t("voice.pointY") : t("voice.overtone") }}</div>
-      <div class="vsp-sines" @focusin="sineUndo.onBegin" @focusout="sineUndo.reset">
+      <div class="vsp-sines" @change="sineUndo.reset" @focusout="sineUndo.reset">
         <label v-for="(p, i) in sinePoints" :key="i" class="vsp-sine-row">
           <span class="vsp-sine-no">{{ i + 1 }}</span>
           <FillSlider

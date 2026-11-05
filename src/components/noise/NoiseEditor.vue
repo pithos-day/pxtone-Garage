@@ -54,9 +54,15 @@ const unitRows = computed(() => {
   return unitList.value.map((u) => ({ index: u, unit: noise.value!.noise.getUnit(u)! }));
 });
 
-// テーブル編集は直接 Noise を書き、undo はフォーカス時に1エントリ積む。
+// テーブル編集は直接 Noise を書き、undo はフォーカスの間の最初の変更で1エントリ積む。
+// (フォーカスしただけでは積まない。未編集のタブが未保存扱いになるため)
 // (markRaw なので reactive にならない。rev はテンプレートの :data-rev で再描画を駆動)
 const fieldUndo = useUndoOnce(() => editNoise(() => {}));
+// 入力欄とチェックボックスは v-model / @change が実体を書き換える前に積む (input の捕捉は
+// それより先に届く)。SELECT は onEnveNumChange が自分で undo を積む
+function onFieldInputCapture(e: Event): void {
+  if ((e.target as HTMLElement).tagName !== "SELECT") fieldUndo.onBegin();
+}
 function onFieldChange(): void {
   const d = noise.value;
   if (d) {
@@ -67,11 +73,12 @@ function onFieldChange(): void {
   scheduleEditBuild();
 }
 
-// オシレータの値を直接書き換え (undo はフォーカス時に1エントリ)。
+// オシレータの値を直接書き換え (undo はフォーカスの間に1エントリ)。
 // field は "type" | "bRev" が非数値、それ以外 (freq/volume/offset) は数値
 function setOsc(u: number, osc: (typeof OSC_IDS)[number], field: "type" | "bRev" | "freq" | "volume" | "offset", v: number | boolean): void {
   const o = unitAt(u)?.[osc];
   if (!o) return;
+  fieldUndo.onBegin();
   if (field === "type") o.type = v as WaveType;
   else if (field === "bRev") o.bRev = v as boolean;
   else o[field] = v as number;
@@ -87,6 +94,7 @@ function onKnobBegin(): void {
 function setPan(u: number, v: number): void {
   const unit = unitAt(u);
   if (!unit) return;
+  fieldUndo.onBegin();
   unit.pan = v;
   onFieldChange();
 }
@@ -218,7 +226,7 @@ onMounted(() => {
       <button class="btn btn-accent" @click="newNoise()">{{ t("menu.file.new") }}</button>
     </div>
     <div v-else class="ne-main" :data-rev="rev">
-      <div class="ne-layers" @focusin="fieldUndo.onBegin" @focusout="fieldUndo.reset">
+      <div class="ne-layers" @input.capture="onFieldInputCapture" @focusout="fieldUndo.reset">
         <div v-for="row in unitRows" :key="row.index" class="ne-layer" :class="{ 'is-off': !row.unit.bEnable }">
           <div class="ne-module ne-layer-head">
             <label class="ne-layer-title">

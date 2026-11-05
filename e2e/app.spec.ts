@@ -175,6 +175,33 @@ test('音色のスライダーを 1 回ドラッグすると undo 1 回で戻せ
   await expect(param.locator('.vsp-pval')).toHaveText('64')
 })
 
+test('音色やノイズの入力欄はフォーカスしただけでは未保存にならない', async ({ page }) => {
+  const dirtyDot = page.locator('.file-tab.active .dirty-dot')
+
+  await page.locator('.mode-tab').nth(1).click()
+  const row = page.locator('.vsp').first().locator('.vsp-sine-row').nth(1)
+  await row.locator('input').focus()
+  await expect(dirtyDot).toHaveCount(0)
+  const before = await row.locator('.vsp-sine-val').innerText()
+  await page.keyboard.press('ArrowRight')
+  await expect(dirtyDot).toHaveCount(1)
+  await page.keyboard.press('Control+z')
+  await expect(row.locator('.vsp-sine-val')).toHaveText(before)
+  await expect(dirtyDot).toHaveCount(0)
+
+  await page.locator('.mode-tab').nth(2).click()
+  const enable = page.locator('.ne-layers .switch').first()
+  await enable.focus()
+  await expect(dirtyDot).toHaveCount(0)
+  await expect(enable).toBeChecked()
+  await enable.press('Space')
+  await expect(enable).not.toBeChecked()
+  await expect(dirtyDot).toHaveCount(1)
+  await page.keyboard.press('Control+z')
+  await expect(page.locator('.ne-layers .switch').first()).toBeChecked()
+  await expect(dirtyDot).toHaveCount(0)
+})
+
 test('音色タブをメニューから閉じるときも未保存の 3 択を出す', async ({ page }) => {
   await page.locator('.mode-tab').nth(1).click()
   await clickMenu(page, 'File', 'New')
