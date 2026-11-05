@@ -59,3 +59,32 @@ export async function clickMenu(page: Page, menu: string, ...items: string[]): P
 export async function waitForApp(page: Page): Promise<void> {
   await expect(page.locator('.menu-bar')).toBeVisible()
 }
+
+// 未保存ドラフトが IndexedDB へ退避されるのを待つ (src/lib/draft-store.ts のストア)
+export async function expectDraftSaved(page: Page): Promise<void> {
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          new Promise<number>((resolve) => {
+            const req = indexedDB.open('pxtone-garage-drafts', 1)
+            // まだ DB が無いときに空の DB を作るとアプリ側の作成処理が走らなくなるので、作らずに中止する
+            req.onupgradeneeded = () => req.transaction?.abort()
+            req.onerror = () => resolve(0)
+            req.onsuccess = () => {
+              const conn = req.result
+              const get = conn.transaction('drafts', 'readonly').objectStore('drafts').get('current')
+              get.onsuccess = () => {
+                conn.close()
+                resolve((get.result as { projects?: unknown[] } | undefined)?.projects?.length ?? 0)
+              }
+              get.onerror = () => {
+                conn.close()
+                resolve(0)
+              }
+            }
+          }),
+      ),
+    )
+    .toBeGreaterThan(0)
+}

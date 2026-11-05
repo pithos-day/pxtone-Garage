@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { clickMenu, expectSavedFile, putSampleFile, setFileToOpen, stubFilePickers, waitForApp } from './helpers'
+import { clickMenu, expectDraftSaved, expectSavedFile, putSampleFile, setFileToOpen, stubFilePickers, waitForApp } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   // 未保存の確認ダイアログには常に「離れる」で応答する
@@ -32,12 +32,15 @@ test('プロジェクトを編集して保存し、再読み込み後に開き�
   await expect(page.locator('.dlg input[type=text]').first()).toHaveValue('E2E Song')
 })
 
-// 編集の直後でも退避が間に合うことも確かめるため、待たずに再読み込みする
+// beforeunload 内で始めた IndexedDB への書き込みは、離脱の確認がすぐ承認されると
+// 完了前にページが破棄されることがある (ブラウザは完了を保証しない)。
+// 退避が書き込まれたのを確かめてから再読み込みする
 test('未保存の編集は再読み込みしても復元される', async ({ page }) => {
   await clickMenu(page, 'File', 'Project settings')
   await page.locator('.dlg input[type=text]').first().fill('Draft Song')
   await page.locator('.dlg .btn-accent').click()
 
+  await expectDraftSaved(page)
   await page.reload()
   await waitForApp(page)
   await clickMenu(page, 'File', 'Project settings')
