@@ -4,11 +4,11 @@
 import { ref } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { dragClockRange, useCanvasDrag, type CanvasDragState } from "../../composables/useCanvasDrag";
-import { useDragUndo } from "../../composables/useUndo";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText, drawPlayhead, fillPlayIcon, drawDragRange } from "../../lib/draw";
 import { clockAtX, zoomAnchorScrollX, zoomOrPan } from "../../lib/field";
-import { clockToX, xToClock } from "../../lib/clock";
+import { clockToX } from "../../lib/clock";
+import { visibleClockWindow } from "../../lib/records";
 import { RULER_H } from "../../lib/layout";
 import { VOLUME_EDIT_KIND, VolumeMode } from "../../lib/volume";
 import { writeVolumeEvent } from "../../lib/editing";
@@ -18,13 +18,15 @@ import {
   getService,
   clockContext,
   projectWriteOps,
+  mutate,
   VOLUME_MODES,
   woices,
 } from "../../state/project";
 import { currentClock, isPlaying as isPlayingNow } from "../../state/player";
 import { clamp } from "../../lib/clamp";
 
-const H = 128; // 値の最大 (0..128)。canvas の高さは親 (collage-vol) に stretch される
+// canvas の高さは親 (collage-vol) に stretch される。これは計測できないときの仮の高さ
+const FALLBACK_CANVAS_H = 128;
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const tuningInput = ref<{ x: number; y: number; clock: number; value: string } | null>(null);
 
@@ -50,9 +52,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 
   if (focus < 0 || !s.unitGet(focus)) return;
   const records = s.evels.records;
-  // 表示範囲 (clock)。scrollX は px なので xToClock で変換する
-  const endClock = xToClock(view, doc.scrollX + w);
-  const startClock = Math.max(0, xToClock(view, doc.scrollX) - 10);
+  const { startClock, endClock } = visibleClockWindow(view, doc.scrollX, w);
 
   const valueY = (v: number): number => fTop + fH - (v / 128) * fH;
 
@@ -188,7 +188,7 @@ function clockAt(x: number): number {
 function valueAt(y: number, grid = 2): number {
   const fTop = RULER_H;
   // draw と同じく canvas の実高さで 0..128 をスケールする (固定 H だと追従しない)
-  const canvasH = canvasRef.value?.clientHeight ?? H;
+  const canvasH = canvasRef.value?.clientHeight ?? FALLBACK_CANVAS_H;
   const fH = canvasH - RULER_H;
   const v = Math.round((fTop + fH - y) / grid) * grid;
   return clamp(v, 0, 128);
@@ -273,7 +273,6 @@ useCanvas(
   ],
 );
 
-const tuningUndo = useDragUndo();
 function commitTuning(): void {
   const t = tuningInput.value;
   tuningInput.value = null;
@@ -283,10 +282,10 @@ function commitTuning(): void {
   if (!Number.isFinite(v) || v <= 0) return;
   const s = getService();
   if (!s || doc.focusUnit < 0) return;
-  tuningUndo.onFirstMove();
-  s.evels.recordAddF(t.clock, doc.focusUnit, EventKind.TUNING, v);
-  doc.rev++;
-  tuningUndo.finish();
+  mutate(() => {
+    s.evels.recordAddF(t.clock, doc.focusUnit, EventKind.TUNING, v);
+    doc.rev++;
+  });
 }
 
 // ホイール: Ctrl=ズーム (カーソル位置基準) / Shift=横スクロール
