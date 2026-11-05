@@ -4,7 +4,8 @@
 // 読み込みは非同期のため、マウント前に loadDrafts を済ませ、restoreDrafts は同期で復元する。
 // undo スタックは容量が大きいため保存しない (復元後は新しい編集履歴から始まる)。
 import type { AppMode } from "../lib/modes";
-import type { WoiceLink } from "./projects";
+import type { Project, WoiceLink } from "./projects";
+import { doc } from "./project";
 import { readDraftRecord, writeDraftRecord } from "../lib/draft-store";
 import { readStorage, removeStorage } from "../lib/storage";
 import { appAlert } from "./dialog";
@@ -221,7 +222,9 @@ export function cancelDraftSave(): void {
 
 export function hasUnsavedDocuments(): boolean {
   if (draftsSuspended) return false;
-  return projects.value.some((p) => p.dirty) || voices.value.some((v) => v.dirty) || noises.value.some((n) => n.dirty);
+  // 現在のタブは doc が正本 (p.dirty はタブ切替/退避のときにしか更新されない)
+  const isProjectDirty = (p: Project) => (p.id === currentProjectId.value ? doc.dirty : p.dirty);
+  return projects.value.some(isProjectDirty) || voices.value.some((v) => v.dirty) || noises.value.some((n) => n.dirty);
 }
 
 function isDraftData(value: unknown): value is DraftData {

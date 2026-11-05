@@ -4341,7 +4341,9 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     delete (globalThis as { localStorage?: unknown }).localStorage;
 
     newProjectInTab();
-    currentProject()!.dirty = true;
+    // 編集の直後は doc だけが更新され、タブの dirty はまだ古い
+    doc.dirty = true;
+    checkEq(currentProject()!.dirty, false, "unsaved: タブの dirty はまだ更新されていない");
     check(hasUnsavedDocuments(), "reset: 未保存の編集がある");
     setDraftsSuspended(true);
     check(!hasUnsavedDocuments(), "reset: 初期化中は離脱の確認を出さない");
