@@ -1253,6 +1253,56 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(w.getVoice(0)!.wave.points[1]!.y, 99, "copy: B→A で波形コピー");
   }
 
+  // ---- 26b. 省略形の ptvoice (A 面のみ / エンベロープなし / 詰めた倍音) を開く ----
+  {
+    // 8bit/C-P25-Normal.ptvoice 相当: A 面だけ、エンベロープなし、reso=200
+    const bytesOf = (w: Woice): Uint8Array => {
+      const io = new MemoryIo();
+      w.ptvWrite(io);
+      return io.toUint8Array();
+    };
+    const single = new Woice();
+    single.voiceAllocate(1);
+    const sv = single.getVoice(0)!;
+    sv.basicKey = 0x2d00;
+    sv.volume = 64;
+    sv.voiceFlags = 3;
+    sv.dataFlags = 1;
+    sv.wave.reso = 200;
+    sv.wave.num = 5;
+    sv.wave.points = [
+      { x: 0, y: 0 },
+      { x: 1, y: 48 },
+      { x: 149, y: 48 },
+      { x: 150, y: -48 },
+      { x: 199, y: -48 },
+    ];
+    const singleBytes = bytesOf(single);
+    checkEq(openVoice(singleBytes, "a-only"), null, "a-only: 開ける");
+    const doc1 = currentVoice()!;
+    const w1 = doc1.woice;
+    checkEq(w1.voiceNum, 2, "a-only: 編集用に B 面を補う");
+    check(w1.getVoice(0) !== w1.getVoice(1), "a-only: A と B は別の実体");
+    checkEq(w1.getVoice(0)!.wave.num, 5, "a-only: A 面の波形は保持");
+    checkEq(w1.getVoice(0)!.wave.reso, 200, "a-only: A 面の解像度は保持");
+    checkEq(doc1.dirty, false, "a-only: 開いただけでは dirty にならない");
+
+    // B 面だけ編集しても A 面は変わらない
+    editVoice(() => {
+      w1.getVoice(1)!.volume = 10;
+    });
+    checkEq(w1.getVoice(0)!.volume, 64, "a-only: B の編集は A に影響しない");
+
+    // A→B コピーが効く
+    copyVoiceSide(0, 1);
+    checkEq(w1.getVoice(1)!.wave.num, 5, "a-only: A→B コピーで波形が移る");
+    checkEq(w1.getVoice(1)!.volume, 64, "a-only: A→B コピーで volume が移る");
+    check(w1.getVoice(0)!.wave.points !== w1.getVoice(1)!.wave.points, "a-only: コピーは別配列");
+
+    closeVoice(doc1.id);
+
+  }
+
   // ---- 27. Repeat の undo で表示値 (1-based) がエンジンと一致する ----
   {
     // sync() がエンジン値から 1-based 表示へ変換する (undo/redo 後の不整合の回帰テスト)

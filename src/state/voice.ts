@@ -204,6 +204,25 @@ export function enveSetHeadPointX(points: { x: number; y: number }[], maxHead: n
   points[idx]!.x = clamped - prev;
 }
 
+// ---- ファイルの省略形を編集用の形へ戻す ----
+// 本家 ptVoice の保存は無効な面を削除する (Slim)。編集 UI は A/B 2 面を前提にするので、開くときに補う。
+// 省いた分は保存時の正規化でまた落ちるため、未編集なら同じ内容で書き戻される
+
+// A 面だけのファイルなどで足りない面を補う。
+// 面を 1 つにしたままだと、A/B どちらの画面も同じ面を編集することになる
+export function expandWoiceForEdit(w: Woice): void {
+  const voiceNum = w.voiceNum;
+  if (voiceNum < 2) {
+    const loaded = new Woice();
+    w.copy(loaded);
+    const defaults = createDefaultWoice();
+    w.voiceAllocate(2);
+    for (let i = 0; i < 2; i++) {
+      Object.assign(w.getVoice(i)!, i < voiceNum ? loaded.getVoice(i) : defaults.getVoice(i));
+    }
+  }
+}
+
 // 音声スナップショット (undo 用)
 export function snapshotVoice(v: VoiceDoc): Uint8Array | null {
   const io = new MemoryIo();
@@ -529,6 +548,7 @@ export function openVoice(bytes: Uint8Array, name: string, link?: WoiceLink): st
   const w = new Woice();
   const res = w.read(new MemoryIo(bytes), WoiceType.PTV);
   if (res !== PxtnErr.OK) return pxtnErrorMessage(res);
+  expandWoiceForEdit(w);
   tabs.replaceInitialIfPossible();
   tabs.add({ fileName: name, dirty: false, initial: false, woice: markRaw(w), undoStack: [], redoStack: [], link });
   return null;

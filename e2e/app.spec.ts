@@ -121,6 +121,36 @@ test('音色の波形タイプの表示が undo と再読み込みに追従す�
   await expect(oscillator).toHaveAttribute('aria-pressed', 'true')
 })
 
+test('A 面だけの音色を開いても A / B を別々に編集できる', async ({ page }) => {
+  // A 面のみ・エンベロープなしの ptvoice (本家 ptVoice が保存する省略形)
+  const bytes = [
+    0x50, 0x54, 0x56, 0x4f, 0x49, 0x43, 0x45, 0x2d, 0xcf, 0x17, 0x32, 0x01, 0x1d, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x01, 0x80, 0x5a, 0x40, 0x40, 0x80, 0x80, 0x80, 0xfc, 0x03, 0x03, 0x01, 0x00, 0x05, 0xc8, 0x01, 0x00, 0x00, 0x01,
+    0x30, 0x95, 0x30, 0x96, 0xd0, 0xc7, 0xd0,
+  ]
+  await page.evaluate(async (data) => {
+    const dir = await navigator.storage.getDirectory()
+    const writable = await (await dir.getFileHandle('a-only.ptvoice', { create: true })).createWritable()
+    await writable.write(new Uint8Array(data))
+    await writable.close()
+  }, bytes)
+  await setFileToOpen(page, 'a-only.ptvoice')
+
+  await page.locator('.mode-tab', { hasText: 'Voice' }).click()
+  await clickMenu(page, 'File', 'Open')
+  await expect(page.locator('.file-tab.active .tab-name')).toHaveText('a-only')
+
+  const volume = (side: number) => page.locator('.vsp').nth(side).locator('.vsp-param').first().locator('.vsp-pval')
+  await expect(volume(0)).toHaveText('64')
+  // 右の B 面の波形タイプだけを切り替える
+  await page.locator('.vsp').nth(1).getByRole('button', { name: 'Oscillator' }).click()
+  await page.locator('.dlg .btn-accent').click()
+  await expect(page.locator('.vsp').nth(1).getByRole('button', { name: 'Oscillator' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('.vsp').nth(0).getByRole('button', { name: 'Coordinate' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(volume(1)).toHaveText('32')
+  await expect(volume(0)).toHaveText('64')
+})
+
 test('音色タブをメニューから閉じるときも未保存の 3 択を出す', async ({ page }) => {
   await page.locator('.mode-tab').nth(1).click()
   await clickMenu(page, 'File', 'New')

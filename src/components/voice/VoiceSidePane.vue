@@ -33,10 +33,7 @@ const voice = computed(() => currentVoice());
 const { rev, touch } = useEditRev(() => voice.value, () => emit("edit"));
 
 function currentVoiceUnit(): VoiceUnit | null {
-  const v = voice.value;
-  if (!v) return null;
-  const s = Math.min(props.side, v.woice.voiceNum - 1);
-  return v.woice.getVoice(s);
+  return voice.value?.woice.getVoice(props.side) ?? null;
 }
 
 // 子のキャンバスへ渡す今の面。実体は markRaw のため rev で追従させる
