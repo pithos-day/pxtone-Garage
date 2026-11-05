@@ -409,7 +409,7 @@ const en: Record<keyof typeof ja, string> = {
   "error.sampleFetch": "Could not load the sample song",
   "error.sampleNotFound": "Sample song not found",
   "error.save": "Failed to save",
-  "error.unexpected": "An unexpected error occurred. We tried to back up your edits, but the app may not work correctly. Save to a file and then reload the page. If the problem continues, use \"Report an issue\" in the Help menu.\n\n{message}",
+  "error.unexpected": "An unexpected error occurred. We tried to back up your edits, but the app may not work correctly. Save to a file, then reload the page or restart the app. If the problem continues, use \"Report an issue\" in the Help menu.\n\n{message}",
   "error.reset": "Could not reset. Close any other tabs running this app and try again",
   "error.themeSave": "Could not save the theme in the browser. It will not be kept the next time you start the app",
   "error.draftSave": "Could not automatically back up your unsaved edits. They cannot be restored if the browser closes, so save to a file",

@@ -2,12 +2,14 @@
   "name": "pxtone-garage",
   "private": true,
   "version": "0.0.0",
+  "main": "electron/main.mjs",
   "type": "module",
   "scripts": {
     "worklet": "node scripts/build-worklet.mjs",
     "dev": "node scripts/build-worklet.mjs && vite",
     "build": "node scripts/build-worklet.mjs && vue-tsc -b && vite build",
     "preview": "vite preview",
+    "electron": "pnpm build && electron .",
     "test": "esbuild tests/multiproject.ts --bundle --platform=node --format=cjs --outfile=tests/.multiproject.cjs --log-level=error && node tests/.multiproject.cjs && esbuild tests/preview-sim.ts --bundle --platform=node --format=cjs --outfile=tests/.preview-sim.cjs --log-level=error && node tests/.preview-sim.cjs && esbuild tests/worklet-sim.ts --bundle --platform=node --format=cjs --outfile=tests/.worklet-sim.cjs --log-level=error && node tests/.worklet-sim.cjs"
   },
   "dependencies": {
@@ -21,6 +23,8 @@
     "@types/node": "^24.13.3",
     "@vitejs/plugin-vue": "^6.0.8",
     "@vue/tsconfig": "^0.9.1",
+    "electron": "^45.2.2",
+    "electron-builder": "^26.18.0",
     "esbuild": "^0.25.0",
     "typescript": "~6.0.2",
     "vite": "^8.2.0",
