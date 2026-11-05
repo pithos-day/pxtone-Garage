@@ -8,6 +8,7 @@ import { panels, PANEL_DEFS as PANELS } from "../../state/panels";
 import { DIVI_TABLE, ZOOM_SLIDER_MAX, formatClock, formatTime, sliderToZoom, zoomToSlider } from "../../lib/clock";
 import { formatShortcut } from "../../state/keybindings";
 import { t } from "../../i18n";
+import LevelMeter from "./LevelMeter.vue";
 
 function timeLabel(): string {
   const s = getService();
