@@ -29,7 +29,7 @@ import { droppedFiles } from "../../engine/io";
 import { OPEN_KINDS, openFilesInTabs } from "../../state/open-files";
 import { initRecentFiles } from "../../state/recent-files";
 import { appAlert } from "../../state/dialog";
-import { initLanguage, t } from "../../i18n";
+import { lang, t } from "../../i18n";
 import { copyVoiceSide, ensureInitialVoice, closeVoice, closeAllVoices, saveVoice, voiceRevision, voices, switchVoice } from "../../state/voice";
 import { ensureInitialNoise, closeNoise, closeAllNoises, saveNoise, noiseRevision, noises, switchNoise } from "../../state/noise";
 import { doc } from "../../state/project";
@@ -75,12 +75,11 @@ function onVoiceCopyYes(): void {
   voiceCopyDir.value = null;
 }
 
-// マウント前に初期プロジェクトと言語設定を済ませておく
+// マウント前に初期プロジェクトを用意しておく
 // (テンプレートの初期描画が空の doc/service を参照しないようにするため)
 ensureInitialProject();
 ensureInitialVoice();
 ensureInitialNoise();
-initLanguage();
 void initRecentFiles();
 
 // 読み込み後に URL から sample クエリを消す。
@@ -291,6 +290,8 @@ watch(
   () => scheduleDraftSave(activeTab.value),
 );
 watch(activeTab, () => scheduleDraftSave(activeTab.value));
+// canvas の文字も切り替わるよう再描画を促す
+watch(lang, () => doc.rev++);
 
 function onBeforeUnload(e: BeforeUnloadEvent): void {
   if (!hasUnsavedDocuments()) return;

@@ -8,6 +8,7 @@ import { initKeybindings } from "./state/keybindings";
 import { loadDrafts } from "./state/drafts";
 import { installErrorHandlers } from "./state/errors";
 import { initMobile } from "./lib/mobile";
+import { initLanguage } from "./i18n";
 import {
   openProject,
   newProject,
@@ -53,6 +54,7 @@ initTheme({
   ocean: oceanTheme,
   contrast: contrastTheme,
 });
+initLanguage();
 initMobile();
 initFonts();
 initMasterVolume();

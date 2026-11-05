@@ -75,7 +75,7 @@ async function onLoadLocalFonts(): Promise<void> {
       <label>{{ t("settings.language") }}</label>
       <select :value="lang" @change="setLanguage(($event.target as HTMLSelectElement).value as Language)">
         <option value="ja">{{ t("settings.languageJa") }}</option>
-        <option value="en" disabled>{{ t("settings.languageEn") }}</option>
+        <option value="en">{{ t("settings.languageEn") }}</option>
       </select>
     </div>
     <div class="row">

@@ -23,6 +23,7 @@
 //   54. 未保存ドラフトの退避 (IndexedDB / 旧形式からの移行 / 失敗の通知) / 55. ユーザーテーマの保存失敗を通知する
 //   56. 予期しないエラーの通知 / 57. 機能を検索 / 58. モバイルの表示幅
 //   59. 出力レベルメーター / 60. ユニット別 WAV 書き出し / 61. 初期化
+//   62. 翻訳辞書と言語の決定
 import {
   projects,
   currentProjectId,
@@ -205,7 +206,9 @@ import {
 import { clockAtX, zoomAnchorScrollX, zoomByWheel } from "../src/lib/field";
 import { UNIT_COLORS, getUnitColor } from "../src/lib/theme";
 import { MENU_LABELS, menuNamesFor, buildFileMenu, flattenMenuItems, searchFeatures } from "../src/lib/menuItems";
-import { t } from "../src/i18n";
+import { lang, resolveLanguage, setLanguage, t } from "../src/i18n";
+import jaDict from "../src/i18n/ja";
+import enDict from "../src/i18n/en";
 import { secToEnveX, pctToEnveY, pushHistoryEntry, NOISE_WAVE_TYPES, noiseEnveCumulative, noiseEnveMove, noiseEnveInsert, noiseEnveDelete } from "../src/lib/noise";
 import { knobNorm, knobValue, knobAngle, KNOB_SWEEP } from "../src/lib/knob";
 import { appAlert, appConfirm, appPrompt, acceptAppDialog, dismissAppDialog, currentAppDialog } from "../src/state/dialog";
@@ -4344,6 +4347,28 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     setDraftsSuspended(false);
     check(hasUnsavedDocuments(), "reset: 失敗して再開すると元に戻る");
     closeAllProjects();
+  }
+
+  // ---- 62. 翻訳辞書と言語の決定 ----
+  {
+    const jaEntries = Object.entries(jaDict) as [keyof typeof jaDict, string][];
+    const placeholders = (text: string): string => (text.match(/\{\w+\}/g) ?? []).sort().join();
+    checkEq(Object.keys(enDict).length, jaEntries.length, "i18n: 英語と日本語のキー数が同じ");
+    checkEq(jaEntries.filter(([k]) => !enDict[k]?.trim()).map(([k]) => k).join(), "", "i18n: 英語の訳が空でない");
+    checkEq(jaEntries.filter(([k, v]) => placeholders(v) !== placeholders(enDict[k])).map(([k]) => k).join(), "", "i18n: プレースホルダが一致する");
+    const japanese = /[ぁ-んァ-ヶ一-龠]/;
+    checkEq(jaEntries.filter(([k]) => k !== "settings.languageJa" && japanese.test(enDict[k])).map(([k]) => k).join(), "", "i18n: 英語の訳に日本語が残っていない");
+
+    checkEq(resolveLanguage("en", "ja-JP"), "en", "i18n: 保存値を優先する");
+    checkEq(resolveLanguage("ja", "en-US"), "ja", "i18n: 保存値を優先する (ja)");
+    checkEq(resolveLanguage(null, "ja-JP"), "ja", "i18n: 日本語のブラウザは日本語");
+    checkEq(resolveLanguage(null, "fr-FR"), "en", "i18n: それ以外は英語");
+    checkEq(resolveLanguage("xx", undefined), "en", "i18n: 不正な保存値は無視する");
+
+    setLanguage("en");
+    checkEq(t("common.close"), "Close", "i18n: 英語に切り替わる");
+    setLanguage("ja");
+    checkEq(lang.value, "ja", "i18n: 日本語へ戻せる");
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);
