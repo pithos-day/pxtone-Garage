@@ -251,6 +251,7 @@ const viewMenu = computed<MenuItem[]>(() =>
 );
 
 const REPOSITORY_URL = "https://github.com/pithos-day/pxtone-garage";
+const PXTONE_URL = "https://pxtone.org/";
 
 function openInNewTab(url: string): void {
   window.open(url, "_blank", "noopener");
@@ -278,6 +279,7 @@ const helpMenu = computed<MenuItem[]>(() =>
     onOpenGitHub: () => openInNewTab(REPOSITORY_URL),
     onReportIssue: () => openInNewTab(`${REPOSITORY_URL}/issues`),
     onReset: () => void resetApp(),
+    onOpenPxtone: () => openInNewTab(PXTONE_URL),
     onAbout: () => emit("about"),
   }),
 );

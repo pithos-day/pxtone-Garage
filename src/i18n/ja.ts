@@ -82,6 +82,7 @@ const ja = {
   "menu.help.github": "GitHub",
   "menu.help.reportIssue": "問題を報告",
   "menu.help.reset": "初期化",
+  "menu.help.pxtone": "pxtoneについて",
   "menu.help.about": "このアプリについて",
 
   // モバイル
@@ -92,9 +93,7 @@ const ja = {
   "about.title": "このアプリについて",
   "about.description": "ピストンコラージュ互換の Web DAW アプリケーション",
   "about.license": "MIT License",
-  "about.originalLicense": "ピストンコラージュ: zlib License",
   "about.source": "ソースコード",
-  "about.original": "ピストンコラージュ",
   "about.notices": "依存ライブラリのライセンス",
 
   // 機能を検索

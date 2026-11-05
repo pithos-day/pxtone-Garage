@@ -19,13 +19,8 @@ const noticesUrl = `${import.meta.env.BASE_URL}THIRD_PARTY_NOTICES.txt`;
       {{ t("about.license") }}<br />
       Copyright 2026 Pithos
     </p>
-    <p>
-      {{ t("about.originalLicense") }}<br />
-      (C) 2005-2025 Daisuke Amaya (開発室Pixel)
-    </p>
     <div class="about-links">
       <a href="https://github.com/pithos-day/pxtone-garage" target="_blank" rel="noopener">{{ t("about.source") }}</a>
-      <a href="https://pxtone.org/" target="_blank" rel="noopener">{{ t("about.original") }}</a>
       <a :href="noticesUrl" target="_blank" rel="noopener">{{ t("about.notices") }}</a>
     </div>
     <template #buttons>

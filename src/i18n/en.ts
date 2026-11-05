@@ -83,6 +83,7 @@ const en: Record<keyof typeof ja, string> = {
   "menu.help.github": "GitHub",
   "menu.help.reportIssue": "Report an issue",
   "menu.help.reset": "Reset",
+  "menu.help.pxtone": "About pxtone",
   "menu.help.about": "About this app",
 
   // モバイル
@@ -93,9 +94,7 @@ const en: Record<keyof typeof ja, string> = {
   "about.title": "About this app",
   "about.description": "A Web DAW compatible with Piston Collage",
   "about.license": "MIT License",
-  "about.originalLicense": "Piston Collage: zlib License",
   "about.source": "Source code",
-  "about.original": "Piston Collage",
   "about.notices": "Third-party licenses",
 
   // 機能を検索
