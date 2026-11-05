@@ -74,6 +74,7 @@ export function insertWavePoint(points: { x: number; y: number }[], x: number, y
       return true;
     }
     if (x < points[i]!.x) {
+      if (points.length >= maxNum) return false;
       points.splice(i, 0, { x, y });
       return true;
     }
