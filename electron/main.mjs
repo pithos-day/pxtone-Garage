@@ -1,7 +1,7 @@
 // スタンドアロン版 (Electron) のメインプロセス。
 // ビルド済みの dist を独自プロトコルで配信する。file:// では Worklet の読み込みや fetch が
 // 制限され、IndexedDB の保存先となる origin も安定しないため使わない
-import { app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, session, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, net, powerMonitor, protocol, session, shell } from "electron";
 import { sep, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -12,48 +12,50 @@ const PRELOAD_PATH = fileURLToPath(new URL("./preload.cjs", import.meta.url));
 // 内部のページに許可する権限 (ファイルの読み書きとローカルフォントの列挙)
 const ALLOWED_PERMISSIONS = new Set(["fileSystem", "local-fonts"]);
 
-// 閉じる / 再読み込みの確認の文言は表示言語ではなく OS の言語に合わせる (ページの状態を同期で読めないため)
-const UNLOAD_MESSAGES = {
+// 閉じる要求に画面が応答するまでの猶予。過ぎたら固まっているとみなしてネイティブのダイアログを出す
+const CLOSE_ACK_TIMEOUT_MS = 3000;
+
+// 画面が固まったときの確認の文言。ページから表示言語を読めないので OS の言語に合わせる
+const FORCE_CLOSE_MESSAGES = {
   ja: {
-    close: {
-      message: "保存されていない変更があります。閉じますか？",
-      detail: "閉じても、次回起動時に変更内容を復元します。",
-      confirm: "閉じる",
-    },
-    reload: {
-      message: "保存されていない変更があります。再読み込みしますか？",
-      detail: "再読み込みしても、変更内容を復元します。",
-      confirm: "再読み込み",
-    },
+    message: "アプリが応答していません。強制的に閉じますか？",
+    detail: "最後に自動で退避した後の変更は失われる可能性があります。",
+    close: "閉じる",
     cancel: "キャンセル",
   },
   en: {
-    close: {
-      message: "You have unsaved changes. Close the app?",
-      detail: "Your changes will be restored the next time you start the app.",
-      confirm: "Close",
-    },
-    reload: {
-      message: "You have unsaved changes. Reload the app?",
-      detail: "Your changes will be restored after reloading.",
-      confirm: "Reload",
-    },
+    message: "The app is not responding. Force it to close?",
+    detail: "Changes made after the last automatic backup may be lost.",
+    close: "Close",
     cancel: "Cancel",
   },
 };
 
-// 再読み込みボタンを押してから、ページが切り替わるか確認が出るまでの webContents
-const pendingReloads = new WeakSet();
+// 画面側で確認が済み、そのまま閉じてよいウィンドウ
+const closeApproved = new WeakSet();
+// 閉じる要求を受け取れる状態のページ (読み込み中やクラッシュ後は含まない)
+const closeRequestReady = new WeakSet();
+const closeAckTimers = new WeakMap();
+// OS のシャットダウン中は確認を待つと終了を妨げるので、そのまま閉じる
+let systemEnding = false;
+// macOS は全ウィンドウを閉じてもアプリが残るので、終了操作だったかを覚えておく
+let quitRequested = false;
 
 // 画面側のボタンから呼ぶウィンドウ操作
 const WINDOW_ACTIONS = {
-  reload(window) {
-    pendingReloads.add(window.webContents);
-    window.webContents.reload();
-  },
+  reload: (window) => window.webContents.reload(),
   minimize: (window) => window.minimize(),
   toggleMaximize: (window) => (window.isMaximized() ? window.unmaximize() : window.maximize()),
   close: (window) => window.close(),
+  // 確認ダイアログが見えるよう前面に出す
+  reveal: revealWindow,
+  approveClose(window) {
+    closeApproved.add(window);
+    window.close();
+  },
+  cancelClose() {
+    quitRequested = false;
+  },
 };
 
 protocol.registerSchemesAsPrivileged([
@@ -102,21 +104,57 @@ function handleWindowControls() {
     if (window && Object.hasOwn(WINDOW_ACTIONS, action)) WINDOW_ACTIONS[action](window);
   });
   ipcMain.handle("window:is-maximized", (event) => senderWindow(event)?.isMaximized() ?? false);
+  ipcMain.on("window:close-ready", (event) => {
+    if (senderWindow(event)) closeRequestReady.add(event.sender);
+  });
+  ipcMain.on("window:close-ack", (event) => {
+    const window = senderWindow(event);
+    if (window) clearTimeout(closeAckTimers.get(window));
+  });
 }
 
-function confirmUnload(window, event, kind) {
-  const texts = app.getLocale().startsWith("ja") ? UNLOAD_MESSAGES.ja : UNLOAD_MESSAGES.en;
-  const text = texts[kind];
+function revealWindow(window) {
+  if (window.isMinimized()) window.restore();
+  window.show();
+  window.focus();
+}
+
+// 画面が応答しないときだけ使う。画面側の確認を経ずに閉じるので beforeunload も待たない
+function confirmForceClose(window) {
+  if (window.isDestroyed()) return;
+  const text = app.getLocale().startsWith("ja") ? FORCE_CLOSE_MESSAGES.ja : FORCE_CLOSE_MESSAGES.en;
   const choice = dialog.showMessageBoxSync(window, {
-    type: "question",
+    type: "warning",
     message: text.message,
     detail: text.detail,
-    buttons: [text.confirm, texts.cancel],
+    buttons: [text.close, text.cancel],
     defaultId: 1,
     cancelId: 1,
   });
-  // preventDefault で beforeunload の引き止めを無視し、そのまま閉じる (再読み込みする)
-  if (choice === 0) event.preventDefault();
+  if (choice === 0) window.destroy();
+  else quitRequested = false;
+}
+
+// 閉じる操作 (ボタン / Alt+F4 / タスクバー / 終了操作) はすべて close イベントに集まる。
+// いったん止めて画面側へ確認を任せ、承認されたら approveClose でもう一度閉じる
+function guardClose(window) {
+  const { webContents } = window;
+  window.on("close", (event) => {
+    if (systemEnding || closeApproved.has(window) || !closeRequestReady.has(webContents)) return;
+    event.preventDefault();
+    clearTimeout(closeAckTimers.get(window));
+    closeAckTimers.set(window, setTimeout(() => confirmForceClose(window), CLOSE_ACK_TIMEOUT_MS));
+    webContents.send("window:close-requested");
+  });
+  window.on("closed", () => clearTimeout(closeAckTimers.get(window)));
+  // 確認は画面側で済んでいるので、ページの beforeunload の引き止めは無視する
+  webContents.on("will-prevent-unload", (event) => event.preventDefault());
+  webContents.on("did-navigate", () => closeRequestReady.delete(webContents));
+  webContents.on("render-process-gone", () => closeRequestReady.delete(webContents));
+  // Windows のシャットダウン。macOS と Linux は powerMonitor の shutdown で受ける
+  window.on("session-end", () => {
+    systemEnding = true;
+  });
 }
 
 function createWindow() {
@@ -130,13 +168,7 @@ function createWindow() {
     webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, preload: PRELOAD_PATH },
   });
   const { webContents } = window;
-  // Electron は beforeunload のダイアログを出さず、閉じる操作を黙って止めるため自前で確認する
-  webContents.on("will-prevent-unload", (event) => {
-    confirmUnload(window, event, pendingReloads.delete(webContents) ? "reload" : "close");
-  });
-  // 引き止められなかった再読み込みの印を残さない (次に閉じるときの文言を誤らないように)。
-  // did-start-loading は beforeunload より先に発火するので使えない
-  webContents.on("did-navigate", () => pendingReloads.delete(webContents));
+  guardClose(window);
   const notifyMaximized = (maximized) => {
     if (!webContents.isDestroyed()) webContents.send("window:maximized", maximized);
   };
@@ -161,8 +193,11 @@ if (!app.requestSingleInstanceLock()) app.quit();
 app.on("second-instance", () => {
   const [window] = BrowserWindow.getAllWindows();
   if (!window) return;
-  if (window.isMinimized()) window.restore();
-  window.focus();
+  revealWindow(window);
+});
+
+app.on("before-quit", () => {
+  quitRequested = true;
 });
 
 app.whenReady().then(() => {
@@ -170,6 +205,10 @@ app.whenReady().then(() => {
   restrictPermissions();
   configureMenu();
   handleWindowControls();
+  powerMonitor.on("shutdown", () => {
+    systemEnding = true;
+    app.quit();
+  });
   createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -177,5 +216,5 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
+  if (process.platform !== "darwin" || quitRequested) app.quit();
 });

@@ -4,6 +4,10 @@ interface WindowControls {
   minimize(): void;
   toggleMaximize(): void;
   close(): void;
+  reveal(): void;
+  approveClose(): void;
+  cancelClose(): void;
+  onCloseRequest(callback: () => void): () => void;
   isMaximized(): Promise<boolean>;
   onMaximizedChange(callback: (maximized: boolean) => void): () => void;
 }

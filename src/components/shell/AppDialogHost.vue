@@ -54,6 +54,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown, true));
     v-if="currentAppDialog"
     :key="currentAppDialog.id"
     :label="`app-${currentAppDialog.kind}`"
+    class="app-dialog-overlay"
     width="400px"
     @close="dismissAppDialog"
   >
@@ -77,6 +78,11 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown, true));
 </template>
 
 <style scoped>
+/* 書き出し中にウィンドウを閉じる確認なども操作できるよう、進捗ダイアログ (300) より上に出す */
+.dlg-overlay.app-dialog-overlay {
+  z-index: 310;
+}
+
 .message {
   margin: 0;
   color: var(--foreground);

@@ -4,15 +4,17 @@
 // 進捗が測れない段階 (解析中など) は数字を据え置きでバーを不定表示にする
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { currentAppDialog } from "../../state/dialog";
 import { cancelProgress, progress } from "../../state/progress";
 import { t } from "../../i18n";
 
 const percent = computed(() => Math.round(progress.value * 100));
 const label = computed(() => (progress.cancelling ? t("progress.cancelling") : progress.label));
 
-// ESC はキャンセルボタンと同じ。capture で他のキー処理より先に受ける
+// ESC はキャンセルボタンと同じ。capture で他のキー処理より先に受ける。
+// 上にメッセージダイアログがあれば、そちらだけを閉じる
 function onKeydown(e: KeyboardEvent): void {
-  if (e.key !== "Escape" || !progress.open) return;
+  if (e.key !== "Escape" || !progress.open || currentAppDialog.value) return;
   e.preventDefault();
   e.stopPropagation();
   cancelProgress();

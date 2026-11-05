@@ -180,18 +180,23 @@ function reportSaveFailure(err: unknown): void {
 }
 
 // 未保存ドキュメントを即時退避する。beforeunload / タブ非表示 / 自動保存から呼ぶ。
-// 退避に失敗しても編集は続けられるが、復旧できないことをユーザーへ知らせる
-export function saveDraftsNow(activeMode: AppMode): Promise<void> {
-  if (draftsSuspended) return Promise.resolve();
+// 退避に失敗しても編集は続けられるが、復旧できないことをユーザーへ知らせる。
+// 退避に失敗したときだけ false に解決する
+export function saveDraftsNow(activeMode: AppMode): Promise<boolean> {
+  if (draftsSuspended) return Promise.resolve(true);
   const data = collectDrafts(activeMode);
-  if (!data && storedRecordUnread) return Promise.resolve();
+  if (!data && storedRecordUnread) return Promise.resolve(true);
   return writeDraftRecord(data)
     .then(() => {
       failureNotified = false;
       storedRecordUnread = false;
       removeStorage(LEGACY_STORAGE_KEY);
+      return true;
     })
-    .catch(reportSaveFailure);
+    .catch((err: unknown) => {
+      reportSaveFailure(err);
+      return false;
+    });
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -208,7 +213,7 @@ export function scheduleDraftSave(activeMode: AppMode): void {
 }
 
 // 直近のモードで今すぐ退避する (モードを知らない経路向け)
-export function flushDrafts(): Promise<void> {
+export function flushDrafts(): Promise<boolean> {
   cancelDraftSave();
   return saveDraftsNow(latestMode);
 }
