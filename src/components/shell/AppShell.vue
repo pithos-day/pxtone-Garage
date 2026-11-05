@@ -6,6 +6,7 @@ import MenuBar from "./MenuBar.vue";
 import FileTabs from "./FileTabs.vue";
 import TransportBar from "./TransportBar.vue";
 import ProjectDialog from "./ProjectDialog.vue";
+import UpdateToast from "./UpdateToast.vue";
 import SettingsDialog from "./SettingsDialog.vue";
 import CopyMeasDialog from "./CopyMeasDialog.vue";
 import QuantizeDialog from "./QuantizeDialog.vue";
@@ -376,6 +377,7 @@ onBeforeUnmount(() => {
     <ProgressDialog />
     <AppDialogHost />
     <LandscapeGuard />
+    <UpdateToast />
   </div>
 </template>
 

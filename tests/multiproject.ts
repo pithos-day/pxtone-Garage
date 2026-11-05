@@ -24,6 +24,7 @@
 //   56. 予期しないエラーの通知 / 57. 機能を検索 / 58. モバイルの表示幅
 //   59. 出力レベルメーター / 60. ユニット別 WAV 書き出し / 61. 初期化
 //   62. 翻訳辞書と言語の決定
+import { shouldRegisterServiceWorker } from "../src/lib/pwa";
 import {
   projects,
   currentProjectId,
@@ -4371,6 +4372,15 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(lang.value, "ja", "i18n: 日本語へ戻せる");
   }
 
-  console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);
+  // ---- Service Worker の登録判定 ----
+{
+  checkEq(shouldRegisterServiceWorker("https:", true, true), true, "PWA: https では登録する");
+  checkEq(shouldRegisterServiceWorker("http:", true, true), true, "PWA: http (localhost) では登録する");
+  checkEq(shouldRegisterServiceWorker("app:", true, true), false, "PWA: スタンドアロン版では登録しない");
+  checkEq(shouldRegisterServiceWorker("https:", false, true), false, "PWA: 未対応ブラウザでは登録しない");
+  checkEq(shouldRegisterServiceWorker("https:", true, false), false, "PWA: 開発中は登録しない");
+}
+
+console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);
   process.exit(failed === 0 ? 0 : 1);
 })();

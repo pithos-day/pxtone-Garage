@@ -9,6 +9,7 @@ import { loadDrafts } from "./state/drafts";
 import { installErrorHandlers } from "./state/errors";
 import { initMobile } from "./lib/mobile";
 import { initLanguage } from "./i18n";
+import { initPwa } from "./state/pwa";
 import {
   openProject,
   newProject,
@@ -59,6 +60,7 @@ initMobile();
 initFonts();
 initMasterVolume();
 initKeybindings();
+void initPwa();
 // AppShell がセットアップ中に同期で復元できるよう、ドラフトを読んでからマウントする
 void loadDrafts().then(() => {
   const app = createApp(App);
