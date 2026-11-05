@@ -16,8 +16,8 @@ import {
   applyWoiceLink,
   projects,
 } from "../../state/projects";
-import { newVoice, saveVoice, closeVoice, undoVoice, redoVoice, currentVoice, currentVoiceId, snapshotVoice, markVoiceClean, voices } from "../../state/voice";
-import { newNoise, saveNoise, closeNoise, undoNoise, redoNoise, currentNoise, currentNoiseId, snapshotNoise, markNoiseClean, noises } from "../../state/noise";
+import { newVoice, saveVoice, undoVoice, redoVoice, currentVoice, currentVoiceId, snapshotVoice, markVoiceClean, voices } from "../../state/voice";
+import { newNoise, saveNoise, undoNoise, redoNoise, currentNoise, currentNoiseId, snapshotNoise, markNoiseClean, noises } from "../../state/noise";
 import { exportPttune, exportVoiceWav, exportNoiseWav, openFileDialog, openFilesDialog, readBlobAndApply } from "../../engine/io";
 import { OPEN_KINDS, openFilesInTabs, openRecentFile, type OpenKind } from "../../state/open-files";
 import { clearRecent, recentFiles, supportsRecentFiles } from "../../state/recent-files";
@@ -148,22 +148,6 @@ function onCloseAll(): void {
   emit("requestCloseAll", mode.value);
 }
 
-// ---- 音声 (ptVoice) のアクション ----
-
-async function onCloseVoice(): Promise<void> {
-  const id = currentVoiceId.value;
-  if (currentVoice()?.dirty && !(await appConfirm(t("confirm.close")))) return;
-  closeVoice(id);
-}
-
-// ---- ノイズ (ptNoise) のアクション ----
-
-async function onCloseNoise(): Promise<void> {
-  const id = currentNoiseId.value;
-  if (currentNoise()?.dirty && !(await appConfirm(t("confirm.close")))) return;
-  closeNoise(id);
-}
-
 // ---- WAV 書き出し (voice/noise) ----
 
 function onExportVoiceWav(): void {
@@ -281,7 +265,7 @@ const modeOps: Record<AppMode, ModeMenuOps> = {
     open: () => void onOpenFiles("voice"),
     save: onSaveVoice,
     saveAs: () => runSave(saveVoice(true)),
-    close: onCloseVoice,
+    close: onClose,
     closeAll: onCloseAll,
     undo: undoVoice,
     redo: redoVoice,
@@ -297,7 +281,7 @@ const modeOps: Record<AppMode, ModeMenuOps> = {
     open: () => void onOpenFiles("noise"),
     save: onSaveNoise,
     saveAs: () => runSave(saveNoise(true)),
-    close: onCloseNoise,
+    close: onClose,
     closeAll: onCloseAll,
     undo: undoNoise,
     redo: redoNoise,

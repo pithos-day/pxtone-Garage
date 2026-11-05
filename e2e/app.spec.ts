@@ -107,3 +107,21 @@ test('音色の波形タイプの表示が undo と再読み込みに追従す�
   await page.locator('.mode-tab').nth(1).click()
   await expect(oscillator).toHaveAttribute('aria-pressed', 'true')
 })
+
+test('音色タブをメニューから閉じるときも未保存の 3 択を出す', async ({ page }) => {
+  await page.locator('.mode-tab').nth(1).click()
+  await clickMenu(page, 'File', 'New')
+  const tabs = page.locator('.file-tab')
+  await expect(tabs).toHaveCount(2)
+  await page.locator('.vsp').first().locator('.seg button').nth(1).click()
+  await page.locator('.dlg .btn-accent').click()
+
+  await clickMenu(page, 'File', 'Close')
+  await expect(page.locator('.dlg .btn')).toHaveCount(3)
+  await page.locator('.dlg .btn').nth(2).click()
+  await expect(tabs).toHaveCount(2)
+
+  await clickMenu(page, 'File', 'Close')
+  await page.locator('.dlg .btn').nth(1).click()
+  await expect(tabs).toHaveCount(1)
+})

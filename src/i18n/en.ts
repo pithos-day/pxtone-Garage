@@ -385,7 +385,6 @@ const en: Record<keyof typeof ja, string> = {
   "confirm.windowReload": "You have unsaved changes. Reload the app?\nYour changes will be restored after reloading.",
   "confirm.unloadWithoutDraft": "Your changes could not be backed up. If you continue, changes not saved to a file will be lost. Continue?",
   "confirm.new": "Unsaved changes will be discarded. Create a new project?",
-  "confirm.close": "Unsaved changes will be discarded. Close?",
   "unsaved.title": "Unsaved changes",
   "unsaved.message": "\"{name}\" has unsaved changes. Save before closing?",
   "unsaved.hint": "If you close the tab without choosing, your changes will be restored the next time you start the app.",
