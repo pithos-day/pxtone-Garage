@@ -14,6 +14,7 @@ import {
   isTuneProject,
   applyWoiceLink,
   projects,
+  type WoiceLink,
 } from "../../state/projects";
 import { newVoice, saveVoice, undoVoice, redoVoice, currentVoice, snapshotVoice, markVoiceClean, voices } from "../../state/voice";
 import { newNoise, saveNoise, undoNoise, redoNoise, currentNoise, snapshotNoise, markNoiseClean, noises } from "../../state/noise";
@@ -143,94 +144,94 @@ function onCloseAll(): void {
   emit("requestCloseAll", mode.value);
 }
 
-// ---- WAV 書き出し (voice/noise) ----
+// ---- 音色タブ (voice/noise) のアクション ----
 
-function onExportVoiceWav(): void {
-  const v = currentVoice();
-  if (!v) return;
-  void exportVoiceWav(v.woice, v.fileName || "untitled").then((err) => {
-    if (err) void appAlert(err);
-  });
+// 音色タブの操作をモードによらず同じ形で扱う (タブが無ければ null)
+interface SoundTab {
+  link: WoiceLink | undefined; // 「音色を編集」で開いたタブの書き戻し先
+  fileName: string;
+  woiceType: WoiceType;
+  snapshot(): Uint8Array | null;
+  exportWav(): Promise<string | null>;
+  markClean(): void;
 }
 
-function onExportNoiseWav(): void {
+function soundTab(soundMode: "voice" | "noise"): SoundTab | null {
+  if (soundMode === "voice") {
+    const v = currentVoice();
+    return (
+      v && {
+        link: v.link,
+        fileName: v.fileName,
+        woiceType: WoiceType.PTV,
+        snapshot: () => snapshotVoice(v),
+        exportWav: () => exportVoiceWav(v.woice, v.fileName || "untitled"),
+        markClean: markVoiceClean,
+      }
+    );
+  }
   const d = currentNoise();
-  if (!d) return;
-  void exportNoiseWav(d.noise, d.fileName || "untitled").then((err) => {
-    if (err) void appAlert(err);
-  });
+  return (
+    d && {
+      link: d.link,
+      fileName: d.fileName,
+      woiceType: WoiceType.PTN,
+      snapshot: () => snapshotNoise(d),
+      exportWav: () => exportNoiseWav(d.noise, d.fileName || "untitled"),
+      markClean: markNoiseClean,
+    }
+  );
 }
 
-// ---- Collage への追加 (voice/noise) ----
+// 今のモードの音色タブ (collage では null)
+function activeSoundTab(): SoundTab | null {
+  return mode.value === "collage" ? null : soundTab(mode.value);
+}
+
+function onExportSoundWav(): void {
+  void activeSoundTab()
+    ?.exportWav()
+    .then((err) => {
+      if (err) void appAlert(err);
+    });
+}
 
 // 編集中の音色を、現在アクティブな Collage タブのファイルへ音色として追加する。
 // pttune (再生専用) ではメニュー側で disabled にしているが、二重防御でここでも弾く
-function addToCollage(bytes: Uint8Array | null, type: WoiceType, name: string): void {
-  if (!bytes || isTuneProject()) return;
-  void addWoice(bytes, type, name || undefined).then((err) => {
+function onAddSoundToCollage(): void {
+  const tab = activeSoundTab();
+  const bytes = tab?.snapshot();
+  if (!tab || !bytes || isTuneProject()) return;
+  void addWoice(bytes, tab.woiceType, tab.fileName || undefined).then((err) => {
     if (err) void appAlert(err);
   });
 }
 
-function onAddVoiceToCollage(): void {
-  const v = currentVoice();
-  if (!v) return;
-  addToCollage(snapshotVoice(v), WoiceType.PTV, v.fileName);
-}
-
-function onAddNoiseToCollage(): void {
-  const d = currentNoise();
-  if (!d) return;
-  addToCollage(snapshotNoise(d), WoiceType.PTN, d.fileName);
-}
-
-// ---- 変更を適用 (「音色を編集」で開いた voice/noise) ----
-
-// 「音色を編集」で開いたタブの書き戻し先 (通常のオープンでは undefined)。
-// collage では voice/noise のどちらのリンクも使わない
-const currentLink = computed(() => {
-  if (mode.value === "voice") return currentVoice()?.link;
-  if (mode.value === "noise") return currentNoise()?.link;
-  return undefined;
-});
-
-// 編集した音色を、元の Collage プロジェクトの音色 index へ書き戻す。
+// 編集した音色を、元の Collage プロジェクトの音色へ書き戻す。
 // 適用できたらタブの dirty を解除する (タブの link アイコンも通常色に戻る)
 function onApplyLink(): void {
-  if (mode.value === "voice") {
-    const v = currentVoice();
-    const bytes = v ? snapshotVoice(v) : null;
-    if (!v?.link || !bytes) return;
-    const err = applyWoiceLink(v.link, bytes, WoiceType.PTV);
-    if (err) {
-      void appAlert(err);
-      return;
-    }
-    markVoiceClean();
-  } else if (mode.value === "noise") {
-    const d = currentNoise();
-    const bytes = d ? snapshotNoise(d) : null;
-    if (!d?.link || !bytes) return;
-    const err = applyWoiceLink(d.link, bytes, WoiceType.PTN);
-    if (err) {
-      void appAlert(err);
-      return;
-    }
-    markNoiseClean();
+  const tab = activeSoundTab();
+  const bytes = tab?.snapshot();
+  if (!tab?.link || !bytes) return;
+  const err = applyWoiceLink(tab.link, bytes, tab.woiceType);
+  if (err) {
+    void appAlert(err);
+    return;
   }
+  tab.markClean();
 }
 
 // リンク付き (「音色を編集」で開いた) タブの保存は元の Collage へ適用する。
 // 単独ファイルとして保存する場合は「名前を付けて保存」を使う
-function onSaveVoice(): void {
-  if (currentVoice()?.link) onApplyLink();
-  else runSave(saveVoice(false));
-}
-
-function onSaveNoise(): void {
-  if (currentNoise()?.link) onApplyLink();
+function onSaveSound(soundMode: "voice" | "noise"): void {
+  const tab = soundTab(soundMode);
+  if (tab?.link) onApplyLink();
+  else if (soundMode === "voice") runSave(saveVoice(false));
   else runSave(saveNoise(false));
 }
+
+// 「音色を編集」で開いたタブの書き戻し先 (通常のオープンでは undefined)
+const currentLink = computed(() => activeSoundTab()?.link);
 
 // ---- モード別メニュー ----
 
@@ -258,7 +259,7 @@ const modeOps: Record<AppMode, ModeMenuOps> = {
   voice: {
     new: () => newVoice(),
     open: () => void onOpenFiles("voice"),
-    save: onSaveVoice,
+    save: () => onSaveSound("voice"),
     saveAs: () => runSave(saveVoice(true)),
     close: onClose,
     closeAll: onCloseAll,
@@ -274,7 +275,7 @@ const modeOps: Record<AppMode, ModeMenuOps> = {
   noise: {
     new: () => newNoise(),
     open: () => void onOpenFiles("noise"),
-    save: onSaveNoise,
+    save: () => onSaveSound("noise"),
     saveAs: () => runSave(saveNoise(true)),
     close: onClose,
     closeAll: onCloseAll,
@@ -388,16 +389,16 @@ const fileMenu = computed<MenuItem[]>(() => {
           {
             label: t("menu.file.exportWav"),
             icon: AudioLines,
-            action: mode.value === "voice" ? onExportVoiceWav : onExportNoiseWav,
-            disabled: mode.value === "voice" ? !currentVoice() : !currentNoise(),
+            action: onExportSoundWav,
+            disabled: !activeSoundTab(),
           },
           // 編集中の音色を、現在アクティブな Collage タブへ追加する。
           // pttune (再生専用) タブでは追加できないためグレーアウトする
           {
             label: t("menu.file.addToCollage"),
             icon: PackagePlus,
-            action: mode.value === "voice" ? onAddVoiceToCollage : onAddNoiseToCollage,
-            disabled: isTuneProject() || (mode.value === "voice" ? !currentVoice() : !currentNoise()),
+            action: onAddSoundToCollage,
+            disabled: isTuneProject() || !activeSoundTab(),
           },
           { sep: true },
           settingsFolder,
