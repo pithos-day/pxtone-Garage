@@ -49,6 +49,7 @@ import { isModalOpen } from "../../state/ui";
 import { resetApp } from "../../state/reset";
 import ModeTabs from "./ModeTabs.vue";
 import FeatureSearchDialog from "./FeatureSearchDialog.vue";
+import WindowControls from "./WindowControls.vue";
 
 const mode = defineModel<AppMode>({ required: true });
 const emit = defineEmits<{
@@ -537,6 +538,7 @@ const openItems = computed<MenuItem[]>(() => {
       </div>
     </div>
     <div class="app-logo" role="img" aria-label="pxtone Garage"></div>
+    <WindowControls />
     <Teleport to="body">
       <FeatureSearchDialog v-if="featureSearchOpen" :entries="featureEntries" @close="featureSearchOpen = false" />
     </Teleport>
@@ -549,6 +551,13 @@ const openItems = computed<MenuItem[]>(() => {
   align-items: stretch;
   height: 40px;
   z-index: 30;
+  /* スタンドアロン版ではタイトルバーの代わりにウィンドウを移動できる (ブラウザでは効かない) */
+  -webkit-app-region: drag;
+}
+
+.mode-tabs,
+.menu-right {
+  -webkit-app-region: no-drag;
 }
 
 .mode-tab {

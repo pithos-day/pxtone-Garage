@@ -350,6 +350,16 @@ textarea:disabled {
   user-select: none;
 }
 
+/* ---- ドラッグ領域に重なるもの ----
+   スタンドアロン版のメニューバーの移動用領域は、上に重なった要素があってもそのままでは残る */
+.popup,
+.ctxmenu,
+.nwts-popup,
+.dlg-overlay,
+.progress-overlay {
+  -webkit-app-region: no-drag;
+}
+
 /* ---- ポップアップ共通 (メニュー・コンテキストメニュー) ---- */
 .popup {
   border: 1px solid var(--border);
