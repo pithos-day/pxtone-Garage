@@ -38,6 +38,8 @@ import {
   notesInRect,
   clampGroupOffset,
   clampGroupRowDelta,
+  noteNear,
+  smartModeAt,
   type SmartNoteEvent,
   type SmartDrag,
   type SmartMode,
@@ -382,78 +384,17 @@ function previewAt(y: number): void {
   previewUnitHold(focus, value, EVENTDEFAULT_VELOCITY);
 }
 
-// 押下位置 (clock, row) が重なる描画ノート (ON) を探す。
-// 重なるもののうち records 上で最も後ろにあるもの (見た目で上に重なっているもの) を返す
-function noteAt(u: number, clock: number, row: number): SmartNote | null {
-  const s = getService();
-  if (!s) return null;
-  let hit: SmartNote | null = null;
-  for (const d of iterNoteDraws(s.evels.records, u, { startClock: 0, endClock: Number.MAX_SAFE_INTEGER }, EVENTDEFAULT_KEY)) {
-    if (d.kind !== "on") continue;
-    if (clock < d.clock || d.clock + d.len <= clock) continue;
-    if (keyValueToRow(d.key) !== row) continue;
-    hit = { head: d.clock, end: d.clock + d.len, key: d.key };
-  }
-  return hit;
-}
-
-// スマートツールの端判定幅 (CSS px)。端からこれ以内は端の調整、それ以外は掴み。
-// グリッド基準の端判定だと書き込み 1 つ分の短いノートで端が掴めないため px 基準にする
-const EDGE_PX = 8;
-
-// 押下 x (キャンバス px) で掴み / 開始 / 終了を決める。
-// ノート幅が端判定幅以下の短いノートは左右半分で開始/終了を分ける
-function smartModeAt(note: SmartNote, x: number): SmartMode {
-  const view = clockContext();
-  const leftPx = clockToX(view, note.head) - doc.scrollX;
-  const rightPx = clockToX(view, note.end) - doc.scrollX;
-  const fx = x - STRIP_W;
-  if (rightPx - leftPx <= EDGE_PX * 2) {
-    return fx < (leftPx + rightPx) / 2 ? "head" : "tail";
-  }
-  if (fx <= leftPx + EDGE_PX) return "head";
-  if (fx >= rightPx - EDGE_PX) return "tail";
-  return "grab";
-}
-
-// スマートツールの押下対象ノートを決める。
-// 右端ぎりぎりの押下はスナップで clock == end (ノート外) に丸められ noteAt では
-// 見つからないため、先に「押下 x がノートの範囲内 / 端から EDGE_PX 以内」の
-// 同一行ノートを探してから noteAt に落とす。範囲内のノートを最優先し、
-// 範囲外の押下は端との距離が最も近いノートを端調整の対象にする
-function noteNear(u: number, clock: number, row: number, x: number): SmartNote | null {
-  const s = getService();
-  if (!s) return null;
-  const view = clockContext();
-  const fx = x - STRIP_W;
-  let edge: SmartNote | null = null;
-  let edgeDist = Number.POSITIVE_INFINITY;
-  for (const d of iterNoteDraws(s.evels.records, u, { startClock: 0, endClock: Number.MAX_SAFE_INTEGER }, EVENTDEFAULT_KEY)) {
-    if (d.kind !== "on" || keyValueToRow(d.key) !== row) continue;
-    const note = { head: d.clock, end: d.clock + d.len, key: d.key };
-    const leftPx = clockToX(view, note.head) - doc.scrollX;
-    const rightPx = clockToX(view, note.end) - doc.scrollX;
-    if (fx >= leftPx && fx < rightPx) return note; // 本体上の押下 (掴み/端は smartModeAt で判定)
-    const dist = Math.min(Math.abs(fx - leftPx), Math.abs(fx - rightPx));
-    if (dist <= EDGE_PX && dist < edgeDist) {
-      edgeDist = dist;
-      edge = note;
-    }
-  }
-  return edge ?? noteAt(u, clock, row);
-}
-
 // スマートツールの押下開始。押した位置の状態でモードを決める。
 // - 空き地: ノート書き込み (pen と同じ動作)
 // - ノートの端から EDGE_PX 以内: 左端は開始 (終了固定)、右端は終了 (開始固定) の調整
 // - それ以外のノート上: 掴んで移動 (横 = クロック / 縦 = 音程)
 function beginSmartDrag(u: number, clock: number, row: number, x: number): KeyDrag {
-  const note = noteNear(u, clock, row, x);
   const s = getService()!;
+  const note = noteNear(s.evels.records, u, clock, row, x - STRIP_W, clockContext(), doc.scrollX, EVENTDEFAULT_KEY);
   let evs: SmartState["evs"] = [];
   let mode: SmartMode = "write";
   if (note) {
-    mode = smartModeAt(note, x);
+    mode = smartModeAt(note, x - STRIP_W, clockContext(), doc.scrollX);
     if (mode === "tail") {
       // 終了調整: ON の長さだけを入れ替える (KEY/VELOCITY は動かさない)
       for (const e of s.evels.records) {
@@ -477,7 +418,9 @@ function beginSelectionGesture(e: PointerEvent, pt: { x: number; y: number }, u:
   if (e.shiftKey) {
     return { button: 0, clock1: clock, clock2: clock, row, marquee: { x1: pt.x, y1: pt.y, x2: pt.x, y2: pt.y } };
   }
-  const note = noteNear(u, clock, row, pt.x);
+  const view = clockContext();
+  const fieldX = pt.x - STRIP_W;
+  const note = noteNear(getService()!.evels.records, u, clock, row, fieldX, view, doc.scrollX, EVENTDEFAULT_KEY);
   // Ctrl+クリック: ノート単位で選択を切り替える
   if (e.ctrlKey || e.metaKey) {
     if (note) toggleNoteSelected(note.head);
@@ -486,7 +429,7 @@ function beginSelectionGesture(e: PointerEvent, pt: { x: number; y: number }, u:
   const selected = selectedNoteList();
   if (selected.length === 0) return undefined;
   // 選択中のノートの本体を掴むと全体を移動する
-  if (note && selected.some((n) => n.head === note.head) && smartModeAt(note, pt.x) === "grab") {
+  if (note && selected.some((n) => n.head === note.head) && smartModeAt(note, fieldX, view, doc.scrollX) === "grab") {
     const records = getService()!.evels.records;
     previewAt(pt.y);
     return {

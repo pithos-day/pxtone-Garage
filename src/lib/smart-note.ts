@@ -5,7 +5,7 @@
 import { EventKind, type EveRecord } from "pxtone-ts";
 import { dropShortPrevNote, type EventWriteOps } from "./editing";
 import { iterNoteDraws } from "./records";
-import { KEYNUM, keyValueToRow } from "./clock";
+import { KEYNUM, clockToX, keyValueToRow, type ClockView } from "./clock";
 import { clamp } from "./clamp";
 
 // KEY イベント値の上限 (本家の KEY 値域)。音程移動のクランプに使う
@@ -256,4 +256,65 @@ export function placeNotes(
       else ops.addEvent(clock, unit, ev.kind, ev.kind === EventKind.KEY ? shiftKeyValue(ev.value, p.rowDelta) : ev.value);
     }
   }
+}
+
+// ---- 押下位置の判定 (fieldX はフィールド左端を 0 とする px) ----
+
+// スマートツールの端判定幅 (CSS px)。端からこれ以内は端の調整、それ以外は掴み。
+// グリッド基準の端判定だと書き込み 1 つ分の短いノートで端が掴めないため px 基準にする
+const EDGE_PX = 8;
+
+// 押下位置で掴み / 開始 / 終了を決める。
+// ノート幅が端判定幅以下の短いノートは左右半分で開始/終了を分ける
+export function smartModeAt(note: SmartNote, fieldX: number, view: ClockView, scrollX: number): SmartMode {
+  const leftPx = clockToX(view, note.head) - scrollX;
+  const rightPx = clockToX(view, note.end) - scrollX;
+  if (rightPx - leftPx <= EDGE_PX * 2) {
+    return fieldX < (leftPx + rightPx) / 2 ? "head" : "tail";
+  }
+  if (fieldX <= leftPx + EDGE_PX) return "head";
+  if (fieldX >= rightPx - EDGE_PX) return "tail";
+  return "grab";
+}
+
+// 押下位置 (clock, row) が重なる描画ノート (ON) を探す。
+// 重なるもののうち records 上で最も後ろにあるもの (見た目で上に重なっているもの) を返す
+function noteAt(records: EveRecord[], unit: number, clock: number, row: number, defaultKey: number): SmartNote | null {
+  let hit: SmartNote | null = null;
+  for (const note of notesInUnit(records, unit, defaultKey)) {
+    if (clock < note.head || note.end <= clock) continue;
+    if (keyValueToRow(note.key) === row) hit = note;
+  }
+  return hit;
+}
+
+// スマートツールの押下対象ノートを決める。
+// 右端ぎりぎりの押下はスナップで clock == end (ノート外) に丸められ noteAt では
+// 見つからないため、先に「押下 x がノートの範囲内 / 端から EDGE_PX 以内」の
+// 同一行ノートを探してから noteAt に落とす。範囲内のノートを最優先し、
+// 範囲外の押下は端との距離が最も近いノートを端調整の対象にする
+export function noteNear(
+  records: EveRecord[],
+  unit: number,
+  clock: number,
+  row: number,
+  fieldX: number,
+  view: ClockView,
+  scrollX: number,
+  defaultKey: number,
+): SmartNote | null {
+  let edge: SmartNote | null = null;
+  let edgeDist = Number.POSITIVE_INFINITY;
+  for (const note of notesInUnit(records, unit, defaultKey)) {
+    if (keyValueToRow(note.key) !== row) continue;
+    const leftPx = clockToX(view, note.head) - scrollX;
+    const rightPx = clockToX(view, note.end) - scrollX;
+    if (fieldX >= leftPx && fieldX < rightPx) return note; // 本体上の押下 (掴み/端は smartModeAt で判定)
+    const dist = Math.min(Math.abs(fieldX - leftPx), Math.abs(fieldX - rightPx));
+    if (dist <= EDGE_PX && dist < edgeDist) {
+      edgeDist = dist;
+      edge = note;
+    }
+  }
+  return edge ?? noteAt(records, unit, clock, row, defaultKey);
 }

@@ -186,7 +186,7 @@ import { parseMidi, convertMidiToPtcop } from "../src/engine/midi";
 import { formatTime, measStartClock, ZOOM_MAX, ZOOM_MIN, ZOOM_SLIDER_MAX, sliderToZoom, zoomToSlider, gridLineWidth, rowToKeyValue, keyValueToRow } from "../src/lib/clock";
 import { scaleToWoice, scaleToGroup, VOLUME_EDIT_KIND } from "../src/lib/volume";
 import { writeNote, writeNoteLength, eraseNote, writeVolumeEvent, paintKeyDrag, type EventWriteOps } from "../src/lib/editing";
-import { smartPlacement, commitSmartDrag, clampSmartOffset, shiftKeyValue, notesInUnit, notesInRect, clampGroupOffset, clampGroupRowDelta, type SmartDrag } from "../src/lib/smart-note";
+import { smartPlacement, commitSmartDrag, clampSmartOffset, shiftKeyValue, notesInUnit, notesInRect, clampGroupOffset, clampGroupRowDelta, smartModeAt, noteNear, type SmartDrag } from "../src/lib/smart-note";
 import {
   SHORTCUTS,
   DEFAULT_BINDINGS,
@@ -3736,6 +3736,23 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
     // 矩形の判定
     const all = notesInUnit(svc.evels.records, 0, EVENTDEFAULT_KEY);
+    // 押下位置の判定: 1 拍 = 480 クロック = 40px (ズーム 40)
+    {
+      const view = { beatClock: 480, beatNum: 4, zoom: 40, measNum: 16 };
+      const wide = { head: 0, end: 960, key: row(40) }; // 0..80px
+      const narrow = { head: 0, end: 120, key: row(40) }; // 0..10px
+      checkEq(smartModeAt(wide, 4, view, 0), "head", "hit: 左端の近くは開始調整");
+      checkEq(smartModeAt(wide, 40, view, 0), "grab", "hit: 中央は掴み");
+      checkEq(smartModeAt(wide, 76, view, 0), "tail", "hit: 右端の近くは終了調整");
+      checkEq(smartModeAt(narrow, 2, view, 0), "head", "hit: 短いノートの左半分は開始調整");
+      checkEq(smartModeAt(narrow, 8, view, 0), "tail", "hit: 短いノートの右半分は終了調整");
+      checkEq(smartModeAt(wide, 44, view, 40), "tail", "hit: スクロール量を差し引く");
+      const near = (clock: number, r: number, x: number) => noteNear(svc.evels.records, 0, clock, r, x, view, 0, EVENTDEFAULT_KEY)?.head ?? null;
+      checkEq(near(120, 40, 10), 0, "hit: ノート本体の上");
+      checkEq(near(240, 40, 25), 0, "hit: 右端から端判定幅の内側");
+      checkEq(near(480, 40, 50), null, "hit: 端判定幅の外は対象なし");
+      checkEq(near(120, 41, 10), null, "hit: 行が違えば対象なし");
+    }
     checkEq(notesInRect(all, 100, 500, 40, 42).map((n) => n.head).join(), "0,480", "note-sel: 矩形に重なるノート");
     checkEq(notesInRect(all, 240, 480, 0, 87).length, 0, "note-sel: 区間は半開");
     checkEq(notesInRect(all, 0, 2000, 41, 41).length, 0, "note-sel: 行が外れると選ばない");
