@@ -3,7 +3,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
-import { useCanvasDrag, type CanvasDragState } from "../../composables/useCanvasDrag";
+import { dragClockRange, useCanvasDrag, type CanvasDragState } from "../../composables/useCanvasDrag";
 import { useDragUndo } from "../../composables/useUndo";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText, drawPlayhead, fillPlayIcon, drawDragRange } from "../../lib/draw";
@@ -152,10 +152,11 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   // ドラッグ中の範囲 (本家同様、範囲の両端に縦線を表示)
   const d = drag.value;
   if (d && d.clock2 !== d.clock1) {
+    const { c1, c2 } = dragClockRange(d);
     drawDragRange(
       ctx,
-      clockToX(view, Math.min(d.clock1, d.clock2)) - doc.scrollX,
-      clockToX(view, Math.max(d.clock1, d.clock2)) - doc.scrollX,
+      clockToX(view, c1) - doc.scrollX,
+      clockToX(view, c2) - doc.scrollX,
       fTop,
       h,
       COLORS.accent,
@@ -186,8 +187,7 @@ function applyDragAt(d: CanvasDragState, y: number, e: PointerEvent): void {
   if (!s) return;
   const u = doc.focusUnit;
   if (u < 0) return;
-  const c1 = Math.min(d.clock1, d.clock2);
-  const c2 = Math.max(d.clock1, d.clock2);
+  const { c1, c2 } = dragClockRange(d);
   // クリックのみ (範囲なし) は書き込まない
   if (c2 <= c1) return;
   const mode = doc.volumeMode;

@@ -14,6 +14,11 @@ export interface CanvasDragState {
   clock2: number;
 }
 
+// ドラッグ範囲を [開始, 終了] の順に揃える (左向きのドラッグでは clock1 > clock2 になる)
+export function dragClockRange(d: CanvasDragState): { c1: number; c2: number } {
+  return { c1: Math.min(d.clock1, d.clock2), c2: Math.max(d.clock1, d.clock2) };
+}
+
 export interface CanvasDragOptions<T extends CanvasDragState> {
   canvasRef: Ref<HTMLCanvasElement | null>;
   // x (CSS px) → グリッドにスナップした clock (フィールド左端の除外幅はここで吸収)

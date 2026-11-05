@@ -8,7 +8,7 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
-import { useCanvasDrag } from "../../composables/useCanvasDrag";
+import { dragClockRange, useCanvasDrag } from "../../composables/useCanvasDrag";
 import { useHoldPreview } from "../../composables/useHoldPreview";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText, drawPlayhead, drawScopeBand,
@@ -554,8 +554,7 @@ function updateSmartPreview(d: KeyDrag, pt?: { x: number; y: number }): void {
 // pen / スマート書き込みドラッグの確定前ノート (ゴースト) 描画。
 // ドラッグ中はイベント列を触らないため、[押下..現在] の範囲に置くノートを予告として描く
 function drawNoteGhost(ctx: CanvasRenderingContext2D, d: KeyDrag, field: FieldCtx, unitNo: number): void {
-  const c1 = Math.min(d.clock1, d.clock2);
-  const c2 = Math.max(d.clock1, d.clock2);
+  const { c1, c2 } = dragClockRange(d);
   const color = getUnitColor(unitNo);
   const { w, top, h, view, scrollX, scrollY } = field;
   ctx.save();
@@ -614,8 +613,7 @@ function drawSmartGhost(ctx: CanvasRenderingContext2D, d: KeyDrag, field: FieldC
 function commitNoteDrag(u: number, d: KeyDrag): void {
   const s = getService();
   if (!s) return;
-  const c1 = Math.min(d.clock1, d.clock2);
-  const c2 = Math.max(d.clock1, d.clock2);
+  const { c1, c2 } = dragClockRange(d);
   if (c2 <= c1) return;
   // 書込先の直前ノートが超短い断片になる (隣に張り付いて重なって見える) ときは消す
   dropShortPrevNote(projectWriteOps, s.evels.records, c1, u, beatGrid());
@@ -647,8 +645,7 @@ function applyDrag(d: KeyDrag, pt?: { x: number; y: number }): void {
     updateSmartPreview(d, pt);
     return;
   }
-  const c1 = Math.min(d.clock1, d.clock2);
-  const c2 = Math.max(d.clock1, d.clock2);
+  const { c1, c2 } = dragClockRange(d);
   if (c2 <= c1) return;
   // ピアノロールのドラッグでスコープを書き換えない (範囲選択は ScopeField 側)
   const value = rowToKeyValue(d.row);

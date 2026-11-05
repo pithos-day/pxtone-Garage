@@ -3,7 +3,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
-import { useCanvasDrag } from "../../composables/useCanvasDrag";
+import { dragClockRange, useCanvasDrag } from "../../composables/useCanvasDrag";
 import { useHoldPreview } from "../../composables/useHoldPreview";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText, noteFill, noteShadow,
@@ -223,8 +223,7 @@ function applyDrag(d: LanesDrag): void {
   if (doc.readOnly) return;
   const s = getService();
   if (!s) return;
-  const c1 = Math.min(d.clock1, d.clock2);
-  const c2 = Math.max(d.clock1, d.clock2);
+  const { c1, c2 } = dragClockRange(d);
   if (c2 <= c1) return;
   // レーンのドラッグでスコープを書き換えない (範囲選択は ScopeField 側)
   const u = d.unit;
