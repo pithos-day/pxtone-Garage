@@ -1,10 +1,11 @@
 // 再生状態の管理。worklet プレイヤーとの橋渡し
-import { computed, ref, watch } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import { RealtimePlayer } from "../engine/realtime-player";
 import { decodeProjectBytes } from "../engine/oggv";
 import { EXE_VER } from "./service";
 import { getService, exportBytes, doc, clockContext } from "./project";
 import { xToClock } from "../lib/clock";
+import { decayLevel } from "../lib/level";
 import { leftW } from "./left-panel";
 import { readStorage, writeStorage } from "../lib/storage";
 import { buildMetronomeTones } from "../engine/metronome";
@@ -16,10 +17,33 @@ export const player = new RealtimePlayer({
   onEnded: () => {
     isPlaying.value = false;
     positionSample.value = player.totalSample;
+    resetOutputLevel();
+  },
+  onLevel: (left, right, clipped) => {
+    // 停止の直後に届いた通知でメーターが止まったままにならないようにする
+    if (isPlaying.value) updateOutputLevel(left, right, clipped);
   },
 });
 
 export const isPlaying = ref(false);
+// 再生中の出力レベル (LevelMeter が購読する)。clipped は消すまで保持する
+export const outputLevel = reactive({ left: 0, right: 0, clipped: false });
+
+export function updateOutputLevel(left: number, right: number, clipped: boolean): void {
+  outputLevel.left = decayLevel(outputLevel.left, left);
+  outputLevel.right = decayLevel(outputLevel.right, right);
+  if (clipped) outputLevel.clipped = true;
+}
+
+function resetOutputLevel(): void {
+  outputLevel.left = 0;
+  outputLevel.right = 0;
+}
+
+export function clearClip(): void {
+  outputLevel.clipped = false;
+}
+
 export const positionSample = ref(0);
 export const loop = ref(true);
 export const masterVolume = ref(1.0);
@@ -197,6 +221,7 @@ export async function play(): Promise<void> {
   const bytes = await projectBytes();
   if (!bytes) return;
   await ensureLoaded(bytes);
+  clearClip();
   clampToPlayStart(s);
   applyPlaybackState();
   isPlaying.value = true;
@@ -207,6 +232,7 @@ export async function play(): Promise<void> {
 export function stop(): void {
   player.stop();
   isPlaying.value = false;
+  resetOutputLevel();
   cancelAnimationFrame(rafId);
 }
 

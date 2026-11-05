@@ -8,6 +8,7 @@ import { Service, MemoryIo, PxtnErr, PXTN_VOMIT_PREP_FLAG_LOOP, PXTN_VOMIT_PREP_
 import type { VomitPreparation } from "pxtone-ts";
 import type { MainToWorklet, WorkletToMain } from "./worklet-messages";
 import { metronomeHits } from "../lib/metronome";
+import { CLIP_SAMPLE } from "../lib/level";
 
 // AudioWorklet グローバルスコープの最小型定義
 declare class AudioWorkletProcessor {
@@ -22,6 +23,8 @@ const BLOCK_SIZE = 128;
 
 // クリック音の音量 (マスターボリュームに掛ける)
 const METRONOME_GAIN = 0.6;
+// 出力レベルを通知する頻度
+const LEVEL_NOTIFY_HZ = 30;
 
 // 発音中のクリック音
 interface ActiveClick {
@@ -37,6 +40,10 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
   private sps = 44100;
   private loop = false;
   private volume = 1.0;
+  // 前回のレベル通知以降の最大値 (int16 の絶対値)
+  private peakLeft = 0;
+  private peakRight = 0;
+  private levelFrames = 0;
   private mutedUnits: number[] = [];
   private lastPosNotifySample = -1;
   private playStartMeas = -1;
@@ -191,6 +198,7 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
           out[ch]![offset + i] = this.scratch[i * chNum + ch]! / 32768;
         }
       }
+      this.measureLevel(n, chNum);
       if (this.metronome) {
         this.scheduleClicks(svc, posBefore, endBefore, n);
         this.mixClicks(out, offset, n);
@@ -214,6 +222,26 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
       }
     }
     return true;
+  }
+
+  // 描画した n フレームのピークを集計し、一定間隔で通知する
+  private measureLevel(n: number, chNum: number): void {
+    const rightCh = chNum > 1 ? 1 : 0;
+    for (let i = 0; i < n; i++) {
+      this.peakLeft = Math.max(this.peakLeft, Math.abs(this.scratch[i * chNum]!));
+      this.peakRight = Math.max(this.peakRight, Math.abs(this.scratch[i * chNum + rightCh]!));
+    }
+    this.levelFrames += n;
+    if (this.levelFrames < Math.trunc(this.sps / LEVEL_NOTIFY_HZ)) return;
+    this.post({
+      type: "level",
+      left: Math.min(1, this.peakLeft / CLIP_SAMPLE),
+      right: Math.min(1, this.peakRight / CLIP_SAMPLE),
+      clipped: this.peakLeft >= CLIP_SAMPLE || this.peakRight >= CLIP_SAMPLE,
+    });
+    this.peakLeft = 0;
+    this.peakRight = 0;
+    this.levelFrames = 0;
   }
 
   // 今描画した n サンプルに含まれる拍のクリックを予約する。

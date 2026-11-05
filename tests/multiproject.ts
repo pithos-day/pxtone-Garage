@@ -22,6 +22,7 @@
 //   52. Noise の undo / History は編集状態をそのまま戻す / 53. THIRD_PARTY_NOTICES の生成
 //   54. 未保存ドラフトの退避 (IndexedDB / 旧形式からの移行 / 失敗の通知) / 55. ユーザーテーマの保存失敗を通知する
 //   56. 予期しないエラーの通知 / 57. 機能を検索 / 58. モバイルの表示幅
+//   59. 出力レベルメーター
 import {
   projects,
   currentProjectId,
@@ -106,6 +107,8 @@ import { loadDrafts, restoreDrafts, saveDraftsNow } from "../src/state/drafts";
 import { addUserTheme, removeUserTheme } from "../src/state/theme";
 import { reportUnexpectedError } from "../src/state/errors";
 import { touchViewportContent } from "../src/lib/mobile";
+import { decayLevel, levelToPercent } from "../src/lib/level";
+import { clearClip, outputLevel, stop as stopPlayback, updateOutputLevel } from "../src/state/player";
 import { currentAppDialog, acceptAppDialog } from "../src/state/dialog";
 import { droppedFiles, namedFiles, readBlobsAndApply, toArrayBuffer } from "../src/engine/io";
 import { pushRecent, dropRecent } from "../src/lib/recent-list";
@@ -4226,6 +4229,31 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
   {
     checkEq(touchViewportContent(390, 844), "width=1280, user-scalable=no", "mobile: 小さい端末は PC の幅でレイアウトする");
     checkEq(touchViewportContent(1024, 1366), "width=1366, user-scalable=no", "mobile: 大きい端末は長辺の幅を使う");
+  }
+
+  // ---- 59. 出力レベルメーター ----
+  {
+    checkEq(levelToPercent(0), 0, "level: 無音は 0%");
+    checkEq(levelToPercent(1), 100, "level: フルスケールは 100%");
+    checkEq(Math.round(levelToPercent(10 ** (-24 / 20))), 50, "level: -24dB は 50%");
+    checkEq(levelToPercent(10 ** (-96 / 20)), 0, "level: 下限より小さければ 0%");
+    checkEq(decayLevel(0.1, 0.8), 0.8, "level: 上がるときは即座に追従する");
+    check(decayLevel(0.8, 0) > 0.5 && decayLevel(0.8, 0) < 0.8, "level: 下がるときは緩やかに落ちる");
+
+    clearClip();
+    updateOutputLevel(0.5, 0.25, false);
+    checkEq(outputLevel.clipped, false, "level: 音割れがなければ点灯しない");
+    updateOutputLevel(1, 1, true);
+    updateOutputLevel(0.1, 0.1, false);
+    checkEq(outputLevel.clipped, true, "level: 音割れの表示は保持する");
+    // node には cancelAnimationFrame が無いためスタブする
+    (globalThis as { cancelAnimationFrame?: unknown }).cancelAnimationFrame = (): void => {};
+    stopPlayback();
+    delete (globalThis as { cancelAnimationFrame?: unknown }).cancelAnimationFrame;
+    checkEq(outputLevel.left, 0, "level: 停止でメーターを戻す");
+    checkEq(outputLevel.clipped, true, "level: 停止しても音割れの表示は残す");
+    clearClip();
+    checkEq(outputLevel.clipped, false, "level: 表示を消せる");
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);

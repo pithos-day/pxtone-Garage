@@ -87,6 +87,37 @@ void (async () => {
   assert(!hasNaN, "worklet: NaN が混入しない");
   assert(energySecondHalf > 0, "worklet: ブロック後半も描画される");
 
+  // ---- 出力レベル ----
+  {
+    const p = start();
+    messages.length = 0;
+    for (let i = 0; i < 20; i++) run(p, 128);
+    const levels = messages.filter((m) => (m as { type?: string }).type === "level") as { left: number; right: number; clipped: boolean }[];
+    assert(levels.length > 0, "level: 再生中に通知される");
+    assert(levels.every((l) => l.left >= 0 && l.left <= 1 && l.right >= 0 && l.right <= 1), "level: ピークは 0..1 の範囲");
+    assert(levels.some((l) => l.left > 0), "level: 発音中のピークが反映される");
+    assert(levels.every((l) => !l.clipped), "level: 飽和していなければ音割れにしない");
+
+    // 多数のユニットを同時に鳴らして飽和させると音割れとして通知する
+    newProjectInTab();
+    assert((await addWoice(buildPcmWav(), WoiceType.PCM, "Loud")) === null, "level: 音色を追加できる");
+    for (let u = 0; u < 32; u++) {
+      addUnitWithWoice(`L${u}`, service.woiceNum - 1);
+      service.evels.recordAddI(0, u, EventKind.VOICENO, service.woiceNum - 1);
+      service.evels.recordAddI(0, u, EventKind.KEY, 0x6000);
+      service.evels.recordAddI(0, u, EventKind.VELOCITY, 127);
+      service.evels.recordAddI(0, u, EventKind.ON, 480 * 4);
+    }
+    const loudBytes = exportBytes()!;
+    const loud = new Ctor!();
+    loud.port.onmessage!({ data: { type: "load", bytes: loudBytes.slice().buffer, sps: 44100, playStartMeas: -1, playEndMeas: -1 } });
+    loud.port.onmessage!({ data: { type: "play" } });
+    messages.length = 0;
+    for (let i = 0; i < 40; i++) run(loud, 128);
+    const loudLevels = messages.filter((m) => (m as { type?: string }).type === "level") as { left: number; clipped: boolean }[];
+    assert(loudLevels.some((l) => l.clipped && l.left === 1), `level: 飽和すると音割れを通知する ${JSON.stringify(loudLevels.slice(0, 2))}`);
+  }
+
   // ---- メトロノーム ----
   // 無音のプロジェクト (ノートはベロシティ 0) に、位置が分かる短いクリックを混ぜて検証する。
   // 120 BPM / 44100Hz なので 1 拍 = 22050 サンプル、4/4 で 1 小節 = 88200 サンプル

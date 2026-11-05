@@ -43,6 +43,7 @@ function releaseFocus(e: Event): void {
       @input="setMasterVolume(parseFloat(($event.target as HTMLInputElement).value))"
     />
     <span class="pct">{{ Math.round(masterVolume * 100) }}%</span>
+    <LevelMeter />
     <span class="sep" />
     <span class="time">{{ timeLabel() }}</span>
     <span class="clock">{{ formatClock(clockContext(), currentClock) }}</span>

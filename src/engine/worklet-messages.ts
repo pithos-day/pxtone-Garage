@@ -14,4 +14,6 @@ export type MainToWorklet =
 export type WorkletToMain =
   | { type: "loaded"; ok: boolean; totalSample: number }
   | { type: "position"; sample: number }
+  // 前回の通知以降のピーク (0..1) と音割れの有無。メトロノームは書き出しに入らないため含めない
+  | { type: "level"; left: number; right: number; clipped: boolean }
   | { type: "ended" };
