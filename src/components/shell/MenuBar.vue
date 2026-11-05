@@ -12,12 +12,11 @@ import {
   saveProject,
   saveProjectAs,
   isTuneProject,
-  currentProjectId,
   applyWoiceLink,
   projects,
 } from "../../state/projects";
-import { newVoice, saveVoice, undoVoice, redoVoice, currentVoice, currentVoiceId, snapshotVoice, markVoiceClean, voices } from "../../state/voice";
-import { newNoise, saveNoise, undoNoise, redoNoise, currentNoise, currentNoiseId, snapshotNoise, markNoiseClean, noises } from "../../state/noise";
+import { newVoice, saveVoice, undoVoice, redoVoice, currentVoice, snapshotVoice, markVoiceClean, voices } from "../../state/voice";
+import { newNoise, saveNoise, undoNoise, redoNoise, currentNoise, snapshotNoise, markNoiseClean, noises } from "../../state/noise";
 import { exportPttune, exportVoiceWav, exportNoiseWav, openFileDialog, openFilesDialog, readBlobAndApply } from "../../engine/io";
 import { OPEN_KINDS, openFilesInTabs, openRecentFile, type OpenKind } from "../../state/open-files";
 import { clearRecent, recentFiles, supportsRecentFiles } from "../../state/recent-files";
@@ -45,6 +44,7 @@ import { useDropdownMenu } from "../../composables/useDropdownMenu";
 import { useGlobalKeys } from "../../composables/useGlobalKeys";
 import { SHORTCUTS, shortcutAreaOf } from "../../lib/shortcuts";
 import { shortcutCommand } from "../../state/keybindings";
+import { MODE_DOCS } from "../../state/mode-docs";
 import { isModalOpen } from "../../state/ui";
 import { resetApp } from "../../state/reset";
 import ModeTabs from "./ModeTabs.vue";
@@ -135,12 +135,7 @@ function onExportWav(): void {
 }
 
 function onClose(): void {
-  const id =
-    mode.value === "collage"
-      ? currentProjectId.value
-      : mode.value === "voice"
-        ? currentVoiceId.value
-        : currentNoiseId.value;
+  const id = MODE_DOCS[mode.value].currentId();
   if (id >= 0) emit("requestClose", mode.value, id);
 }
 
@@ -332,7 +327,7 @@ useGlobalKeys(() => true, { keydown: onShortcut });
 // 「最近使ったファイル」のサブメニュー (非対応ブラウザでは出さない)
 function recentMenu(): MenuItem | undefined {
   if (!supportsRecentFiles()) return undefined;
-  const kind: OpenKind = mode.value === "collage" ? "project" : mode.value;
+  const kind = MODE_DOCS[mode.value].openKind;
   const list = recentFiles.value[kind];
   return {
     label: t("menu.file.recent"),

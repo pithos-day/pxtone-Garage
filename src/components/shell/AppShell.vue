@@ -24,16 +24,17 @@ import CollageTab from "../collage/CollageEditor.vue";
 import VoiceTab from "../voice/VoiceEditor.vue";
 import NoiseTab from "../noise/NoiseEditor.vue";
 import VoiceCopyDialog from "../voice/VoiceCopyDialog.vue";
-import { closeAllProjects, closeProject, currentProjectId, ensureInitialProject, projects, saveProject, switchProject } from "../../state/projects";
+import { ensureInitialProject, projects } from "../../state/projects";
 import { openSampleProject } from "../../state/samples";
 import { droppedFiles } from "../../engine/io";
 import { OPEN_KINDS, openFilesInTabs } from "../../state/open-files";
 import { initRecentFiles } from "../../state/recent-files";
 import { appAlert } from "../../state/dialog";
 import { lang, t } from "../../i18n";
-import { copyVoiceSide, ensureInitialVoice, closeVoice, closeAllVoices, saveVoice, voiceRevision, voices, switchVoice } from "../../state/voice";
-import { ensureInitialNoise, closeNoise, closeAllNoises, saveNoise, noiseRevision, noises, switchNoise } from "../../state/noise";
+import { copyVoiceSide, ensureInitialVoice, voiceRevision } from "../../state/voice";
+import { ensureInitialNoise, noiseRevision } from "../../state/noise";
 import { doc } from "../../state/project";
+import { MODE_DOCS, type ModeTab } from "../../state/mode-docs";
 import {
   cancelDraftSave,
   hasUnsavedDocuments,
@@ -139,7 +140,7 @@ function onDragOver(e: DragEvent): void {
 }
 
 function onDrop(e: DragEvent): void {
-  const kind = ({ collage: "project", voice: "voice", noise: "noise" } as const)[activeTab.value];
+  const kind = MODE_DOCS[activeTab.value].openKind;
   // 非対応の拡張子は無視する (音色トレイへのドロップもここへバブリングしてくるため)
   if (!e.dataTransfer) return;
   void droppedFiles(e.dataTransfer, OPEN_KINDS[kind].exts).then((files) => {
@@ -149,59 +150,36 @@ function onDrop(e: DragEvent): void {
 
 // ---- 未保存のタブを閉じる ----
 
-function closeTargetInfo(mode: AppMode, id: number): { name: string; dirty: boolean; canSave: boolean } | null {
-  if (mode === "collage") {
-    const p = projects.value.find((x) => x.id === id);
-    // 現在のタブは doc が正本 (p.dirty はタブ切替/退避まで古いことがある)
-    const dirty = p && p.id === currentProjectId.value ? doc.dirty : p?.dirty;
-    return p ? { name: p.fileName || t("common.untitled"), dirty: !!dirty, canSave: p.kind !== "tune" } : null;
-  }
-  if (mode === "voice") {
-    const v = voices.value.find((x) => x.id === id);
-    return v ? { name: v.fileName || t("common.untitled"), dirty: v.dirty, canSave: true } : null;
-  }
-  const n = noises.value.find((x) => x.id === id);
-  return n ? { name: n.fileName || t("common.untitled"), dirty: n.dirty, canSave: true } : null;
-}
-
-function switchToTab(mode: AppMode, id: number): void {
-  if (mode === "collage") switchProject(id);
-  else if (mode === "voice") switchVoice(id);
-  else switchNoise(id);
-}
-
 function closeNow(mode: AppMode, id: number): void {
-  if (mode === "collage") closeProject(id);
-  else if (mode === "voice") closeVoice(id);
-  else closeNoise(id);
+  MODE_DOCS[mode].close(id);
   closeRequest.value = null;
   // 閉じたタブを退避データからも消す (次回起動時に復活させない)
   void saveDraftsNow(activeTab.value);
 }
 
+function findTab(mode: AppMode, id: number): ModeTab | undefined {
+  return MODE_DOCS[mode].tabs().find((tab) => tab.id === id);
+}
+
+// 非アクティブタブの「保存」は現在のタブを保存してしまうため、対象へ切り替えてから確認する
+function askUnsaved(mode: AppMode, tab: ModeTab): void {
+  MODE_DOCS[mode].switchTo(tab.id);
+  closeRequest.value = { mode, id: tab.id, name: tab.title, canSave: !tab.readonly };
+}
+
 // タブの X / メニューの「閉じる」から呼ばれる。未保存なら 3 択ダイアログを出す
 function requestClose(mode: AppMode, id: number): void {
   pendingCloseAll = null;
-  const target = closeTargetInfo(mode, id);
-  if (!target) return;
-  if (!target.dirty) {
-    closeNow(mode, id);
-    return;
-  }
-  // 非アクティブタブの「保存」は現在のタブを保存してしまうため、対象へ切り替える
-  switchToTab(mode, id);
-  closeRequest.value = { mode, id, name: target.name, canSave: target.canSave };
+  const tab = findTab(mode, id);
+  if (!tab) return;
+  if (tab.dirty) askUnsaved(mode, tab);
+  else closeNow(mode, id);
 }
 
 // メニューの「全て閉じる」から呼ばれる。未保存のタブだけ順番に 3 択ダイアログを出し、
 // 全て解決したらまとめて閉じる (途中でキャンセルされたら何も閉じない)
 function requestCloseAll(mode: AppMode): void {
-  const ids =
-    mode === "collage"
-      ? projects.value.map((p) => p.id)
-      : mode === "voice"
-        ? voices.value.map((v) => v.id)
-        : noises.value.map((n) => n.id);
+  const ids = MODE_DOCS[mode].tabs().map((tab) => tab.id);
   if (ids.length === 0) return;
   pendingCloseAll = { mode, ids };
   advanceCloseAll();
@@ -212,12 +190,9 @@ function advanceCloseAll(): void {
   const job = pendingCloseAll;
   if (!job) return;
   while (job.ids.length > 0) {
-    const id = job.ids.shift()!;
-    const target = closeTargetInfo(job.mode, id);
-    if (!target?.dirty) continue;
-    // 非アクティブタブの「保存」は現在のタブを保存してしまうため、対象へ切り替える
-    switchToTab(job.mode, id);
-    closeRequest.value = { mode: job.mode, id, name: target.name, canSave: target.canSave };
+    const tab = findTab(job.mode, job.ids.shift()!);
+    if (!tab?.dirty) continue;
+    askUnsaved(job.mode, tab);
     return;
   }
   pendingCloseAll = null;
@@ -225,14 +200,8 @@ function advanceCloseAll(): void {
 }
 
 function closeAllNow(mode: AppMode): void {
-  if (mode === "collage") {
-    // Collage は最低 1 タブ必要なため、閉じた後に空プロジェクトを開き直す
-    closeAllProjects();
-  } else if (mode === "voice") {
-    closeAllVoices();
-  } else {
-    closeAllNoises();
-  }
+  // Collage は最低 1 タブ必要なため、閉じた後に空プロジェクトを開き直す (closeAllProjects)
+  MODE_DOCS[mode].closeAll();
   closeRequest.value = null;
   // 閉じたタブを退避データからも消す (次回起動時に復活させない)
   void saveDraftsNow(activeTab.value);
@@ -254,9 +223,7 @@ async function onUnsavedSave(): Promise<void> {
   closeBusy.value = true;
   let saved = false;
   try {
-    if (req.mode === "collage") saved = await saveProject();
-    else if (req.mode === "voice") saved = await saveVoice(false);
-    else saved = await saveNoise(false);
+    saved = await MODE_DOCS[req.mode].save();
   } catch {
     void appAlert(t("error.save"));
   } finally {

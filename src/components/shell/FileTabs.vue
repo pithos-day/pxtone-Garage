@@ -4,25 +4,7 @@
 import { X, Plus, Eye, Link2 } from "@lucide/vue";
 import type { AppMode } from "../../lib/modes";
 import { computed } from "vue";
-import { doc } from "../../state/project";
-import {
-  projects,
-  currentProjectId,
-  switchProject,
-  newProjectInTab,
-} from "../../state/projects";
-import {
-  voices,
-  currentVoiceId,
-  switchVoice,
-  newVoice,
-} from "../../state/voice";
-import {
-  noises,
-  currentNoiseId,
-  switchNoise,
-  newNoise,
-} from "../../state/noise";
+import { MODE_DOCS } from "../../state/mode-docs";
 import { t } from "../../i18n";
 
 const props = defineProps<{ mode: AppMode }>();
@@ -30,51 +12,8 @@ const props = defineProps<{ mode: AppMode }>();
 // 未保存確認は AppShell のダイアログで行うため、閉じる操作はイベントで委譲する
 const emit = defineEmits<{ (e: "requestClose", mode: AppMode, id: number): void }>();
 
-// モード別のタブ一覧 (id / title / dirty / linked / readonly / active / select / close)
-const tabs = computed(() => {
-  if (props.mode === "voice") {
-    return voices.value.map((v) => ({
-      id: v.id,
-      title: v.fileName || t("common.untitled"),
-      dirty: v.dirty,
-      // 「音色を編集」で開いたタブは link アイコンを表示する (元の Collage 音色と対応)
-      linked: v.link !== undefined,
-      readonly: false,
-      active: v.id === currentVoiceId.value,
-      select: () => switchVoice(v.id),
-    }));
-  }
-  if (props.mode === "noise") {
-    return noises.value.map((n) => ({
-      id: n.id,
-      title: n.fileName || t("common.untitled"),
-      dirty: n.dirty,
-      // 「音色を編集」で開いたタブは link アイコンを表示する (元の Collage 音色と対応)
-      linked: n.link !== undefined,
-      readonly: false,
-      active: n.id === currentNoiseId.value,
-      select: () => switchNoise(n.id),
-    }));
-  }
-  return projects.value.map((p) => ({
-    id: p.id,
-    title: p.fileName || t("common.untitled"),
-    // 現在のタブは doc が正本 (p.dirty はタブ切替/退避のときにしか更新されない)
-    dirty: p.id === currentProjectId.value ? doc.dirty : p.dirty,
-    linked: false,
-    // pttune 再生専用タブは eye アイコンを表示する
-    readonly: p.kind === "tune",
-    active: p.id === currentProjectId.value,
-    select: () => switchProject(p.id),
-  }));
-});
-
-// モード別の新規作成
-function onNew(): void {
-  if (props.mode === "voice") newVoice();
-  else if (props.mode === "noise") newNoise();
-  else newProjectInTab();
-}
+const docs = computed(() => MODE_DOCS[props.mode]);
+const tabs = computed(() => docs.value.tabs());
 
 // 閉じる前の未保存確認は AppShell が担当する (保存 / 保存しない / キャンセル)
 function onClose(id: number): void {
@@ -88,9 +27,9 @@ function onClose(id: number): void {
       v-for="p in tabs"
       :key="p.id"
       class="file-tab"
-      :class="{ active: p.active }"
+      :class="{ active: p.id === docs.currentId() }"
       :title="p.title"
-      @click="p.select"
+      @click="docs.switchTo(p.id)"
     >
       <Eye v-if="p.readonly" :size="14" class="tab-ro-icon" />
       <Link2 v-if="p.linked" :size="14" class="tab-link-icon" :class="{ dirty: p.dirty }" />
@@ -103,7 +42,7 @@ function onClose(id: number): void {
         @click.stop="onClose(p.id)"
       ><X :size="14" /></span>
     </button>
-    <button class="tab-new" :title="t('common.newProject')" @click="onNew"><Plus :size="16" /></button>
+    <button class="tab-new" :title="t('common.newProject')" @click="docs.create()"><Plus :size="16" /></button>
   </div>
 </template>
 
