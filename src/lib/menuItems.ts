@@ -1,6 +1,6 @@
 // メニューバー (MenuBar.vue) のメニュー項目組み立て。
 // モード別メニュー定義の構築ロジックを SFC から分離する
-import { FilePlus2, FileSearch2, Save, SavePlus, SquareX, Undo, Redo, ZoomIn } from "@lucide/vue";
+import { Bug, FilePlus2, FileSearch2, Save, SavePlus, SquareX, Undo, Redo, ZoomIn } from "@lucide/vue";
 import type { Component } from "vue";
 import { ZOOM_MAX, ZOOM_MIN, ZOOM_TABLE } from "./clock";
 import type { ShortcutCommand } from "./shortcuts";
@@ -8,19 +8,20 @@ import { t } from "../i18n";
 import type { AppMode } from "./modes";
 
 // トップメニューの名前 (表示ラベルとモード別表示順もここで定義)
-export type MenuName = "file" | "edit" | "view";
+export type MenuName = "file" | "edit" | "view" | "help";
 
 // トップメニューの表示ラベル
 export const MENU_LABELS: Record<MenuName, string> = {
   file: "File",
   edit: "Edit",
   view: "View",
+  help: "Help",
 };
 
-// モード別のトップメニュー (voice/noise は File + Edit。Edit には undo/redo と
+// モード別のトップメニュー (voice/noise は File + Edit + Help。Edit には undo/redo と
 // A/B コピー (voice) があるため表示する)
 export function menuNamesFor(mode: AppMode): MenuName[] {
-  return mode === "collage" ? ["file", "edit", "view"] : ["file", "edit"];
+  return mode === "collage" ? ["file", "edit", "view", "help"] : ["file", "edit", "help"];
 }
 
 export interface MenuItem {
@@ -128,4 +129,9 @@ export function buildViewMenu(args: {
       ],
     },
   ];
+}
+
+// Help メニュー
+export function buildHelpMenu(args: { onReportIssue: () => void }): MenuItem[] {
+  return [{ label: t("menu.help.reportIssue"), icon: Bug, action: args.onReportIssue }];
 }

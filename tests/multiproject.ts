@@ -1623,9 +1623,9 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
     // lib/menuItems: トップメニュー定義
     checkEq(MENU_LABELS.file, "File", "lib: MENU_LABELS file");
-    checkEq(menuNamesFor("collage").join(","), "file,edit,view", "lib: menuNamesFor collage は File/Edit/View");
-    checkEq(menuNamesFor("voice").join(","), "file,edit", "lib: menuNamesFor voice は File/Edit");
-    checkEq(menuNamesFor("noise").join(","), "file,edit", "lib: menuNamesFor noise は File/Edit");
+    checkEq(menuNamesFor("collage").join(","), "file,edit,view,help", "lib: menuNamesFor collage は File/Edit/View/Help");
+    checkEq(menuNamesFor("voice").join(","), "file,edit,help", "lib: menuNamesFor voice は File/Edit/Help");
+    checkEq(menuNamesFor("noise").join(","), "file,edit,help", "lib: menuNamesFor noise は File/Edit/Help");
 
     // lib/noise: エンベロープ変換と履歴追加
     checkEq(knobNorm(0, -100, 100), 0.5, "lib: knobNorm は線形範囲の中央で 0.5");

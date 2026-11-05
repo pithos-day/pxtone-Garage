@@ -1,6 +1,6 @@
 // 上部メニューバー (Blockbench 風)。
 // 左: Collage/Voice/Noise のモードタブ (大きめフォント)
-// 右: モード別ドロップダウンメニュー (collage = File/Edit/View、voice/noise = File/Edit)
+// 右: モード別ドロップダウンメニュー (collage = File/Edit/View/Help、voice/noise = File/Edit/Help)
 <script setup lang="ts">
 import { computed } from "vue";
 import { FileUp, FileDown, Music, ListMusic, FileMusic, AudioLines, SlidersHorizontal, SquareStack, CircleGauge, Copy, Columns4, PackagePlus, Link2, Settings, Palette, Keyboard, History, Eraser, AlignHorizontalJustifyStart } from "@lucide/vue";
@@ -32,6 +32,7 @@ import {
   buildFileMenu,
   buildEditMenu,
   buildViewMenu,
+  buildHelpMenu,
   MENU_LABELS,
   menuNamesFor,
   type MenuItem,
@@ -462,10 +463,19 @@ const viewMenu = computed<MenuItem[]>(() =>
   }),
 );
 
+const ISSUES_URL = "https://github.com/pithos-day/pxtone-garage/issues";
+
+const helpMenu = computed<MenuItem[]>(() =>
+  buildHelpMenu({
+    onReportIssue: () => void window.open(ISSUES_URL, "_blank", "noopener"),
+  }),
+);
+
 const openItems = computed<MenuItem[]>(() => {
   if (openMenu.value === "file") return fileMenu.value;
   if (openMenu.value === "edit") return editMenu.value;
   if (openMenu.value === "view") return viewMenu.value;
+  if (openMenu.value === "help") return helpMenu.value;
   return [];
 });
 </script>
@@ -530,7 +540,7 @@ const openItems = computed<MenuItem[]>(() => {
   box-shadow: inset 0 3px 0 var(--primary);
 }
 
-/* メニュー (File / Edit / View) — 左揃え (モードタブの直後) */
+/* メニュー (File / Edit / View / Help) — 左揃え (モードタブの直後) */
 .menu-right {
   display: flex;
   position: relative;
