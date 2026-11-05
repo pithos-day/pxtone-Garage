@@ -44,13 +44,12 @@ const unitList = computed(() => {
   return out;
 });
 
-// テンプレート用の非 null アクセサ (v-else 内でのみ呼ばれる)
+// レイヤー番号 → ユニット (編集ハンドラ用。タブが無ければ null)
 function unitAt(u: number) {
   return noise.value?.noise.getUnit(u) ?? null;
 }
 
-// レイヤー行モデル。テンプレートでの unitAt(u)! を script 側の非 null 保証に
-// 追い出し、v-for の対象を unitList (index のみ) から行オブジェクトに変える。
+// テンプレートの v-for に渡すレイヤー行 (index とユニットの組)。
 // undo/redo や History の反映はユニットを作り直すため、
 // rev を参照して行の unit 参照も更新する (markRaw のため自動追跡されない)
 const unitRows = computed(() => {

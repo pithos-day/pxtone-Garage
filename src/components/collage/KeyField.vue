@@ -63,8 +63,6 @@ import { currentClock, seekToClock, isPlaying as isPlayingNow } from "../../stat
 import { previewUnitHold } from "../../engine/preview";
 import { getUnitColor } from "../../lib/theme";
 
-// 鍵盤ストリップの幅。ピアノ風の単音プレビュー領域で、左パネル (300px) の右に置く。
-// 本家 144px から半分以下に縮小 (lib/layout.ts の STRIP_W)
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 
 // スマートプレビューの再描画要求。ドラッグ中はイベント列が変わらず doc.rev が
@@ -695,7 +693,7 @@ const { onPointerDown, onPointerMove, onPointerUp, drag: dragState } = useCanvas
         return { button: 0, clock1: clock, clock2: clock, row };
       }
       // スマート: 押下位置の状態でモードを決める。空き地 / ノート上どちらも
-      // 押下行の音を試聴する (掴み中の音程変化の再試聴は applySmartDrag 内)
+      // 押下行の音を試聴する (掴み中の音程変化の再試聴は updateSmartPreview 内)
       if (doc.tool === "smart") {
         const gesture = beginSelectionGesture(e, pt, focus, clock, row);
         if (gesture !== undefined) return gesture;
