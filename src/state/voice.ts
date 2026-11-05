@@ -246,7 +246,13 @@ function expandEnvelopePoints(vc: VoiceUnit): void {
       { x: 1, y: 0 },
     ];
   }
-  if (enve.headNum < 1 || enve.headNum >= MAX_ENVE_POINT) return;
+  // ヘッドが 0 点のファイルは音量一定で鳴るので、同じ音になる 1 点を補う (tail はそのまま)
+  if (enve.headNum < 1) {
+    enve.points = [{ x: 0, y: 128 }, enve.points[0] ?? { x: 1, y: 0 }];
+    enve.headNum = 1;
+    if (enve.fps <= 0) enve.fps = 1000;
+  }
+  if (enve.headNum >= MAX_ENVE_POINT) return;
   const tail = enve.points[enve.headNum]!;
   const points = enve.points.slice(0, enve.headNum);
   while (points.length < MAX_ENVE_POINT) points.push({ x: 0, y: 0 });

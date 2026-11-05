@@ -28,6 +28,7 @@
 //   66. 壊れたファイルで音色を置き換えても元の音色が残る / 67. Coordinate の y は保存で反転しない
 //   68. スライダー上でも Ctrl 付きのショートカットが効く / 69. undo でユニットの UI 状態が同じユニットに付いたまま
 //   70. Coordinate の点の上限 / 71. 音の出ない音色の保存はエラーを表示する
+//   72. ヘッド 0 点のエンベロープを開いて保存できる
 import { shouldRegisterServiceWorker } from "../src/lib/pwa";
 import { isKeyForFormControl } from "../src/composables/useGlobalKeys";
 import {
@@ -4698,6 +4699,25 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(currentAppDialog.value?.message, t("error.voiceNothingToSave"), "voice-save: 理由を表示する");
     acceptAppDialog();
     checkEq(d.dirty, true, "voice-save: 未保存のまま");
+    closeVoice(d.id);
+  }
+
+  // ---- 72. ヘッド 0 点のエンベロープを開いて保存できる ----
+  {
+    const w = createDefaultWoice();
+    const vc = w.getVoice(0)!;
+    vc.envelope = { fps: 1000, headNum: 0, bodyNum: 0, tailNum: 1, points: [{ x: 7, y: 0 }] };
+    const io = new MemoryIo();
+    w.ptvWrite(io);
+    checkEq(openVoice(io.toUint8Array(), "head0"), null, "enve-head0: 開ける");
+    const d = currentVoice()!;
+    const env = d.woice.getVoice(0)!.envelope;
+    checkEq(env.headNum, 31, "enve-head0: ヘッドのスロットを補う");
+    checkEq(env.points[0]!.y, 128, "enve-head0: 音量一定の点を補う");
+    checkEq(env.points[31]!.x, 7, "enve-head0: リリースは保持する");
+    const saved = new Woice();
+    checkEq(saved.read(new MemoryIo(snapshotVoiceForSave(d)!), WoiceType.PTV), PxtnErr.OK, "enve-head0: 保存したファイルを読み直せる");
+    checkEq(saved.getVoice(0)!.envelope.points[1]!.x, 7, "enve-head0: 保存してもリリースが残る");
     closeVoice(d.id);
   }
 
