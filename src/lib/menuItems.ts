@@ -1,6 +1,6 @@
 // メニューバー (MenuBar.vue) のメニュー項目組み立て。
 // モード別メニュー定義の構築ロジックを SFC から分離する
-import { Bug, ExternalLink, FilePlus2, Info, RotateCcw, Search, FileSearch2, Save, SavePlus, SquareX, Undo, Redo, ZoomIn } from "@lucide/vue";
+import { Bug, Code, FilePlus2, Info, RotateCcw, Search, FileSearch2, Save, SavePlus, SquareX, Undo, Redo, ZoomIn } from "@lucide/vue";
 import type { Component } from "vue";
 import { ZOOM_MAX, ZOOM_MIN, ZOOM_TABLE } from "./clock";
 import type { ShortcutCommand } from "./shortcuts";
@@ -142,7 +142,7 @@ export function buildHelpMenu(args: {
   return [
     { label: t("menu.help.search"), icon: Search, action: args.onSearch },
     { sep: true },
-    { label: t("menu.help.github"), icon: ExternalLink, action: args.onOpenGitHub },
+    { label: t("menu.help.github"), icon: Code, action: args.onOpenGitHub },
     { label: t("menu.help.reportIssue"), icon: Bug, action: args.onReportIssue },
     { sep: true },
     { label: t("menu.help.reset"), icon: RotateCcw, action: args.onReset },
