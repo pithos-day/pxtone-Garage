@@ -7,7 +7,7 @@ import { toArrayBuffer } from "./io";
 export interface RealtimePlayerOptions {
   onPosition?: (sample: number) => void;
   onEnded?: () => void;
-  onLevel?: (left: number, right: number, clipped: boolean) => void;
+  onLevel?: (left: number, right: number, clipLeft: boolean, clipRight: boolean) => void;
 }
 
 export class RealtimePlayer {
@@ -79,7 +79,7 @@ export class RealtimePlayer {
         this.opts.onPosition?.(msg.sample);
         break;
       case "level":
-        this.opts.onLevel?.(msg.left, msg.right, msg.clipped);
+        this.opts.onLevel?.(msg.left, msg.right, msg.clipLeft, msg.clipRight);
         break;
       case "ended":
         this.playing = false;

@@ -19,20 +19,21 @@ export const player = new RealtimePlayer({
     positionSample.value = player.totalSample;
     resetOutputLevel();
   },
-  onLevel: (left, right, clipped) => {
+  onLevel: (left, right, clipLeft, clipRight) => {
     // 停止の直後に届いた通知でメーターが止まったままにならないようにする
-    if (isPlaying.value) updateOutputLevel(left, right, clipped);
+    if (isPlaying.value) updateOutputLevel(left, right, clipLeft, clipRight);
   },
 });
 
 export const isPlaying = ref(false);
-// 再生中の出力レベル (LevelMeter が購読する)。clipped は消すまで保持する
-export const outputLevel = reactive({ left: 0, right: 0, clipped: false });
+// 再生中の出力レベル (LevelMeter が購読する)。音割れの表示は消すまで保持する
+export const outputLevel = reactive({ left: 0, right: 0, clipLeft: false, clipRight: false });
 
-export function updateOutputLevel(left: number, right: number, clipped: boolean): void {
+export function updateOutputLevel(left: number, right: number, clipLeft: boolean, clipRight: boolean): void {
   outputLevel.left = decayLevel(outputLevel.left, left);
   outputLevel.right = decayLevel(outputLevel.right, right);
-  if (clipped) outputLevel.clipped = true;
+  if (clipLeft) outputLevel.clipLeft = true;
+  if (clipRight) outputLevel.clipRight = true;
 }
 
 function resetOutputLevel(): void {
@@ -41,7 +42,8 @@ function resetOutputLevel(): void {
 }
 
 export function clearClip(): void {
-  outputLevel.clipped = false;
+  outputLevel.clipLeft = false;
+  outputLevel.clipRight = false;
 }
 
 export const positionSample = ref(0);

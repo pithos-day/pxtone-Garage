@@ -4244,19 +4244,20 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     check(decayLevel(0.8, 0) > 0.5 && decayLevel(0.8, 0) < 0.8, "level: 下がるときは緩やかに落ちる");
 
     clearClip();
-    updateOutputLevel(0.5, 0.25, false);
-    checkEq(outputLevel.clipped, false, "level: 音割れがなければ点灯しない");
-    updateOutputLevel(1, 1, true);
-    updateOutputLevel(0.1, 0.1, false);
-    checkEq(outputLevel.clipped, true, "level: 音割れの表示は保持する");
+    updateOutputLevel(0.5, 0.25, false, false);
+    checkEq(outputLevel.clipLeft || outputLevel.clipRight, false, "level: 音割れがなければ点灯しない");
+    updateOutputLevel(1, 0.5, true, false);
+    checkEq(outputLevel.clipRight, false, "level: 音割れはチャンネルごとに表示する");
+    updateOutputLevel(0.1, 0.1, false, false);
+    checkEq(outputLevel.clipLeft, true, "level: 音割れの表示は保持する");
     // node には cancelAnimationFrame が無いためスタブする
     (globalThis as { cancelAnimationFrame?: unknown }).cancelAnimationFrame = (): void => {};
     stopPlayback();
     delete (globalThis as { cancelAnimationFrame?: unknown }).cancelAnimationFrame;
     checkEq(outputLevel.left, 0, "level: 停止でメーターを戻す");
-    checkEq(outputLevel.clipped, true, "level: 停止しても音割れの表示は残す");
+    checkEq(outputLevel.clipLeft, true, "level: 停止しても音割れの表示は残す");
     clearClip();
-    checkEq(outputLevel.clipped, false, "level: 表示を消せる");
+    checkEq(outputLevel.clipLeft, false, "level: 表示を消せる");
   }
 
   // ---- 60. ユニット別 WAV 書き出し ----

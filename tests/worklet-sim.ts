@@ -92,11 +92,11 @@ void (async () => {
     const p = start();
     messages.length = 0;
     for (let i = 0; i < 20; i++) run(p, 128);
-    const levels = messages.filter((m) => (m as { type?: string }).type === "level") as { left: number; right: number; clipped: boolean }[];
+    const levels = messages.filter((m) => (m as { type?: string }).type === "level") as { left: number; right: number; clipLeft: boolean; clipRight: boolean }[];
     assert(levels.length > 0, "level: 再生中に通知される");
     assert(levels.every((l) => l.left >= 0 && l.left <= 1 && l.right >= 0 && l.right <= 1), "level: ピークは 0..1 の範囲");
     assert(levels.some((l) => l.left > 0), "level: 発音中のピークが反映される");
-    assert(levels.every((l) => !l.clipped), "level: 飽和していなければ音割れにしない");
+    assert(levels.every((l) => !l.clipLeft && !l.clipRight), "level: 飽和していなければ音割れにしない");
 
     // 多数のユニットを同時に鳴らして飽和させると音割れとして通知する
     newProjectInTab();
@@ -114,8 +114,8 @@ void (async () => {
     loud.port.onmessage!({ data: { type: "play" } });
     messages.length = 0;
     for (let i = 0; i < 40; i++) run(loud, 128);
-    const loudLevels = messages.filter((m) => (m as { type?: string }).type === "level") as { left: number; clipped: boolean }[];
-    assert(loudLevels.some((l) => l.clipped && l.left === 1), `level: 飽和すると音割れを通知する ${JSON.stringify(loudLevels.slice(0, 2))}`);
+    const loudLevels = messages.filter((m) => (m as { type?: string }).type === "level") as { left: number; clipLeft: boolean }[];
+    assert(loudLevels.some((l) => l.clipLeft && l.left === 1), `level: 飽和すると音割れを通知する ${JSON.stringify(loudLevels.slice(0, 2))}`);
   }
 
   // ---- メトロノーム ----

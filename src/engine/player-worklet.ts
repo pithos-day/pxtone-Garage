@@ -237,7 +237,8 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
       type: "level",
       left: Math.min(1, this.peakLeft / CLIP_SAMPLE),
       right: Math.min(1, this.peakRight / CLIP_SAMPLE),
-      clipped: this.peakLeft >= CLIP_SAMPLE || this.peakRight >= CLIP_SAMPLE,
+      clipLeft: this.peakLeft >= CLIP_SAMPLE,
+      clipRight: this.peakRight >= CLIP_SAMPLE,
     });
     this.peakLeft = 0;
     this.peakRight = 0;
