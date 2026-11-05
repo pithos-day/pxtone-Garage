@@ -6,6 +6,7 @@ import { initTheme } from "./state/theme";
 import { initFonts } from "./state/fonts";
 import { initKeybindings } from "./state/keybindings";
 import { loadDrafts } from "./state/drafts";
+import { installErrorHandlers } from "./state/errors";
 import {
   openProject,
   newProject,
@@ -59,7 +60,11 @@ initFonts();
 initMasterVolume();
 initKeybindings();
 // AppShell がセットアップ中に同期で復元できるよう、ドラフトを読んでからマウントする
-void loadDrafts().then(() => createApp(App).mount("#app"));
+void loadDrafts().then(() => {
+  const app = createApp(App);
+  installErrorHandlers(app);
+  app.mount("#app");
+});
 
 // 開発・テスト用フック
 if (import.meta.env.DEV) {

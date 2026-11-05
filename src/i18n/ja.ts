@@ -342,6 +342,7 @@ const ja = {
   "error.sampleFetch": "サンプル楽曲を読み込めませんでした",
   "error.sampleNotFound": "サンプル楽曲が見つかりません",
   "error.save": "保存に失敗しました",
+  "error.unexpected": "予期しないエラーが発生しました。編集内容の退避を試みましたが、アプリが正常に動かない可能性があります。ファイルに保存してからページを再読み込みしてください。\n\n{message}",
   "error.themeSave": "テーマをブラウザに保存できませんでした。次回起動時には残りません",
   "error.draftSave": "未保存の編集を自動で退避できませんでした。ブラウザが終了すると復元できないため、ファイルに保存してください",
   "error.applyNoProject": "元の Collage プロジェクトが見つかりません",

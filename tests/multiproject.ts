@@ -21,6 +21,7 @@
 //   48. 名前を付けて保存で Collage とのリンクを解除 / 49. 同梱サンプル楽曲 / 50. 全て閉じる / 51. Voice/Noise の全て閉じる
 //   52. Noise の undo / History は編集状態をそのまま戻す / 53. THIRD_PARTY_NOTICES の生成
 //   54. 未保存ドラフトの退避 (IndexedDB / 旧形式からの移行 / 失敗の通知) / 55. ユーザーテーマの保存失敗を通知する
+//   56. 予期しないエラーの通知
 import {
   projects,
   currentProjectId,
@@ -103,6 +104,7 @@ import { undo, redo, canUndo, canRedo, undoStack } from "../src/state/undo";
 import { applyDraftProjectState, linkedWoiceIndex, woiceLinkAt } from "../src/state/projects";
 import { loadDrafts, restoreDrafts, saveDraftsNow } from "../src/state/drafts";
 import { addUserTheme, removeUserTheme } from "../src/state/theme";
+import { reportUnexpectedError } from "../src/state/errors";
 import { currentAppDialog, acceptAppDialog } from "../src/state/dialog";
 import { droppedFiles, namedFiles, readBlobsAndApply, toArrayBuffer } from "../src/engine/io";
 import { pushRecent, dropRecent } from "../src/lib/recent-list";
@@ -4178,6 +4180,25 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     if (stored) removeUserTheme(stored.id);
     if (unsaved) removeUserTheme(unsaved.id);
     delete (globalThis as { localStorage?: unknown }).localStorage;
+  }
+
+  // ---- 56. 予期しないエラーの通知 ----
+  {
+    const consoleError = console.error;
+    console.error = (): void => {};
+    while (currentAppDialog.value) acceptAppDialog();
+    reportUnexpectedError(new DOMException("cancelled", "AbortError"));
+    reportUnexpectedError("ResizeObserver loop completed with undelivered notifications.");
+    check(currentAppDialog.value === null, "errors: キャンセルや無害な警告は通知しない");
+    reportUnexpectedError(new Error("boom"));
+    check(currentAppDialog.value?.message.includes("boom") === true, "errors: メッセージを含めて通知する");
+    acceptAppDialog();
+    reportUnexpectedError(new Error("boom"));
+    check(currentAppDialog.value === null, "errors: 同じエラーは繰り返し通知しない");
+    reportUnexpectedError(new Error("other"));
+    check(currentAppDialog.value?.message.includes("other") === true, "errors: 別のエラーは通知する");
+    while (currentAppDialog.value) acceptAppDialog();
+    console.error = consoleError;
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);

@@ -197,6 +197,12 @@ export function scheduleDraftSave(activeMode: AppMode): void {
   }, SAVE_DELAY_MS);
 }
 
+// 直近のモードで今すぐ退避する (モードを知らない経路向け)
+export function flushDrafts(): Promise<void> {
+  cancelDraftSave();
+  return saveDraftsNow(latestMode);
+}
+
 export function cancelDraftSave(): void {
   if (saveTimer !== null) {
     clearTimeout(saveTimer);
@@ -329,6 +335,7 @@ export function restoreDrafts(): AppMode | null {
   const noiseId = data.current?.noise != null ? noiseIdMap.get(data.current.noise) : undefined;
   if (noiseId !== undefined) switchNoise(noiseId);
 
+  latestMode = data.activeMode ?? latestMode;
   return data.activeMode ?? null;
 }
 
