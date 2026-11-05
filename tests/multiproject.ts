@@ -20,7 +20,7 @@
 //   47. 進捗ダイアログ (state/progress) と IO の進捗・キャンセル
 //   48. 名前を付けて保存で Collage とのリンクを解除 / 49. 同梱サンプル楽曲 / 50. 全て閉じる / 51. Voice/Noise の全て閉じる
 //   52. Noise の undo / History は編集状態をそのまま戻す / 53. THIRD_PARTY_NOTICES の生成
-//   54. 未保存ドラフトの退避 (IndexedDB / 旧形式からの移行 / 失敗の通知)
+//   54. 未保存ドラフトの退避 (IndexedDB / 旧形式からの移行 / 失敗の通知) / 55. ユーザーテーマの保存失敗を通知する
 import {
   projects,
   currentProjectId,
@@ -102,6 +102,7 @@ import { SAMPLE_SONGS } from "../src/state/samples";
 import { undo, redo, canUndo, canRedo, undoStack } from "../src/state/undo";
 import { applyDraftProjectState, linkedWoiceIndex, woiceLinkAt } from "../src/state/projects";
 import { loadDrafts, restoreDrafts, saveDraftsNow } from "../src/state/drafts";
+import { addUserTheme, removeUserTheme } from "../src/state/theme";
 import { currentAppDialog, acceptAppDialog } from "../src/state/dialog";
 import { droppedFiles, namedFiles, readBlobsAndApply, toArrayBuffer } from "../src/engine/io";
 import { pushRecent, dropRecent } from "../src/lib/recent-list";
@@ -4152,6 +4153,30 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
 
     closeAllProjects();
     delete (globalThis as { indexedDB?: unknown }).indexedDB;
+    delete (globalThis as { localStorage?: unknown }).localStorage;
+  }
+
+  // ---- 55. ユーザーテーマの保存失敗を通知する ----
+  {
+    const css = ":root { --background: #111111; }";
+    let quotaFull = false;
+    (globalThis as { localStorage?: unknown }).localStorage = {
+      getItem: (): null => null,
+      setItem: (): void => {
+        if (quotaFull) throw new Error("QuotaExceededError");
+      },
+      removeItem: (): void => {},
+    };
+    while (currentAppDialog.value) acceptAppDialog();
+    const stored = addUserTheme(css, "保存できる");
+    check(stored !== null && currentAppDialog.value === null, "theme: 保存できれば通知しない");
+    quotaFull = true;
+    const unsaved = addUserTheme(css, "保存できない");
+    check(unsaved !== null, "theme: 保存できなくてもこのセッションでは使える");
+    check(currentAppDialog.value?.message.includes("テーマ") === true, "theme: 保存の失敗を通知する");
+    acceptAppDialog();
+    if (stored) removeUserTheme(stored.id);
+    if (unsaved) removeUserTheme(unsaved.id);
     delete (globalThis as { localStorage?: unknown }).localStorage;
   }
 

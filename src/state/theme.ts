@@ -12,8 +12,10 @@ import {
   buildStandaloneThemeCss,
   type ThemeTokens,
 } from "../lib/themeParse";
-import { readStorage, writeStorage } from "../lib/storage";
+import { readStorage, tryWriteStorage, writeStorage } from "../lib/storage";
 import { doc } from "./project";
+import { appAlert } from "./dialog";
+import { t as translate } from "../i18n";
 
 export interface ThemeDef {
   id: string;
@@ -135,8 +137,8 @@ function ensureParsed(id: string): ThemeTokens | null {
 
 // ---- ユーザーテーマ ----
 
-function persistUserThemes(): void {
-  writeStorage(STORAGE_USER_THEMES, JSON.stringify(userThemes.value));
+function persistUserThemes(): boolean {
+  return tryWriteStorage(STORAGE_USER_THEMES, JSON.stringify(userThemes.value));
 }
 
 function loadUserThemes(): void {
@@ -169,8 +171,9 @@ export function addUserTheme(css: string, name: string): UserTheme | null {
   };
   userThemes.value.push(t);
   registry.set(t.id, { id: t.id, name: t.name, source: t.css, user: true });
-  persistUserThemes();
   injectThemes();
+  // テーマはこのセッションでは使えるが、次回起動時には残らない
+  if (!persistUserThemes()) void appAlert(translate("error.themeSave"));
   return t;
 }
 
