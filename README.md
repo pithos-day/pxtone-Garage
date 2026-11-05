@@ -102,6 +102,16 @@ src/
 pnpm test   # tests/multiproject.ts を esbuild でバンドルして実行
 ```
 
+ブラウザとスタンドアロン版の E2E テスト (Playwright、音は出ません):
+
+- 編集、保存、再読み込み、開き直し / 未保存の編集の復元 / 再生 / WAV 書き出し
+- 表示言語 / ネットワークなしでの起動 / スタンドアロン版の起動と再生
+
+```
+pnpm exec playwright install chromium   # 初回のみ
+pnpm test:e2e
+```
+
 ## ライセンス
 
 ピストンコラージュは zlib ライセンス (C) 2005-2025 Daisuke Amaya (開発室Pixel)。

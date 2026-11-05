@@ -29,3 +29,7 @@ public/worklet
 tests/.multiproject.cjs
 tests/.preview-sim.cjs
 tests/.worklet-sim.cjs
+
+# Playwright
+test-results
+playwright-report

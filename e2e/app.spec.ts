@@ -1,0 +1,90 @@
+import { expect, test } from '@playwright/test'
+import { clickMenu, expectSavedFile, putSampleFile, setFileToOpen, stubFilePickers, waitForApp } from './helpers'
+
+test.beforeEach(async ({ page }) => {
+  // 未保存の確認ダイアログには常に「離れる」で応答する
+  page.on('dialog', (dialog) => void dialog.accept())
+  await stubFilePickers(page)
+  await page.goto('/')
+  await waitForApp(page)
+})
+
+test('プロジェクトを編集して保存し、再読み込み後に開き直せる', async ({ page }) => {
+  await clickMenu(page, 'File', 'Project settings')
+  await page.locator('.dlg input[type=text]').first().fill('E2E Song')
+  await page.locator('.dlg .btn-accent').click()
+
+  // 上書き保存はダウンロードになる
+  const [download] = await Promise.all([page.waitForEvent('download'), page.keyboard.press('Control+s')])
+  expect(download.suggestedFilename()).toBe('untitled.ptcop')
+
+  // 名前を付けて保存はピッカーで選んだファイルへ書き込む
+  await clickMenu(page, 'File', 'Save as')
+  const saved = await expectSavedFile(page, 'untitled.ptcop')
+  expect(saved.head).toContain('PTCOLLAGE')
+
+  await page.reload()
+  await waitForApp(page)
+  await setFileToOpen(page, 'untitled.ptcop')
+  await clickMenu(page, 'File', 'Open project')
+  await expect(page.locator('.file-tab.active .tab-name')).toHaveText('untitled')
+  await clickMenu(page, 'File', 'Project settings')
+  await expect(page.locator('.dlg input[type=text]').first()).toHaveValue('E2E Song')
+})
+
+// 編集の直後でも退避が間に合うことも確かめるため、待たずに再読み込みする
+test('未保存の編集は再読み込みしても復元される', async ({ page }) => {
+  await clickMenu(page, 'File', 'Project settings')
+  await page.locator('.dlg input[type=text]').first().fill('Draft Song')
+  await page.locator('.dlg .btn-accent').click()
+
+  await page.reload()
+  await waitForApp(page)
+  await clickMenu(page, 'File', 'Project settings')
+  await expect(page.locator('.dlg input[type=text]').first()).toHaveValue('Draft Song')
+})
+
+test('曲を再生すると時間が進む', async ({ page }) => {
+  await putSampleFile(page, 'Moldau.ptcop')
+  await clickMenu(page, 'File', 'Open project')
+  const time = page.locator('.time').first()
+  const before = await time.innerText()
+  await page.locator('.play-btn').click()
+  await expect.poll(() => time.innerText(), { timeout: 10_000 }).not.toBe(before)
+  await page.locator('.play-btn').click()
+})
+
+test('WAV を書き出せる', async ({ page }) => {
+  await putSampleFile(page, 'Moldau.ptcop')
+  await clickMenu(page, 'File', 'Open project')
+  await clickMenu(page, 'File', 'Export', 'Export WAV')
+  await page.locator('.dlg .btn-accent').click()
+  const wav = await expectSavedFile(page, 'Moldau.wav', 1_000_000)
+  expect(wav.head.slice(0, 4)).toBe('RIFF')
+  expect(wav.head.slice(8, 12)).toBe('WAVE')
+})
+
+test('表示言語が html の lang に反映される', async ({ page, browser }) => {
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en')
+  await expect(page.locator('.menu-label', { hasText: 'File' })).toBeVisible()
+
+  const context = await browser.newContext({ locale: 'ja-JP' })
+  const jaPage = await context.newPage()
+  await jaPage.goto('/')
+  await waitForApp(jaPage)
+  await expect(jaPage.locator('html')).toHaveAttribute('lang', 'ja')
+  await jaPage.locator('.menu-label', { hasText: 'File' }).click()
+  await expect(jaPage.locator('.menu-item').first()).toHaveText(/新規/)
+  await context.close()
+})
+
+test('一度開けばネットワークなしで起動できる', async ({ page, context }) => {
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined))
+
+  await context.setOffline(true)
+  await page.reload()
+  await waitForApp(page)
+  const status = await page.evaluate(async () => (await fetch('/samples/Moldau.ptcop')).status)
+  expect(status).toBe(200)
+  await context.setOffline(false)
+})

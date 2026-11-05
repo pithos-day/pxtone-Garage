@@ -5,6 +5,8 @@ pxtone Garage はピストンコラージュ (ptCollage) 互換の Web DAW。
 ## コマンド
 
 - `pnpm test` — 自前ハーネス (esbuild バンドル → node 実行)。テストフレームワークなし
+- `pnpm test:e2e` — Playwright の E2E (`e2e/`)。ビルド済みの本番版を、音を消して動かす。
+  端末の Chromium を使うときは `E2E_CHROMIUM_PATH` を指定する
 
 ## 規約
 
