@@ -155,6 +155,15 @@ function releaseFocus(e: Event): void {
   flex: 1;
 }
 
+/* 再生中に桁数が変わっても、後ろの部品やスライダーの幅が動かないように幅を確保する */
+.time {
+  min-width: 13ch;
+}
+
+.clock {
+  min-width: 10ch;
+}
+
 /* 文字は折り返さず、幅が足りないときはスライダーを縮める */
 .vol-label,
 .pct,
