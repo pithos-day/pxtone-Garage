@@ -4,13 +4,14 @@
 import { ref } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { dragClockRange, useCanvasDrag } from "../../composables/useCanvasDrag";
+import { applyFieldWheel } from "../../composables/useFieldWheel";
 import { useHoldPreview } from "../../composables/useHoldPreview";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText, noteFill, noteShadow,
   drawPlayhead,
   drawScopeBand,
 } from "../../lib/draw";
-import { clockAtX, zoomAnchorScrollX, zoomOrPan } from "../../lib/field";
+import { clockAtX } from "../../lib/field";
 import { clockToX, KEY_HEIGHT } from "../../lib/clock";
 import { iterVisibleRecords, visibleClockWindow } from "../../lib/records";
 import { RULER_H, PINNED_MAX_ROWS } from "../../lib/layout";
@@ -278,13 +279,8 @@ const { onPointerDown, onPointerMove, onPointerUp } = useCanvasDrag<LanesDrag>({
 
 // ホイール: Ctrl=ズーム (カーソル位置基準) / Shift=横スクロール / 修飾なし=行スクロール
 function onWheel(e: WheelEvent): void {
-  const { zoom, pan } = zoomOrPan(e, doc.zoom);
-  if (zoom !== null) {
-    const rect = canvasRef.value?.getBoundingClientRect();
-    if (rect) doc.scrollX = zoomAnchorScrollX(doc.zoom, zoom, doc.scrollX, e.clientX - rect.left, nameW.value);
-    doc.zoom = zoom;
-  } else if (pan !== null) doc.scrollX = Math.max(0, doc.scrollX + pan);
-  else if (e.deltaY !== 0) rawRowOffset.value = clamp(rowOffset() + Math.sign(e.deltaY), 0, maxRowOffset());
+  if (applyFieldWheel(e, canvasRef, nameW.value)) return;
+  if (e.deltaY !== 0) rawRowOffset.value = clamp(rowOffset() + Math.sign(e.deltaY), 0, maxRowOffset());
 }
 </script>
 

@@ -9,11 +9,12 @@
 import { onMounted, ref, watch } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { dragClockRange, useCanvasDrag } from "../../composables/useCanvasDrag";
+import { applyFieldWheel } from "../../composables/useFieldWheel";
 import { useHoldPreview } from "../../composables/useHoldPreview";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText, drawPlayhead, drawScopeBand,
 } from "../../lib/draw";
-import { clockAtX, zoomAnchorScrollX, zoomOrPan } from "../../lib/field";
+import { clockAtX } from "../../lib/field";
 import { visibleClockWindow, iterNoteDraws } from "../../lib/records";
 import {
   clockToX,
@@ -776,17 +777,7 @@ const { onPointerDown, onPointerMove, onPointerUp, drag: dragState } = useCanvas
 
 // ホイール: Ctrl=ズーム (カーソル位置基準) / Shift=横スクロール / それ以外は縦スクロール
 function onWheel(e: WheelEvent): void {
-  const { zoom, pan } = zoomOrPan(e, doc.zoom);
-  if (zoom !== null) {
-    const rect = canvasRef.value?.getBoundingClientRect();
-    if (rect) doc.scrollX = zoomAnchorScrollX(doc.zoom, zoom, doc.scrollX, e.clientX - rect.left, STRIP_W);
-    doc.zoom = zoom;
-    return;
-  }
-  if (pan !== null) {
-    doc.scrollX = Math.max(0, doc.scrollX + pan);
-    return;
-  }
+  if (applyFieldWheel(e, canvasRef, STRIP_W)) return;
   doc.scrollYKey = clamp(doc.scrollYKey + Math.sign(e.deltaY), 0, KEYNUM - 1);
 }
 </script>

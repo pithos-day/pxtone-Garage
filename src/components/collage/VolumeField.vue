@@ -4,9 +4,10 @@
 import { ref } from "vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { dragClockRange, useCanvasDrag, type CanvasDragState } from "../../composables/useCanvasDrag";
+import { applyFieldWheel } from "../../composables/useFieldWheel";
 import { COLORS } from "../../lib/theme";
 import { drawGrid, fillRect, fillText, drawPlayhead, fillPlayIcon, drawDragRange } from "../../lib/draw";
-import { clockAtX, zoomAnchorScrollX, zoomOrPan } from "../../lib/field";
+import { clockAtX } from "../../lib/field";
 import { clockToX } from "../../lib/clock";
 import { visibleClockWindow } from "../../lib/records";
 import { RULER_H } from "../../lib/layout";
@@ -290,12 +291,7 @@ function commitTuning(): void {
 
 // ホイール: Ctrl=ズーム (カーソル位置基準) / Shift=横スクロール
 function onWheel(e: WheelEvent): void {
-  const { zoom, pan } = zoomOrPan(e, doc.zoom);
-  if (zoom !== null) {
-    const rect = canvasRef.value?.getBoundingClientRect();
-    if (rect) doc.scrollX = zoomAnchorScrollX(doc.zoom, zoom, doc.scrollX, e.clientX - rect.left);
-    doc.zoom = zoom;
-  } else if (pan !== null) doc.scrollX = Math.max(0, doc.scrollX + pan);
+  applyFieldWheel(e, canvasRef);
 }
 </script>
 
