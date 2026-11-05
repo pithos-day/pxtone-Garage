@@ -11,9 +11,8 @@ import { drawGrid, fillRect, fillText, noteFill, noteShadow,
   drawScopeBand,
 } from "../../lib/draw";
 import { clockAtX, zoomAnchorScrollX, zoomOrPan } from "../../lib/field";
-import { clockToX } from "../../lib/clock";
+import { clockToX, KEY_HEIGHT } from "../../lib/clock";
 import { iterVisibleRecords, visibleClockWindow } from "../../lib/records";
-import { KEY_HEIGHT } from "../../lib/clock";
 import { RULER_H, PINNED_MAX_ROWS } from "../../lib/layout";
 import { nameW } from "../../state/left-panel";
 import { EventKind } from "pxtone-ts";
@@ -104,7 +103,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     vol: number;
   }
   const notes: RowNote[] = [];
-  const marks: { unit: number; clock: number; kind: number }[] = [];
+  const marks: { unit: number; clock: number }[] = [];
   let currentVel = EVENTDEFAULT_VELOCITY;
 
   for (const e of iterVisibleRecords(records, { startClock, endClock }, (e) => e.unitNo >= 0 && doc.unitPinned[e.unitNo])) {
@@ -122,7 +121,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
       case EventKind.GROUPNO:
       case EventKind.TUNING:
       case EventKind.PAN_TIME:
-        marks.push({ unit: e.unitNo, clock: e.clock, kind: e.kind });
+        marks.push({ unit: e.unitNo, clock: e.clock });
         break;
       default:
         break;
@@ -255,11 +254,7 @@ const { onPointerDown, onPointerMove, onPointerUp } = useCanvasDrag<LanesDrag>({
     }
     const clock = clockAt(pt.x);
     if (e.button === 0) {
-      if (doc.readOnly) {
-        // 読み取り専用: 試聴のみ行い、クリック時はシークする (書き換えなし)
-        previewAt(pt.x, pt.y);
-        return { button: 0, clock1: clock, clock2: clock, unit: u };
-      }
+      // 読み取り専用でも試聴とクリックのシークは有効 (書き換えは applyDrag が止める)
       previewAt(pt.x, pt.y);
       return { button: 0, clock1: clock, clock2: clock, unit: u };
     }
