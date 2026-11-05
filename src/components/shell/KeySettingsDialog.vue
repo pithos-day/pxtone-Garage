@@ -4,13 +4,13 @@
 // 左にカテゴリ、右に「動作 ─ キー」の行を並べ、キーをクリックすると
 // 入力待ちのオーバーレイを出して次のキー入力で割り当てる。
 import { computed, onMounted, ref } from "vue";
-import { Plus, RotateCcw, Search, X } from "@lucide/vue";
+import { Plus, RotateCcw, Search } from "@lucide/vue";
+import KeyBindingChip from "./KeyBindingChip.vue";
 import KeyRecordOverlay from "./KeyRecordOverlay.vue";
 import ModalDialog from "./ModalDialog.vue";
 import {
   SHORTCUTS,
   bindingLabel,
-  bindingParts,
   type ShortcutArea,
   type ShortcutCommand,
   type ShortcutEntry,
@@ -117,25 +117,14 @@ onMounted(() => searchRef.value?.focus());
               >
                 {{ t("keys.unassigned") }}
               </button>
-              <div v-for="(b, i) in bindings[entry.command]" :key="i" class="keys-chip">
-                <button
-                  type="button"
-                  class="keys-chip-keys"
-                  :aria-label="`${t(`shortcut.${entry.command}`)}: ${bindingLabel(b)}`"
-                  @click="startRecording(entry.command, i)"
-                >
-                  <kbd v-for="part in bindingParts(b)" :key="part">{{ part }}</kbd>
-                </button>
-                <button
-                  type="button"
-                  class="keys-chip-remove"
-                  :title="t('keys.remove')"
-                  :aria-label="t('keys.remove')"
-                  @click="removeBinding(entry.command, i)"
-                >
-                  <X :size="12" />
-                </button>
-              </div>
+              <KeyBindingChip
+                v-for="(b, i) in bindings[entry.command]"
+                :key="i"
+                :binding="b"
+                :action-label="t(`shortcut.${entry.command}`)"
+                @edit="startRecording(entry.command, i)"
+                @remove="removeBinding(entry.command, i)"
+              />
             </div>
             <button
               type="button"
@@ -341,57 +330,6 @@ onMounted(() => searchRef.value?.focus());
   background: var(--muted);
 }
 
-.keys-chip {
-  display: flex;
-  align-items: center;
-  border-radius: calc(var(--radius) - 2px);
-}
-
-.keys-chip:hover,
-.keys-chip:focus-within {
-  background: var(--control-surface);
-}
-
-.keys-chip-keys {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2xs);
-  padding: 1px 2px;
-  border: none;
-  border-radius: inherit;
-  background: transparent;
-  cursor: pointer;
-}
-
-.keys-chip-keys:hover kbd {
-  color: var(--primary-foreground);
-  background: var(--primary);
-}
-
-.keys-chip-remove {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 20px;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: var(--muted-foreground);
-  cursor: pointer;
-  /* レイアウトを動かさないよう場所は確保したまま隠す */
-  opacity: 0;
-}
-
-.keys-chip:hover .keys-chip-remove,
-.keys-chip-remove:focus-visible {
-  opacity: 1;
-}
-
-.keys-chip-remove:hover {
-  color: var(--destructive);
-}
-
 .keys-unassigned {
   flex: 1;
   height: 22px;
@@ -478,17 +416,6 @@ onMounted(() => searchRef.value?.focus());
   .keys-slot {
     flex: 1;
     width: auto;
-  }
-
-  /* タッチ操作では hover できないので削除ボタンは常に出す */
-  .keys-chip-remove {
-    opacity: 1;
-  }
-}
-
-@media (hover: none) {
-  .keys-chip-remove {
-    opacity: 1;
   }
 }
 </style>
