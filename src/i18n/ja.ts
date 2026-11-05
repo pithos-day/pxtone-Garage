@@ -342,6 +342,7 @@ const ja = {
   "error.sampleFetch": "サンプル楽曲を読み込めませんでした",
   "error.sampleNotFound": "サンプル楽曲が見つかりません",
   "error.save": "保存に失敗しました",
+  "error.draftSave": "未保存の編集を自動で退避できませんでした。ブラウザが終了すると復元できないため、ファイルに保存してください",
   "error.applyNoProject": "元の Collage プロジェクトが見つかりません",
   "error.applyNoWoice": "元の Collage の音色が見つかりません",
   "error.applyReadOnly": "読み取り専用のため適用できません",

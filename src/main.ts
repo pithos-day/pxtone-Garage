@@ -5,6 +5,7 @@ import App from "./App.vue";
 import { initTheme } from "./state/theme";
 import { initFonts } from "./state/fonts";
 import { initKeybindings } from "./state/keybindings";
+import { loadDrafts } from "./state/drafts";
 import {
   openProject,
   newProject,
@@ -57,7 +58,8 @@ initTheme({
 initFonts();
 initMasterVolume();
 initKeybindings();
-createApp(App).mount("#app");
+// AppShell がセットアップ中に同期で復元できるよう、ドラフトを読んでからマウントする
+void loadDrafts().then(() => createApp(App).mount("#app"));
 
 // 開発・テスト用フック
 if (import.meta.env.DEV) {

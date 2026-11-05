@@ -1,10 +1,14 @@
 // 未保存ドキュメントの退避 (クラッシュ復旧)。
 // ブラウザのタブを強制終了しても、次回起動時に未保存の編集を復元できるよう
-// 未保存 (dirty) のドキュメントだけを localStorage へ保存する。
+// 未保存 (dirty) のドキュメントだけを IndexedDB へ保存する。
+// 読み込みは非同期のため、マウント前に loadDrafts を済ませ、restoreDrafts は同期で復元する。
 // undo スタックは容量が大きいため保存しない (復元後は新しい編集履歴から始まる)。
 import type { AppMode } from "../lib/modes";
 import type { WoiceLink } from "./projects";
-import { readStorage, removeStorage, tryWriteStorage } from "../lib/storage";
+import { readDraftRecord, writeDraftRecord } from "../lib/draft-store";
+import { readStorage, removeStorage } from "../lib/storage";
+import { appAlert } from "./dialog";
+import { t } from "../i18n";
 import {
   applyDraftProjectMeta,
   applyDraftProjectState,
@@ -37,13 +41,16 @@ import {
 } from "./noise";
 import { forgetSavedRevision } from "../lib/revision";
 
-const STORAGE_KEY = "pxtone-garage-unsaved-drafts-v1";
+// 旧形式 (localStorage + base64) のキー。起動時に IndexedDB へ移行する
+const LEGACY_STORAGE_KEY = "pxtone-garage-unsaved-drafts-v1";
 const SAVE_DELAY_MS = 600;
+// IndexedDB が応答しないときに起動を止めないための上限
+const LOAD_TIMEOUT_MS = 3000;
 
 interface DraftEntry {
   docId: number; // 復元時のリンク解決に使う元の ID
   name: string;
-  bytes: string; // base64
+  bytes: Uint8Array;
   state?: ProjectState; // collage の UI 状態
   measNum?: number; // ptcop に保存されない小節数
   repeatMeas?: number; // ptcop に保存されない Repeat (UI の 1-based)
@@ -52,7 +59,7 @@ interface DraftEntry {
 }
 
 interface DraftData {
-  version: 1;
+  version: 2;
   activeMode: AppMode;
   current: {
     collage: number | null;
@@ -64,14 +71,14 @@ interface DraftData {
   noises: DraftEntry[];
 }
 
-function bytesToBase64(bytes: Uint8Array): string {
-  let binary = "";
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
-  return btoa(binary);
-}
+// 旧形式のデータ (bytes が base64、version が 1)
+type LegacyEntry = Omit<DraftEntry, "bytes"> & { bytes: string };
+type LegacyData = Omit<DraftData, "version" | "projects" | "voices" | "noises"> & {
+  version: 1;
+  projects?: LegacyEntry[];
+  voices?: LegacyEntry[];
+  noises?: LegacyEntry[];
+};
 
 function base64ToBytes(text: string): Uint8Array | null {
   try {
@@ -96,8 +103,9 @@ function collectDrafts(activeMode: AppMode): DraftData | null {
     projectEntries.push({
       docId: p.id,
       name: p.fileName,
-      bytes: bytesToBase64(snapshot.bytes),
-      state: p.state,
+      bytes: snapshot.bytes,
+      // state は reactive の可能性があり、Proxy のままでは IndexedDB へ保存できない
+      state: p.state && (JSON.parse(JSON.stringify(p.state)) as ProjectState),
       measNum: snapshot.measNum,
       repeatMeas: snapshot.repeatMeas,
     });
@@ -111,7 +119,7 @@ function collectDrafts(activeMode: AppMode): DraftData | null {
     voiceEntries.push({
       docId: v.id,
       name: v.fileName,
-      bytes: bytesToBase64(bytes),
+      bytes,
       linkProjectId: v.link?.projectId,
       linkWoiceIndex: v.link && linkedWoiceIndex(v.link),
     });
@@ -125,7 +133,7 @@ function collectDrafts(activeMode: AppMode): DraftData | null {
     noiseEntries.push({
       docId: n.id,
       name: n.fileName,
-      bytes: bytesToBase64(bytes),
+      bytes,
       linkProjectId: n.link?.projectId,
       linkWoiceIndex: n.link && linkedWoiceIndex(n.link),
     });
@@ -137,7 +145,7 @@ function collectDrafts(activeMode: AppMode): DraftData | null {
   const voice = voices.value.find((v) => v.id === currentVoiceId.value);
   const noise = noises.value.find((n) => n.id === currentNoiseId.value);
   return {
-    version: 1,
+    version: 2,
     activeMode,
     current: {
       collage: project?.dirty ? project.id : null,
@@ -150,17 +158,30 @@ function collectDrafts(activeMode: AppMode): DraftData | null {
   };
 }
 
-// 未保存ドキュメントを即時退避する。beforeunload / タブ非表示 / 自動保存から呼ぶ
-export function saveDraftsNow(activeMode: AppMode): void {
+// 退避に失敗し続けても、通知は失敗が始まったときの 1 回だけにする
+let failureNotified = false;
+// 起動時に読めなかったレコードは復元の機会が残るよう、未保存が無くても消さない
+let storedRecordUnread = false;
+
+function reportSaveFailure(err: unknown): void {
+  console.warn("未保存ドラフトを保存できませんでした", err);
+  if (failureNotified) return;
+  failureNotified = true;
+  void appAlert(t("error.draftSave"));
+}
+
+// 未保存ドキュメントを即時退避する。beforeunload / タブ非表示 / 自動保存から呼ぶ。
+// 退避に失敗しても編集は続けられるが、復旧できないことをユーザーへ知らせる
+export function saveDraftsNow(activeMode: AppMode): Promise<void> {
   const data = collectDrafts(activeMode);
-  if (!data) {
-    removeStorage(STORAGE_KEY);
-    return;
-  }
-  if (!tryWriteStorage(STORAGE_KEY, JSON.stringify(data))) {
-    // 容量超過など。復旧できないが、編集中のアプリ自体は続行させる
-    console.warn("未保存ドラフトを保存できませんでした (localStorage の容量不足)");
-  }
+  if (!data && storedRecordUnread) return Promise.resolve();
+  return writeDraftRecord(data)
+    .then(() => {
+      failureNotified = false;
+      storedRecordUnread = false;
+      removeStorage(LEGACY_STORAGE_KEY);
+    })
+    .catch(reportSaveFailure);
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -172,7 +193,7 @@ export function scheduleDraftSave(activeMode: AppMode): void {
   if (saveTimer !== null) return;
   saveTimer = setTimeout(() => {
     saveTimer = null;
-    saveDraftsNow(latestMode);
+    void saveDraftsNow(latestMode);
   }, SAVE_DELAY_MS);
 }
 
@@ -187,22 +208,80 @@ export function hasUnsavedDocuments(): boolean {
   return projects.value.some((p) => p.dirty) || voices.value.some((v) => v.dirty) || noises.value.some((n) => n.dirty);
 }
 
+function isDraftData(value: unknown): value is DraftData {
+  return (value as DraftData | null)?.version === 2;
+}
+
+// 旧形式の文字列を現在の形式へ変換する。壊れていれば null
+function parseLegacyDrafts(raw: string): DraftData | null {
+  let legacy: LegacyData;
+  try {
+    legacy = JSON.parse(raw) as LegacyData;
+  } catch {
+    return null;
+  }
+  if (legacy?.version !== 1) return null;
+  const convert = (entries: LegacyEntry[] = []): DraftEntry[] =>
+    entries.flatMap((entry) => {
+      const bytes = base64ToBytes(entry.bytes);
+      return bytes ? [{ ...entry, bytes }] : [];
+    });
+  return {
+    ...legacy,
+    version: 2,
+    projects: convert(legacy.projects),
+    voices: convert(legacy.voices),
+    noises: convert(legacy.noises),
+  };
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("timeout")), ms);
+    promise.then(resolve, reject).finally(() => clearTimeout(timer));
+  });
+}
+
+let loadedDrafts: DraftData | null = null;
+
+// 保存済みドラフトを読み込む。マウント前に 1 回呼ぶ (失敗しても起動は止めない)
+export async function loadDrafts(): Promise<void> {
+  storedRecordUnread = false;
+  let stored: unknown = null;
+  try {
+    stored = await withTimeout(readDraftRecord(), LOAD_TIMEOUT_MS);
+  } catch (err) {
+    storedRecordUnread = true;
+    console.warn("未保存ドラフトを読み込めませんでした", err);
+  }
+  const legacyRaw = readStorage(LEGACY_STORAGE_KEY);
+  if (isDraftData(stored)) {
+    loadedDrafts = stored;
+    // 移行後に旧キーの削除だけ失敗した場合の残骸
+    if (legacyRaw) removeStorage(LEGACY_STORAGE_KEY);
+    return;
+  }
+  if (!legacyRaw) return;
+  const legacy = parseLegacyDrafts(legacyRaw);
+  if (!legacy) {
+    removeStorage(LEGACY_STORAGE_KEY);
+    return;
+  }
+  loadedDrafts = legacy;
+  // 移行先へ書けたときだけ旧キーを消す (失敗時は次回も旧キーから復元できる)
+  try {
+    await withTimeout(writeDraftRecord(legacy), LOAD_TIMEOUT_MS);
+    removeStorage(LEGACY_STORAGE_KEY);
+  } catch (err) {
+    console.warn("未保存ドラフトを移行できませんでした", err);
+  }
+}
+
 // 起動時に未保存ドラフトを復元する。復元したアクティブモードを返す (無ければ null)
 export function restoreDrafts(): AppMode | null {
-  const raw = readStorage(STORAGE_KEY);
-  if (!raw) return null;
-
-  let data: DraftData;
-  try {
-    data = JSON.parse(raw) as DraftData;
-  } catch {
-    removeStorage(STORAGE_KEY);
-    return null;
-  }
-  if (data?.version !== 1) {
-    removeStorage(STORAGE_KEY);
-    return null;
-  }
+  const data = loadedDrafts;
+  loadedDrafts = null;
+  if (!data) return null;
 
   // 旧 ID → 新しいタブ ID。voice/noise の書き戻し先 (link) を付け替える
   const projectIdMap = new Map<number, number>();
@@ -210,9 +289,7 @@ export function restoreDrafts(): AppMode | null {
   const noiseIdMap = new Map<number, number>();
 
   for (const entry of data.projects ?? []) {
-    const bytes = base64ToBytes(entry.bytes);
-    if (!bytes) continue;
-    if (openProjectInTab(bytes, entry.name)) continue;
+    if (openProjectInTab(entry.bytes, entry.name)) continue;
     const p = currentProject();
     if (!p) continue;
     projectIdMap.set(entry.docId, p.id);
@@ -221,10 +298,8 @@ export function restoreDrafts(): AppMode | null {
   }
 
   for (const entry of data.voices ?? []) {
-    const bytes = base64ToBytes(entry.bytes);
-    if (!bytes) continue;
     const link = makeLink(entry, projectIdMap);
-    if (openVoice(bytes, entry.name, link)) continue;
+    if (openVoice(entry.bytes, entry.name, link)) continue;
     const v = currentVoice();
     if (v) {
       forgetSavedRevision(v.revisions);
@@ -234,10 +309,8 @@ export function restoreDrafts(): AppMode | null {
   }
 
   for (const entry of data.noises ?? []) {
-    const bytes = base64ToBytes(entry.bytes);
-    if (!bytes) continue;
     const link = makeLink(entry, projectIdMap);
-    if (openNoise(bytes, entry.name, link)) continue;
+    if (openNoise(entry.bytes, entry.name, link)) continue;
     const n = currentNoise();
     if (n) {
       forgetSavedRevision(n.revisions);

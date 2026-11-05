@@ -172,7 +172,7 @@ function closeNow(mode: AppMode, id: number): void {
   else closeNoise(id);
   closeRequest.value = null;
   // 閉じたタブを退避データからも消す (次回起動時に復活させない)
-  saveDraftsNow(activeTab.value);
+  void saveDraftsNow(activeTab.value);
 }
 
 // タブの X / メニューの「閉じる」から呼ばれる。未保存なら 3 択ダイアログを出す
@@ -231,7 +231,7 @@ function closeAllNow(mode: AppMode): void {
   }
   closeRequest.value = null;
   // 閉じたタブを退避データからも消す (次回起動時に復活させない)
-  saveDraftsNow(activeTab.value);
+  void saveDraftsNow(activeTab.value);
 }
 
 // 未保存確認の結果を反映する。全て閉じるの途中なら次のタブへ進む
@@ -290,21 +290,21 @@ watch(activeTab, () => scheduleDraftSave(activeTab.value));
 
 function onBeforeUnload(e: BeforeUnloadEvent): void {
   if (!hasUnsavedDocuments()) return;
-  // ここで同期保存しておくことで、確認ダイアログで「離れる」を選んでも復元できる
-  saveDraftsNow(activeTab.value);
+  // ここで書き込みを始めておくことで、確認ダイアログで「離れる」を選んでも復元できる
+  void saveDraftsNow(activeTab.value);
   e.preventDefault();
   e.returnValue = "";
 }
 
 function onVisibilityChange(): void {
-  if (document.visibilityState === "hidden") saveDraftsNow(activeTab.value);
+  if (document.visibilityState === "hidden") void saveDraftsNow(activeTab.value);
 }
 
 window.addEventListener("beforeunload", onBeforeUnload);
 document.addEventListener("visibilitychange", onVisibilityChange);
 // 編集を検知できない経路 (直接のデータ変更など) の保険
 const draftInterval = window.setInterval(() => {
-  if (hasUnsavedDocuments()) saveDraftsNow(activeTab.value);
+  if (hasUnsavedDocuments()) void saveDraftsNow(activeTab.value);
 }, 30000);
 onBeforeUnmount(() => {
   window.removeEventListener("beforeunload", onBeforeUnload);

@@ -20,6 +20,7 @@
 //   47. 進捗ダイアログ (state/progress) と IO の進捗・キャンセル
 //   48. 名前を付けて保存で Collage とのリンクを解除 / 49. 同梱サンプル楽曲 / 50. 全て閉じる / 51. Voice/Noise の全て閉じる
 //   52. Noise の undo / History は編集状態をそのまま戻す / 53. THIRD_PARTY_NOTICES の生成
+//   54. 未保存ドラフトの退避 (IndexedDB / 旧形式からの移行 / 失敗の通知)
 import {
   projects,
   currentProjectId,
@@ -100,6 +101,8 @@ import * as serviceMod from "../src/state/service";
 import { SAMPLE_SONGS } from "../src/state/samples";
 import { undo, redo, canUndo, canRedo, undoStack } from "../src/state/undo";
 import { applyDraftProjectState, linkedWoiceIndex, woiceLinkAt } from "../src/state/projects";
+import { loadDrafts, restoreDrafts, saveDraftsNow } from "../src/state/drafts";
+import { currentAppDialog, acceptAppDialog } from "../src/state/dialog";
 import { droppedFiles, namedFiles, readBlobsAndApply, toArrayBuffer } from "../src/engine/io";
 import { pushRecent, dropRecent } from "../src/lib/recent-list";
 import { LEFT_W_DEFAULT, LEFT_W_MAX, LEFT_W_MIN, clampLeftW } from "../src/lib/layout";
@@ -4020,6 +4023,136 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     check(throwsFor("no-text"), "notices: ライセンス本文が無ければ失敗する");
     check(throwsFor("no-license"), "notices: license 宣言が無ければ失敗する");
     rmSync(root, { recursive: true, force: true });
+  }
+
+  // ---- 54. 未保存ドラフトの退避 (IndexedDB / 旧形式からの移行 / 失敗の通知) ----
+  {
+    // node には IndexedDB が無いため、使う範囲だけのモックを置く
+    const records = new Map<string, unknown>();
+    let failWrites = false;
+    const asyncly = (fn: () => void): void => void setTimeout(fn, 0);
+    const conn = {
+      onclose: null,
+      onversionchange: null,
+      createObjectStore: (): void => {},
+      transaction: () => {
+        const tx: { oncomplete?: () => void; onabort?: () => void; onerror?: () => void; error: unknown; objectStore: () => unknown } = {
+          error: null,
+          objectStore: () => ({
+            get: (key: string) => {
+              const req: { onsuccess?: () => void; result?: unknown } = {};
+              asyncly(() => {
+                req.result = records.get(key);
+                req.onsuccess?.();
+              });
+              return req;
+            },
+            put: (value: unknown, key: string) => {
+              asyncly(() => {
+                if (failWrites) {
+                  tx.error = new Error("QuotaExceededError");
+                  tx.onabort?.();
+                  return;
+                }
+                records.set(key, structuredClone(value));
+                tx.oncomplete?.();
+              });
+            },
+            delete: (key: string) => {
+              asyncly(() => {
+                records.delete(key);
+                tx.oncomplete?.();
+              });
+            },
+          }),
+        };
+        return tx;
+      },
+    };
+    (globalThis as { indexedDB?: unknown }).indexedDB = {
+      open: () => {
+        const req: { onsuccess?: () => void; onupgradeneeded?: () => void; result: unknown } = { result: conn };
+        asyncly(() => {
+          req.onupgradeneeded?.();
+          req.onsuccess?.();
+        });
+        return req;
+      },
+    };
+    const store = new Map<string, string>();
+    (globalThis as { localStorage?: unknown }).localStorage = {
+      getItem: (k: string): string | null => store.get(k) ?? null,
+      setItem: (k: string, v: string): void => void store.set(k, v),
+      removeItem: (k: string): void => void store.delete(k),
+    };
+    const LEGACY_KEY = "pxtone-garage-unsaved-drafts-v1";
+
+    newProjectInTab();
+    const edited = currentProject()!;
+    doc.fileName = "draft-test";
+    addUnit("draft-unit");
+    edited.dirty = true;
+    doc.dirty = true;
+    await saveDraftsNow("collage");
+    const saved = records.get("current") as { version: number; projects: { name: string; bytes: unknown }[] };
+    checkEq(saved?.version, 2, "drafts: IndexedDB へ保存される");
+    check(saved.projects.some((e) => e.name === "draft-test" && e.bytes instanceof Uint8Array), "drafts: バイト列のまま保存される");
+
+    // 別セッション相当: 読み込み → 同期で復元
+    const before = projects.value.length;
+    await loadDrafts();
+    checkEq(restoreDrafts(), "collage", "drafts: 復元でアクティブモードを返す");
+    checkEq(projects.value.length, before + saved.projects.length, "drafts: 未保存のプロジェクトをタブで開く");
+    check(currentProject()!.dirty, "drafts: 復元したタブは未保存のまま");
+    checkEq(restoreDrafts(), null, "drafts: 読み込み済みのデータは 1 回だけ復元する");
+
+    // 旧形式 (localStorage + base64) からの移行
+    records.clear();
+    const bytes = exportBytes()!;
+    store.set(LEGACY_KEY, JSON.stringify({
+      version: 1,
+      activeMode: "voice",
+      current: { collage: null, voice: null, noise: null },
+      projects: [{ docId: 1, name: "legacy", bytes: Buffer.from(bytes).toString("base64") }],
+      voices: [{ docId: 2, name: "broken", bytes: "***" }],
+      noises: [],
+    }));
+    await loadDrafts();
+    const migrated = records.get("current") as { version: number; projects: { bytes: Uint8Array }[]; voices: unknown[] };
+    checkEq(migrated?.version, 2, "drafts: 旧形式を IndexedDB へ移行する");
+    checkBytes(migrated.projects[0]!.bytes, bytes, "drafts: 移行でバイト列が変わらない");
+    checkEq(migrated.voices.length, 0, "drafts: 壊れた旧エントリは捨てる");
+    check(!store.has(LEGACY_KEY), "drafts: 移行後は旧キーを消す");
+    checkEq(restoreDrafts(), "voice", "drafts: 移行したドラフトも復元できる");
+
+    // 移行先へ書けないときは旧キーを残す
+    records.clear();
+    store.set(LEGACY_KEY, JSON.stringify({ version: 1, activeMode: "collage", current: {}, projects: [], voices: [], noises: [] }));
+    failWrites = true;
+    await loadDrafts();
+    check(store.has(LEGACY_KEY), "drafts: 移行に失敗したら旧キーを残す");
+    restoreDrafts();
+
+    // 保存の失敗は通知する (失敗が続いても 1 回だけ)。前の節で積まれた通知は先に流す
+    while (currentAppDialog.value) acceptAppDialog();
+    check(currentAppDialog.value === null, "drafts: 失敗前はダイアログなし");
+    currentProject()!.dirty = true;
+    await saveDraftsNow("collage");
+    check(currentAppDialog.value?.message.includes("退避") === true, "drafts: 保存の失敗をダイアログで通知する");
+    acceptAppDialog();
+    await saveDraftsNow("collage");
+    check(currentAppDialog.value === null, "drafts: 失敗が続いても再通知しない");
+    failWrites = false;
+    await saveDraftsNow("collage");
+    failWrites = true;
+    await saveDraftsNow("collage");
+    check(currentAppDialog.value !== null, "drafts: 成功を挟んだ後の失敗は再び通知する");
+    acceptAppDialog();
+    failWrites = false;
+
+    closeAllProjects();
+    delete (globalThis as { indexedDB?: unknown }).indexedDB;
+    delete (globalThis as { localStorage?: unknown }).localStorage;
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);
