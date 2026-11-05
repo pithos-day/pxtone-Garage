@@ -287,6 +287,21 @@ body {
   min-width: 64px;
 }
 
+/* キーキャップ (キー設定) */
+kbd {
+  display: inline-block;
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--control-track);
+  color: var(--foreground);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  line-height: 18px;
+  text-align: center;
+  white-space: nowrap;
+}
+
 /* 入力欄の後ろの単位表示 */
 .unit {
   font-size: var(--text-xs);

@@ -3,30 +3,24 @@
 // 外見の配置は Blockbench のキー設定ダイアログを参考にしている (コードは流用していない)。
 // 左にカテゴリ、右に「動作 ─ キー」の行を並べ、キーをクリックすると
 // 入力待ちのオーバーレイを出して次のキー入力で割り当てる。
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import { Keyboard, Plus, RotateCcw, Search, X } from "@lucide/vue";
+import { computed, onMounted, ref } from "vue";
+import { Plus, RotateCcw, Search, X } from "@lucide/vue";
+import KeyRecordOverlay from "./KeyRecordOverlay.vue";
 import ModalDialog from "./ModalDialog.vue";
 import {
   SHORTCUTS,
-  bindingEquals,
-  bindingFromEvent,
   bindingLabel,
   bindingParts,
-  modifierParts,
-  type KeyBinding,
   type ShortcutArea,
   type ShortcutCommand,
   type ShortcutEntry,
 } from "../../lib/shortcuts";
 import {
-  addBinding,
   bindings,
-  conflictFor,
   isDefaultBinding,
   removeBinding,
   resetAllBindings,
   resetBinding,
-  setBinding,
 } from "../../state/keybindings";
 import { t } from "../../i18n";
 
@@ -66,81 +60,14 @@ function openPage(area: ShortcutArea): void {
   query.value = "";
 }
 
-// ---- キー入力待ち ----
 // 割り当て待ちの対象 (index="new" は追加ボタンから)
 const recording = ref<{ command: ShortcutCommand; index: number | "new" } | null>(null);
-const recordKeys = ref<string[]>([]); // 入力欄に出すキーキャップ
-const recordError = ref("");
 
 function startRecording(command: ShortcutCommand, index: number | "new"): void {
   recording.value = { command, index };
-  recordKeys.value = [];
-  recordError.value = "";
 }
 
-function stopRecording(): void {
-  recording.value = null;
-}
-
-// 同じコマンド内で既に使われている割り当てか (編集対象の自分自身は除く)
-function isDuplicate(command: ShortcutCommand, target: number | "new", binding: KeyBinding): boolean {
-  return (bindings[command] ?? []).some((b, i) => (target === "new" || i !== target) && bindingEquals(b, binding));
-}
-
-function heldModifiers(e: KeyboardEvent): string[] {
-  return modifierParts({ ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey, alt: e.altKey });
-}
-
-function onRecordKeyDown(e: KeyboardEvent): void {
-  const rec = recording.value;
-  if (!rec) return;
-  e.preventDefault();
-  e.stopPropagation();
-  if (e.repeat) return;
-  if (e.key === "Escape") {
-    stopRecording();
-    return;
-  }
-  recordError.value = "";
-  const binding = bindingFromEvent(e);
-  if (!binding) {
-    // 修飾キー単独では確定せず、押している修飾キーだけ見せる
-    recordKeys.value = heldModifiers(e);
-    return;
-  }
-  recordKeys.value = bindingParts(binding);
-  if (isDuplicate(rec.command, rec.index, binding)) {
-    recordError.value = t("keys.duplicate");
-    return;
-  }
-  const conflict = conflictFor(rec.command, binding);
-  if (conflict) {
-    recordError.value = `${t("keys.conflict")}: ${t(`shortcut.${conflict}`)}`;
-    return;
-  }
-  if (rec.index === "new") addBinding(rec.command, binding);
-  else setBinding(rec.command, rec.index, binding);
-  stopRecording();
-}
-
-// 修飾キーを離したら表示から消す (エラー表示中は拒否したキーを残す)
-function onRecordKeyUp(e: KeyboardEvent): void {
-  if (!recording.value) return;
-  e.preventDefault();
-  e.stopPropagation();
-  if (!recordError.value) recordKeys.value = heldModifiers(e);
-}
-
-// 記録中はどの要素にフォーカスがあってもキーを拾う (capture)
-onMounted(() => {
-  window.addEventListener("keydown", onRecordKeyDown, true);
-  window.addEventListener("keyup", onRecordKeyUp, true);
-  searchRef.value?.focus();
-});
-onBeforeUnmount(() => {
-  window.removeEventListener("keydown", onRecordKeyDown, true);
-  window.removeEventListener("keyup", onRecordKeyUp, true);
-});
+onMounted(() => searchRef.value?.focus());
 </script>
 
 <template>
@@ -235,23 +162,7 @@ onBeforeUnmount(() => {
         <p class="keys-hint">{{ t("keys.hint") }}</p>
       </div>
     </div>
-    <div v-if="recording" class="keys-record" @click.self="stopRecording">
-      <div class="keys-record-box" role="alertdialog" :aria-label="t('keys.recordTitle')">
-        <h3 class="keys-record-title">
-          <Keyboard :size="18" aria-hidden="true" />
-          {{ t("keys.recordTitle") }}
-        </h3>
-        <p class="keys-record-action">{{ t(`shortcut.${recording.command}`) }}</p>
-        <div class="keys-record-input" :class="{ error: recordError }" aria-live="polite">
-          <template v-if="recordKeys.length > 0">
-            <kbd v-for="part in recordKeys" :key="part">{{ part }}</kbd>
-          </template>
-          <span v-else class="keys-record-placeholder">{{ t("keys.recordPlaceholder") }}</span>
-        </div>
-        <p class="keys-record-message" :class="{ error: recordError }">{{ recordError || t("keys.recordHint") }}</p>
-        <button type="button" class="btn" @click="stopRecording">{{ t("common.cancel") }}</button>
-      </div>
-    </div>
+    <KeyRecordOverlay v-if="recording" :command="recording.command" :index="recording.index" @close="recording = null" />
     <template #buttons>
       <button class="btn" @click="emit('close')">{{ t("common.close") }}</button>
     </template>
@@ -481,20 +392,6 @@ onBeforeUnmount(() => {
   color: var(--destructive);
 }
 
-kbd {
-  display: inline-block;
-  min-width: 20px;
-  padding: 1px 6px;
-  border-radius: calc(var(--radius) - 2px);
-  background: var(--control-track);
-  color: var(--foreground);
-  font-family: inherit;
-  font-size: var(--text-sm);
-  line-height: 18px;
-  text-align: center;
-  white-space: nowrap;
-}
-
 .keys-unassigned {
   flex: 1;
   height: 22px;
@@ -548,75 +445,6 @@ kbd {
   padding: 8px 14px;
   color: var(--muted-foreground);
   font-size: var(--text-xs);
-}
-
-/* ---- キー入力待ち ---- */
-.keys-record {
-  position: fixed;
-  inset: 0;
-  z-index: 1;
-  display: flex;
-  justify-content: center;
-  padding: 96px 16px 16px;
-  background: rgb(0 0 0 / 80%);
-}
-
-.keys-record-box {
-  width: 420px;
-  max-width: 100%;
-  align-self: flex-start;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-lg);
-  text-align: center;
-  color: #fff;
-}
-
-.keys-record-title {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  margin: 0;
-  font-size: var(--text-lg);
-}
-
-.keys-record-action {
-  margin: 0;
-  font-size: var(--text-md);
-}
-
-.keys-record-input {
-  width: 100%;
-  min-height: 42px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: var(--space-xs);
-  padding: var(--space-md);
-  border: 1px solid var(--primary);
-  border-radius: var(--radius);
-  background: var(--muted);
-}
-
-.keys-record-input.error {
-  border-color: var(--destructive);
-}
-
-.keys-record-placeholder {
-  color: var(--muted-foreground);
-  font-size: var(--text-sm);
-}
-
-.keys-record-message {
-  margin: 0;
-  font-size: var(--text-sm);
-}
-
-/* 暗いオーバーレイ上の文字はテーマの destructive だと沈むので、白のまま太字にする (赤は入力欄の枠で示す) */
-.keys-record-message.error {
-  font-weight: bold;
 }
 
 @media (max-width: 640px) {
