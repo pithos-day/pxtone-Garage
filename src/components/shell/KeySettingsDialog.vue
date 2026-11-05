@@ -279,7 +279,6 @@ onMounted(() => searchRef.value?.focus());
   margin: 0;
   padding: 0 8px 0 14px;
   overflow-y: auto;
-  scrollbar-color: var(--control-thumb) transparent;
   list-style: none;
 }
 

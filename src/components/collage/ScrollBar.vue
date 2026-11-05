@@ -156,9 +156,11 @@ function onTrackClick(e: PointerEvent): void {
 </template>
 
 <style scoped>
+/* --border / --muted は多くのテーマでほぼ同色になり thumb が埋もれるため、
+ * 文字色との混色で全テーマのコントラストを確保する --control-* を使う */
 .scroll-track {
   position: relative;
-  background: var(--muted);
+  background: var(--control-surface);
   border: 1px solid var(--border);
   cursor: pointer;
   user-select: none;
@@ -167,13 +169,13 @@ function onTrackClick(e: PointerEvent): void {
 
 .scroll-thumb {
   position: absolute;
-  background: var(--border);
-  border: 1px solid color-mix(in srgb, var(--border) 60%, var(--background));
+  background: var(--control-thumb);
+  border-radius: 2px;
 }
 
 .scroll-thumb:hover,
 .scroll-thumb:active {
-  background: var(--primary);
+  background: var(--control-fill);
 }
 
 .vertical {

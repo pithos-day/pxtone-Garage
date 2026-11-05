@@ -41,6 +41,14 @@ textarea {
   /* --primary はボタンの塗り用で、暗いテーマでは線としては沈むため文字色で持ち上げる。
    * oklch で混ぜると無彩色に近い文字色の色相へ回って別の色になるため oklab で混ぜる */
   --control-fill: color-mix(in oklab, var(--primary) 55%, var(--foreground));
+  /* ネイティブのスクロールバーもテーマに合わせる (scrollbar-color は継承される)。
+   * color-scheme は OS 設定ではなくアプリのダーク/ライト選択に追従させる */
+  color-scheme: light;
+  scrollbar-color: var(--control-thumb) transparent;
+}
+
+:root.dark {
+  color-scheme: dark;
 }
 
 body {
@@ -53,7 +61,6 @@ body {
   line-height: 1.4;
   color: var(--foreground);
   background: var(--background);
-  color-scheme: light dark;
 }
 
 #app {
