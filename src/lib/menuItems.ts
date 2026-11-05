@@ -1,6 +1,6 @@
 // メニューバー (MenuBar.vue) のメニュー項目組み立て。
 // モード別メニュー定義の構築ロジックを SFC から分離する
-import { Bug, FilePlus2, FileSearch2, Save, SavePlus, SquareX, Undo, Redo, ZoomIn } from "@lucide/vue";
+import { Bug, FilePlus2, Search, FileSearch2, Save, SavePlus, SquareX, Undo, Redo, ZoomIn } from "@lucide/vue";
 import type { Component } from "vue";
 import { ZOOM_MAX, ZOOM_MIN, ZOOM_TABLE } from "./clock";
 import type { ShortcutCommand } from "./shortcuts";
@@ -132,6 +132,35 @@ export function buildViewMenu(args: {
 }
 
 // Help メニュー
-export function buildHelpMenu(args: { onReportIssue: () => void }): MenuItem[] {
-  return [{ label: t("menu.help.reportIssue"), icon: Bug, action: args.onReportIssue }];
+export function buildHelpMenu(args: { onSearch: () => void; onReportIssue: () => void }): MenuItem[] {
+  return [
+    { label: t("menu.help.search"), icon: Search, action: args.onSearch },
+    { label: t("menu.help.reportIssue"), icon: Bug, action: args.onReportIssue },
+  ];
+}
+
+// 「機能を検索」の 1 件。action が無いものはショートカットの案内のみで実行できない
+export interface FeatureEntry {
+  path: string; // "File > 書き出し > WAVを書き出し" のような表示名
+  action?: () => void;
+  command?: ShortcutCommand;
+}
+
+// メニューを実行可能な項目へ平坦化する (区切り・スライダー・無効な項目は含めない)
+export function flattenMenuItems(items: MenuItem[], parent: string): FeatureEntry[] {
+  return items.flatMap((item): FeatureEntry[] => {
+    if (!item.label || item.disabled) return [];
+    const path = `${parent} > ${item.label}`;
+    if (item.sub) return flattenMenuItems(item.sub, path);
+    return item.action ? [{ path, action: item.action, command: item.command }] : [];
+  });
+}
+
+// 空白区切りの語をすべて含む項目を返す (大文字小文字は区別しない)
+export function searchFeatures(entries: FeatureEntry[], query: string): FeatureEntry[] {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  return entries.filter((entry) => {
+    const text = entry.path.toLowerCase();
+    return words.every((word) => text.includes(word));
+  });
 }

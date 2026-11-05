@@ -77,7 +77,14 @@ const ja = {
   "menu.view.zoom": "ズーム",
 
   // メニュー: Help
+  "menu.help.search": "機能を検索",
   "menu.help.reportIssue": "問題を報告",
+
+  // 機能を検索
+  "search.title": "機能を検索",
+  "search.placeholder": "機能の名前を入力",
+  "search.empty": "見つかりませんでした",
+  "search.shortcut": "ショートカット",
 
   // キー設定ダイアログ
   "keys.title": "キー設定",

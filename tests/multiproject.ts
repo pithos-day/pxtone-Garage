@@ -21,7 +21,7 @@
 //   48. 名前を付けて保存で Collage とのリンクを解除 / 49. 同梱サンプル楽曲 / 50. 全て閉じる / 51. Voice/Noise の全て閉じる
 //   52. Noise の undo / History は編集状態をそのまま戻す / 53. THIRD_PARTY_NOTICES の生成
 //   54. 未保存ドラフトの退避 (IndexedDB / 旧形式からの移行 / 失敗の通知) / 55. ユーザーテーマの保存失敗を通知する
-//   56. 予期しないエラーの通知
+//   56. 予期しないエラーの通知 / 57. 機能を検索
 import {
   projects,
   currentProjectId,
@@ -197,7 +197,7 @@ import {
 } from "../src/lib/shortcuts";
 import { clockAtX, zoomAnchorScrollX, zoomByWheel } from "../src/lib/field";
 import { UNIT_COLORS, getUnitColor } from "../src/lib/theme";
-import { MENU_LABELS, menuNamesFor, buildFileMenu } from "../src/lib/menuItems";
+import { MENU_LABELS, menuNamesFor, buildFileMenu, flattenMenuItems, searchFeatures } from "../src/lib/menuItems";
 import { t } from "../src/i18n";
 import { secToEnveX, pctToEnveY, pushHistoryEntry, NOISE_WAVE_TYPES, noiseEnveCumulative, noiseEnveMove, noiseEnveInsert, noiseEnveDelete } from "../src/lib/noise";
 import { knobNorm, knobValue, knobAngle, KNOB_SWEEP } from "../src/lib/knob";
@@ -4199,6 +4199,26 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     check(currentAppDialog.value?.message.includes("other") === true, "errors: 別のエラーは通知する");
     while (currentAppDialog.value) acceptAppDialog();
     console.error = consoleError;
+  }
+
+  // ---- 57. 機能を検索 ----
+  {
+    const noop = (): void => {};
+    const entries = flattenMenuItems(
+      [
+        { label: "Open", action: noop },
+        { sep: true },
+        { label: "Disabled", action: noop, disabled: true },
+        { label: "Export", sub: [{ label: "WAV", action: noop, command: "save" }, { label: "Off", action: noop, disabled: true }] },
+        { slider: { min: 0, max: 1, value: 0, onInput: noop } },
+      ],
+      "File",
+    );
+    checkEq(entries.map((e) => e.path).join("|"), "File > Open|File > Export > WAV", "search: 実行できる項目だけを親の名前付きで平坦化する");
+    checkEq(entries[1]!.command, "save", "search: ショートカットを引き継ぐ");
+    checkEq(searchFeatures(entries, "").length, 2, "search: 空の検索はすべて返す");
+    checkEq(searchFeatures(entries, "  export   wav ").map((e) => e.path).join(), "File > Export > WAV", "search: 空白区切りの語をすべて含む項目を返す (大文字小文字は無視)");
+    checkEq(searchFeatures(entries, "open wav").length, 0, "search: 一部の語しか含まない項目は返さない");
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);

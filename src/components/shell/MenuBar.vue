@@ -2,7 +2,7 @@
 // 左: Collage/Voice/Noise のモードタブ (大きめフォント)
 // 右: モード別ドロップダウンメニュー (collage = File/Edit/View/Help、voice/noise = File/Edit/Help)
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { FileUp, FileDown, Music, ListMusic, FileMusic, AudioLines, SlidersHorizontal, SquareStack, CircleGauge, Copy, Columns4, PackagePlus, Link2, Settings, Palette, Keyboard, History, Eraser, AlignHorizontalJustifyStart } from "@lucide/vue";
 import { DIVI_TABLE } from "../../lib/clock";
 import { doc, setAllUnitsVisible, exportBytes, addWoice, WoiceType } from "../../state/project";
@@ -33,18 +33,21 @@ import {
   buildEditMenu,
   buildViewMenu,
   buildHelpMenu,
+  flattenMenuItems,
   MENU_LABELS,
   menuNamesFor,
+  type FeatureEntry,
   type MenuItem,
   type MenuName,
   type ModeMenuOps,
 } from "../../lib/menuItems";
 import { useDropdownMenu } from "../../composables/useDropdownMenu";
 import { useGlobalKeys } from "../../composables/useGlobalKeys";
-import { shortcutAreaOf } from "../../lib/shortcuts";
+import { SHORTCUTS, shortcutAreaOf } from "../../lib/shortcuts";
 import { shortcutCommand } from "../../state/keybindings";
 import { isModalOpen } from "../../state/ui";
 import ModeTabs from "./ModeTabs.vue";
+import FeatureSearchDialog from "./FeatureSearchDialog.vue";
 
 const mode = defineModel<AppMode>({ required: true });
 const emit = defineEmits<{
@@ -465,8 +468,25 @@ const viewMenu = computed<MenuItem[]>(() =>
 
 const ISSUES_URL = "https://github.com/pithos-day/pxtone-garage/issues";
 
+const featureSearchOpen = ref(false);
+
+// 現在のモードで使える機能。メニューに無いショートカットは案内として後ろへ並べる
+const featureEntries = computed<FeatureEntry[]>(() => {
+  const entries = [
+    ...flattenMenuItems(fileMenu.value, MENU_LABELS.file),
+    ...flattenMenuItems(editMenu.value, MENU_LABELS.edit),
+    ...(mode.value === "collage" ? flattenMenuItems(viewMenu.value, MENU_LABELS.view) : []),
+  ];
+  const inMenu = new Set(entries.map((entry) => entry.command));
+  const shortcutsOnly = SHORTCUTS.filter(
+    (s) => !inMenu.has(s.command) && (s.area === "app" || mode.value === "collage"),
+  ).map((s): FeatureEntry => ({ path: `${t("search.shortcut")} > ${s.action}`, command: s.command }));
+  return [...entries, ...shortcutsOnly];
+});
+
 const helpMenu = computed<MenuItem[]>(() =>
   buildHelpMenu({
+    onSearch: () => (featureSearchOpen.value = true),
     onReportIssue: () => void window.open(ISSUES_URL, "_blank", "noopener"),
   }),
 );
@@ -506,6 +526,9 @@ const openItems = computed<MenuItem[]>(() => {
       </div>
     </div>
     <div class="app-logo" role="img" aria-label="pxtone Garage"></div>
+    <Teleport to="body">
+      <FeatureSearchDialog v-if="featureSearchOpen" :entries="featureEntries" @close="featureSearchOpen = false" />
+    </Teleport>
   </div>
 </template>
 
