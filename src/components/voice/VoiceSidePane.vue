@@ -4,39 +4,18 @@
 // Vol/Pan/補正値/Release のスライダー、点スライダー (本家 ptuiSines 準拠。
 // Coordinate では n 番目の点の y 座標表示として常時表示)、エンベロープ。
 // エンベロープは本家 ptuiEnvelope 準拠の「区間長 x + 累積描画」。
-import { computed, ref } from "vue";
+import { computed } from "vue";
 import FillSlider from "../common/FillSlider.vue";
-import { useCanvas } from "../../composables/useCanvas";
+import VoiceEnvelopeCanvas from "./VoiceEnvelopeCanvas.vue";
+import VoiceWaveCanvas from "./VoiceWaveCanvas.vue";
 import { useEditRev } from "../../composables/useEditRev";
 import { useUndoOnce } from "../../composables/useUndo";
-import { COLORS } from "../../lib/theme";
-import { fillRect, fillText } from "../../lib/draw";
-import { capturePointer, fieldOffset, releasePointerCapture } from "../../lib/field";
-import {
-  WAVE_PAD,
-  SAMPLE_NUM,
-  coordX,
-  coordY,
-  coordPxToX,
-  cursorToWaveY,
-  enveX,
-  enveY,
-  envePxToX,
-  envePxToY,
-  enveMaxX,
-  nearestPoint,
-  waveY,
-} from "../../lib/voice-geometry";
-import { Oscillator, VoiceType, type VoiceUnit } from "pxtone-ts";
+import { clamp } from "../../lib/clamp";
+import { enveHeadCount } from "../../lib/voice-geometry";
+import { VoiceType, type VoiceUnit } from "pxtone-ts";
 import {
   currentVoice,
   editVoice,
-  clampWavePointX,
-  insertWavePoint,
-  enveDisplayPoints,
-  enveInsertPoint,
-  enveDeletePoint,
-  enveSetHeadPointX,
   applyWavePreset,
   applyWaveTypeData,
   WAVE_PRESET_LABELS,
@@ -45,7 +24,6 @@ import {
 import type { WavePreset } from "../../state/voice";
 import { appConfirm } from "../../state/dialog";
 import { t } from "../../i18n";
-import { clamp } from "../../lib/clamp";
 
 const props = defineProps<{ side: number }>();
 const emit = defineEmits<{ (e: "edit"): void }>();
@@ -61,6 +39,12 @@ function currentVoiceUnit(): VoiceUnit | null {
   return v.woice.getVoice(s);
 }
 
+// 子のキャンバスへ渡す今の面。実体は markRaw のため rev で追従させる
+const unit = computed(() => {
+  void rev.value;
+  return currentVoiceUnit();
+});
+
 // 波形タイプは音色の実データから導く。別に状態を持つと、起動時の復元や undo / A・B コピーで
 // データとずれる。実体は markRaw のため rev で追従させる
 const waveType = computed<"coord" | "overtone">(() => {
@@ -68,9 +52,6 @@ const waveType = computed<"coord" | "overtone">(() => {
   return currentVoiceUnit()?.type === VoiceType.Overtone ? "overtone" : "coord";
 });
 
-
-// ドラッグ/フォーカス中は最初の編集時のみ undo を積む (1 ジェスチャ = 1 エントリ)
-const dragUndo = useUndoOnce(() => editVoice(() => {}));
 
 // ---- 面ごとのパラメータ (Vol/Pan/補正値/Release) ----
 // 本家 ptuiRackFull / ptuiReleaseTime 準拠:
@@ -114,9 +95,6 @@ const correctModel = makeSliderModel(
 
 // リリース区間長 (本家 ptuiReleaseTime 準拠)。
 // スライダー表示 0..100 ↔ データ 1..1000 (×10)。スライダー 0 はデータ 1 にクランプ (tail は維持)
-function enveHeadCount(c: VoiceUnit): number {
-  return c.envelope.headNum + c.envelope.bodyNum;
-}
 const releaseModel = makeSliderModel(
   () => {
     const c = currentVoiceUnit();
@@ -170,126 +148,6 @@ function applyPreset(preset: WavePreset): void {
   setVoiceUnit((c) => applyWavePreset(c, preset));
 }
 
-// ---- 波形モニター ----
-const waveRef = ref<HTMLCanvasElement | null>(null);
-
-// 波形モニター: 本家 ptuiWave::_try_update と同様、生成波形 (GetOneSample) を描画する。
-// 波形も点も volume 込みで描画し、両者が一致するようにする
-function drawWave(ctx: CanvasRenderingContext2D, w: number, h: number): void {
-  const c = currentVoiceUnit();
-  fillRect(ctx, 0, 0, w, h, COLORS.fieldBg);
-  if (!c) return;
-  // 中央線 (y=0)
-  ctx.strokeStyle = COLORS.beatLine;
-  ctx.beginPath();
-  ctx.moveTo(0, h / 2 + 0.5);
-  ctx.lineTo(w, h / 2 + 0.5);
-  ctx.stroke();
-
-  const osci = new Oscillator();
-  osci.readyGetSample(c.wave.points, c.wave.num, c.volume, SAMPLE_NUM, c.wave.reso);
-  const bOvertone = c.type === VoiceType.Overtone;
-  ctx.strokeStyle = COLORS.accent;
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  for (let s = 0; s < SAMPLE_NUM; s++) {
-    const x = WAVE_PAD + (s / (SAMPLE_NUM - 1)) * (w - WAVE_PAD * 2);
-    const v = bOvertone ? osci.getOneSampleOvertone(s) : osci.getOneSampleCoodinate(s);
-    const y = waveY(h, v, bOvertone);
-    if (s === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  }
-  ctx.stroke();
-
-  if (c.type === VoiceType.Coodinate) {
-    // 点 (ドラッグ編集対象。点0 は x=0 固定)。波形と同じ volume スケールで描画する
-    ctx.fillStyle = COLORS.textBright;
-    for (let i = 0; i < c.wave.num; i++) {
-      const p = c.wave.points[i];
-      if (!p) continue;
-      const x = coordX(c, w, p.x);
-      const y = coordY(h, (p.y * c.volume) / 128);
-      ctx.beginPath();
-      ctx.arc(x, y, i === 0 ? 2.5 : 3, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-}
-
-useCanvas(waveRef, drawWave, [() => rev.value, () => voice.value, () => waveType.value]);
-
-// ---- Coordinate の点編集 ----
-const waveDrag = ref<{ idx: number } | null>(null);
-
-function waveIndexAt(px: number, py: number, w: number, h: number): number {
-  const c = currentVoiceUnit();
-  if (!c) return -1;
-  const pts: { x: number; y: number }[] = [];
-  for (let i = 0; i < c.wave.num; i++) {
-    const p = c.wave.points[i];
-    if (!p) continue;
-    pts.push({ x: coordX(c, w, p.x), y: coordY(h, (p.y * c.volume) / 128) });
-  }
-  return nearestPoint(pts, px, py);
-}
-
-function onWavePointerDown(e: PointerEvent): void {
-  const canvas = canvasRect(waveRef);
-  const unit = currentVoiceUnit();
-  if (!canvas || !unit || unit.type !== VoiceType.Coodinate) return;
-  const { x, y } = fieldOffset(canvas.el, e);
-  const idx = waveIndexAt(x, y, canvas.w, canvas.h);
-  if (e.button === 2) {
-    // 右クリック: 点を削除 (点0 は固定なので削除不可)
-    if (idx > 0) {
-      setVoiceUnit((vc) => {
-        vc.wave.points.splice(idx, 1);
-        vc.wave.num = vc.wave.points.length;
-      });
-    }
-    return;
-  }
-  if (e.button !== 0) return;
-  if (idx < 0) {
-    // 空き領域クリック = 点を追加 (x でソートされた位置に挿入。最大31点 = 本家 ptvFIXNUM_WAVE_POINT)
-    const px = coordPxToX(unit, canvas.w, x);
-    const py = cursorToWaveY(canvas.h, y, unit.volume);
-    if (px <= 0) return; // x=0 は点0 が占有 (本家 _point_add 準拠)
-    setVoiceUnit((vc) => {
-      if (!insertWavePoint(vc.wave.points, px, py, 31)) return;
-      vc.wave.num = vc.wave.points.length;
-    });
-    return;
-  }
-  if (idx === 0) return; // 点0 は動かせない (本家 _point_set 準拠)
-  waveDrag.value = { idx };
-  dragUndo.reset();
-  capturePointer(canvas.el, e);
-}
-
-function onWavePointerMove(e: PointerEvent): void {
-  const d = waveDrag.value;
-  if (!d) return;
-  const canvas = canvasRect(waveRef);
-  const unit = currentVoiceUnit();
-  if (!canvas || !unit) return;
-  const { x, y } = fieldOffset(canvas.el, e);
-  dragUndo.onBegin();
-  // 前後の点を越えられないよう x をクランプ (本家 _point_set 準拠)
-  const p = unit.wave.points[d.idx];
-  if (!p) return;
-  p.y = cursorToWaveY(canvas.h, y, unit.volume);
-  const nx = coordPxToX(unit, canvas.w, x);
-  p.x = clampWavePointX(unit.wave.points, d.idx, nx, unit.wave.reso);
-  touch();
-}
-
-function onWavePointerUp(e: PointerEvent): void {
-  releasePointerCapture(waveRef.value, e);
-  waveDrag.value = null;
-  dragUndo.reset();
-}
-
 // ---- スライダー (本家 ptuiSines 準拠、y のみ編集) ----
 // Coordinate では n 番目の点の y 座標、Oscillator では n 倍音の音量を表す。
 // 常時表示し、point[i].y を直接編集する。座標モードの点0 (i=0) は本家 _point_set 同様固定。
@@ -308,131 +166,6 @@ function setSine(i: number, v: number): void {
   touch();
 }
 
-// ---- エンベロープ (本家 ptuiEnvelope 準拠: x は区間長、表示は累積座標) ----
-// 本家と同様、グラフにはヘッド点のみを表示する (リリースは Release スライダーで
-// 独立に操作し、エンベロープとは影響し合わない)
-const enveRef = ref<HTMLCanvasElement | null>(null);
-
-// ヘッド表示点 (累積座標) を返す
-function enveDisplay(c: VoiceUnit): {
-  head: ReturnType<typeof enveDisplayPoints>;
-  headCount: number;
-} {
-  const headCount = enveHeadCount(c);
-  const head = enveDisplayPoints(c.envelope.points, headCount);
-  return { head, headCount };
-}
-
-// グラフ右端の累積 x (描画・ドラッグで共通)
-function enveMaxHeadX(c: VoiceUnit): number {
-  const { head } = enveDisplay(c);
-  return enveMaxX(head.length ? head[head.length - 1]!.x : 0);
-}
-
-function drawEnve(ctx: CanvasRenderingContext2D, w: number, h: number): void {
-  const c = currentVoiceUnit();
-  fillRect(ctx, 0, 0, w, h, COLORS.fieldBg);
-  if (!c) return;
-  const { head } = enveDisplay(c);
-  const maxX = enveMaxHeadX(c);
-  ctx.strokeStyle = COLORS.accent;
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  for (let i = 0; i < head.length; i++) {
-    const p = head[i]!;
-    const x = enveX(w, p.x, maxX);
-    const y = enveY(h, p.y);
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-    ctx.arc(x, y, 3, 0, Math.PI * 2);
-  }
-  // サステイン (本家 _try_update と同様、最後のヘッド点の y をグラフ右端まで水平に引く)
-  if (head.length) {
-    const last = head[head.length - 1]!;
-    ctx.lineTo(w - WAVE_PAD, enveY(h, last.y));
-  }
-  ctx.stroke();
-  fillText(ctx, t("voice.envelope"), WAVE_PAD + 2, WAVE_PAD + 8, COLORS.textDim, 10);
-}
-
-useCanvas(enveRef, drawEnve, [() => rev.value, () => voice.value]);
-
-const enveDrag = ref<{ index: number } | null>(null);
-
-function envePointAt(
-  c: VoiceUnit,
-  w: number,
-  h: number,
-  px: number,
-  py: number,
-): { index: number } | null {
-  const { head } = enveDisplay(c);
-  const maxX = enveMaxHeadX(c);
-  const i = nearestPoint(
-    head.map((p) => ({ x: enveX(w, p.x, maxX), y: enveY(h, p.y) })),
-    px,
-    py,
-  );
-  return i >= 0 ? { index: head[i]!.index } : null;
-}
-
-function onEnvePointerDown(e: PointerEvent): void {
-  const canvas = canvasRect(enveRef);
-  const unit = currentVoiceUnit();
-  if (!canvas || !unit) return;
-  const { x, y } = fieldOffset(canvas.el, e);
-  const hit = envePointAt(unit, canvas.w, canvas.h, x, y);
-  if (e.button === 2) {
-    // 右クリック: ヘッド点を削除 (本家 _point_delete。有効点が1つのみなら不可)
-    if (hit) {
-      setVoiceUnit((vc) => enveDeletePoint(vc.envelope.points, enveHeadCount(vc), hit.index));
-    }
-    return;
-  }
-  if (e.button !== 0) return;
-  if (hit) {
-    enveDrag.value = hit;
-    dragUndo.reset();
-    capturePointer(canvas.el, e);
-    return;
-  }
-  // 空き領域クリック = 点を追加 (累積座標を区間長に変換して挿入)
-  const cx = envePxToX(canvas.w, x, enveMaxHeadX(unit));
-  const cy = envePxToY(canvas.h, y);
-  setVoiceUnit((vc) => enveInsertPoint(vc.envelope.points, enveHeadCount(vc), cx, cy));
-}
-
-function onEnvePointerMove(e: PointerEvent): void {
-  const d = enveDrag.value;
-  if (!d) return;
-  const canvas = canvasRect(enveRef);
-  const unit = currentVoiceUnit();
-  if (!canvas || !unit) return;
-  const { x, y } = fieldOffset(canvas.el, e);
-  dragUndo.onBegin();
-  const cx = envePxToX(canvas.w, x, enveMaxHeadX(unit));
-  const cy = envePxToY(canvas.h, y);
-  // ドラッグ中の移動は undo を積まず直接書き換える (undo はジェスチャ先頭の1回)。
-  // 前後の点を乗り越えられないよう累積座標でクランプして区間長へ変換
-  enveSetHeadPointX(unit.envelope.points, enveHeadCount(unit), d.index, cx);
-  unit.envelope.points[d.index]!.y = cy;
-  touch();
-}
-
-function onEnvePointerUp(e: PointerEvent): void {
-  releasePointerCapture(enveRef.value, e);
-  enveDrag.value = null;
-  dragUndo.reset();
-}
-
-// ---- canvas 共通ヘルパ ----
-// canvas と CSS サイズを取得する (ポインタ座標は lib/field の fieldOffset で算出)
-function canvasRect(canvasRef: { value: HTMLCanvasElement | null }): { el: HTMLCanvasElement; w: number; h: number } | null {
-  const el = canvasRef.value;
-  if (!el) return null;
-  const r = el.getBoundingClientRect();
-  return { el, w: r.width, h: r.height };
-}
 </script>
 
 <template>
@@ -457,15 +190,7 @@ function canvasRect(canvasRef: { value: HTMLCanvasElement | null }): { el: HTMLC
         </button>
       </div>
     </div>
-    <canvas
-      ref="waveRef"
-      class="field-canvas vsp-wave"
-      @pointerdown="onWavePointerDown"
-      @pointermove="onWavePointerMove"
-      @pointerup="onWavePointerUp"
-      @pointercancel="onWavePointerUp"
-      @contextmenu.prevent
-    />
+    <VoiceWaveCanvas :unit="unit" :rev="rev" @update="setVoiceUnit" @touch="touch" />
     <div class="vsp-params">
       <label class="vsp-param">
         <span class="vsp-plabel">{{ t("voice.volume") }}</span>
@@ -505,15 +230,7 @@ function canvasRect(canvasRef: { value: HTMLCanvasElement | null }): { el: HTMLC
         </label>
       </div>
     </div>
-    <canvas
-      ref="enveRef"
-      class="field-canvas vsp-enve"
-      @pointerdown="onEnvePointerDown"
-      @pointermove="onEnvePointerMove"
-      @pointerup="onEnvePointerUp"
-      @pointercancel="onEnvePointerUp"
-      @contextmenu.prevent
-    />
+    <VoiceEnvelopeCanvas :unit="unit" :rev="rev" @update="setVoiceUnit" @touch="touch" />
   </div>
 </template>
 

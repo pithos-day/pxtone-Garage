@@ -60,6 +60,13 @@ export function zoomOrPan(e: WheelEvent, current: number): { zoom: number | null
 
 // ---- ポインタキャプチャ ----
 
+// canvas と CSS サイズを取得する (ポインタ座標は fieldOffset で算出する)
+export function canvasBox(el: HTMLCanvasElement | null): { el: HTMLCanvasElement; w: number; h: number } | null {
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  return { el, w: r.width, h: r.height };
+}
+
 export function capturePointer(el: { setPointerCapture(pointerId: number): void } | null | undefined, e: PointerEvent): void {
   el?.setPointerCapture(e.pointerId);
 }

@@ -85,3 +85,8 @@ export function nearestPoint(points: { x: number; y: number }[], px: number, py:
   }
   return best;
 }
+
+// エンベロープのヘッド点の数 (リリース点の添字でもある)
+export function enveHeadCount(c: VoiceUnit): number {
+  return c.envelope.headNum + c.envelope.bodyNum;
+}
