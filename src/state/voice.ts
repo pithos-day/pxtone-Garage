@@ -434,6 +434,8 @@ function presetOvertone(vc: VoiceUnit, preset: WavePreset): void {
 // points[0] = {0,0} 固定で points[1..] を構築する (本家準拠)
 function presetCoodinate(vc: VoiceUnit, preset: WavePreset): void {
   const build = (pts: [number, number][]): void => {
+    // 下の座標は解像度 256 用。解像度の違うファイル (reso=200 など) では x が範囲を超えてしまう
+    vc.wave.reso = WAVE_RESO;
     vc.wave.points = [{ x: 0, y: 0 }, ...pts.map(([x, y]) => ({ x, y }))];
     vc.wave.num = vc.wave.points.length;
   };

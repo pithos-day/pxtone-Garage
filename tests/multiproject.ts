@@ -1319,6 +1319,16 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(saved.getVoice(0)!.envelope.headNum, 2, "a-only: 追加した点が保存される");
     closeVoice(doc1.id);
 
+    // 解像度の違うファイルにプリセットを当てても x が解像度を超えない
+    for (const preset of [0, 1, 2, 3, 4] as const) {
+      const vc = new Woice();
+      vc.voiceAllocate(1);
+      const u = vc.getVoice(0)!;
+      u.wave.reso = 200;
+      applyWavePreset(u, preset);
+      check(u.wave.points.every((p) => p.x < u.wave.reso), `preset ${preset}: x が解像度未満`);
+    }
+
     // 開く前後で音が変わらない (エンベロープなし ↔ 音量一定の既定エンベロープ)
     const reopened = new Woice();
     reopened.read(new MemoryIo(singleBytes), WoiceType.PTV);
