@@ -37,6 +37,7 @@ function releaseFocus(e: Event): void {
     <label class="vol-label">{{ t("transport.volume") }}</label>
     <input
       type="range"
+      :title="t('transport.volume')"
       min="0"
       max="1"
       step="0.01"
@@ -53,6 +54,7 @@ function releaseFocus(e: Event): void {
     <select
       id="transport-snap"
       class="snap-select"
+      :title="t('menu.edit.gridSnap')"
       :value="doc.divi"
       :disabled="doc.readOnly"
       @change="doc.divi = Number(($event.target as HTMLSelectElement).value); releaseFocus($event)"
@@ -62,6 +64,7 @@ function releaseFocus(e: Event): void {
     <label class="vol-label" for="transport-zoom">{{ t("menu.view.zoom") }}</label>
     <input
       id="transport-zoom"
+      :title="t('menu.view.zoom')"
       type="range"
       min="0"
       :max="ZOOM_SLIDER_MAX"
@@ -178,6 +181,14 @@ function releaseFocus(e: Event): void {
   flex: 0 1 110px;
   min-width: 48px;
   width: 110px;
+}
+
+/* スライダーを縮めても入らない幅では、部品のツールチップで分かる見出しを隠して右端のボタンを残す */
+@media (max-width: 1240px) {
+  .vol-label,
+  .panel-label {
+    display: none;
+  }
 }
 
 .panel-label {
