@@ -244,11 +244,6 @@ async function onSubmit(): Promise<void> {
   color: var(--muted-foreground);
 }
 
-.unit {
-  font-size: var(--text-xs);
-  color: var(--muted-foreground);
-}
-
 .check {
   display: flex;
   align-items: center;

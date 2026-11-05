@@ -55,11 +55,6 @@ function onSubmit(): void {
 </template>
 
 <style scoped>
-.unit {
-  font-size: var(--text-xs);
-  color: var(--muted-foreground);
-}
-
 .dim {
   font-size: var(--text-sm);
 }
