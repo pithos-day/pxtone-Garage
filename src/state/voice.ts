@@ -22,6 +22,7 @@ import { clamp } from "../lib/clamp";
 
 const WAVE_RESO = 256; // 本家 ptvCOODINATERESOLUTION
 const MAX_ENVE_POINT = 31; // 本家 ptvMAX_ENVELOPEPOINT
+const WAVE_POINT_MAX = 31; // 本家 ptvFIXNUM_WAVE_POINT
 
 export interface VoiceDoc extends TabDocBase {
   woice: Woice;
@@ -205,24 +206,38 @@ export function enveSetHeadPointX(points: { x: number; y: number }[], maxHead: n
 }
 
 // ---- ファイルの省略形を編集用の形へ戻す ----
-// 本家 ptVoice の保存は無効な面を削除し (Slim)、既定エンベロープはデータごと省く。
-// 編集 UI は A/B 2 面・固定スロット数を前提にするので、開くときに補う。
+// 本家 ptVoice の保存は無効な面を削除し (Slim)、倍音とエンベロープの空きを詰め、既定エンベロープは
+// データごと省く。編集 UI は A/B 2 面・固定スロット数を前提にするので、開くときに補う。
 // 省いた分は保存時の正規化でまた落ちるため、未編集なら同じ内容で書き戻される
 
-// エンベロープのデータがなければ、保存時に省かれる既定形
-// (音量一定 / リリース最短。clearDefaultEnvelopeFlag が判定する形) を固定スロットで入れる
+// 倍音を x (倍音番号) の位置に並べ、31 スロットへ戻す。スライダーの番号は倍音番号に対応する。
+// 範囲外や重複があるファイルはスロットへ割り当てられないので、そのまま編集する
+function expandOvertonePoints(vc: VoiceUnit): void {
+  const active = vc.wave.points.slice(0, vc.wave.num);
+  const seen = new Set(active.map((p) => p.x));
+  if (seen.size !== active.length || active.some((p) => p.x < 1 || p.x > WAVE_POINT_MAX)) return;
+  const points = Array.from({ length: WAVE_POINT_MAX }, (_, i) => ({ x: i + 1, y: 0 }));
+  for (const p of active) points[p.x - 1]!.y = p.y;
+  vc.wave.points = points;
+  vc.wave.num = WAVE_POINT_MAX;
+}
+
+// エンベロープを固定スロット (ヘッド 31 点 + tail) へ戻す。データがなければ、
+// 保存時に省かれる既定形 (音量一定 / リリース最短。clearDefaultEnvelopeFlag が判定する形) を入れる
 function expandEnvelopePoints(vc: VoiceUnit): void {
   const enve = vc.envelope;
-  if (vc.dataFlags & PTV_DATAFLAG_ENVELOPE) return;
-  vc.dataFlags |= PTV_DATAFLAG_ENVELOPE;
-  enve.fps = 1000;
-  enve.headNum = 1;
-  enve.bodyNum = 0;
-  enve.tailNum = 1;
-  enve.points = [
-    { x: 0, y: 128 },
-    { x: 1, y: 0 },
-  ];
+  if (!(vc.dataFlags & PTV_DATAFLAG_ENVELOPE)) {
+    vc.dataFlags |= PTV_DATAFLAG_ENVELOPE;
+    enve.fps = 1000;
+    enve.headNum = 1;
+    enve.bodyNum = 0;
+    enve.tailNum = 1;
+    enve.points = [
+      { x: 0, y: 128 },
+      { x: 1, y: 0 },
+    ];
+  }
+  if (enve.headNum < 1 || enve.headNum >= MAX_ENVE_POINT) return;
   const tail = enve.points[enve.headNum]!;
   const points = enve.points.slice(0, enve.headNum);
   while (points.length < MAX_ENVE_POINT) points.push({ x: 0, y: 0 });
@@ -245,7 +260,9 @@ export function expandWoiceForEdit(w: Woice): void {
     }
   }
   for (let i = 0; i < voiceNum; i++) {
-    expandEnvelopePoints(w.getVoice(i)!);
+    const vc = w.getVoice(i)!;
+    if (vc.type === VoiceType.Overtone) expandOvertonePoints(vc);
+    expandEnvelopePoints(vc);
   }
 }
 
@@ -367,8 +384,6 @@ export const WAVE_PRESET_TITLE_KEYS = [
   "voice.presetRandom",
   "voice.presetReverse",
 ] as const;
-
-const WAVE_POINT_MAX = 31; // 本家 ptvFIXNUM_WAVE_POINT
 
 // Random プリセットの有効点数 (1..30 の乱数)
 function randomActiveNum(): number {

@@ -107,7 +107,7 @@ export function useMenuActions(mode: Ref<AppMode>, tabs: MenuTabRequests) {
           link: v.link,
           fileName: v.fileName,
           woiceType: WoiceType.PTV,
-          // Collage へはファイル保存と同じ形で渡す (編集用に補った面や既定エンベロープを持ち込まない)。
+          // Collage へはファイル保存と同じ形で渡す (編集用に補った面や空きスロットを持ち込まない)。
           // 全面が無効で保存形にできない音色は、これまでどおり編集中の形のまま渡す
           snapshot: () => snapshotVoiceForSave(v) ?? snapshotVoice(v),
           exportWav: () => exportVoiceWav(v.woice, v.fileName || "untitled"),

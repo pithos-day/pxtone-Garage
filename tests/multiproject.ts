@@ -1329,6 +1329,41 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
       check(u.wave.points.every((p) => p.x < u.wave.reso), `preset ${preset}: x が解像度未満`);
     }
 
+    // エンベロープを詰めて保存したファイルにも点を追加できる
+    const klike = createDefaultWoice();
+    const kv = klike.getVoice(0)!;
+    kv.envelope.points[1] = { x: 1, y: 128 };
+    kv.envelope.points[2] = { x: 1, y: 54 };
+    normalizeVoiceUnitForSave(kv);
+    checkEq(kv.envelope.headNum, 3, "compact-enve: 詰めた状態の準備");
+    const klikeBytes = bytesOf(klike);
+    checkEq(openVoice(klikeBytes, "klike"), null, "compact-enve: 開ける");
+    const dk = currentVoice()!;
+    const ke = dk.woice.getVoice(0)!.envelope;
+    checkEq(ke.headNum, 31, "compact-enve: ヘッドの空きスロットを戻す");
+    checkEq(ke.points[31]!.x, 1, "compact-enve: tail は末尾スロットへ移る");
+    checkEq(ke.points[2]!.y, 54, "compact-enve: 既存の点は保持");
+    enveInsertPoint(ke.points, ke.headNum, 500, 10);
+    checkEq(enveDisplayPoints(ke.points, ke.headNum).length, 4, "compact-enve: 点を追加できる");
+    closeVoice(dk.id);
+
+    // 詰めて保存した倍音は倍音番号の位置へ戻り、全スロットを編集できる
+    const ov = createDefaultWoice();
+    const ou = ov.getVoice(0)!;
+    applyWaveTypeData(ou, "overtone");
+    ou.wave.points[5]!.y = 64;
+    ou.wave.points[10]!.y = -32;
+    normalizeVoiceUnitForSave(ou);
+    const ovBytes = bytesOf(ov);
+    checkEq(openVoice(ovBytes, "overtone"), null, "overtone: 開ける");
+    const dv = currentVoice()!;
+    const opts = dv.woice.getVoice(0)!.wave;
+    checkEq(opts.num, 31, "overtone: 31 スロットへ戻す");
+    checkEq(opts.points[0]!.y, 128, "overtone: 第 1 倍音は 1 番目");
+    checkEq(opts.points[5]!.y, 64, "overtone: 第 6 倍音は 6 番目");
+    checkEq(opts.points[10]!.y, -32, "overtone: 第 11 倍音は 11 番目");
+    closeVoice(dv.id);
+
     // 開く前後で音が変わらない (エンベロープなし ↔ 音量一定の既定エンベロープ)
     const reopened = new Woice();
     reopened.read(new MemoryIo(singleBytes), WoiceType.PTV);
