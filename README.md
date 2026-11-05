@@ -32,7 +32,11 @@
 
 ## 動作環境
 
-PC のブラウザを対象としています。モバイル端末は公式サポートではありませんが、横向きの PC と同じレイアウトでタッチ操作できます (右ドラッグなどマウス前提の操作は使えません)。
+PC のブラウザのほか、Windows / macOS / Linux 向けのスタンドアロン版 ([Releases](https://github.com/pithos-day/pxtone-garage/releases)) で動作します。スタンドアロン版はネットワークなしで使えます。
+
+スタンドアロン版はコード署名をしていないため、初回起動時に警告が出ます。Windows は「詳細情報」→「実行」、macOS は Finder でアプリを右クリックして「開く」で起動できます (開けない場合はシステム設定の「プライバシーとセキュリティ」から許可してください)。
+
+ブラウザ版は PC のブラウザを対象としています。モバイル端末は公式サポートではありませんが、横向きの PC と同じレイアウトでタッチ操作できます (右ドラッグなどマウス前提の操作は使えません)。
 
 ## キーボードショートカット
 
@@ -65,6 +69,8 @@ pnpm install
 pnpm dev        # worklet をバンドルして vite 起動 (http://localhost:5173)
 pnpm build      # worklet + vue-tsc + vite build
 pnpm worklet    # AudioWorklet のみバンドル (public/worklet/player-worklet.js)
+pnpm electron   # スタンドアロン版をビルドして起動
+pnpm dist:electron  # スタンドアロン版をパッケージ (release/)
 ```
 
 ## 構成
