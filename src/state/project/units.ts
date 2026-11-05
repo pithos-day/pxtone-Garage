@@ -78,7 +78,7 @@ export function replaceUnitRaw(oldPlace: number, newPlace: number): void {
   if (doc.focusUnit >= 0) doc.focusUnit = placeOf(doc.focusUnit);
   doc.unitVisible = move(doc.unitVisible);
   doc.unitPinned = move(doc.unitPinned);
-  if (doc.soloUnit >= 0) doc.soloUnit = order[doc.soloUnit] ?? -1;
+  if (doc.soloUnit >= 0) doc.soloUnit = placeOf(doc.soloUnit);
   service.unitReplace(oldPlace, newPlace);
   service.evels.recordUnitNoReplace(oldPlace, newPlace);
 }
