@@ -4040,6 +4040,7 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     const entries = collectEntries(["pkg-c", "pkg-a", "pkg-b", "pkg-a"].map(moduleOf), root);
     checkEq(entries.length, 3, "notices: 同じパッケージの複数モジュールは 1 件にまとまる");
     const text = renderNotices(entries);
+    check(text.startsWith("\uFEFF"), "notices: 配信元の charset に頼らないよう BOM で始める");
     checkEq(text.split("SAME").length - 1, 1, "notices: 同じ本文は 1 つの節にまとめる (改行コードの差は無視)");
     check(text.includes("pkg-a 1.0.0 (MIT)\n  https://example.com/a\npkg-b 1.0.0 (MIT)"), "notices: 同じ本文のパッケージを見出しに並べ、URL を整形する");
     check(text.includes("\n    OTHER\n"), "notices: 本文の字下げを保つ");

@@ -134,7 +134,9 @@ export function renderNotices(entries: NoticeEntry[]): string {
   const header =
     "pxtone Garage は以下のサードパーティソフトウェアを含みます。\n" +
     "This application includes the following third-party software.";
-  return `${[header, ...sections].join("\n\n\n")}\n`;
+  // 配信元が charset を付けるとは限らない (Electron の独自プロトコルは text/plain のみ) ので、
+  // BOM で UTF-8 と判定させる
+  return `\uFEFF${[header, ...sections].join("\n\n\n")}\n`;
 }
 
 /** 通知対象のパッケージと、それらに組み込まれたソフトウェアのエントリを集める */
