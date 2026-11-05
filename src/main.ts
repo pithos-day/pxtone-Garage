@@ -28,10 +28,6 @@ import { MemoryIo } from "pxtone-ts";
 
 // 内蔵フォント (SIL OFL 1.1)
 import "@fontsource/dotgothic16/400.css";
-import "@fontsource/m-plus-rounded-1c/400.css";
-import "@fontsource/m-plus-rounded-1c/700.css";
-import "@fontsource/zen-maru-gothic/400.css";
-import "@fontsource/zen-maru-gothic/700.css";
 import "@fontsource/noto-sans-jp/400.css";
 import "@fontsource/noto-sans-jp/700.css";
 

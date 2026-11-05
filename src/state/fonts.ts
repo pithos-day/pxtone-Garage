@@ -14,14 +14,14 @@ export interface FontOption {
 // アプリ内蔵フォント (既定は Noto Sans JP、下記 DEFAULT_FONT_FAMILY と同期)
 export const BUNDLED_FONTS: FontOption[] = [
   { family: "DotGothic16", label: "DotGothic16", source: "builtin" },
-  { family: "M PLUS Rounded 1c", label: "M PLUS Rounded 1c", source: "builtin" },
-  { family: "Zen Maru Gothic", label: "Zen Maru Gothic", source: "builtin" },
   { family: "Noto Sans JP", label: "Noto Sans JP", source: "builtin" },
 ];
 
 export const DEFAULT_FONT_FAMILY = "Noto Sans JP";
 
 const STORAGE_FONT = "pxtone-garage-font";
+// 以前は内蔵していたフォント。端末に無ければ、保存値が残っていても既定フォントへ戻す
+const REMOVED_BUNDLED_FONTS = new Set(["M PLUS Rounded 1c", "Zen Maru Gothic"]);
 
 export const fontFamily = ref<string>(DEFAULT_FONT_FAMILY);
 export const localFonts = ref<FontOption[]>([]);
@@ -44,6 +44,7 @@ export function initFonts(): void {
   let family = DEFAULT_FONT_FAMILY;
   const saved = readStorage(STORAGE_FONT);
   if (saved && typeof saved === "string" && saved.length > 0 && saved.length <= 100) family = saved;
+  if (REMOVED_BUNDLED_FONTS.has(family) && !isFontAvailable(family)) family = DEFAULT_FONT_FAMILY;
   setFont(family);
 }
 
