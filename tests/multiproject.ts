@@ -21,7 +21,7 @@
 //   48. 名前を付けて保存で Collage とのリンクを解除 / 49. 同梱サンプル楽曲 / 50. 全て閉じる / 51. Voice/Noise の全て閉じる
 //   52. Noise の undo / History は編集状態をそのまま戻す / 53. THIRD_PARTY_NOTICES の生成
 //   54. 未保存ドラフトの退避 (IndexedDB / 旧形式からの移行 / 失敗の通知) / 55. ユーザーテーマの保存失敗を通知する
-//   56. 予期しないエラーの通知 / 57. 機能を検索
+//   56. 予期しないエラーの通知 / 57. 機能を検索 / 58. モバイルの表示幅
 import {
   projects,
   currentProjectId,
@@ -105,6 +105,7 @@ import { applyDraftProjectState, linkedWoiceIndex, woiceLinkAt } from "../src/st
 import { loadDrafts, restoreDrafts, saveDraftsNow } from "../src/state/drafts";
 import { addUserTheme, removeUserTheme } from "../src/state/theme";
 import { reportUnexpectedError } from "../src/state/errors";
+import { touchViewportContent } from "../src/lib/mobile";
 import { currentAppDialog, acceptAppDialog } from "../src/state/dialog";
 import { droppedFiles, namedFiles, readBlobsAndApply, toArrayBuffer } from "../src/engine/io";
 import { pushRecent, dropRecent } from "../src/lib/recent-list";
@@ -4219,6 +4220,12 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(searchFeatures(entries, "").length, 2, "search: 空の検索はすべて返す");
     checkEq(searchFeatures(entries, "  export   wav ").map((e) => e.path).join(), "File > Export > WAV", "search: 空白区切りの語をすべて含む項目を返す (大文字小文字は無視)");
     checkEq(searchFeatures(entries, "open wav").length, 0, "search: 一部の語しか含まない項目は返さない");
+  }
+
+  // ---- 58. モバイルの表示幅 ----
+  {
+    checkEq(touchViewportContent(390, 844), "width=1280, user-scalable=no", "mobile: 小さい端末は PC の幅でレイアウトする");
+    checkEq(touchViewportContent(1024, 1366), "width=1366, user-scalable=no", "mobile: 大きい端末は長辺の幅を使う");
   }
 
   console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);

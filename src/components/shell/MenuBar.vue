@@ -512,7 +512,7 @@ const openItems = computed<MenuItem[]>(() => {
         class="menu-label"
         :class="{ open: openMenu === m }"
         @click="toggleMenu(m)"
-        @mouseenter="hoverMenu(m)"
+        @pointerenter="$event.pointerType === 'mouse' && hoverMenu(m)"
       >
         {{ MENU_LABELS[m] }}
       </button>

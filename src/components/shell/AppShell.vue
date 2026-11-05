@@ -16,6 +16,7 @@ import KeySettingsDialog from "./KeySettingsDialog.vue";
 import AboutDialog from "./AboutDialog.vue";
 import ProgressDialog from "./ProgressDialog.vue";
 import AppDialogHost from "./AppDialogHost.vue";
+import LandscapeGuard from "./LandscapeGuard.vue";
 import type { EventVolumeMode } from "../../lib/eventVolume";
 import type { AppMode } from "../../lib/modes";
 import CollageTab from "../collage/CollageEditor.vue";
@@ -372,6 +373,7 @@ onBeforeUnmount(() => {
     <!-- IO 中の進捗ダイアログ (state/progress を購読する) -->
     <ProgressDialog />
     <AppDialogHost />
+    <LandscapeGuard />
   </div>
 </template>
 

@@ -81,6 +81,10 @@ const ja = {
   "menu.help.reportIssue": "問題を報告",
   "menu.help.about": "このアプリについて",
 
+  // モバイル
+  "mobile.rotate": "端末を横向きにしてください",
+  "mobile.lockLandscape": "全画面にして横向きに固定",
+
   // このアプリについて
   "about.title": "このアプリについて",
   "about.description": "ピストンコラージュ互換の Web DAW アプリケーション",

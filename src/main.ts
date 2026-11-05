@@ -7,6 +7,7 @@ import { initFonts } from "./state/fonts";
 import { initKeybindings } from "./state/keybindings";
 import { loadDrafts } from "./state/drafts";
 import { installErrorHandlers } from "./state/errors";
+import { initMobile } from "./lib/mobile";
 import {
   openProject,
   newProject,
@@ -56,6 +57,7 @@ initTheme({
   ocean: oceanTheme,
   contrast: contrastTheme,
 });
+initMobile();
 initFonts();
 initMasterVolume();
 initKeybindings();

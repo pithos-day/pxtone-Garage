@@ -46,6 +46,7 @@ textarea {
 body {
   margin: 0;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   font-family: var(--font-sans, sans-serif);
   font-size: var(--text-base);
@@ -57,8 +58,40 @@ body {
 
 #app {
   height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
+}
+
+/* ---- 指でしか操作できない端末 (公式サポートではない) ---- */
+@media (hover: none) and (pointer: coarse) {
+  /* スクロールだけを許可し、ダブルタップズームとピンチズームを止める。
+   * touch-action は継承されないため全要素へ指定する (個別の指定があればそちらが優先) */
+  * {
+    touch-action: pan-x pan-y;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ドラッグで編集する部品。指の動きをスクロールに取られないようにする */
+  canvas,
+  input[type="range"] {
+    touch-action: none;
+  }
+
+  /* 長押しの文字選択と、引っ張って再読み込みを止める */
+  html,
+  body {
+    overscroll-behavior: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  input,
+  textarea {
+    user-select: text;
+    -webkit-user-select: text;
+  }
 }
 
 /* ---- メイン ---- */
