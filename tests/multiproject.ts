@@ -151,6 +151,7 @@ import {
   snapshotVoice,
   snapshotVoiceForSave,
   normalizeVoiceUnitForSave,
+  expandWoiceForEdit,
   openWoiceAsVoice,
   markVoiceClean,
   ensureInitialVoice,
@@ -1287,6 +1288,9 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(w1.getVoice(0)!.wave.reso, 200, "a-only: A 面の解像度は保持");
     checkEq(doc1.dirty, false, "a-only: 開いただけでは dirty にならない");
 
+    // 未編集なら元と同じバイト列で保存される (B 面もエンベロープも保存時に省かれる)
+    checkEq([...snapshotVoiceForSave(doc1)!].join(), [...singleBytes].join(), "a-only: 未編集の保存は元と同一");
+
     // B 面だけ編集しても A 面は変わらない
     editVoice(() => {
       w1.getVoice(1)!.volume = 10;
@@ -1299,8 +1303,29 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     checkEq(w1.getVoice(1)!.volume, 64, "a-only: A→B コピーで volume が移る");
     check(w1.getVoice(0)!.wave.points !== w1.getVoice(1)!.wave.points, "a-only: コピーは別配列");
 
+    // エンベロープがなくても点を追加でき、undo と保存で失われない
+    checkEq(enveInsertPoint(w1.getVoice(0)!.envelope.points, w1.getVoice(0)!.envelope.headNum, 50, 64), true, "a-only: 点の追加を受け付ける");
+    checkEq(enveDisplayPoints(w1.getVoice(0)!.envelope.points, w1.getVoice(0)!.envelope.headNum).length, 2, "a-only: エンベロープに点が増える");
+    editVoice(() => {});
+    editVoice(() => {});
+    check(undoVoice(), "a-only: undo 成功");
+    checkEq(
+      enveDisplayPoints(currentVoice()!.woice.getVoice(0)!.envelope.points, 31).length,
+      2,
+      "a-only: undo でエンベロープが失われない",
+    );
+    const saved = new Woice();
+    checkEq(saved.read(new MemoryIo(snapshotVoiceForSave(doc1)!), WoiceType.PTV), PxtnErr.OK, "a-only: 編集後の保存を読み直せる");
+    checkEq(saved.getVoice(0)!.envelope.headNum, 2, "a-only: 追加した点が保存される");
     closeVoice(doc1.id);
 
+    // 開く前後で音が変わらない (エンベロープなし ↔ 音量一定の既定エンベロープ)
+    const reopened = new Woice();
+    reopened.read(new MemoryIo(singleBytes), WoiceType.PTV);
+    expandWoiceForEdit(reopened);
+    const env = reopened.getVoice(0)!.envelope;
+    checkEq(env.points[0]!.y, 128, "a-only: 既定エンベロープは音量一定");
+    checkEq(env.points[31]!.x, 1, "a-only: 既定のリリースは最短");
   }
 
   // ---- 27. Repeat の undo で表示値 (1-based) がエンジンと一致する ----

@@ -205,10 +205,33 @@ export function enveSetHeadPointX(points: { x: number; y: number }[], maxHead: n
 }
 
 // ---- ファイルの省略形を編集用の形へ戻す ----
-// 本家 ptVoice の保存は無効な面を削除する (Slim)。編集 UI は A/B 2 面を前提にするので、開くときに補う。
+// 本家 ptVoice の保存は無効な面を削除し (Slim)、既定エンベロープはデータごと省く。
+// 編集 UI は A/B 2 面・固定スロット数を前提にするので、開くときに補う。
 // 省いた分は保存時の正規化でまた落ちるため、未編集なら同じ内容で書き戻される
 
-// A 面だけのファイルなどで足りない面を補う。
+// エンベロープのデータがなければ、保存時に省かれる既定形
+// (音量一定 / リリース最短。clearDefaultEnvelopeFlag が判定する形) を固定スロットで入れる
+function expandEnvelopePoints(vc: VoiceUnit): void {
+  const enve = vc.envelope;
+  if (vc.dataFlags & PTV_DATAFLAG_ENVELOPE) return;
+  vc.dataFlags |= PTV_DATAFLAG_ENVELOPE;
+  enve.fps = 1000;
+  enve.headNum = 1;
+  enve.bodyNum = 0;
+  enve.tailNum = 1;
+  enve.points = [
+    { x: 0, y: 128 },
+    { x: 1, y: 0 },
+  ];
+  const tail = enve.points[enve.headNum]!;
+  const points = enve.points.slice(0, enve.headNum);
+  while (points.length < MAX_ENVE_POINT) points.push({ x: 0, y: 0 });
+  points.push(tail);
+  enve.points = points;
+  enve.headNum = MAX_ENVE_POINT;
+}
+
+// A 面だけのファイルなどで足りない面を補い、各面の省略を戻す。
 // 面を 1 つにしたままだと、A/B どちらの画面も同じ面を編集することになる
 export function expandWoiceForEdit(w: Woice): void {
   const voiceNum = w.voiceNum;
@@ -220,6 +243,9 @@ export function expandWoiceForEdit(w: Woice): void {
     for (let i = 0; i < 2; i++) {
       Object.assign(w.getVoice(i)!, i < voiceNum ? loaded.getVoice(i) : defaults.getVoice(i));
     }
+  }
+  for (let i = 0; i < voiceNum; i++) {
+    expandEnvelopePoints(w.getVoice(i)!);
   }
 }
 

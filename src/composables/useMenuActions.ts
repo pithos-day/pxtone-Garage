@@ -21,7 +21,7 @@ import {
   type WoiceLink,
 } from "../state/projects";
 import { canRedo, canUndo, redo, undo } from "../state/undo";
-import { currentVoice, markVoiceClean, newVoice, redoVoice, saveVoice, snapshotVoice, undoVoice, voices } from "../state/voice";
+import { currentVoice, markVoiceClean, newVoice, redoVoice, saveVoice, snapshotVoice, snapshotVoiceForSave, undoVoice, voices } from "../state/voice";
 
 // タブを閉じる操作は未保存の確認を持つ AppShell へ委譲する
 export interface MenuTabRequests {
@@ -107,7 +107,9 @@ export function useMenuActions(mode: Ref<AppMode>, tabs: MenuTabRequests) {
           link: v.link,
           fileName: v.fileName,
           woiceType: WoiceType.PTV,
-          snapshot: () => snapshotVoice(v),
+          // Collage へはファイル保存と同じ形で渡す (編集用に補った面や既定エンベロープを持ち込まない)。
+          // 全面が無効で保存形にできない音色は、これまでどおり編集中の形のまま渡す
+          snapshot: () => snapshotVoiceForSave(v) ?? snapshotVoice(v),
           exportWav: () => exportVoiceWav(v.woice, v.fileName || "untitled"),
           markClean: markVoiceClean,
         }
