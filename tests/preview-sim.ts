@@ -1,7 +1,7 @@
 // プレビュー音声制御 (preview.ts) のシミュレーションテスト。
 // AudioContext をモックして、キー変更時の「前の音の停止」を検証する。
 import { EventKind, MemoryIo, PXTN_MAX_EVENT_NUM, PxtnErr, SEEK_SET, Service, WoiceType, Woice, Noise, WaveType } from "pxtone-ts";
-import { previewWoiceObjectHold, stopPreview, renderWoice, renderPreview, clearWoicePreviewCache, resetPreviewContext, playPcmOnce } from "../src/engine/preview";
+import { previewWoiceObjectHold, stopPreview, renderWoice, woiceReleaseSec, renderPreview, clearWoicePreviewCache, resetPreviewContext, playPcmOnce } from "../src/engine/preview";
 import { createDefaultWoice } from "../src/state/voice";
 
 // ---- モック AudioContext ----
@@ -497,6 +497,29 @@ void (async () => {
     for (let i = limit + 1; i < n; i++) if (ch0[i] !== rendered![i * 2]) same = false;
     assert(same, "loop: クロスフェード範囲外はレンダリング結果のまま");
     stopPreview();
+  }
+
+  // ---- リリース時間は全面のうち最も長いものを使う ----
+  {
+    const w = createDefaultWoice();
+    const setRelease = (side: number, x: number): void => {
+      const e = w.getVoice(side)!.envelope;
+      e.fps = 100;
+      e.points[e.headNum + e.bodyNum] = { x, y: 0 };
+    };
+    setRelease(0, 10);
+    w.getVoice(1)!.wave.num = 3;
+    setRelease(1, 200);
+    assert(woiceReleaseSec(w) === 2, "release: B 面のほうが長ければ B 面の値を使う");
+    setRelease(0, 300);
+    assert(woiceReleaseSec(w) === 3, "release: A 面のほうが長ければ A 面の値を使う");
+    setRelease(0, 10);
+    w.getVoice(1)!.volume = 0;
+    assert(woiceReleaseSec(w) === 0.1, "release: 音量 0 の面は数えない");
+    w.getVoice(1)!.volume = 64;
+    w.getVoice(1)!.wave.num = 1;
+    assert(woiceReleaseSec(w) === 0.1, "release: 波形のない面は数えない");
+    assert(woiceReleaseSec(null) === 0, "release: 音色なしは 0");
   }
 
   console.log(`ALL PASS (${pass} assertions)`);

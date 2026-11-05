@@ -2,8 +2,8 @@
 // worklet の preview メッセージは未実装のため、メインスレッドで
 // 一時 Service にプロジェクト全体を読み込み、対象ユニットのみの
 // ノートをオフライン短レンダリング → AudioBuffer 再生で実現する。
-import { Service, PxtnErr, MemoryIo, SEEK_SET, EventKind, EVENTDEFAULT_VELOCITY, WoiceType, NoiseBuilder, Pcm } from "pxtone-ts";
-import type { Woice, Noise } from "pxtone-ts";
+import { Service, PxtnErr, MemoryIo, SEEK_SET, EventKind, EVENTDEFAULT_VELOCITY, WoiceType, VoiceType, NoiseBuilder, Pcm } from "pxtone-ts";
+import type { Woice, Noise, VoiceUnit } from "pxtone-ts";
 import { exportBytes } from "../state/project";
 import { decodeProjectBytes } from "./oggv";
 import { getService } from "../state/project";
@@ -326,16 +326,27 @@ function stopFadingSource(): void {
   }
 }
 
-// 音色のリリース区間 (秒) を返す。tail なし・fps 不正・区間 0 は 0 (即時カットオフ)
-function woiceReleaseSec(woice: Woice | null): number {
-  if (!woice) return 0;
-  const vc = woice.getVoice(0);
-  if (!vc) return 0;
+// 面 1 つのリリース区間 (秒)。tail なし・fps 不正・区間 0 は 0。音の出ない面も 0
+// (Slim が削除する条件と同じ。無音の面の長いリリースで音を伸ばさない)
+function voiceReleaseSec(vc: VoiceUnit): number {
+  if (!vc.volume || (vc.type === VoiceType.Coodinate && vc.wave.num <= 1)) return 0;
   const e = vc.envelope;
   if (e.tailNum <= 0 || e.fps <= 0) return 0;
   const hc = e.headNum + e.bodyNum;
   const x = e.points[hc]?.x ?? 0;
   return x > 0 ? x / e.fps : 0;
+}
+
+// 音色のリリース区間 (秒) を返す。プレビューは全面を混ぜた 1 本の音を減衰させるため、
+// 最後まで鳴る面に合わせて最も長い値を使う。0 は即時カットオフ
+export function woiceReleaseSec(woice: Woice | null): number {
+  if (!woice) return 0;
+  let sec = 0;
+  for (let i = 0; i < woice.voiceNum; i++) {
+    const vc = woice.getVoice(i);
+    if (vc) sec = Math.max(sec, voiceReleaseSec(vc));
+  }
+  return sec;
 }
 
 // レンダリング済みバッファをループ再生で開始する
