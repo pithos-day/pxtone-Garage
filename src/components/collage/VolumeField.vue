@@ -150,7 +150,7 @@ function draw(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 
   // ドラッグ中の範囲 (本家同様、範囲の両端に縦線を表示)
   const d = drag.value;
-  if (d && d.clock2 > d.clock1) {
+  if (d && d.clock2 !== d.clock1) {
     drawDragRange(
       ctx,
       clockToX(view, Math.min(d.clock1, d.clock2)) - doc.scrollX,
