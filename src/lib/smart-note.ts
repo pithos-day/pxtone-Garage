@@ -6,6 +6,7 @@ import { EventKind, type EveRecord } from "pxtone-ts";
 import { dropShortPrevNote, type EventWriteOps } from "./editing";
 import { iterNoteDraws } from "./records";
 import { KEYNUM, keyValueToRow } from "./clock";
+import { clamp } from "./clamp";
 
 // KEY イベント値の上限 (本家の KEY 値域)。音程移動のクランプに使う
 export const KEY_VALUE_MAX = 49151;
@@ -48,7 +49,7 @@ export interface SmartPlacement {
 
 // KEY 値を rowDelta 行ぶん移動する (KEY 値は 0x8700 - row*0x100 のため行が下がるほど減る)
 export function shiftKeyValue(value: number, rowDelta: number): number {
-  return Math.max(0, Math.min(KEY_VALUE_MAX, value - rowDelta * 0x100));
+  return clamp(value - rowDelta * 0x100, 0, KEY_VALUE_MAX);
 }
 
 // 掴みの移動量を「ノート先頭が負のクロックにならない」範囲にクランプする。
@@ -70,7 +71,7 @@ export function smartPlacement(d: SmartDrag, dragClock2: number, grid: number): 
   }
   if (d.mode === "head") {
     // 開始調整: 終了は固定で押下クロックに開始を合わせる (最短 1 グリッド)
-    const head = Math.max(0, Math.min(note.end - grid, dragClock2));
+    const head = clamp(dragClock2, 0, note.end - grid);
     return { head, len: note.end - head, rowKey };
   }
   // 掴み: 全体移動 + 音程移動
@@ -207,7 +208,7 @@ export function clampGroupOffset(offset: number, heads: readonly number[]): numb
 // 個別にクランプすると和音や旋律の形が崩れるため、全体を同じ量で止める
 export function clampGroupRowDelta(rowDelta: number, keyValues: readonly number[]): number {
   const rows = keyValues.map(keyValueToRow);
-  return Math.max(-Math.min(...rows), Math.min(KEYNUM - 1 - Math.max(...rows), rowDelta));
+  return clamp(rowDelta, -Math.min(...rows), KEYNUM - 1 - Math.max(...rows));
 }
 
 // 配置するノート。evs の clock は絶対値で、origin (元の先頭) からの相対位置を保って head へ置く

@@ -31,6 +31,7 @@ import {
 } from "../../state/project";
 import { currentClock, seekToClock, isPlaying as isPlayingNow } from "../../state/player";
 import { previewUnitHold } from "../../engine/preview";
+import { clamp } from "../../lib/clamp";
 
 // 左のユニット名領域 = 左パネル + 鍵盤ストリップ。
 // レーンの開始位置をピアノロールフィールドと揃える (state/left-panel の nameW)
@@ -284,7 +285,7 @@ function onWheel(e: WheelEvent): void {
     if (rect) doc.scrollX = zoomAnchorScrollX(doc.zoom, zoom, doc.scrollX, e.clientX - rect.left, nameW.value);
     doc.zoom = zoom;
   } else if (pan !== null) doc.scrollX = Math.max(0, doc.scrollX + pan);
-  else if (e.deltaY !== 0) rawRowOffset.value = Math.max(0, Math.min(maxRowOffset(), rowOffset() + Math.sign(e.deltaY)));
+  else if (e.deltaY !== 0) rawRowOffset.value = clamp(rowOffset() + Math.sign(e.deltaY), 0, maxRowOffset());
 }
 </script>
 

@@ -1,5 +1,8 @@
 // 出力レベルメーターの計算 (state 層に依存しない純関数)
 // エンジンは出力を int16 の ±32767 に飽和させるため、この値に達したら音割れとみなす
+
+import { clamp } from "./clamp";
+
 export const CLIP_SAMPLE = 32767;
 
 // 表示する範囲の下限 (dBFS)
@@ -17,5 +20,5 @@ export function levelToPercent(peak: number): number {
   if (peak <= 0) return 0;
   const db = 20 * Math.log10(peak);
   const percent = ((db - METER_FLOOR_DB) / -METER_FLOOR_DB) * 100;
-  return Math.max(0, Math.min(100, percent));
+  return clamp(percent, 0, 100);
 }

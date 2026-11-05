@@ -45,6 +45,7 @@ import {
 import type { WavePreset } from "../../state/voice";
 import { appConfirm } from "../../state/dialog";
 import { t } from "../../i18n";
+import { clamp } from "../../lib/clamp";
 
 const props = defineProps<{ side: number }>();
 const emit = defineEmits<{ (e: "edit"): void }>();
@@ -100,15 +101,15 @@ function makeSliderModel(get: () => number, set: (v: number) => void) {
 
 const volumeModel = makeSliderModel(
   () => currentVoiceUnit()?.volume ?? 64,
-  (v) => setVoiceUnit((c) => (c.volume = Math.max(0, Math.min(64, Math.round(v))))),
+  (v) => setVoiceUnit((c) => (c.volume = clamp(Math.round(v), 0, 64))),
 );
 const panModel = makeSliderModel(
   () => currentVoiceUnit()?.pan ?? 64,
-  (v) => setVoiceUnit((c) => (c.pan = Math.max(0, Math.min(128, Math.round(v))))),
+  (v) => setVoiceUnit((c) => (c.pan = clamp(Math.round(v), 0, 128))),
 );
 const correctModel = makeSliderModel(
   () => Math.round(((currentVoiceUnit()?.tuning ?? 1) - 1) * 10000),
-  (v) => setVoiceUnit((c) => (c.tuning = 1 + Math.max(-128, Math.min(128, Math.round(v))) / 10000)),
+  (v) => setVoiceUnit((c) => (c.tuning = 1 + clamp(Math.round(v), -128, 128) / 10000)),
 );
 
 // リリース区間長 (本家 ptuiReleaseTime 準拠)。
@@ -129,7 +130,7 @@ const releaseModel = makeSliderModel(
       // 本家 ptuiReleaseTime 準拠: スライダー 0..100 ↔ データ 1..1000 (0 は 1 にクランプ、tail は維持)
       c.envelope.tailNum = Math.max(1, c.envelope.tailNum);
       const p = c.envelope.points[hc] ?? (c.envelope.points[hc] = { x: 0, y: 0 });
-      p.x = Math.max(1, Math.min(1000, Math.round(v) * 10));
+      p.x = clamp(Math.round(v) * 10, 1, 1000);
     }),
 );
 
@@ -303,7 +304,7 @@ function setSine(i: number, v: number): void {
   if (waveType.value === "coord" && i === 0) return; // 座標モードの点0 は固定
   const c = currentVoiceUnit();
   if (!c || !c.wave.points[i]) return;
-  c.wave.points[i]!.y = Math.max(-128, Math.min(128, Math.round(v)));
+  c.wave.points[i]!.y = clamp(Math.round(v), -128, 128);
   touch();
 }
 

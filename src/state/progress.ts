@@ -7,6 +7,7 @@
 // - state 層だが Vue の reactive 以外に依存しない (node テストから直接呼べる)
 import { reactive } from "vue";
 import { popModal, pushModal } from "./ui";
+import { clamp } from "../lib/clamp";
 
 // ダイアログを表示するまでの猶予 (これより速く終わる処理では出さない)
 export const PROGRESS_SHOW_DELAY_MS = 300;
@@ -57,7 +58,7 @@ export function isProgressRunning(): boolean {
 }
 
 function clamp01(v: number): number {
-  return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0;
+  return Number.isFinite(v) ? clamp(v, 0, 1) : 0;
 }
 
 function beginTask(title: string, cancellable: boolean, showDelayMs: number): void {

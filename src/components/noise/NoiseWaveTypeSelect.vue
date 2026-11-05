@@ -7,6 +7,7 @@ import { ChevronDown } from "@lucide/vue";
 import { WaveType } from "pxtone-ts";
 import { NOISE_WAVE_TYPES } from "../../lib/noise";
 import { noiseWaveSamplePath } from "../../lib/noise-wave-samples";
+import { clamp } from "../../lib/clamp";
 
 const props = defineProps<{ modelValue: WaveType }>();
 const emit = defineEmits<{ (e: "update:modelValue", v: WaveType): void }>();
@@ -41,7 +42,7 @@ function placePopup(): void {
   if (!b || !p) return;
   const width = Math.max(POPUP_WIDTH, b.width);
   const height = p.offsetHeight;
-  const left = Math.max(2, Math.min(b.left, window.innerWidth - width - 2));
+  const left = clamp(b.left, 2, window.innerWidth - width - 2);
   // 下に収まらなければ上へ開く (画面端で切れないようにクランプ)
   const top =
     window.innerHeight - b.bottom >= height + 4

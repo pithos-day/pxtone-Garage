@@ -1,5 +1,7 @@
 // クロック ↔ ピクセル変換・グリッド計算
 
+import { clamp } from "./clamp";
+
 // ズームは 1 拍あたりのピクセル幅。メニューのプリセットは ZOOM_TABLE に残し、
 // ホイールでは ZOOM_MIN..ZOOM_MAX の範囲で連続的に変化させる
 export const ZOOM_TABLE = [24, 48, 96, 192] as const;
@@ -10,7 +12,7 @@ export const ZOOM_MAX = 512;
 // 表示や保存を考えて小数 2 桁までに揃える
 export function clampZoom(zoom: number): number {
   if (!Number.isFinite(zoom)) return ZOOM_TABLE[1];
-  return Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom)) * 100) / 100;
+  return Math.round(clamp(zoom, ZOOM_MIN, ZOOM_MAX) * 100) / 100;
 }
 
 // ズームスライダーの位置 (0..ZOOM_SLIDER_MAX) とズーム値の変換。
@@ -105,7 +107,7 @@ export function measBeatClockToClock(view: ClockView, meas: number, beat: number
 // 薄くなるようにする。既定の zoom (ZOOM_TABLE[1] = 1 拍 48px) で 1px、それ以外は線幅を
 // その比率にスケールする (上限 1px で打ち切り、下限 0.25px で視認性を保つ)
 export function gridLineWidth(zoom: number): number {
-  return Math.max(0.25, Math.min(1, zoom / ZOOM_TABLE[1]));
+  return clamp(zoom / ZOOM_TABLE[1], 0.25, 1);
 }
 
 export function formatClock(view: ClockView, clock: number): string {

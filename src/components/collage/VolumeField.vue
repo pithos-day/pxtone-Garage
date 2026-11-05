@@ -22,6 +22,7 @@ import {
   woices,
 } from "../../state/project";
 import { currentClock, isPlaying as isPlayingNow } from "../../state/player";
+import { clamp } from "../../lib/clamp";
 
 const H = 128; // 値の最大 (0..128)。canvas の高さは親 (collage-vol) に stretch される
 const canvasRef = ref<HTMLCanvasElement | null>(null);
@@ -177,7 +178,7 @@ function valueAt(y: number, grid = 2): number {
   const canvasH = canvasRef.value?.clientHeight ?? H;
   const fH = canvasH - RULER_H;
   const v = Math.round((fTop + fH - y) / grid) * grid;
-  return Math.max(0, Math.min(128, v));
+  return clamp(v, 0, 128);
 }
 
 function applyDragAt(d: CanvasDragState, y: number, e: PointerEvent): void {

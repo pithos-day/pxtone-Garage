@@ -38,6 +38,7 @@ import { COPIER_KINDS } from "../lib/eventKinds";
 import { service, ensureService } from "./service";
 import { pushUndo, clearUndo, snapshotProject, touchCurrentRevision, markCurrentRevisionSaved } from "./undo";
 import { t } from "../i18n";
+import { clamp } from "../lib/clamp";
 
 export type ToolMode = "W" | "U";
 
@@ -779,8 +780,8 @@ export function setWoiceProperties(idx: number, props: WoiceProperties): void {
     // 音色名は ShiftJIS・最大 16 バイト (本家 pxtnMAX_TUNEWOICENAME)
     w.setNameBuf(truncateShiftJis(encodeShiftJis(props.name), 16), 16);
     if (w.type !== WoiceType.PTV) {
-      vc.tuning = Math.min(256, Math.max(0, props.tuning));
-      vc.basicKey = Math.min(108, Math.max(21, props.basicKey)) * 0x100;
+      vc.tuning = clamp(props.tuning, 0, 256);
+      vc.basicKey = clamp(props.basicKey, 21, 108) * 0x100;
       let flags = vc.voiceFlags & ~WOICE_FLAG_MASK;
       if (props.waveLoop) flags |= PTV_VOICEFLAG_WAVELOOP;
       if (props.smooth) flags |= PTV_VOICEFLAG_SMOOTH;
@@ -1320,7 +1321,7 @@ export function setPlayStart(meas: number): void {
     doc.playStart = -1;
   } else {
     const max = service.master.measNum - 1;
-    doc.playStart = Math.max(0, Math.min(meas, max));
+    doc.playStart = clamp(meas, 0, max);
     if (doc.playEnd !== -1 && doc.playEnd <= doc.playStart) doc.playEnd = doc.playStart + 1;
   }
   doc.rev++;
@@ -1334,7 +1335,7 @@ export function setPlayEnd(meas: number): void {
     const max = service.master.measNum;
     // Start より前には置けない (Start 未設定なら 0)
     const minEnd = doc.playStart >= 0 ? doc.playStart + 1 : 0;
-    doc.playEnd = Math.max(minEnd, Math.min(meas, max));
+    doc.playEnd = clamp(meas, minEnd, max);
   }
   doc.rev++;
 }
@@ -1348,7 +1349,7 @@ export function normalizePlayRange(
 ): { start: number; end: number } {
   const lo = Math.min(startMeas, endMeas);
   const hi = Math.max(startMeas, endMeas);
-  const start = Math.max(0, Math.min(lo, measNum - 1));
+  const start = clamp(lo, 0, measNum - 1);
   const end = Math.min(Math.max(hi, start + 1), measNum);
   return { start, end };
 }

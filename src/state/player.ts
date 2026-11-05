@@ -9,6 +9,7 @@ import { decayLevel } from "../lib/level";
 import { leftW } from "./left-panel";
 import { readStorage, writeStorage } from "../lib/storage";
 import { buildMetronomeTones } from "../engine/metronome";
+import { clamp } from "../lib/clamp";
 
 export const player = new RealtimePlayer({
   onPosition: (sample) => {
@@ -270,7 +271,7 @@ export function seekToClock(clock: number): void {
   if (!s) return;
   // 曲の長さを超えないようにクランプ
   const maxClock = songLengthClock(s);
-  const c = Math.max(0, Math.min(maxClock, Math.trunc(clock)));
+  const c = clamp(Math.trunc(clock), 0, maxClock);
   const sec = clockToSec(s, c);
   player.seekSec(sec);
   positionSample.value = Math.trunc(sec * player.sampleRate);
@@ -287,7 +288,7 @@ function storedMasterVolume(): number {
   if (raw === null) return 1.0;
   const v = Number(raw);
   if (!Number.isFinite(v)) return 1.0;
-  return Math.min(1, Math.max(0, v));
+  return clamp(v, 0, 1);
 }
 
 // 起動時に呼ぶ。保存された音量をスライダーとプレイヤーへ適用する

@@ -117,6 +117,7 @@ import { clearClip, outputLevel, stop as stopPlayback, updateOutputLevel } from 
 import { currentAppDialog, acceptAppDialog } from "../src/state/dialog";
 import { droppedFiles, namedFiles, readBlobsAndApply, toArrayBuffer } from "../src/engine/io";
 import { pushRecent, dropRecent } from "../src/lib/recent-list";
+import { clamp } from "../src/lib/clamp";
 import { LEFT_W_DEFAULT, LEFT_W_MAX, LEFT_W_MIN, clampLeftW } from "../src/lib/layout";
 import { metronomeHits } from "../src/lib/metronome";
 import { quantizeNotes } from "../src/lib/quantize";
@@ -4373,6 +4374,12 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     setLanguage("ja");
     checkEq(lang.value, "ja", "i18n: 日本語へ戻せる");
   }
+
+  // ---- clamp ----
+  checkEq(clamp(5, 0, 10), 5, "clamp: 範囲内はそのまま");
+  checkEq(clamp(-1, 0, 10), 0, "clamp: 下限で止まる");
+  checkEq(clamp(11, 0, 10), 10, "clamp: 上限で止まる");
+  checkEq(clamp(5, 3, 1), 3, "clamp: 下限 > 上限なら下限を返す");
 
   // ---- Service Worker の登録判定 ----
 {

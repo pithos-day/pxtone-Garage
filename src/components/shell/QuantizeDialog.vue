@@ -5,6 +5,7 @@ import { DIVI_TABLE } from "../../lib/clock";
 import { doc, hasNoteSelection, quantize } from "../../state/project";
 import { t } from "../../i18n";
 import ModalDialog from "./ModalDialog.vue";
+import { clamp } from "../../lib/clamp";
 
 const emit = defineEmits<{ (e: "close"): void }>();
 
@@ -18,7 +19,7 @@ const target = computed(() => {
 });
 
 function onSubmit(): void {
-  const percent = Number.isFinite(strength.value) ? Math.min(100, Math.max(0, strength.value)) : 100;
+  const percent = Number.isFinite(strength.value) ? clamp(strength.value, 0, 100) : 100;
   quantize(divi.value, percent / 100, quantizeEnd.value);
   emit("close");
 }

@@ -4,6 +4,8 @@
 // キーの追加・変更や将来のカスタム割り当ては DEFINITIONS を書き換えるだけでよい。
 // state 層に依存しない純関数のみ (node テストから直接呼べる)
 
+import { clamp } from "./clamp";
+
 // 実行場所。キー入力は実行するコンポーネントごとに受け取る
 // (app = MenuBar が 3 タブ共通で実行 / collage = CollageEditor が実行)
 export type ShortcutArea = "app" | "collage";
@@ -264,5 +266,5 @@ export function arrowScrollX(scrollX: number, zoom: number, dir: -1 | 1): number
 
 // ↑/↓ のスクロール行 (本家 g_ScrlKeyV の cursor_move = 1 行 = KEY_HEIGHT)
 export function arrowScrollRow(scrollYKey: number, dir: -1 | 1, totalRows: number): number {
-  return Math.max(0, Math.min(Math.max(0, totalRows - 1), scrollYKey + dir));
+  return clamp(scrollYKey + dir, 0, Math.max(0, totalRows - 1));
 }

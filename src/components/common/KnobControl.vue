@@ -3,6 +3,7 @@
 // 細かい値は下の数値欄で入力する。begin は編集の直前に 1 ジェスチャ 1 回だけ発火する
 import { computed, ref } from "vue";
 import { KNOB_SWEEP, knobAngle, knobArcPath, knobNorm, knobValue } from "../../lib/knob";
+import { clamp } from "../../lib/clamp";
 
 const props = withDefaults(
   defineProps<{ modelValue: number; min: number; max: number; label: string; center?: number; log?: boolean }>(),
@@ -71,7 +72,7 @@ function onPointerUp(e: PointerEvent): void {
 function stepBy(direction: number, stepNorm: number): void {
   const next = knobValue(norm.value + direction * stepNorm, props.min, props.max, props.log);
   const v = next === props.modelValue ? props.modelValue + direction : next;
-  const clamped = Math.max(props.min, Math.min(props.max, v));
+  const clamped = clamp(v, props.min, props.max);
   if (clamped !== props.modelValue) emit("update:modelValue", clamped);
 }
 

@@ -1,6 +1,7 @@
 // 音声エディタ (ptVoice) の波形/エンベロープ座標変換 (純関数)。
 // px ↔ データ値の変換と最近傍点探索。VoiceSidePane から利用する
 import type { VoiceUnit } from "pxtone-ts";
+import { clamp } from "./clamp";
 
 export const WAVE_PAD = 12;
 export const SAMPLE_NUM = 256; // 本家 SCREEN_WAVE_MAIN 相当のサンプル数
@@ -22,24 +23,24 @@ export function coordY(h: number, y: number): number {
 // 描画領域からはみ出さないよう上下をクランプする (本家の yy クランプ相当)
 export function waveY(h: number, v: number, overtone: boolean): number {
   const scale = overtone ? h / 2 - WAVE_PAD : h - WAVE_PAD * 2;
-  return Math.max(WAVE_PAD, Math.min(h - WAVE_PAD, h / 2 - v * scale));
+  return clamp(h / 2 - v * scale, WAVE_PAD, h - WAVE_PAD);
 }
 
 export function coordPxToX(c: VoiceUnit, w: number, px: number): number {
   // 本家 _pos_fix は x を reso-1 にクランプする (x == reso の点があると
   // ptVoice.exe は読込自体を拒否するため、生成側で作らない)
-  return Math.max(0, Math.min(c.wave.reso - 1, Math.round(((px - WAVE_PAD) / (w - WAVE_PAD * 2)) * c.wave.reso)));
+  return clamp(Math.round(((px - WAVE_PAD) / (w - WAVE_PAD * 2)) * c.wave.reso), 0, c.wave.reso - 1);
 }
 
 // px → データ y。本家 _pos_fix 準拠で ±127 にクランプする
 export function coordPxToY(h: number, py: number): number {
-  return Math.max(-127, Math.min(127, Math.round(((h / 2 - py) / (h - WAVE_PAD * 2)) * 128)));
+  return clamp(Math.round(((h / 2 - py) / (h - WAVE_PAD * 2)) * 128), -127, 127);
 }
 
 // カーソル y → データ y。表示は volume スケールなので逆スケールする (volume=0 は不可)
 export function cursorToWaveY(h: number, py: number, volume: number): number {
   if (volume <= 0) return 0;
-  return Math.max(-127, Math.min(127, Math.round((coordPxToY(h, py) * 128) / volume)));
+  return clamp(Math.round((coordPxToY(h, py) * 128) / volume), -127, 127);
 }
 
 // ---- エンベロープ座標変換 (x は区間長ではなく累積描画座標。maxX はグラフ右端の累積 x) ----
@@ -55,11 +56,11 @@ export function enveY(h: number, y: number): number {
 
 // px → 区間長 x (上限 2000 は本家のドラッグ範囲上限)
 export function envePxToX(w: number, px: number, maxX: number): number {
-  return Math.max(0, Math.min(2000, Math.round(((px - WAVE_PAD) / (w - WAVE_PAD * 2)) * maxX)));
+  return clamp(Math.round(((px - WAVE_PAD) / (w - WAVE_PAD * 2)) * maxX), 0, 2000);
 }
 
 export function envePxToY(h: number, py: number): number {
-  return Math.max(0, Math.min(128, Math.round(((h - WAVE_PAD - py) / (h - WAVE_PAD * 2)) * 128)));
+  return clamp(Math.round(((h - WAVE_PAD - py) / (h - WAVE_PAD * 2)) * 128), 0, 128);
 }
 
 // エンベロープの x 上限: 末尾のヘッド点の 1.2 倍 (本家の余白と同様)。

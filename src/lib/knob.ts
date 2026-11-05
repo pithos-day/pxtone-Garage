@@ -1,12 +1,10 @@
 // ノブの値 <-> 正規化位置 (0..1) <-> 角度の変換と、円弧パスの生成。
 // log=true は 0 を含む範囲を log1p で対数化する (周波数 0..44100 など)
 
+import { clamp } from "./clamp";
+
 // 目盛りの両端の角度 (真上を 0 とするラジアン。±135 度)
 export const KNOB_SWEEP = (135 * Math.PI) / 180;
-
-function clamp(v: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, v));
-}
 
 export function knobNorm(value: number, min: number, max: number, log = false): number {
   if (max <= min) return 0;

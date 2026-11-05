@@ -8,6 +8,7 @@ import type { WoiceLink } from "./projects";
 import { createDocTabs, type TabDocBase } from "./doc-tabs";
 import { addRecent } from "./recent-files";
 import { pushHistoryEntry } from "../lib/noise";
+import { clamp } from "../lib/clamp";
 
 export const NOISE_UNIT_NUM = 4; // 本家 MAX_NOISEEDITUNITNUM
 export const NOISE_ENVE_NUM = 3; // 本家 MAX_NOISEEDITENVELOPENUM
@@ -21,7 +22,7 @@ export function resizeNoiseEnves(
   enves: { x: number; y: number }[],
   target: number,
 ): { x: number; y: number }[] {
-  const num = Number.isFinite(target) ? Math.max(1, Math.min(NOISE_ENVE_NUM, Math.round(target))) : 1;
+  const num = Number.isFinite(target) ? clamp(Math.round(target), 1, NOISE_ENVE_NUM) : 1;
   const out = enves.slice(0, num).map((p) => ({ ...p }));
   if (out.length === 0) out.push({ x: 0, y: 100 });
   while (out.length < num) {

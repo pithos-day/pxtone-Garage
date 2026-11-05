@@ -24,6 +24,7 @@ import { currentNoise, newNoise, editNoise, restoreNoiseHistory, pushNoiseHistor
 import { isModalOpen } from "../../state/ui";
 import { renderNoise, playPcmOnce } from "../../engine/preview";
 import { t } from "../../i18n";
+import { clamp } from "../../lib/clamp";
 
 // v-show で常時マウントされるため、Space は noise モードのときだけ有効にする
 const props = defineProps<{ active: boolean }>();
@@ -268,7 +269,7 @@ onBeforeUnmount(() => {
 });
 
 function clampWaveScroll(v: number): number {
-  return Math.max(0, Math.min(maxWaveScroll.value, v));
+  return clamp(v, 0, maxWaveScroll.value);
 }
 
 function scrollWaveBy(delta: number): void {
@@ -336,7 +337,7 @@ function drawPcm(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     if (f >= frames) break;
     for (let c = 0; c < PCM_CHANNELS; c++) {
       const v = pcm[f * PCM_CHANNELS + c]!;
-      const s16 = Math.max(-32768, Math.min(32767, Math.round(v * 32768)));
+      const s16 = clamp(Math.round(v * 32768), -32768, 32767);
       const hi = s16 >> 8;
       const center = chH * (c + 0.5);
       const baseline = chH * (c + 1);

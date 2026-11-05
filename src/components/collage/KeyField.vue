@@ -62,6 +62,7 @@ import {
 import { currentClock, seekToClock, isPlaying as isPlayingNow } from "../../state/player";
 import { previewUnitHold } from "../../engine/preview";
 import { getUnitColor } from "../../lib/theme";
+import { clamp } from "../../lib/clamp";
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 
@@ -80,7 +81,7 @@ function centerScroll(): void {
   }
   const fieldH = canvasRef.value?.clientHeight ?? 600;
   const visible = Math.max(1, Math.ceil(fieldH / KEY_HEIGHT));
-  doc.scrollYKey = Math.max(0, Math.min(KEYNUM - 1, row - Math.floor(visible / 2)));
+  doc.scrollYKey = clamp(row - Math.floor(visible / 2), 0, KEYNUM - 1);
 }
 
 onMounted(centerScroll);
@@ -370,7 +371,7 @@ function previewAt(y: number): void {
   if (!s) return;
   const focus = doc.focusUnit;
   if (focus < 0) return;
-  const row = Math.max(0, Math.min(KEYNUM - 1, rowAt(y)));
+  const row = clamp(rowAt(y), 0, KEYNUM - 1);
   const value = rowToKeyValue(row);
   hold.onPress();
   previewUnitHold(focus, value, EVENTDEFAULT_VELOCITY);
@@ -518,7 +519,7 @@ function updateGroupPreview(d: KeyDrag, g: GroupDrag, pt: { x: number; y: number
   g.lastRow = rowAt(pt.y);
   const rowDelta = clampGroupRowDelta(g.lastRow - d.row, keys);
   if (rowDelta !== g.rowDelta && doc.focusUnit >= 0) {
-    const r = Math.max(0, Math.min(KEYNUM - 1, d.row + rowDelta));
+    const r = clamp(d.row + rowDelta, 0, KEYNUM - 1);
     previewUnitHold(doc.focusUnit, rowToKeyValue(r), EVENTDEFAULT_VELOCITY);
   }
   g.rowDelta = rowDelta;
@@ -539,7 +540,7 @@ function updateSmartPreview(d: KeyDrag, pt?: { x: number; y: number }): void {
   if (st.mode === "grab" && st.rowDelta !== st.lastDelta) {
     const focus = doc.focusUnit;
     if (focus >= 0) {
-      const r = Math.max(0, Math.min(KEYNUM - 1, row));
+      const r = clamp(row, 0, KEYNUM - 1);
       previewUnitHold(focus, rowToKeyValue(r), EVENTDEFAULT_VELOCITY);
     }
   }
@@ -679,7 +680,7 @@ const { onPointerDown, onPointerMove, onPointerUp, drag: dragState } = useCanvas
     if (!s) return null;
     const focus = doc.focusUnit;
     if (focus < 0 || !s.unitGet(focus)) return null;
-    const row = Math.max(0, Math.min(KEYNUM - 1, rowAt(pt.y)));
+    const row = clamp(rowAt(pt.y), 0, KEYNUM - 1);
     const clock = clockAt(pt.x);
     if (e.button === 0) {
       if (pt.x < STRIP_W) {
@@ -789,7 +790,7 @@ function onWheel(e: WheelEvent): void {
     doc.scrollX = Math.max(0, doc.scrollX + pan);
     return;
   }
-  doc.scrollYKey = Math.max(0, Math.min(KEYNUM - 1, doc.scrollYKey + Math.sign(e.deltaY)));
+  doc.scrollYKey = clamp(doc.scrollYKey + Math.sign(e.deltaY), 0, KEYNUM - 1);
 }
 </script>
 

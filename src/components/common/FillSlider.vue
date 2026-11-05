@@ -2,6 +2,7 @@
 // 塗り表示付きのレンジスライダー。center を指定すると中央基準 (パンなど) で塗る。
 // 値の更新は v-model、contextmenu などのイベントは input へそのまま渡す。
 import { computed } from "vue";
+import { clamp } from "../../lib/clamp";
 
 defineOptions({ inheritAttrs: false });
 
@@ -14,7 +15,7 @@ const emit = defineEmits<{ (e: "update:modelValue", v: number): void }>();
 function pct(v: number): number {
   const range = props.max - props.min;
   if (range <= 0) return 0;
-  return (Math.max(props.min, Math.min(props.max, v)) - props.min) / range * 100;
+  return (clamp(v, props.min, props.max) - props.min) / range * 100;
 }
 
 const fillStyle = computed(() => {

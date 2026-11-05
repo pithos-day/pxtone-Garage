@@ -6,6 +6,7 @@ import { doc, getService } from "../../state/project";
 import { KEYNUM, KEY_HEIGHT } from "../../lib/clock";
 import { KEY_BAND_H } from "../../lib/layout";
 import { capturePointer, releasePointerCapture } from "../../lib/field";
+import { clamp } from "../../lib/clamp";
 
 const props = defineProps<{
   vertical?: boolean;
@@ -75,7 +76,7 @@ const offset = computed(() => {
 const frac = computed(() => {
   const cr = contentRange.value;
   if (cr <= 0) return 0;
-  return Math.min(1, Math.max(0, offset.value / cr));
+  return clamp(offset.value / cr, 0, 1);
 });
 
 const thumbPos = computed(() => frac.value * trackRange.value);
@@ -86,12 +87,12 @@ watch(contentRange, (cr) => {
 });
 
 function setFrac(f: number): void {
-  const clamped = Math.max(0, Math.min(1, f));
+  const clamped = clamp(f, 0, 1);
   const v = clamped * contentRange.value;
   if (!props.vertical) {
     doc.scrollX = Math.round(v);
   } else if (props.verticalKind === "key") {
-    doc.scrollYKey = Math.max(0, Math.min(KEYNUM - 1, Math.round(v / KEY_HEIGHT)));
+    doc.scrollYKey = clamp(Math.round(v / KEY_HEIGHT), 0, KEYNUM - 1);
   } else {
     doc.scrollYUnit = Math.round(v / 16);
   }

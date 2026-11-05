@@ -18,6 +18,7 @@ import { pxtnErrorMessage } from "./project";
 import type { WoiceLink } from "./projects";
 import { createDocTabs, type TabDocBase } from "./doc-tabs";
 import { addRecent } from "./recent-files";
+import { clamp } from "../lib/clamp";
 
 const WAVE_RESO = 256; // 本家 ptvCOODINATERESOLUTION
 const MAX_ENVE_POINT = 31; // 本家 ptvMAX_ENVELOPEPOINT
@@ -53,7 +54,7 @@ export function clampWavePointX(points: { x: number }[], idx: number, x: number,
   if (idx <= 0) return points[0]!.x;
   const minX = points[idx - 1]!.x;
   const maxX = idx < points.length - 1 ? points[idx + 1]!.x : reso - 1;
-  return Math.max(minX, Math.min(maxX, x));
+  return clamp(x, minX, maxX);
 }
 
 // 点追加: x でソートされた位置に挿入 (本家 _point_add)。同一 x は既存点の y を更新。
@@ -199,7 +200,7 @@ export function enveSetHeadPointX(points: { x: number; y: number }[], maxHead: n
   const prev = pos > 0 ? disp[pos - 1]!.x : 0;
   const next = pos < disp.length - 1 ? disp[pos + 1]!.x : -1; // -1 = 上限なし (末尾の有効点)
   const minX = prev + 1;
-  const clamped = next < 0 ? Math.max(minX, cx) : Math.max(minX, Math.min(next - 1, cx));
+  const clamped = next < 0 ? Math.max(minX, cx) : clamp(cx, minX, next - 1);
   points[idx]!.x = clamped - prev;
 }
 

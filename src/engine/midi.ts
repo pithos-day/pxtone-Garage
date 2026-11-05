@@ -7,6 +7,7 @@ import { Service, PxtnErr, MemoryIo, SEEK_SET, EventKind, WoiceType, PXTN_MAX_EV
 import { EXE_VER } from "../state/service";
 import { createDefaultWoice } from "../state/voice";
 import { encodeShiftJis, truncateShiftJis } from "../lib/sjis";
+import { clamp } from "../lib/clamp";
 
 // クロック/拍 (ptcop は beatClock=480 固定)
 const CLOCK_PER_BEAT = 480;
@@ -183,12 +184,12 @@ export function parseMidi(bytes: Uint8Array): MidiSong | null {
             const mpq = (bytes[eventPos]! << 16) | (bytes[eventPos + 1]! << 8) | bytes[eventPos + 2]!;
             if (mpq > 0) {
               const bpm = MICROS_PER_MINUTE / mpq;
-              tempo = Math.max(1, Math.min(400, Math.round(bpm)));
+              tempo = clamp(Math.round(bpm), 1, 400);
               tempoSet = true;
             }
           } else if (metaType === META_TIME_SIGNATURE && len.value >= 2 && !beatNumSet) {
             // 拍子 (nn/dd)。分子のみ使用
-            beatNum = Math.max(1, Math.min(16, bytes[eventPos]!));
+            beatNum = clamp(bytes[eventPos]!, 1, 16);
             beatNumSet = true;
           }
           eventPos += len.value;

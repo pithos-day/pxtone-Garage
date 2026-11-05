@@ -1,5 +1,6 @@
 // ノイズエディタの共通定数
 import { WaveType } from "pxtone-ts";
+import { clamp } from "./clamp";
 
 // 波形タイプの表示名と並び。本家 ptNoise の dlg_Noise_Design.cpp (type_table) と同一。
 // 値は pxWAVETYPE / pxtone-ts の WaveType に対応する (enum の定義順も本家と同じ)
@@ -32,14 +33,14 @@ export const NOISE_BUILT_SPS = 44100;
 export function secToEnveX(raw: string): number | null {
   const v = parseFloat(raw);
   if (!Number.isFinite(v)) return null;
-  return Math.max(0, Math.min(10000, Math.round(v * 1000)));
+  return clamp(Math.round(v * 1000), 0, 10000);
 }
 
 // % (表示値) → エンベロープ y (0..100)。無効値は null
 export function pctToEnveY(raw: string): number | null {
   const v = parseFloat(raw);
   if (!Number.isFinite(v)) return null;
-  return Math.max(0, Math.min(100, Math.round(v)));
+  return clamp(Math.round(v), 0, 100);
 }
 
 // ---- エンベロープグラフの編集 ----
@@ -54,11 +55,11 @@ export interface NoiseEnvePoint {
 const NOISE_ENVE_X_LIMIT = 10000;
 
 function clampEnveX(v: number): number {
-  return Math.max(0, Math.min(NOISE_ENVE_X_LIMIT, Math.round(v)));
+  return clamp(Math.round(v), 0, NOISE_ENVE_X_LIMIT);
 }
 
 function clampEnveY(v: number): number {
-  return Math.max(0, Math.min(100, Math.round(v)));
+  return clamp(Math.round(v), 0, 100);
 }
 
 export function noiseEnveCumulative(enves: readonly NoiseEnvePoint[]): number[] {
