@@ -181,8 +181,8 @@ const en: Record<keyof typeof ja, string> = {
   "transport.loop": "Repeat",
   "transport.metronome": "Metronome",
   "transport.followPlayback": "Follow playback position",
-  "transport.level": "Output level",
-  "transport.clip": "Clipping detected. Lower the volume (click to clear)",
+  "transport.level": "Output level (at 100% volume)",
+  "transport.clip": "Clipping at 100% volume. Lower the unit volumes (click to clear)",
   "transport.volume": "Volume",
   "transport.panels": "Panels",
 

@@ -180,8 +180,8 @@ const ja = {
   "transport.loop": "リピート",
   "transport.metronome": "メトロノーム",
   "transport.followPlayback": "再生位置に画面を追従",
-  "transport.level": "出力レベル",
-  "transport.clip": "音割れを検出しました。音量を下げてください (クリックで消去)",
+  "transport.level": "出力レベル (音量 100% 時)",
+  "transport.clip": "音量 100% で音割れしています。ユニットの音量を下げてください (クリックで消去)",
   "transport.volume": "音量",
   "transport.panels": "パネル",
 

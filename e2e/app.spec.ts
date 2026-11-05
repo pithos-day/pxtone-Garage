@@ -54,6 +54,19 @@ test('曲を再生すると時間が進む', async ({ page }) => {
   await page.locator('.play-btn').click()
 })
 
+// メーターは音量スライダーを掛ける前の値を示す (書き出し時の音割れを見逃さないため)
+test('音量を 0 にしてもレベルメーターは振れる', async ({ page }) => {
+  await putSampleFile(page, 'Moldau.ptcop')
+  await clickMenu(page, 'File', 'Open project')
+  await page.locator('input[type=range][title="Volume"]').fill('0')
+  await page.locator('.play-btn').click()
+  const fill = page.locator('.level-fill').first()
+  await expect
+    .poll(() => fill.evaluate((el) => parseFloat((el as HTMLElement).style.width)), { timeout: 10_000 })
+    .toBeGreaterThan(0)
+  await page.locator('.play-btn').click()
+})
+
 test('WAV を書き出せる', async ({ page }) => {
   await putSampleFile(page, 'Moldau.ptcop')
   await clickMenu(page, 'File', 'Open project')

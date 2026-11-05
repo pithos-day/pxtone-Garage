@@ -39,6 +39,8 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
   private playing = false;
   private sps = 44100;
   private loop = false;
+  // 音量スライダーの値。エンジンには渡さず出力段で掛ける
+  // (メーターが音量によらず、音量 100% で書き出したときの音割れを検出できるようにする)
   private volume = 1.0;
   // 前回のレベル通知以降の最大値 (int16 の絶対値)
   private peakLeft = 0;
@@ -87,7 +89,6 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
         break;
       case "setMasterVolume":
         this.volume = msg.volume;
-        this.service?.mooSetMasterVolume(msg.volume);
         break;
       case "setMutedUnits":
         this.mutedUnits = msg.units;
@@ -127,7 +128,6 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
     if (!svc.setDestinationQuality(2, sps)) return null;
     if (svc.tonesReady() !== PxtnErr.OK) return null;
     svc.mooSetLoop(this.loop);
-    svc.mooSetMasterVolume(this.volume);
     return svc;
   }
 
@@ -150,7 +150,7 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
     });
   }
 
-  // 再生位置を再設定 (シーク / 曲末からの再開)。ループ・ミュート・音量を維持する
+  // 再生位置を再設定 (シーク / 曲末からの再開)。ループ・ミュートを維持する
   private reseek(sample: number): void {
     this.clicks = [];
     if (!this.service) return;
@@ -167,7 +167,7 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
       measRepeat: this.playStartMeas >= 0 && this.playEndMeas > 0 ? this.playStartMeas : 0,
       fadeinSec: 0,
       flags: (this.loop ? PXTN_VOMIT_PREP_FLAG_LOOP : 0) | PXTN_VOMIT_PREP_FLAG_UNIT_MUTE,
-      masterVolume: this.volume,
+      masterVolume: 1,
     };
     svc.mooPreparation(prep);
   }
@@ -195,7 +195,7 @@ class PxtoneWorkletProcessor extends AudioWorkletProcessor {
       svc.Moo(this.scratch.subarray(0, n * chNum), n);
       for (let i = 0; i < n; i++) {
         for (let ch = 0; ch < chNum; ch++) {
-          out[ch]![offset + i] = this.scratch[i * chNum + ch]! / 32768;
+          out[ch]![offset + i] = (this.scratch[i * chNum + ch]! / 32768) * this.volume;
         }
       }
       this.measureLevel(n, chNum);
