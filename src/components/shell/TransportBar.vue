@@ -155,6 +155,22 @@ function releaseFocus(e: Event): void {
   flex: 1;
 }
 
+/* 文字は折り返さず、幅が足りないときはスライダーを縮める */
+.vol-label,
+.pct,
+.time,
+.clock,
+.panel-label {
+  flex: none;
+  white-space: nowrap;
+}
+
+.transport input[type="range"] {
+  flex: 0 1 110px;
+  min-width: 48px;
+  width: 110px;
+}
+
 .panel-label {
   font-size: var(--text-sm);
   color: var(--muted-foreground);
