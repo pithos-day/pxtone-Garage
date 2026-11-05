@@ -473,13 +473,6 @@ function shiftArr(a: boolean[], idx: number): boolean[] {
   return [...a.slice(0, idx), ...a.slice(idx + 1)];
 }
 
-export function replaceUnit(oldPlace: number, newPlace: number): void {
-  if (oldPlace === newPlace) return;
-  mutate(() => {
-    replaceUnitRaw(oldPlace, newPlace);
-  });
-}
-
 // ドラッグ中など、undo を自前で管理する場合の生操作。
 // 読み取り専用タブでは何もしない (呼び出し側のガード漏れに対する二重防御)
 export function replaceUnitRaw(oldPlace: number, newPlace: number): void {
@@ -825,12 +818,6 @@ export function setUnitNameAndWoice(unitIdx: number, name: string, woiceIdx: num
 export function setTempo(tempo: number): void {
   mutate(() => {
     service.master.set(service.master.beatNum, tempo, service.master.beatClock);
-  });
-}
-
-export function setBeatNum(beatNum: number): void {
-  mutate(() => {
-    service.master.set(beatNum, service.master.beatTempo, service.master.beatClock);
   });
 }
 
