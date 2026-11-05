@@ -159,6 +159,21 @@ test('Coordinate の点スライダーの最大値は保存しても符号が変
   await expect(row.locator('.vsp-sine-val')).toHaveText('127')
 })
 
+test('音色のスライダーを 1 回ドラッグすると undo 1 回で戻せる', async ({ page }) => {
+  await page.locator('.mode-tab').nth(1).click()
+  const param = page.locator('.vsp').first().locator('.vsp-param').first()
+  const box = (await param.locator('input').boundingBox())!
+  const y = box.y + box.height / 2
+  await page.mouse.move(box.x + box.width - 4, y)
+  await page.mouse.down()
+  await page.mouse.move(box.x + box.width / 2, y, { steps: 8 })
+  await page.mouse.up()
+  await expect(param.locator('.vsp-pval')).not.toHaveText('64')
+
+  await clickMenu(page, 'Edit', 'Undo')
+  await expect(param.locator('.vsp-pval')).toHaveText('64')
+})
+
 test('音色タブをメニューから閉じるときも未保存の 3 択を出す', async ({ page }) => {
   await page.locator('.mode-tab').nth(1).click()
   await clickMenu(page, 'File', 'New')

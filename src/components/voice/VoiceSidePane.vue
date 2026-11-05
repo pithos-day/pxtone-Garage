@@ -66,6 +66,16 @@ function setVoiceUnit(fn: (c: VoiceUnit) => void): void {
   touch();
 }
 
+// スライダーのドラッグは 1 ジェスチャで undo 1 エントリにする。
+// input はドラッグ中に連続して届くので最初の 1 回だけ積み、確定の change で区切る
+const paramUndo = useUndoOnce(() => editVoice(() => {}));
+function setParam(fn: (c: VoiceUnit) => void): void {
+  paramUndo.onBegin();
+  const c = currentVoiceUnit();
+  if (c) fn(c);
+  touch();
+}
+
 // スライダーモデル (Vol/Pan/補正値/Release) の共通ファクトリ。
 // getter は rev を参照して undo/redo 後の再描画でも最新値を返す
 function makeSliderModel(get: () => number, set: (v: number) => void) {
@@ -80,15 +90,15 @@ function makeSliderModel(get: () => number, set: (v: number) => void) {
 
 const volumeModel = makeSliderModel(
   () => currentVoiceUnit()?.volume ?? 64,
-  (v) => setVoiceUnit((c) => (c.volume = clamp(Math.round(v), 0, 64))),
+  (v) => setParam((c) => (c.volume = clamp(Math.round(v), 0, 64))),
 );
 const panModel = makeSliderModel(
   () => currentVoiceUnit()?.pan ?? 64,
-  (v) => setVoiceUnit((c) => (c.pan = clamp(Math.round(v), 0, 128))),
+  (v) => setParam((c) => (c.pan = clamp(Math.round(v), 0, 128))),
 );
 const correctModel = makeSliderModel(
   () => Math.round(((currentVoiceUnit()?.tuning ?? 1) - 1) * 10000),
-  (v) => setVoiceUnit((c) => (c.tuning = 1 + clamp(Math.round(v), -128, 128) / 10000)),
+  (v) => setParam((c) => (c.tuning = 1 + clamp(Math.round(v), -128, 128) / 10000)),
 );
 
 // リリース区間長 (本家 ptuiReleaseTime 準拠)。
@@ -101,7 +111,7 @@ const releaseModel = makeSliderModel(
     return c.envelope.tailNum > 0 ? Math.round((c.envelope.points[hc]?.x ?? 0) / 10) : 0;
   },
   (v) =>
-    setVoiceUnit((c) => {
+    setParam((c) => {
       const hc = enveHeadCount(c);
       // 本家 ptuiReleaseTime 準拠: スライダー 0..100 ↔ データ 1..1000 (0 は 1 にクランプ、tail は維持)
       c.envelope.tailNum = Math.max(1, c.envelope.tailNum);
@@ -190,7 +200,7 @@ function setSine(i: number, v: number): void {
       </div>
     </div>
     <VoiceWaveCanvas :unit="unit" :rev="rev" @update="setVoiceUnit" @touch="touch" />
-    <div class="vsp-params">
+    <div class="vsp-params" @change="paramUndo.reset" @focusout="paramUndo.reset">
       <label class="vsp-param">
         <span class="vsp-plabel">{{ t("voice.volume") }}</span>
         <FillSlider v-model="volumeModel" :min="0" :max="64" @contextmenu.prevent="resetVolume" />
