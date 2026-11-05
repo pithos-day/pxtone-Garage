@@ -170,7 +170,8 @@ test('音色のスライダーを 1 回ドラッグすると undo 1 回で戻せ
   await page.mouse.up()
   await expect(param.locator('.vsp-pval')).not.toHaveText('64')
 
-  await clickMenu(page, 'Edit', 'Undo')
+  // スライダーにフォーカスが残っていても Ctrl+Z が効く
+  await page.keyboard.press('Control+z')
   await expect(param.locator('.vsp-pval')).toHaveText('64')
 })
 

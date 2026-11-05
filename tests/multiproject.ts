@@ -26,7 +26,9 @@
 //   62. 翻訳辞書と言語の決定 / 63. 音色削除で VOICENO が追従する
 //   64. ユニットの並べ替えでミュート / 選択 / フォーカスが追従する / 65. ソロ中の並べ替え
 //   66. 壊れたファイルで音色を置き換えても元の音色が残る / 67. Coordinate の y は保存で反転しない
+//   68. スライダー上でも Ctrl 付きのショートカットが効く
 import { shouldRegisterServiceWorker } from "../src/lib/pwa";
+import { isKeyForFormControl } from "../src/composables/useGlobalKeys";
 import {
   projects,
   currentProjectId,
@@ -4614,6 +4616,19 @@ checkEq(doc.muted.length, 0, "ソロ対象削除: muted は空");
     vc.wave.points[1]!.y = -128; // ファイルには int8 の -128 があり得る
     applyWavePreset(vc, 5);
     checkEq(vc.wave.points[1]!.y, 127, "wave-y: Reverse しても範囲を超えない");
+  }
+
+  // ---- 68. スライダー上でも Ctrl 付きのショートカットが効く ----
+  {
+    const key = (tagName: string, type: string | undefined, ctrlKey: boolean): boolean =>
+      isKeyForFormControl({ target: { tagName, type } as unknown as EventTarget, ctrlKey, metaKey: false });
+    checkEq(key("INPUT", "range", true), false, "form-key: スライダー上の Ctrl+キーはショートカット");
+    checkEq(key("INPUT", "range", false), true, "form-key: スライダー上の矢印キーなどはスライダーのもの");
+    checkEq(key("INPUT", "text", true), true, "form-key: 文字入力欄の Ctrl+キーは入力欄のもの");
+    checkEq(key("INPUT", "number", true), true, "form-key: 数値入力欄の Ctrl+キーは入力欄のもの");
+    checkEq(key("TEXTAREA", undefined, true), true, "form-key: TEXTAREA は入力欄のもの");
+    checkEq(key("SELECT", undefined, true), true, "form-key: SELECT は部品のもの");
+    checkEq(key("DIV", undefined, false), false, "form-key: その他の要素はショートカット");
   }
 
   // ---- clamp ----
