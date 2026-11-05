@@ -233,17 +233,17 @@ function waveIndexAt(px: number, py: number, w: number, h: number): number {
 }
 
 function onWavePointerDown(e: PointerEvent): void {
-  const c = canvasRect(waveRef);
+  const canvas = canvasRect(waveRef);
   const unit = currentVoiceUnit();
-  if (!c || !unit || unit.type !== VoiceType.Coodinate) return;
-  const { x, y } = fieldOffset(c.el, e);
-  const idx = waveIndexAt(x, y, c.w, c.h);
+  if (!canvas || !unit || unit.type !== VoiceType.Coodinate) return;
+  const { x, y } = fieldOffset(canvas.el, e);
+  const idx = waveIndexAt(x, y, canvas.w, canvas.h);
   if (e.button === 2) {
     // 右クリック: 点を削除 (点0 は固定なので削除不可)
     if (idx > 0) {
-      setVoiceUnit((cc) => {
-        cc.wave.points.splice(idx, 1);
-        cc.wave.num = cc.wave.points.length;
+      setVoiceUnit((vc) => {
+        vc.wave.points.splice(idx, 1);
+        vc.wave.num = vc.wave.points.length;
       });
     }
     return;
@@ -251,34 +251,34 @@ function onWavePointerDown(e: PointerEvent): void {
   if (e.button !== 0) return;
   if (idx < 0) {
     // 空き領域クリック = 点を追加 (x でソートされた位置に挿入。最大31点 = 本家 ptvFIXNUM_WAVE_POINT)
-    const px = coordPxToX(unit, c.w, x);
-    const py = cursorToWaveY(c.h, y, unit.volume);
+    const px = coordPxToX(unit, canvas.w, x);
+    const py = cursorToWaveY(canvas.h, y, unit.volume);
     if (px <= 0) return; // x=0 は点0 が占有 (本家 _point_add 準拠)
-    setVoiceUnit((cc) => {
-      if (!insertWavePoint(cc.wave.points, px, py, 31)) return;
-      cc.wave.num = cc.wave.points.length;
+    setVoiceUnit((vc) => {
+      if (!insertWavePoint(vc.wave.points, px, py, 31)) return;
+      vc.wave.num = vc.wave.points.length;
     });
     return;
   }
   if (idx === 0) return; // 点0 は動かせない (本家 _point_set 準拠)
   waveDrag.value = { idx };
   dragUndo.reset();
-  capturePointer(c.el, e);
+  capturePointer(canvas.el, e);
 }
 
 function onWavePointerMove(e: PointerEvent): void {
   const d = waveDrag.value;
   if (!d) return;
-  const c = canvasRect(waveRef);
+  const canvas = canvasRect(waveRef);
   const unit = currentVoiceUnit();
-  if (!c || !unit) return;
-  const { x, y } = fieldOffset(c.el, e);
+  if (!canvas || !unit) return;
+  const { x, y } = fieldOffset(canvas.el, e);
   dragUndo.onBegin();
   // 前後の点を越えられないよう x をクランプ (本家 _point_set 準拠)
   const p = unit.wave.points[d.idx];
   if (!p) return;
-  p.y = cursorToWaveY(c.h, y, unit.volume);
-  const nx = coordPxToX(unit, c.w, x);
+  p.y = cursorToWaveY(canvas.h, y, unit.volume);
+  const nx = coordPxToX(unit, canvas.w, x);
   p.x = clampWavePointX(unit.wave.points, d.idx, nx, unit.wave.reso);
   touch();
 }
@@ -376,15 +376,15 @@ function envePointAt(
 }
 
 function onEnvePointerDown(e: PointerEvent): void {
-  const c = canvasRect(enveRef);
+  const canvas = canvasRect(enveRef);
   const unit = currentVoiceUnit();
-  if (!c || !unit) return;
-  const { x, y } = fieldOffset(c.el, e);
-  const hit = envePointAt(unit, c.w, c.h, x, y);
+  if (!canvas || !unit) return;
+  const { x, y } = fieldOffset(canvas.el, e);
+  const hit = envePointAt(unit, canvas.w, canvas.h, x, y);
   if (e.button === 2) {
     // 右クリック: ヘッド点を削除 (本家 _point_delete。有効点が1つのみなら不可)
     if (hit) {
-      setVoiceUnit((cc) => enveDeletePoint(cc.envelope.points, enveHeadCount(cc), hit.index));
+      setVoiceUnit((vc) => enveDeletePoint(vc.envelope.points, enveHeadCount(vc), hit.index));
     }
     return;
   }
@@ -392,25 +392,25 @@ function onEnvePointerDown(e: PointerEvent): void {
   if (hit) {
     enveDrag.value = hit;
     dragUndo.reset();
-    capturePointer(c.el, e);
+    capturePointer(canvas.el, e);
     return;
   }
   // 空き領域クリック = 点を追加 (累積座標を区間長に変換して挿入)
-  const cx = envePxToX(c.w, x, enveMaxHeadX(unit));
-  const cy = envePxToY(c.h, y);
-  setVoiceUnit((cc) => enveInsertPoint(cc.envelope.points, enveHeadCount(cc), cx, cy));
+  const cx = envePxToX(canvas.w, x, enveMaxHeadX(unit));
+  const cy = envePxToY(canvas.h, y);
+  setVoiceUnit((vc) => enveInsertPoint(vc.envelope.points, enveHeadCount(vc), cx, cy));
 }
 
 function onEnvePointerMove(e: PointerEvent): void {
   const d = enveDrag.value;
   if (!d) return;
-  const c = canvasRect(enveRef);
+  const canvas = canvasRect(enveRef);
   const unit = currentVoiceUnit();
-  if (!c || !unit) return;
-  const { x, y } = fieldOffset(c.el, e);
+  if (!canvas || !unit) return;
+  const { x, y } = fieldOffset(canvas.el, e);
   dragUndo.onBegin();
-  const cx = envePxToX(c.w, x, enveMaxHeadX(unit));
-  const cy = envePxToY(c.h, y);
+  const cx = envePxToX(canvas.w, x, enveMaxHeadX(unit));
+  const cy = envePxToY(canvas.h, y);
   // ドラッグ中の移動は undo を積まず直接書き換える (undo はジェスチャ先頭の1回)。
   // 前後の点を乗り越えられないよう累積座標でクランプして区間長へ変換
   enveSetHeadPointX(unit.envelope.points, enveHeadCount(unit), d.index, cx);
@@ -426,8 +426,8 @@ function onEnvePointerUp(e: PointerEvent): void {
 
 // ---- canvas 共通ヘルパ ----
 // canvas と CSS サイズを取得する (ポインタ座標は lib/field の fieldOffset で算出)
-function canvasRect(ref: { value: HTMLCanvasElement | null }): { el: HTMLCanvasElement; w: number; h: number } | null {
-  const el = ref.value;
+function canvasRect(canvasRef: { value: HTMLCanvasElement | null }): { el: HTMLCanvasElement; w: number; h: number } | null {
+  const el = canvasRef.value;
   if (!el) return null;
   const r = el.getBoundingClientRect();
   return { el, w: r.width, h: r.height };
