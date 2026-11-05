@@ -88,3 +88,22 @@ test('一度開けばネットワークなしで起動できる', async ({ page,
   expect(status).toBe(200)
   await context.setOffline(false)
 })
+
+test('音色の波形タイプの表示が undo と再読み込みに追従する', async ({ page }) => {
+  await page.locator('.mode-tab').nth(1).click()
+  const [coordinate, oscillator] = [0, 1].map((i) => page.locator('.vsp').first().locator('.seg button').nth(i))
+
+  await oscillator.click()
+  await page.locator('.dlg .btn-accent').click()
+  await expect(oscillator).toHaveAttribute('aria-pressed', 'true')
+
+  await page.keyboard.press('Control+z')
+  await expect(coordinate).toHaveAttribute('aria-pressed', 'true')
+  await page.keyboard.press('Control+y')
+  await expect(oscillator).toHaveAttribute('aria-pressed', 'true')
+
+  await page.reload()
+  await waitForApp(page)
+  await page.locator('.mode-tab').nth(1).click()
+  await expect(oscillator).toHaveAttribute('aria-pressed', 'true')
+})

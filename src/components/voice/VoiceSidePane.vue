@@ -4,7 +4,7 @@
 // Vol/Pan/補正値/Release のスライダー、点スライダー (本家 ptuiSines 準拠。
 // Coordinate では n 番目の点の y 座標表示として常時表示)、エンベロープ。
 // エンベロープは本家 ptuiEnvelope 準拠の「区間長 x + 累積描画」。
-import { computed, ref, watch } from "vue";
+import { computed, ref } from "vue";
 import FillSlider from "../common/FillSlider.vue";
 import { useCanvas } from "../../composables/useCanvas";
 import { useEditRev } from "../../composables/useEditRev";
@@ -53,8 +53,6 @@ const voice = computed(() => currentVoice());
 // rev は再描画トリガー、touch はプレビューキャッシュ破棄を親へ通知する
 const { rev, touch } = useEditRev(() => voice.value, () => emit("edit"));
 
-const waveType = ref<"coord" | "overtone">("coord");
-
 function currentVoiceUnit() {
   const v = voice.value;
   if (!v) return null;
@@ -62,14 +60,12 @@ function currentVoiceUnit() {
   return v.woice.getVoice(s);
 }
 
-watch(
-  () => voice.value,
-  (v) => {
-    if (!v) return;
-    const c = v.woice.getVoice(Math.min(props.side, v.woice.voiceNum - 1));
-    waveType.value = c?.type === VoiceType.Overtone ? "overtone" : "coord";
-  },
-);
+// 波形タイプは音色の実データから導く。別に状態を持つと、起動時の復元や undo / A・B コピーで
+// データとずれる。実体は markRaw のため rev で追従させる
+const waveType = computed<"coord" | "overtone">(() => {
+  void rev.value;
+  return currentVoiceUnit()?.type === VoiceType.Overtone ? "overtone" : "coord";
+});
 
 
 // ドラッグ/フォーカス中は最初の編集時のみ undo を積む (1 ジェスチャ = 1 エントリ)
@@ -164,7 +160,6 @@ async function setWaveType(type: "coord" | "overtone"): Promise<void> {
     if (!c) return;
     applyWaveTypeData(c, type);
   });
-  waveType.value = type;
   // スライダー (points 配列) を新しい波形に更新する
   touch();
 }
