@@ -4,7 +4,7 @@
 
 アプリ内のタブで ptCollage / ptVoice / ptNoise を切り替えて制作できます。
 
-![](/docs/assets/moldau-playing.png)
+[![デモ動画](https://img.youtube.com/vi/HHhy3-83RmA/maxresdefault.jpg)](https://youtu.be/HHhy3-83RmA)
 
 [サンプル曲を再生](https://pxtone.pithos.day/?sample=moldau)
 
