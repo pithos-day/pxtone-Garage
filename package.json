@@ -1,7 +1,7 @@
 {
   "name": "pxtone-garage",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "main": "electron/main.mjs",
   "desktopName": "pxtone-garage.desktop",
   "type": "module",
