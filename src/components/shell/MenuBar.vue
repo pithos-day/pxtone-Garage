@@ -277,6 +277,7 @@ const helpMenu = computed<MenuItem[]>(() =>
   buildHelpMenu({
     onSearch: () => (featureSearchOpen.value = true),
     onOpenGitHub: () => openInNewTab(REPOSITORY_URL),
+    onDownload: () => openInNewTab(`${REPOSITORY_URL}/releases`),
     onReportIssue: () => openInNewTab(`${REPOSITORY_URL}/issues`),
     onReset: () => void resetApp(),
     onOpenPxtone: () => openInNewTab(PXTONE_URL),

@@ -80,6 +80,7 @@ const ja = {
   // メニュー: Help
   "menu.help.search": "機能を検索",
   "menu.help.github": "GitHub",
+  "menu.help.download": "ダウンロード",
   "menu.help.reportIssue": "問題を報告",
   "menu.help.reset": "初期化",
   "menu.help.pxtone": "pxtoneについて",

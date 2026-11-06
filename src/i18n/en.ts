@@ -81,6 +81,7 @@ const en: Record<keyof typeof ja, string> = {
   // メニュー: Help
   "menu.help.search": "Search features",
   "menu.help.github": "GitHub",
+  "menu.help.download": "Download",
   "menu.help.reportIssue": "Report an issue",
   "menu.help.reset": "Reset",
   "menu.help.pxtone": "About pxtone",
