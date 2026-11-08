@@ -4,7 +4,9 @@
 
 アプリ内のタブで ptCollage / ptVoice / ptNoise を切り替えて制作できます。
 
-https://github.com/user-attachments/assets/ae723258-4076-4174-9d9b-cdb87d8728b6
+https://github.com/user-attachments/assets/f73b60e8-620e-4715-af3b-4a4693614de2
+
+[デモ動画](https://youtu.be/HHhy3-83RmA)
 
 [サンプル曲を再生](https://pxtone.pithos.day/?sample=moldau)
 
